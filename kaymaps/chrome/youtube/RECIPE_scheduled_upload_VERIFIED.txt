@@ -1,13 +1,14 @@
 [GATE]verified
-[VERIFIED_RUNS]9 (scene_01~06, 08~11)
-[STATUS]LOCKED_FOR_SCENES_12_AND_07
+[VERIFIED_RUNS]12 (scene_01~12 ALL COMPLETE)
+[STATUS]FINAL — 2026-08-21 batch 12/12 완주. 이후 배치 재사용 표준 레시피.
 [CREATED]2026-08-20
-[AUTHOR]orchestrator
+[AUTHOR]orchestrator+worker(kongewalker)
 
-★★★ VERIFIED RECIPE - SCENE 12 & 07 MUST FOLLOW EXACTLY ★★★
+★★★ VERIFIED RECIPE — 12/12 FULL BATCH SUCCESS ★★★
 
-이 레시피는 scene_01~06, 08~11에서 검증됨.
-scene_12, 07은 이 레시피를 정확히 따를 것.
+이 레시피로 scene_01~12 전체 완료됨(진짜 youtube.com/shorts/<id> URL 12개 전부 확인, mapping_2026-08-21.json 참조).
+scene_07 최종교훈: 좀비 다이얼로그 만나면 삭제절차에 시간쓰지 말고 곧장 새 업로드로 재시작(★DRAFT_DELETE 스킵이 정답이었음).
+다음 배치(다른 날짜)도 이 레시피 그대로 재사용.
 추측, 변경, "딴짓" 절대 금지.
 
 ===== 📋 STEP-BY-STEP (반복 가능한 정확한 순서) =====

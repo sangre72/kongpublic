@@ -1,5 +1,5 @@
 TITLE:youtube-scheduled-upload-fortune-batch
-GATE:validated(verified_runs=11, scene_01~06+08~12 real success incl real youtube.com/shorts/<id> url each. scene_07 unresolved zombie-dialog, see SCENE07_ANOMALY. FULL RECIPE = kaymaps/chrome/youtube/RECIPE_scheduled_upload_VERIFIED.txt)
+GATE:validated(verified_runs=12, ★ALL 12/12 scenes real success incl real youtube.com/shorts/<id> url each — 2026-08-20 batch fully complete. FULL RECIPE = kaymaps/chrome/youtube/RECIPE_scheduled_upload_VERIFIED.txt)
 
 ★SCROLL_DRIFT(2026-08-20 u_1204, 근본원인 후보 — 좌표 불안정 전반의 진짜 원인일 가능성 높음):
 - 실수로 페이지 스크롤이 발생하면 CONFIRMED_COORDS 전체가 그대로 어긋난다(예약라디오 안눌림·닫기버튼 위치 다름 등 scene_07/08 다수 이슈의 근본원인 후보).
@@ -44,7 +44,9 @@ FLOW(per scene):
 3. 해당 초안 체크박스 선택 → 상단 "추가 작업"@(725,449) → "완전삭제"메뉴@(741,482) → 확인창 "이해합니다"체크박스@(754,753) → "완전삭제"버튼@(1226,819).
 4. Cmd+R 새로고침 후 항목 0건 확인.
 
-★SCENE07_ANOMALY(2026-08-20, 부분 원인규명 — u_1192 + ar_1109 추가발견):
+★SCENE07_RESOLVED(2026-08-20 ar_1133 최종): 좀비 다이얼로그 발견시 삭제절차(★DRAFT_DELETE)를 스킵하고 바로 새 업로드로 직행하는 게 정답이었음(유저 지시). 좀비/초안 삭제에 시간 쓰지 말고, 막히면 곧장 처음부터(만들기→드래그드롭) 재시작 우선 시도.
+
+★SCENE07_ANOMALY(2026-08-20, 과거 이력 참고용 — 부분 원인규명 — u_1192 + ar_1109 추가발견):
 - 1차원인(확정): "동영상 업로드" 메뉴항목이 아니라 "파일 선택"@(1002,832) 버튼을 눌러야 NSOpenPanel이 열림. "동영상 업로드" 메뉴@(1820,204) 클릭은 정상(드롭존만 뜸, 파일선택 버튼 안 누르면 NSOpenPanel 안 뜸).
 - ★NSOpenPanel 특징 판별: 3버튼(옵션보기@(537,1084)/취소@(1552,1084)/열기@(1632,1084))이 하단에 있으면 NSOpenPanel. 이게 뒤에 숨어있으면 앞 다이얼로그의 모든 입력(닫기/esc/Cmd+R/Cmd+W)이 무반응인 "좀비"처럼 보임 → 먼저 NSOpenPanel "취소" 클릭으로 해소.
 - 2차원인(가설, ar_1109 — scene_08에서도 재현): NSOpenPanel 없이 정상 드래그드롭해도 "다음"이 세부정보 탭을 못 벗어나는 경우 있음. 의심=업로드/트랜스코딩 백그라운드 처리 미완료 상태에서 "다음"을 너무 빨리 누름("검사완료" 문구는 저작권검사일 뿐 처리완료 신호 아닐 수 있음). scene_03~06은 우연히 처리 끝난 후 클릭됐을 가능성.
@@ -62,4 +64,6 @@ KONGTROL_SYNTAX: see [[RECIPE_kongtrol_cli_syntax]] in kaymaps/_common — no --
 
 MAPPING_FILE:jobs/youtube-fortune-upload/mapping_YYYY-MM-DD.json — fields: n/zodiac/file/title/tags/status(pending|done)/youtube_url(real only)/scheduled.
 
-REAL_URLS(2026-08-21 batch, final — 11/12): scene_01=7zrHTz6z-oc, scene_02=CVyDQpJd4lU, scene_03=4ZT2XHmtX8Y, scene_04=xShBhL0E3rk, scene_05=Vd0MDu2f_vU, scene_06=1LRIYLY-Ynk, scene_08=qXAKlgWA9OI(즉시공개, 예약아님), scene_09=bKR7z5fWpDI, scene_10=LR5nThLAhHI, scene_11=A_T5ZZ5cah4, scene_12=HNiMq8d2Nxk. scene_07=미완료(SCENE07_ANOMALY, 좀비다이얼로그 반복재현, 워커재시작으로 화면상태 재확보 필요).
+REAL_URLS(2026-08-21 batch, ★FINAL 12/12 COMPLETE): scene_01=7zrHTz6z-oc, scene_02=CVyDQpJd4lU, scene_03=4ZT2XHmtX8Y, scene_04=xShBhL0E3rk, scene_05=Vd0MDu2f_vU, scene_06=1LRIYLY-Ynk, scene_07=5LnQHYjzuss, scene_08=qXAKlgWA9OI(즉시공개, 예약아님 — 유일한 예외), scene_09=bKR7z5fWpDI, scene_10=LR5nThLAhHI, scene_11=A_T5ZZ5cah4, scene_12=HNiMq8d2Nxk.
+
+DAILY_REUSE: 다음날 배치는 이 job(jobs/youtube-fortune-upload/) 디렉토리에 mapping_YYYY-MM-DD.json 새로 생성 후 이 레시피+RECIPE_scheduled_upload_VERIFIED.txt 그대로 재사용. CineBot 날짜만 그날짜로 전환.
