@@ -1,0 +1,27 @@
+TITLE:kongtrol-cli-syntax
+GATE:verified
+WHY:u_1179(2026-08-20) worker used `kongtrol click X Y`(top-level) repeatedly->command-not-found->wrongly diagnosed as PATH/install issue(a_1074 brew-install draft, wrong). Root cause=CLI syntax, not PATH/install. Binary already built local, no install needed.
+
+BIN_PATH:/Users/bumsuklee/git/kong-bot/kongtrol/target/release/kongtrol
+NOTE:kongtrol=repo name AND the binary name inside it. Both true, not contradictory.
+
+TOP_CMDS(kongtrol --help):
+process|sys|service|schedule|app|input|device|game|see|help
+
+INPUT_SUBCMDS(kongtrol input --help — most-used):
+- input click <x> <y> --yes   (NOT top-level `click`)
+- input text "<str>" --yes
+- input key <special> --yes   (left/right/up/down/space/enter/esc)
+- input chord <modifier> <key> --yes   (e.g. chord cmd n)
+- input drag ... --yes
+- input move <x> <y>
+- input location   (query cursor logical coord, no click)
+
+FLAGS:
+--yes REQUIRED for DANGEROUS cmds(input/app/etc) else exit=2 "사용자가 작업을 거부했습니다"(misleading msg, actual cause=missing --yes, NOT real user permission denial).
+--json for machine envelope. --dry-run to preview. --human for human-speed cursor interp+typed delay.
+
+WRONG(never do): `kongtrol click 100 100` / `kongtrol text "foo"` -> command not found (click/text are NOT top-level).
+RIGHT: `<BIN_PATH> input click 100 100 --yes`
+
+RULE: before first use in a fresh session, run `<BIN_PATH> --help` and `<BIN_PATH> input --help` once to reconfirm subcommand tree instead of guessing from memory.
