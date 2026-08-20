@@ -1,0 +1,11 @@
+RECIPE: auto_captions
+REG: a_904/ar_904(2026-08-19), 갱신 a_906/ar_906(2026-08-19)
+WHY: 음성 기반 자막 자동생성 흐름 확인.
+STEPS:
+1. 타임라인에서 대상 클립 선택(우측 패널이 Video 속성으로 전환됨).
+2. 상단 툴바 "Captions" 탭 클릭 → 좌측 서브메뉴(Auto captions/Templates/Auto lyrics/Add captions) + 언어 드롭다운 + "Identify filler words" 토글 표시. 좌측 사이드바는 a11y로 라벨(root_Captions·Auto captions·Add captions)까지 잡히나, "Generate" 버튼 자체는 a11y에 안 잡힘(캔버스 렌더링).
+3. 언어 확인(기본 English, 드롭다운은 알파벳순 스크롤 리스트 — Korean 선택하려면 스크롤 필요, kongtrol에 scroll 커맨드 없어 리스트 상단 6개(Arabic~English)만 클릭 가능 확인) → 우하단 "Generate"(Pro 배지) 버튼 클릭.
+4. 결과: 음성 없는 클립(정지이미지) = "No speech recognized" 팝업(확인됨, ar_904).
+   ★음성 있는 클립(mp4, aac 오디오 포함)으로 재시도(ar_906) → Generate 클릭이 좌표/이중클릭 모두 시도해도 무반응(화면 변화 전혀 없음, 로딩 표시도 없음).
+VERIFY: 실제 자막 생성까지는 미확인.
+NOTE: ★"Generate" 버튼에 Pro 배지가 붙어있음 — 음성인식 기반 자동자막 자체가 Pro(유료) 전용 기능이라 무료 계정에서는 클릭이 씹히는(결제 게이트, 무반응) 것으로 추정. 0-결제 원칙상 강제 진행 불가. 확정하려면 Pro 결제 없이 반응이 뭔지(예: 결제유도 모달이 떠야 정상인데 아예 안 뜸) 추가 조사 필요 — orch 판단 필요 사항으로 남김.

@@ -1,0 +1,8 @@
+RECIPE: coordinate_mapping(krita, this session a_971 2026-08-19)
+CONFIRMED: kongtrol input click/move logical coords == screenshot physical-pixel coords 1:1 DIRECTLY.
+No scale conversion needed in this session (contradicts older recipe notes about scale=2.0 or 2.06 —
+display/session config differs, ALWAYS re-verify per session).
+VERIFY METHOD: click a known dialog close-button coordinate as read directly off a `screencapture -x`
+PNG (no scaling), confirm it closes the right dialog. Confirmed 1x this session (click 630,491 closed
+브러시 편집기 dialog whose close-button appeared at screenshot pixel ~630,491).
+Canvas region this session (2480x3508 image, Fit View 67.1%): physical/logical x≈483-1293, y≈105-1246.

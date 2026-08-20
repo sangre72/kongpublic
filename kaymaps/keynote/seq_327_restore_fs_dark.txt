@@ -1,0 +1,19 @@
+# a_327 restore FS + dark — PLAN
+# 1) close menus 2) if windowed: 보기→전체 화면 시작 (NOT 종료)
+# 3) no Google color · no pill · no recreate unless Google missing (handled post-dump)
+# DUMP-NOW coords a_319 menubar FS: 보기 419,20 · 전체 화면 시작 518,778 (windowed)
+# wait 400-800 · one run
+app Keynote
+wait 400
+key esc
+wait 400
+dump
+# open 보기
+click 419 20
+wait 600
+dump
+# 전체 화면 시작 if present — label resolve after dump; if item 전체 화면 종료 only, skip click
+# Prefer labeled click when present
+click_label 전체 화면 시작
+wait 1000
+dump

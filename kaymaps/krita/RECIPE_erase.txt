@@ -1,0 +1,8 @@
+RECIPE: erase(krita)
+REG: a_522(2026-08-16), verified via root-cause analysis(2x drag attempts + layer-thumbnail inspection)
+WHY: core primitive — remove/undo painted pixels
+STEPS:
+1. select "지우개 모드 설정" checkbox(toolbar, top area) to toggle current brush into eraser mode(or select brush tool then toggle, order doesn't matter)
+2. kongtrol input drag <x1> <y1> <x2> <y2> --yes(erases along drag path on the ACTIVE layer only)
+VERIFY: active-layer pixels along drag path become transparent — what appears underneath depends on layers below(if bottom "Background" layer is white, erased area shows white, NOT necessarily "nothing")
+NOTE(important pitfall): erasing correctly makes the active layer transparent, but the RESULT color you see depends on lower layers. In this session's 2-layer canvas(black "칠하기 레이어 1" over white "Background"), erasing revealed white — this looked like "painting white by mistake" but was actually correct erase behavior. Always check layer thumbnails(레이어 panel) before concluding erase "isn't working."

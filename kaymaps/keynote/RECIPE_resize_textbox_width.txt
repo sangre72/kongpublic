@@ -1,0 +1,20 @@
+RECIPE: resize_textbox_width
+REG: a_455/463/472 verified(2026-08-16)
+WHY: numeric W/H edit for textbox, eyeball-coord-click caused repeated wrong-target clicks(canvas/other window)
+STEPS:
+1. select target textbox via direct canvas click(confirm blue border)
+   NOTE: sidebar object-list click=name-mismatch incidents happened→prefer direct canvas click
+2. inspector top tabs("스타일"/"텍스트"/"정렬")→click"정렬"→immediately a11y-confirm actual tab opened(no eyeball coord)
+3. get field coords via a11y dump(critical, fails without this):
+   kongtrol see --a11y --compact --pid <PID>
+   →find`AXTextField <val>pt`lines, eg: AXTextField 120pt 1903 266(=width field) / AXTextField 116pt 1992 266(=height field)
+   distinguish field by current displayed value(pt)(left=width, right=height)
+4. click Width field→wait300ms→cmd+a→type new value→enter
+   kongtrol input click <x> <y> --yes
+   kongtrol input chord cmd a --yes
+   kongtrol input text "<value>" --yes
+   kongtrol input key enter --yes
+5. 1x screenshot verify(wrap-fixed, value applied)
+VERIFY: field displayed value = input value, visual defect resolved
+BAN: click by eyeballed screenshot coord / cmd+a without field-click first(selects whole canvas) / double-click to select field(single-click+cmd+a is the verified stable method)
+NOTE: coords shift with window size/zoom→re-verify via a11y right before every click. reusable part="method", not"fixed coord values"

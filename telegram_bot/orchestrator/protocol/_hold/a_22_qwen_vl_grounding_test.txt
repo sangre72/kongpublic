@@ -1,0 +1,27 @@
+@A Qwen2.5-VL(MLX) resident grounding + a11y hybrid + design 1-slide test (u_42, after ar_21)
+
+★★PROCEED-B NOW (u_46 "you said ~2s"): user demands VL RESIDENT to prove 2s. worker chose (A) a11y+snapshot autonomously — OVERRIDE: do (B) RESIDENT-server FIRST. steps: ①start kongtrol-owned mlx_vlm server(port18090, model loaded once) ②MEASURE actual per-query latency→report the number(target ~2s, must confirm) ③use VL to ground canvas shape/image coords→design 1-slide. don't skip VL. a11y still for buttons/text. report measured latency to orch immediately after step②.
+
+WHY: user u_42 "qwen2.5-VL installed, check youtube-top/HF". orch found verified model. UI-TARS(90s slow)=dropped → Qwen2.5-VL(MLX 1.7~4.3s/img).
+FOUND(measured): model=mlx-community/Qwen2.5-VL-7B-Instruct-4bit(5.3GB). venv=~/vlm_env/bin/python. HF_HOME=~/hf_home. ref-worker=~/workspace-egov/youtube-top/python-server/services/vlm_local_worker.py (call-only). load3s+judge1.7~4.3s(measured 2026-07-15, RESIDENT-server mode).
+
+★NO-TOUCH: youtube-top files = READ/CALL only, ZERO edit (that project's own). kongtrol writes its own wrapper calling the model.
+
+ORCH_DECISION (ans to ar_22 needs-info; orch-decided per user-delegation u_43 "you do it all" + u_45 "show when done"):
+- subprocess-call = 90s (reloads 5.3GB each call) = impractical(measured). also coords degenerate(<|im_start|>, youtube judge-prompt).
+- → ADOPT (B) VL RESIDENT server = kongtrol-OWNED mlx_vlm server, model loaded once → 1.7~4.3s. NO-TOUCH kept: `HF_HOME=~/hf_home ~/vlm_env/bin/python -m mlx_vlm.server --model mlx-community/Qwen2.5-VL-7B-Instruct-4bit --port 18090` (kongtrol proc, free port). verified: model-cache exists · mlx_vlm.server module exists · ports 18081/82 free.
+- ON/OFF: start server at task-begin → kill at task-end (free 5.3GB). realtime(games) NEEDS resident (90s/call = games impossible). a11y = no server(<100ms).
+- COORD-PROMPT redesign: youtube judge-prompt degenerates on GUI coords → server API needs GUI-coord prompt e.g. "return center pixel {x,y} of <element> in this screenshot". measure coord accuracy.
+- decider=orch/worker(delegated, no further ask). proceed→finish 1-slide→result screenshot.
+
+TASK: connect Qwen2.5-VL as RESIDENT-server grounding eye → a11y+VL hybrid → build design Keynote 1-slide(shape+chart+image+layout) → completion screenshot(orch relays to user).
+
+EXP:
+1 VL wrapper (kongtrol/demo/ground_vl.sh, new): screenshot png + "<element desc>" → POST to resident VL server(port18090) w/ coord-prompt → parse {x,y}. replaces ground_uitars.sh. server lifecycle mgmt(start/stop). measure coord accuracy(click→reaction).
+2 hybrid grounding: a11y(ground.sh, buttons/text/toolbar <100ms FIRST) + fallback VL(ground_vl.sh, canvas/shape/image). unified iface.
+3 ★TEST design 1-slide: hybrid + keynote KB → place on 1 slide: title/body + [shape 1~2] + [chart 1] + [image 1] + layout(align/color). pure-vision(eye=a11y/VL·hand=physical). capture-verify each step.
+4 ★measure-verify(11.5A3, anti-fake-done): worker "done"≠actual. screenshot proving [shape·chart·image actually present]. orch cross-checks.
+
+CON: NO-TOUCH(youtube-top read/call only). NO-CODING=final PPT pure-vision(kongtrol tool-ext·VL wrapper coding OK). MAX-SPEED. NO-RECORDING(screenshots only). FULL-AUTONOMY(u_43): perm/install popups=worker clicks via vision+mouse, NO user-button-request.
+VERIFY(ar_22): R=VL resident+hybrid connected? + 1-slide [shape·chart·image] real success?(screenshot/fail-phase) · V=ground_vl.sh works(VL coord-accuracy·speed·server lifecycle)·hybrid·1-slide visual-elems measured·a11y+VL coop · F=ground_vl.sh·hybrid·result-screenshot · N=VL coord-precision measured·remaining
+USAGE: a11y+Qwen2.5-VL(resident) hybrid → design Keynote 1-slide / target=Keynote / src=a11y-tree+Qwen2.5-VL-vision+physical-input / out=ground_vl.sh·hybrid·1-slide screenshot / constraints=youtube-top no-touch·final pure-vision·no-recording

@@ -1,0 +1,3 @@
+[SUPERSEDED] 2026-08-14
+This a_93 draft is withdrawn. Do NOT pick up. Live a_93 = a_93_opt_scripts_quality.txt (u_173 analyze+opt+quality includes PREP/NEWDOC retry).
+[WORKER] STOP if you opened this file. Use a_93_opt_scripts_quality.txt only.

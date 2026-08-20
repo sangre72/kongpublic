@@ -1,0 +1,18 @@
+# reusable Keynote CLOSE — Keynote only. Don't Save both KO+EN.
+app Keynote
+key escape
+wait 200
+key escape
+wait 200
+click_label Keynote
+wait 400
+click_label Keynote 종료
+wait 800
+click_label 저장 안 함
+wait 500
+click_label 저장하지 않음
+wait 400
+click_label Don't Save
+wait 500
+click_label 삭제
+wait 400

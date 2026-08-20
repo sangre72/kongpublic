@@ -1,0 +1,9 @@
+RECIPE: sidebar_panels(VS Code)
+REG: a_979/981(2026-08-20)
+STEPS:
+1. 좌측 세로 아이콘바에서 각 패널 라디오버튼 클릭: Explorer(⇧⌘E)/Search(⇧⌘F)/Source Control(⌃⇧G)/Run and Debug(⇧⌘D)/Extensions(⇧⌘X) — a11y로 "AXRadioButton <이름> (<단축키>)" 라벨+좌표 확인 후 클릭.
+2. Search: Search/Replace 입력필드 노출.
+3. Source Control: git저장소 아니면 "Initialize Repository"/"Publish to GitHub" 버튼 노출(★클릭은 주의 — 실제 git init 발생, 안전조작만 원칙상 클릭 지양 권장).
+4. Run and Debug: "Open a file" 안내+"Run and Debug" 버튼(launch.json 없을때 기본화면).
+5. Extensions: 설치된 확장 목록(INSTALLED)+검색창+추천목록(RECOMMENDED)+MCP SERVERS 섹션.
+VERIFY: 각 클릭 직후 `see --a11y --compact | grep AXWindow`(첫줄)로 활성창이 의도한 창인지 재확인(다중창 환경 안전장치, a_980/981 사고교훈).

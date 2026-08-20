@@ -1,0 +1,16 @@
+PID 30490
+scan0=[]
+no_modal_initial
+win0={'label': '무제.key', 'w': 1500.0, 'h': 1000.0, 'x': 0.0, 'y': 40.0, 'area': 1500000.0}
+win1={'label': '무제.key', 'w': 1500.0, 'h': 1000.0, 'x': 0.0, 'y': 40.0, 'area': 1500000.0}
+fmt
+fill_labels=[]
+chips=[(1660.0, 453.0), (1660.0, 464.0)]
+chip_click 1660.0,453.0
+dark_spots
+win_final={'label': '무제.key', 'w': 1500.0, 'h': 1000.0, 'x': 0.0, 'y': 40.0, 'area': 1500000.0}
+wins_all=[('무제.key', 1500.0, 1000.0)]
+modal_left=[]
+canvas_mean_rgb=(32.0, 33.0, 36.0)
+shot=2542733
+ELAPSED=10

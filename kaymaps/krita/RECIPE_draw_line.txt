@@ -1,0 +1,9 @@
+RECIPE: draw_line(krita)
+REG: a_522(2026-08-16), verified 2x
+WHY: core primitive — straight line stroke
+STEPS:
+1. select freehand brush tool(toolbar, "자유형 브러시 도구")
+2. kongtrol input drag <x1> <y1> <x2> <y2> --yes
+VERIFY: clean straight line rendered between two points, current foreground color
+NOTE: single drag = single straight segment only. For curves, chain multiple short drags(endpoint of one = startpoint of next).
+SIZE_VARIATIONS(a_531, verified 2026-08-16): tested 3px(thin)/10px(medium)/30px(thick) — all visually distinct widths, linear scaling confirmed. Size field usage same as RECIPE_draw_dot.txt.

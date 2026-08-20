@@ -1,0 +1,19 @@
+PID 30490
+MAX={'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}
+FS_ok
+list_toggle
+objs_before=[('Google', 120.0), ('사각형', 154.0), ('사각형', 188.0)]
+deleted_extra_rect cy=188.0
+RECT_GONE_abort_delete
+objs_after_trim=[]
+NO_RECT
+objs_final_pre_shot=[]
+menus_final=['Apple', 'Keynote', '파일', '편집', '삽입', '슬라이드', '포맷', '정렬', '보기', '재생', '윈도우', '도움말']
+wins_final=[{'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}]
+objs_final=[]
+shot=283700
+ELAPSED=6
+
+---FINAL_SNAP---
+objs=[('사각형', 120.0), ('텍스트', 154.0)]
+shot=297462

@@ -1,0 +1,30 @@
+RECIPE: screen_recording(macOS, start/stop, 3 modes)
+REG: a_993(2026-08-20)
+WHY: repeated ad-hoc screen-recording start/stop across a_982~992 lacked a single consolidated recipe — start-flow(Spotlight-launch of screenshot-tool) was fine but stop-flow(menubar stop-icon) had a coord-conversion bug(see [[screenshot_coord_conversion]](kaymaps/_common/RECIPE_screenshot_coord_conversion.txt)) that repeated-missed 4x in a_992 before diagnosis. This recipe consolidates the verified start/stop procedure + documents mode-selection for all 3 recording types.
+
+STEPS:
+START(common to all 3 modes):
+1. `input chord cmd space`(Spotlight)→`input text "screenshot"`→`input key enter` → launches macOS Screenshot.app, toolbar appears bottom-center(NOT the Cmd+Shift+5 shortcut itself — kongtrol chord only supports 1-modifier+1-key, Cmd+Shift+5 is 2-modifier+1-key, unsupported; Spotlight-launch is the verified workaround).
+2. `see --a11y --compact --pid $(pgrep -x screencaptureui)` → toolbar buttons exposed w/ logical coords: "전체 화면 캡처"/"선택한 윈도우 캡처"/"선택 부분 캡처"/"전체 화면 기록"/"선택한 윈도우 기록"/"선택 부분 기록"/"옵션"/capture-or-record-trigger-btn(label toggles "캡처"↔"기록"↔"녹화" depending on last-selected mode).
+3. MODE-A [전체화면 녹화]: click "전체 화면 기록" → trigger-btn label becomes "기록" → click trigger-btn → recording starts(no further clicks needed, records main display).
+4. MODE-B [특정앱/윈도우만 녹화]: click "선택한 윈도우 기록" → cursor becomes camera-icon hover-mode → click target app's window(app must be visible on screen first) → recording starts scoped to that window only. (NOT separately verified this session — inferred from toolbar button existing; if button absent on some macOS version, fallback = MODE-C tightly cropped to that window's bounds.)
+5. MODE-C [특정영역 녹화]: click "선택 부분 기록" → drag-select target rectangle on screen(press-drag-release) → confirm/click "기록"-labeled trigger inside the selection overlay → recording starts scoped to that region only. (NOT separately verified this session — toolbar exposes the button, standard macOS behavior expected but not empirically confirmed this round.)
+6. VERIFY-START: menubar top-right shows a red/dark record-indicator icon(circle-in-square or similar) — `screencapture -x <path>` full-screen, visually confirm icon presence near right edge of menubar.
+
+STOP(all 3 modes, same trigger):
+7. ★★SUPERSEDES prior guidance below(REG a_995/996, 2026-08-20) — DO NOT screenshot-pixel-math the menubar icon coords(unreliable, see LIMIT). ✓VERIFIED-RELIABLE METHOD instead: re-invoke the Spotlight-launch flow from START step 1(`input chord cmd space`→`input text "screenshot"`→`input key enter`) EVEN THOUGH a recording is already active — this re-opens/re-focuses the Screenshot.app toolbar(or exposes it if hidden), and its a11y tree THEN exposes an explicit `AXButton "화면 기록 중단"`(logical coord, e.g. seen at ~815,1292) AND a redundant `AXMenuBarItem "기록 중단"`(e.g. ~1594,20) — both a11y-derived, zero pixel-math needed. Click either; the "화면 기록 중단" toolbar button confirmed working.
+8. VERIFY-STOP by checking `find ~/Desktop -name "*.mov" -newermt "2 minutes ago"` — a new .mov file appearing confirms the recording was saved(macOS writes the file only on stop, not incrementally visible before that).
+9. unlike app-window-focus-dependent actions(cf [[close_app_dock]]), this stop-trigger does NOT require Cmd+Tab-style pre-activation — re-invoking Spotlight-launch works regardless of which app currently has focus.
+10. (SUPERSEDED, kept for context only) previously tried: raw menubar top-right stop-icon click via screenshot-pixel-coord math — required correct physical-resolution query(`system_profiler SPDisplaysDataType | grep -i resolution`) but STILL missed repeatedly across a_992/a_995(icon sits at large x-value where even small percentage errors compound to large absolute misses) — abandoned in favor of step 7's a11y-exposed-button method, which had zero misses once discovered.
+
+SAVE-LOCATION:
+- default = `~/Desktop/화면 기록 <timestamp>.mov`, no prompt shown.
+- changeable via toolbar "옵션" menu(location submenu) — NOT tested this session, default location used throughout.
+
+VERIFY:
+- new `~/Desktop/*.mov` file with mtime matching the stop-click timestamp = definitive recording-saved confirmation.
+- `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 <file>` to sanity-check duration matches expected elapsed wall-clock time(catches wrong-file mixups when multiple recordings exist).
+
+LIMIT/OPEN:
+- MODE-B(window-only) and MODE-C(region-only) toolbar flows are documented from UI-observation but not run end-to-end this session(all 3 demo recordings used MODE-A full-screen) — first actual use of B/C should re-verify+update this recipe with any surprises.
+- no confirmed keyboard-shortcut-only stop method tested(icon-click was always used).

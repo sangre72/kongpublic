@@ -1,0 +1,456 @@
+{
+  "signature": {
+    "project": "/Users/bumsuklee/git/kong-bot",
+    "fs": true,
+    "fs_confirm": "보기 menu 전체 화면 종료",
+    "screen": "3456x2234 Retina",
+    "win": "2056x1290",
+    "win_origin": "1028,684",
+    "scale": 1.0,
+    "captured_at": "2026-08-14T21:40:32",
+    "row_count": 44
+  },
+  "refresh_rule": "sig mismatch → dump rewrite then xy click; labeled=click_label first",
+  "rows": [
+    {
+      "id": "슬라이드",
+      "label": "슬라이드",
+      "role": "AXRadioButton",
+      "cx": 1921,
+      "cy": 107,
+      "w": 272,
+      "h": 30,
+      "bind": "label"
+    },
+    {
+      "id": "슬라이드_레이아웃_제목",
+      "label": "슬라이드 레이아웃, 제목",
+      "role": "AXButton",
+      "cx": 1921,
+      "cy": 168,
+      "w": 270,
+      "h": 94,
+      "bind": "label"
+    },
+    {
+      "id": "제목",
+      "label": "제목",
+      "role": "AXCheckBox",
+      "cx": 1920,
+      "cy": 265,
+      "w": 234,
+      "h": 17,
+      "bind": "label"
+    },
+    {
+      "id": "본문",
+      "label": "본문",
+      "role": "AXCheckBox",
+      "cx": 1920,
+      "cy": 290,
+      "w": 234,
+      "h": 17,
+      "bind": "label"
+    },
+    {
+      "id": "슬라이드_번호",
+      "label": "슬라이드 번호",
+      "role": "AXCheckBox",
+      "cx": 1920,
+      "cy": 315,
+      "w": 234,
+      "h": 17,
+      "bind": "label"
+    },
+    {
+      "id": "표준",
+      "label": "표준",
+      "role": "AXRadioButton",
+      "cx": 1861,
+      "cy": 387,
+      "w": 121,
+      "h": 24,
+      "bind": "label"
+    },
+    {
+      "id": "다이내믹",
+      "label": "다이내믹",
+      "role": "AXRadioButton",
+      "cx": 1981,
+      "cy": 387,
+      "w": 120,
+      "h": 24,
+      "bind": "label"
+    },
+    {
+      "id": "AXButton_2007_427",
+      "label": "",
+      "role": "AXButton",
+      "cx": 2007,
+      "cy": 427,
+      "w": 68,
+      "h": 25,
+      "bind": "xy"
+    },
+    {
+      "id": "그라디언트_채우기",
+      "label": "그라디언트 채우기",
+      "role": "AXPopUpButton",
+      "cx": 1921,
+      "cy": 460,
+      "w": 240,
+      "h": 22,
+      "bind": "label"
+    },
+    {
+      "id": "AXButton_1884_505",
+      "label": "",
+      "role": "AXButton",
+      "cx": 1884,
+      "cy": 505,
+      "w": 13,
+      "h": 30,
+      "bind": "xy"
+    },
+    {
+      "id": "아래쪽",
+      "label": "아래쪽",
+      "role": "AXButton",
+      "cx": 2001,
+      "cy": 490,
+      "w": 29,
+      "h": 24,
+      "bind": "label"
+    },
+    {
+      "id": "오른쪽",
+      "label": "오른쪽",
+      "role": "AXButton",
+      "cx": 2029,
+      "cy": 490,
+      "w": 28,
+      "h": 24,
+      "bind": "label"
+    },
+    {
+      "id": "슬라이드_레이아웃_편집",
+      "label": "슬라이드 레이아웃 편집",
+      "role": "AXButton",
+      "cx": 1921,
+      "cy": 1296,
+      "w": 202,
+      "h": 22,
+      "bind": "label"
+    },
+    {
+      "id": "검색",
+      "label": "검색",
+      "role": "AXButton",
+      "cx": 159,
+      "cy": 1315,
+      "w": 25,
+      "h": 22,
+      "bind": "label"
+    },
+    {
+      "id": "슬라이드_대상체_필터",
+      "label": "슬라이드 대상체 필터",
+      "role": "AXButton",
+      "cx": 317,
+      "cy": 1315,
+      "w": 17,
+      "h": 11,
+      "bind": "label"
+    },
+    {
+      "id": "보기",
+      "label": "보기",
+      "role": "AXMenuButton",
+      "cx": 168,
+      "cy": 88,
+      "w": 52,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "확대_축소",
+      "label": "확대/축소",
+      "role": "AXMenuButton",
+      "cx": 226,
+      "cy": 88,
+      "w": 63,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "슬라이드_추가",
+      "label": "슬라이드 추가",
+      "role": "AXCheckBox",
+      "cx": 294,
+      "cy": 88,
+      "w": 74,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "재생",
+      "label": "재생",
+      "role": "AXButton",
+      "cx": 645,
+      "cy": 88,
+      "w": 52,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "표",
+      "label": "표",
+      "role": "AXCheckBox",
+      "cx": 982,
+      "cy": 88,
+      "w": 48,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "차트",
+      "label": "차트",
+      "role": "AXCheckBox",
+      "cx": 1030,
+      "cy": 88,
+      "w": 48,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "텍스트",
+      "label": "텍스트",
+      "role": "AXButton",
+      "cx": 1078,
+      "cy": 88,
+      "w": 48,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "도형",
+      "label": "도형",
+      "role": "AXCheckBox",
+      "cx": 1126,
+      "cy": 88,
+      "w": 48,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "미디어",
+      "label": "미디어",
+      "role": "AXMenuButton",
+      "cx": 1176,
+      "cy": 88,
+      "w": 52,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "주석",
+      "label": "주석",
+      "role": "AXButton",
+      "cx": 1226,
+      "cy": 88,
+      "w": 48,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "공유",
+      "label": "공유",
+      "role": "AXButton",
+      "cx": 1563,
+      "cy": 88,
+      "w": 52,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "포맷",
+      "label": "포맷",
+      "role": "AXRadioButton",
+      "cx": 1908,
+      "cy": 88,
+      "w": 58,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "애니메이션",
+      "label": "애니메이션",
+      "role": "AXRadioButton",
+      "cx": 1966,
+      "cy": 88,
+      "w": 57,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "문서",
+      "label": "문서",
+      "role": "AXRadioButton",
+      "cx": 2023,
+      "cy": 88,
+      "w": 57,
+      "h": 42,
+      "bind": "label"
+    },
+    {
+      "id": "AXButton_14_53",
+      "label": "",
+      "role": "AXButton",
+      "cx": 14,
+      "cy": 53,
+      "w": 12,
+      "h": 14,
+      "bind": "xy"
+    },
+    {
+      "id": "AXButton_54_53",
+      "label": "",
+      "role": "AXButton",
+      "cx": 54,
+      "cy": 53,
+      "w": 12,
+      "h": 14,
+      "bind": "xy"
+    },
+    {
+      "id": "문서_동작",
+      "label": "문서 동작",
+      "role": "AXMenuButton",
+      "cx": 1125,
+      "cy": 52,
+      "w": 12,
+      "h": 18,
+      "bind": "label"
+    },
+    {
+      "id": "Apple",
+      "label": "Apple",
+      "role": "AXMenuBarItem",
+      "cx": 27,
+      "cy": 20,
+      "w": 34,
+      "h": 39,
+      "bind": "label"
+    },
+    {
+      "id": "Keynote",
+      "label": "Keynote",
+      "role": "AXMenuBarItem",
+      "cx": 81,
+      "cy": 20,
+      "w": 73,
+      "h": 39,
+      "bind": "label"
+    },
+    {
+      "id": "파일",
+      "label": "파일",
+      "role": "AXMenuBarItem",
+      "cx": 139,
+      "cy": 20,
+      "w": 43,
+      "h": 39,
+      "bind": "label"
+    },
+    {
+      "id": "편집",
+      "label": "편집",
+      "role": "AXMenuBarItem",
+      "cx": 182,
+      "cy": 20,
+      "w": 43,
+      "h": 39,
+      "bind": "label"
+    },
+    {
+      "id": "삽입",
+      "label": "삽입",
+      "role": "AXMenuBarItem",
+      "cx": 225,
+      "cy": 20,
+      "w": 43,
+      "h": 39,
+      "bind": "label"
+    },
+    {
+      "id": "슬라이드",
+      "label": "슬라이드",
+      "role": "AXMenuBarItem",
+      "cx": 279,
+      "cy": 20,
+      "w": 65,
+      "h": 39,
+      "bind": "label"
+    },
+    {
+      "id": "포맷",
+      "label": "포맷",
+      "role": "AXMenuBarItem",
+      "cx": 333,
+      "cy": 20,
+      "w": 43,
+      "h": 39,
+      "bind": "label"
+    },
+    {
+      "id": "정렬",
+      "label": "정렬",
+      "role": "AXMenuBarItem",
+      "cx": 376,
+      "cy": 20,
+      "w": 43,
+      "h": 39,
+      "bind": "label"
+    },
+    {
+      "id": "보기",
+      "label": "보기",
+      "role": "AXMenuBarItem",
+      "cx": 419,
+      "cy": 20,
+      "w": 43,
+      "h": 39,
+      "bind": "label"
+    },
+    {
+      "id": "재생",
+      "label": "재생",
+      "role": "AXMenuBarItem",
+      "cx": 462,
+      "cy": 20,
+      "w": 43,
+      "h": 39,
+      "bind": "label"
+    },
+    {
+      "id": "윈도우",
+      "label": "윈도우",
+      "role": "AXMenuBarItem",
+      "cx": 510,
+      "cy": 20,
+      "w": 54,
+      "h": 39,
+      "bind": "label"
+    },
+    {
+      "id": "도움말",
+      "label": "도움말",
+      "role": "AXMenuBarItem",
+      "cx": 564,
+      "cy": 20,
+      "w": 54,
+      "h": 39,
+      "bind": "label"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+# MODULE: chart_insert
+# PLAN: open 삽입>차트 and insert default type (2D 세로형 막대). Stop after insert (type picker resolved by one dump xy).
+# ARGS: (optional type label) — DEFAULT 2D 세로형 막대 @486,140
+# PRE: FS · BAN 종료 · no mid experiments · no live Google color
+# DUMP-NOW (a_319):
+# | control | xy | note |
+# | menubar 삽입 | 225,20 | |
+# | 삽입>차트 | 310,140 | |
+# | 삽입>차트>2D 세로형 막대 | 486,140 | first type — inserts |
+# | other types | 486,164…762 | see submenus.md nest 삽입>차트 |
+# wait 400–800
+# CALL: kongtrol --yes input run kaymaps/keynote/seq/chart_insert.txt
+# To pick other type: plug click 486 <cy from submenus>
+app Keynote
+wait 400
+dump
+click 225 20
+wait 400
+click 310 140
+wait 400
+# PLUG chart type — default 2D 세로형 막대
+click 486 140
+wait 800
+dump
+# stop after insert (no format/color)
+wait 400

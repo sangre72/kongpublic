@@ -1,0 +1,12 @@
+RECIPE: canvas_fit_reset(krita)
+REG: a_640(2026-08-18), verified 1x
+WHY: canvas can drift(scroll/pan/zoom) mid-session from stray clicks/drags, breaking all downstream fixed-coordinate math(grid-drawing, color-wheel offsets etc). Need a reliable one-shot reset back to a known reference state.
+STEPS:
+1. 보기(View) menu(logical menubar, e.g. 196,20) click
+2. hover-required submenu: click 보기 menu → input move to "Zoom, Rotate, and Mirror" row(hover to expand, single click on parent alone does NOT expand submenu — same pitfall as RECIPE_new_layer.txt's 레이어 menu)
+3. click "Reset Display" in the expanded submenu(a11y-reported coord changes with menu depth/session — re-query via `see --a11y --compact` for "Reset Display" text each time, do not hardcode)
+VERIFY: small toast appears top-left showing "확대/축소:67.1% 회전:0.0°"(or session's baseline zoom%) — confirms zoom+rotation both reset. Re-measure canvas logical bounds via white-pixel-scan(scan a horizontal+vertical line for canvas white vs gray background) — should match session's originally-measured reference bounds exactly.
+NOTE: "Fit to View"(also in same submenu) only resets zoom/pan to fit the window, does NOT explicitly reset rotation — "Reset Display" is the stronger/safer choice when unsure what got changed(covers zoom+pan+rotation together). Other useful items in same submenu: "캔버스 회전 초기화"(rotation-only reset), "Zoom to 100%"(zoom-only).
+PITFALL: this View menu also contains destructive-adjacent items(Detach Canvas, 캔버스만 표시) — stay on the exact "Zoom, Rotate, and Mirror" > "Reset Display" path, don't fat-finger nearby items in the long 보기 menu.
+
+★★MANDATORY(a_713, 2026-08-18, recurring violation flagged by user): NEVER blind-toggle fullscreen(보기>전체 화면 모드) assuming a known current state. ALWAYS screenshot FIRST to check: traffic-light buttons visible=windowed, none visible+no other app window visible=already fullscreen. Only toggle if the check shows the WRONG state. This exact mistake(toggling without checking) recurred at least twice(a_602 fixed it once, a_712/713 shows it recurred) — check-then-toggle is non-negotiable, not optional.

@@ -1,0 +1,33 @@
+PID 30490
+MAX={'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}
+FS_ok
+objs0=[('텍스트', 120.0), ('텍스트', 154.0), ('텍스트', 188.0), ('텍스트', 222.0), ('사각형', 256.0), ('텍스트', 290.0)]
+M1_start
+slide1_thumb_click
+fmt_click 1908.0,72.0
+M1_no_배경_on_screen
+M2_start
+M2_sel_rect
+M2_정렬_offscreen_skip
+M2_fields=[]
+M2_ok=False
+M3_start
+M3_도형 848.0,89.0
+M3_직사각 218.0,273.0
+M3_SE_drag_1
+M3_SE_drag_2
+M3_SE_drag_3
+M3_NW_drag_1
+M3_NW_drag_2
+M3_done
+M4_start
+M4_typed_Google
+M4_fields WH=[] XY=[]
+M4_drag_place
+M4_done
+methods_ok M1=False M2=False M3=True M4=True
+objs_final=[('텍스트', 137.0), ('텍스트', 171.0), ('텍스트', 205.0), ('텍스트', 239.0), ('텍스트', 273.0), ('사각형', 307.0), ('텍스트', 341.0)]
+wins_final=[{'label': '무제.key', 'x': 0.0, 'y': 40.0, 'w': 1500.0, 'h': 1000.0, 'area': 1500000.0}]
+fields_on_screen=[]
+shot=2674493
+ELAPSED=19

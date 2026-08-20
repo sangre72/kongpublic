@@ -1,0 +1,10 @@
+# MODULE: keynote_dialogs
+# PLAN: only Keynote-owned sheets. BAN closing other apps.
+# ALLOW: Keynote 업데이트 → 지금 안 함 (BAN App Store로 이동)
+# ALLOW: Keynote 저장 확인 if we caused it — 저장 or 취소 per job (never 종료)
+# BAN: 그룹 / 서체 / Fonts / Grok / Finder / Warp — do not close, do not Esc-all
+# BAN: 전체 화면 종료
+# dump AXWindow first. Act only if window belongs to Keynote pid / title 무제.key or Keynote sheet.
+app Keynote
+wait 200
+dump

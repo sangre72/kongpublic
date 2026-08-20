@@ -1,0 +1,27 @@
+# MODULE: text_content
+# PLAN: replace content of already-selected text object (cmd-a → type). 세로 텍스트 OFF if dump shows control.
+# ARGS: string  — plug only into `text` line (DEFAULT: Google)
+# PRE: text object selected / in edit · FS (fs_ensure) · BAN click_label 텍스트 (toolbar)
+# DUMP-NOW (a_319 submenus + prod_controls FS):
+# | control | xy | note |
+# | (selection) | — | caller selects text first |
+# | 세로 텍스트 | ABSENT in menubar dump | format panel checkbox — dump-NOW before click; if missing skip |
+# | 포맷 radio | 1937,93 | optional after edit |
+# ORDER: chord cmd-a → text ARG → enter · no mid experiments
+# wait 400–800
+# CALL: sed 's/text Google/text MyWord/' kaymaps/keynote/seq/text_content.txt > /tmp/tc.txt && kongtrol --yes input run /tmp/tc.txt
+# PROVE dry: kongtrol --yes input run kaymaps/keynote/seq/text_content.txt
+app Keynote
+wait 400
+dump
+# ensure edit focus on selection
+chord cmd a
+wait 200
+# PLUG string
+text Google
+wait 400
+key enter
+wait 400
+dump
+# 세로 OFF: only if dump-NOW shows labeled 세로 텍스트 on-screen (not present in a_319 menubar map — skip invent)
+wait 400

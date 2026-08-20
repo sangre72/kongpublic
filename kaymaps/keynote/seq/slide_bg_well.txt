@@ -1,0 +1,11 @@
+# MODULE: slide_bg_well
+# PLAN: slide thumbnail → 현재 채우기 / 색상 채우기 well → dark chip
+# LEARNED a_365 / a_377 PASS windowed. BAN FS. BAN 100pt-rect-as-bg.
+# PRE: windowed 1500 · click slide-1 so 배경 panel shows
+# | 현재 채우기 chip | 1451,444 (a_377) · alt 1660,453 (a_365)
+app Keynote
+wait 400
+dump
+click 1451 444
+wait 600
+dump

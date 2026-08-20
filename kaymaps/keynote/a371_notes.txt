@@ -1,0 +1,19 @@
+PID 30490
+win0={'label': '무제.key', 'w': 1500.0, 'h': 1000.0, 'area': 1500000.0}
+objs0=[('텍스트', 137.0), ('Google', 171.0), ('직사각형', 205.0)]
+sel_list_Google
+dbl_try 900,430
+dbl_list_Google
+cmd_a
+menu_보기 419.0,20.0
+view_menu=[('보기', 168.0, 89.0, 'AXMenuButton'), ('보기', 419.0, 20.0, 'AXMenuBarItem'), ('탭 막대 보기', 518.0, 57.0, 'AXMenuItem'), ('모든 탭 보기', 518.0, 81.0, 'AXMenuItem'), ('발표자 메모 보기', 518.0, 282.0, 'AXMenuItem'), ('눈금자 보기', 518.0, 352.0, 'AXMenuItem'), ('활동 패널 보기', 518.0, 470.0, 'AXMenuItem'), ('정렬 도구 보기', 518.0, 505.0, 'AXMenuItem'), ('빌드 순서 보기', 518.0, 529.0, 'AXMenuItem'), ('색상 보기', 518.0, 553.0, 'AXMenuItem'), ('이미지 조절 보기', 518.0, 577.0, 'AXMenuItem'), ('음악 브라우저 보기', 518.0, 601.0, 'AXMenuItem'), ('사진 및 비디오 브라우저 보기', 518.0, 625.0, 'AXMenuItem'), ('라이브 비디오 미리보기 표시', 518.0, 649.0, 'AXMenuItem'), ('경고 보기', 518.0, 719.0, 'AXMenuItem'), ('동기화 상태 보기', 518.0, 743.0, 'AXMenuItem'), ('전체 화면 시작', 518.0, 778.0, 'AXMenuItem')]
+click_색상_보기 518.0,553.0
+hexf=(132.0, 1198.0, '16진수 색상 #')
+white_lab=None
+typed_FFFFFF_in_16진수
+pt_readonly=[]
+objs_final=[('텍스트', 137.0), ('Google', 171.0), ('직사각형', 205.0)]
+win_final={'label': '무제.key', 'w': 1500.0, 'h': 1000.0, 'area': 1500000.0}
+canvas_mean_rgb=(32.0, 33.0, 36.0)
+shot=2666738
+ELAPSED=9

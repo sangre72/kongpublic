@@ -1,0 +1,9 @@
+# a_271 keep-bg-clean-logo
+# PLAN: keep locked 직사각형/#202124 · delete unlockeds · Google 72 W500 H120 @710,350 FFFFFF · pill 806×59 · btns
+# BAN: click locked bg · canvas cmd-a · Naver · ask
+# FIELD: click → wait200 → cmd-a → text → enter
+# ORDER: clean list → Google first → pill/btns by list-xy
+# (driver executed 2026-08-15)
+app Keynote
+wait 800
+dump

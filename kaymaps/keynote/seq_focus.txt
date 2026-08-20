@@ -1,0 +1,3 @@
+app Keynote
+wait 800
+# dump confirm menus 파일 편집 삽입 포맷 정렬 보기 재생

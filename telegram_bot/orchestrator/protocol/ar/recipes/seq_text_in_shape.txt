@@ -1,0 +1,6 @@
+app Keynote
+# shape already selected
+key enter
+wait 200
+# text <content>  (caller supplies)
+wait 300

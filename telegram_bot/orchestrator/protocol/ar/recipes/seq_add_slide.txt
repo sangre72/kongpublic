@@ -1,0 +1,3 @@
+app Keynote
+click_label 슬라이드 추가
+wait 400

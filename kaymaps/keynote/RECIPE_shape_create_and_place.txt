@@ -1,0 +1,11 @@
+RECIPE: shape_create_and_place
+REG: a_486/u_503(2026-08-16)
+WHY: ban"draw roughly then move later", place-on-create eliminates rework
+STEPS:
+1. shape tool→pick type→auto-created(roughly positioned)
+2. immediately click 정렬 tab
+3. get X/Y/W/H field coords via a11y(same method as RECIPE_resize_textbox_width.txt)
+4. type numeric target coords exactly(click→cmd+a→value→enter, all 4 fields)
+5. color=RECIPE_set_fill_color.txt(hex input)
+6. before next element, confirm coords via numeric re-query only, no screenshot needed(a_487)
+VERIFY: 정렬tab X/Y/W/H = target values

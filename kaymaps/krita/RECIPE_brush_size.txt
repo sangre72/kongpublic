@@ -1,0 +1,9 @@
+RECIPE: brush_size(krita)
+REG: a_525(2026-08-16), verified 2x(5px small, 50px large)
+WHY: dot/line/erase all scale with brush size — need reliable size-select before using those primitives at non-default size
+STEPS:
+1. locate size field in top toolbar("크기: <N>.00 픽셀", numeric input, NOT in a11y tree — use screenshot coord, roughly right of opacity field)
+2. click field → cmd+a → type new size(integer, px) → enter
+VERIFY: field displays new value, subsequent dot/line/erase strokes visibly match new diameter/width
+TESTED SIZES: 5px(small, precise detail work), 40px(default), 50px(large, bold strokes) — all rendered correctly proportional
+NOTE: toolbar coordinates shift if window/canvas layout changes(zoom level, panel visibility) — re-verify field position via screenshot if size-change doesn't visibly apply.

@@ -1,0 +1,11 @@
+EYEBROW: ABOUT SKY TALENT BANK
+HERO: 순간, 검증된 사람과 연결합니다
+BODY: SKY Talent Bank는 돌봄·의료 등 다직군 인력을 연결하는 매칭 플랫폼입니다. 자매 교육기관 스카이에듀케이션에서 양성한 전문 인력과 현장을 잇습니다.
+TAGLINE: 전문 인력을 매칭합니다
+SECTION: OUR BUSINESS
+SECTION_PT: 14
+HEADING: 5대 핵심업무
+HEADING_PT: 28
+# plan.md full form (when layout builds): 스카이인재뱅크의 5대 핵심업무
+CANVAS: 16:9
+# cards pending user lines: 교육연계 · 취업지원 · 경력관리 · 회원서비스 · 제휴협력

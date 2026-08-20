@@ -1,0 +1,20 @@
+PID 30490
+menus_ok
+MAX={'label': '무제.key', 'x': 0.0, 'y': 40.0, 'w': 1500.0, 'h': 1000.0, 'area': 1500000.0}
+fs_start
+MAX={'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}
+FS_ok
+objs=[('사각형', 218.0, 120.0)]
+selected_rect 사각형
+drag_SE 1048.0,764.0 -> 1726.0,1279.0
+drag_NW 968.0,684.0 -> 290,169.0
+drag_SE2
+after_drag_objs=[('사각형', 218.0, 120.0)]
+has_0=False
+has_202124=False
+google_typed_drag_size
+menus_final=['Apple', 'Keynote', '파일', '편집', '삽입', '슬라이드', '포맷', '정렬', '보기', '재생', '윈도우', '도움말']
+wins_final=[{'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}]
+objs_final=[('텍스트', 218.0, 120.0), ('사각형', 218.0, 154.0)]
+shot=295516
+ELAPSED=16

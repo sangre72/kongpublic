@@ -1,0 +1,8 @@
+# only if windowed (보기 has 전체 화면 시작)
+# dump lights unlabeled y~193 x<80, click MAX-X (green)
+# wait 1000
+# 보기 check 전체 화면 종료 present — do NOT click it
+app Keynote
+wait 400
+click 54 193
+wait 1000

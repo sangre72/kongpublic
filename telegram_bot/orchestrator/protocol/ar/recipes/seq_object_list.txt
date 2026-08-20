@@ -1,0 +1,7 @@
+app Keynote
+click_label 보기
+wait 400
+# toggle-aware:
+click_label 대상체 목록
+wait 400
+# or: 대상체 목록 보기 / 대상체 목록 가리기

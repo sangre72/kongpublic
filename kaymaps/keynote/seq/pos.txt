@@ -1,0 +1,36 @@
+# MODULE: pos
+# PLAN: set selected object position X/Y (slide pt) via 정렬 위치 fields only
+# ARGS: x y  — plug only these two values into text lines marked PLUG
+# DEFAULT_PLUG: x=710 y=350 (Google-style; replace before run if needed)
+# PRE: object selected · WINDOWED 1500 (FS puts 정렬 fields x>2056 — BAN FS)
+# LEARNED a_385: 정렬 tab 1457,124 · set X710 Y338 W500 on-screen
+# DUMP windowed a_385 / older FS coords invalid when windowed:
+# | 정렬 tab | 1457,124 |
+# | X/Y/W | dump-NOW after tab — do not use 1903,346 unless dump says so |
+# FIELD: click → wait 200 → chord cmd a → text → enter
+# wait 400–800 · no mid-run experiments · BAN invent · BAN click_label 텍스트
+# CALL (dry): sed -e 's/{{X}}/710/' -e 's/{{Y}}/350/' kaymaps/keynote/seq/pos.txt > /tmp/pos_run.txt && kongtrol --yes input run /tmp/pos_run.txt
+# PROVE dry (this file uses default plug already — runnable without sed):
+#   kongtrol --yes input run kaymaps/keynote/seq/pos.txt
+app Keynote
+wait 400
+dump
+click 1937 93
+wait 400
+click 2013 107
+wait 400
+# PLUG X
+click 1903 346
+wait 200
+chord cmd a
+text 710
+key enter
+wait 400
+# PLUG Y
+click 1992 346
+wait 200
+chord cmd a
+text 350
+key enter
+wait 400
+dump

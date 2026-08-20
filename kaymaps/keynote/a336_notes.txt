@@ -1,0 +1,35 @@
+menus_try0=['Apple', 'Keynote', '파일', '편집', '삽입', '슬라이드', '포맷', '정렬', '보기', '재생', '윈도우', '도움말']
+PID 30490
+WINDOWS=[{'label': '무제.key', 'x': 0.0, 'y': 40.0, 'w': 1500.0, 'h': 1000.0, 'area': 1500000.0}]
+MAX={'label': '무제.key', 'x': 0.0, 'y': 40.0, 'w': 1500.0, 'h': 1000.0, 'area': 1500000.0}
+fs_start
+WINDOWS=[]
+MAX=None
+fs_start
+TARGETS_p0=[('텍스트', 218.0, 137.0), ('사각형', 218.0, 171.0), ("I'm Feeling Lucky", 241.0, 205.0), ('Search Google or type a URL', 241.0, 239.0)]
+unlock_select 텍스트 @218.0,137.0
+click 잠금 해제 452.0,306.0
+unlock_select 사각형 @218.0,171.0
+click 잠금 해제 452.0,306.0
+unlock_select I'm Feeling Lucky @241.0,205.0
+click 잠금 해제 452.0,306.0
+unlock_select Search Google or type a URL @241.0,239.0
+click 잠금 해제 452.0,306.0
+TARGETS_p1=[('텍스트', 218.0, 137.0), ('사각형', 218.0, 171.0), ("I'm Feeling Lucky", 241.0, 205.0), ('Search Google or type a URL', 241.0, 239.0)]
+unlock_select 텍스트 @218.0,137.0
+click 잠금 해제 452.0,306.0
+unlock_select 사각형 @218.0,171.0
+click 잠금 해제 452.0,306.0
+unlock_select I'm Feeling Lucky @241.0,205.0
+click 잠금 해제 452.0,306.0
+unlock_select Search Google or type a URL @241.0,239.0
+click 잠금 해제 452.0,306.0
+LEFT_p0=[]
+LEFT_FINAL=[]
+leftover_empty=True
+CREATE start empty=True
+menus_final=['Apple', 'Keynote', '파일', '편집', '삽입', '슬라이드', '포맷', '정렬', '보기', '재생', '윈도우', '도움말']
+shot_keynote=True
+WINDOWS_final=[]
+shot=8256744
+ELAPSED=61

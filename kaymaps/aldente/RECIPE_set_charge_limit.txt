@@ -1,0 +1,30 @@
+RECIPE: set_charge_limit(AlDente, macOS menubar app)
+REG: a_982(2026-08-20), retrofit-compressed a_985
+WHY: dashboard "충전 제한"(K7 app-label, keep-orig) field=custom AXTextField, std delete/backspace NOT working(digits just append, 100→10080 pollution repeat). Cmd+A select-all also fails in-field-scope. GATE-rule(2x-fail→switch-method) case.
+
+STEPS:
+1. menubar icon missing → Spotlight(Cmd+Space)+"AlDente"+Enter. Already resident → click icon→dropdown.
+2. dropdown→"설정 열기"(K7 app-label) btn(a11y-coord)→dashboard window.
+3. sidebar "충전 제어"(K7 app-label) click→right-pane "충전 제한: NN %" AXTextField exposed.
+4. ★SET-VALUE(verified): click field→`input chord shift left` x2(existing val usu 2-3 digits)→full-text highlight(blue bg) confirmed→`input text "80"` overwrite→`input key return` confirm.
+   - FAIL(tried, NOT working): `input key backspace`(repeat, no effect on field, buggy-append instead) / `input chord cmd a`(select-all fails, occasional side-effect) / mouse press-drag-release in-field text-select(no highlight generated, coord-sensitive).
+4b. ★★PRECISE-PERCENT-ADJUST(REG a_988/989, 2026-08-20, gap-fill): field=plain numeric AXTextField(NOT slider/AXIncrementor/spinbox — confirmed no +/- stepper UI exists here, text-entry-only). Digit-count-BEFORE-select is critical — miscounting = wrong/garbage value.
+   - PROCEDURE: (i) click field once. (ii) zoom-crop `screencapture -R<fieldX-120>,<fieldY>,300,60` FIRST to read current digit-count visually(2 vs 3 digits changes repeat-count needed). (iii) `input key right` xN(N=5+, safe-overshoot — cursor clamps at field-end, no error) to guarantee cursor at end-of-text regardless of prior click landing mid-string. (iv) `input chord shift left` x(digit-count) to select exactly the existing value(NOT a fixed x2 — count first). (v) zoom-crop-verify full value highlighted(blue bg covers ALL digits, not partial). (vi) `input text "<target>"` overwrite. (vii) `input key return`. (viii) zoom-crop-verify final value.
+   - ★OBSERVED FAILURE MODE(a_988, 2nd verify-run): typed "90" while stale/wrong selection→field became "900"(concat not overwrite)→field auto-clamped to "100"(its own max-bound) on blur/re-check→had to redo select+overwrite from clean "100" state. Root-cause=cursor was NOT at field-end before shift+left(step iii skipped originally) → selection covered wrong substring → overwrite landed mid-string not full-replace.
+   - ★KEY INSIGHT: this field has an internal max-clamp(100) and min-clamp(presumably some floor, unconfirmed) — an accidental out-of-range typed value(e.g. "900") self-corrects to boundary on next read, which is a useful safety-net but must NOT be relied upon as the primary method(always verify+redo properly instead of hoping for clamp-rescue).
+5. VERIFY-mandatory(a11y proven stale/unreliable here, ar_982 evidence): `screencapture -R<x>,<y>,300~350,60~80` zoom-crop field area→Read visual-check. digit+"%"+select-highlight(blue, right after typing=selected).
+6. post-return re-verify via zoom-crop once more.
+7. ★★CLOSE(window-only) vs QUIT(full app-termination) — ★these are TWO DISTINCT GOALS, pick the right one per task intent(REG a_998, clarifying ambiguity from a_996 wording):
+   - **CLOSE(window-only, app stays menubar-resident)** — use when task says "close the window/dashboard" without wanting the app gone. Method(REG a_983/984, retrofit a_985): see [[close_app_dock common recipe]](kaymaps/_common/RECIPE_close_app_dock.txt) — Cmd+Tab-activate OR Dock-icon-click to bring window on-screen→confirm via a11y `AXWindow @(cx,cy)[w,h]`(NOT screenshot-pixel-math, see [[screenshot_coord_conversion]])→compute close-btn ≈ window-top-left + (20,20) offset→click. Verify: `pgrep -x AlDente` still returns a PID(process alive, expected) + a11y elem-count on that PID drops sharply(dashboard ~62→dropdown-only ~2-16).
+   - **QUIT(full app-termination, process ends)** — use when task explicitly wants the app gone entirely. Dock right-click→"종료" context-menu item coord kept missing/moving target(2x confirmed-fail, a_984+a_992 both, menu reposition near screen-edge unpredictable) → do NOT rely on it. Cmd+Q also unreliable(no Quit-handler registered, suspected LSUIElement trait). ✓WORKING: open dashboard window(steps 1-2)→sidebar bottom-left "전원"(power icon) button(a11y-coord, position varies by window layout — re-derive via a11y each time, do not hardcode) click → app fully quits. Verify: `pgrep -x AlDente` returns EMPTY(process gone, confirms true quit not just window-hide).
+8. leftover dropdown after either close-window or quit → `Escape` unreliable → click blank desktop area instead.
+
+VERIFY:
+- zoom-crop screenshot field-text == target-value exact match.
+- a11y AXTextField value=reference-only(seen stale/delayed, screen-visual priority).
+- window-close: a11y elem-count dashboard(62)→dropdown-only(few) OR window gone from screenshot. `pgrep -x AlDente` alive=OK(menubar-resident, close!=quit).
+
+LIMIT/OPEN:
+- root-cause of backspace no-op in this custom field unconfirmed(focus retained visually but key-event not reaching field, suspected).
+- shift+left repeat-count should match existing-digit-count(read via zoom-crop first, adjust repeat accordingly).
+- Cmd+Q ignored by AlDente(no Quit-handler registered, suspected LSUIElement trait) — see common recipe for close-method detail.

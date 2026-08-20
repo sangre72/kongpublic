@@ -1,0 +1,23 @@
+# MODULE: text_color
+# PLAN: selected text → inspector 텍스트 tab → 텍스트 색상 well → white chip
+# LEARNED a_384 PASS (windowed 1500). HEX 보기>색상 보기 FAIL (glyphs stay cyan).
+# PRE: Keynote front · WINDOWED (~1500) so inspector x < display · object selected
+# BAN: FS (inspector x>2056) · 보기>색상 보기 · type HEX · click_label 텍스트 (toolbar)
+# DUMP a_384 windowed:
+# | 텍스트 tab | 1366,124 |
+# | 텍스트 색상 popup | 1281,453 |
+# | well | 1455,456 |
+# | white chip | 1355,580 |
+app Keynote
+wait 400
+dump
+click 1366 124
+wait 400
+dump
+click 1281 453
+wait 400
+click 1455 456
+wait 500
+click 1355 580
+wait 400
+dump

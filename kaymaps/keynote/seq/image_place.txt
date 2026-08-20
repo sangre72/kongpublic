@@ -1,0 +1,69 @@
+# MODULE: image_place
+# PLAN: insert/place image then set pos+size (composes media insert + pos + size fields)
+# ARGS: path x y w h  — plug path into OS file dialog (manual or paste); xy/wh into fields
+# DEFAULT_PLUG: path=/tmp/placeholder.png x=100 y=100 w=400 h=300
+# PRE: FS · Keynote doc · run fs_ensure first · BAN invent beyond dump toolbar
+# DUMP (prod_controls toolbar FS):
+# | control | xy | note |
+# | 미디어 | 1202,93 | AXMenuButton insert media |
+# | 포맷 | 1937,93 | after image selected |
+# | 정렬 | 2013,107 | |
+# | W/H | 1903,266 / 1992,266 | |
+# | X/Y | 1903,346 / 1992,346 | |
+# | 비율 유지 | 2055,316 | off before free size |
+# NOTE: file-dialog a11y varies — after 미디어>사진 선택, paste path (cmd-shift-g in sheet) then enter
+# wait 400–800 · no mid experiments
+# CALL (plug then run):
+#   sed -e 's|{{PATH}}|/abs/img.png|' -e 's/{{X}}/100/' -e 's/{{Y}}/100/' \
+#       -e 's/{{W}}/400/' -e 's/{{H}}/300/' kaymaps/keynote/seq/image_place.txt > /tmp/img_run.txt
+#   kongtrol --yes input run /tmp/img_run.txt
+# PROVE dry comment only for full path (file dialog needs real image); structure uses defaults.
+app Keynote
+wait 400
+dump
+# open media menu
+click 1202 93
+wait 800
+# choose photo/image menu item — center of open menu under 미디어 (dump-NOW if miss)
+click 1202 160
+wait 800
+# file dialog: seq chord supports single mod only (no cmd+shift+g).
+# PLUG PATH — type path when sheet focused (or dump-NOW open sheet + paste)
+text /tmp/placeholder.png
+key enter
+wait 800
+dump
+# size/pos on new selection
+click 1937 93
+wait 400
+click 2013 107
+wait 400
+click 2055 316
+wait 400
+# PLUG W H
+click 1903 266
+wait 200
+chord cmd a
+text 400
+key enter
+wait 400
+click 1992 266
+wait 200
+chord cmd a
+text 300
+key enter
+wait 400
+# PLUG X Y
+click 1903 346
+wait 200
+chord cmd a
+text 100
+key enter
+wait 400
+click 1992 346
+wait 200
+chord cmd a
+text 100
+key enter
+wait 400
+dump

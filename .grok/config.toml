@@ -1,0 +1,18 @@
+# kong-bot worker session — Monitor must be able to arm.
+# Root cause 2026-08-14: ~/.claude/settings.json defaultMode=dontAsk
+# auto-denies unrecognized tools. Monitor is NOT a recognized
+# permission tool name (only Bash/Read/Edit/Grep/MCP/Web*), so it
+# cannot be allowlisted and dies under dontAsk.
+# Project mode = always-approve so M1/M2 can arm. deny still wins.
+
+[ui]
+permission_mode = "always-approve"
+
+[permission]
+allow = [
+  "Bash(bash telegram_bot/orchestrator/scripts/worker1_monitor_tick.sh*)",
+  "Bash(bash telegram_bot/orchestrator/scripts/worker1_watch2.sh*)",
+  "Bash(KONG_WORKER_MON1=1 *)",
+  "Bash(KONG_WORKER_MON2=1 *)",
+  "Bash(python3 telegram_bot/orchestrator/scripts/worker1_monitor_loop.py*)",
+]

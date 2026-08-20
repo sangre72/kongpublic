@@ -1,0 +1,25 @@
+RECIPE: screenshot_coord_conversion(macOS, general — pixel-math is UNRELIABLE, a11y-anchor is the answer)
+REG: a_992(2026-08-20), MAJOR REVISION a_995~998(2026-08-20) — pixel-math approach abandoned after repeated failure across multiple sessions.
+WHY: screenshot-pixel→logical-coord conversion via a fixed/assumed scale-factor(any value: 2.0, 2.06, or re-derived "actual" resolution) proved UNRELIABLE across a_992/995/996/997 — multiple different resolution values were tried(4112x2658 assumed, 3456x2234 from `system_profiler`, 2056x1329 HiDPI logical, `_spdisplays_pixels`="4112x2658" from JSON) and EVERY pixel-math attempt using ANY of these produced wrong click coordinates for menubar/traffic-light targets, requiring many retries per incident.
+
+★★CORE LESSON(a_997/998, supersedes all prior scale-factor tables in this file): DO NOT compute click coordinates from screenshot pixel measurements + a scale-factor AT ALL, even after re-querying "actual" resolution. The scale-math approach itself is the problem, not which resolution constant was used.
+
+✓VERIFIED-RELIABLE METHOD instead — a11y-anchor triangulation:
+1. `see --a11y --pid <PID>` (non-compact, so size is included) → find the target window's `AXWindow @(cx,cy) [w x h]` entry — this gives CENTER coord + size, both already in kongtrol's logical coordinate space, zero conversion needed.
+2. compute the window's top-left corner: `left = cx - w/2`, `top = cy - h/2`.
+3. for chrome elements not individually a11y-exposed(traffic-light close/min/max buttons — common on macOS, they're often NOT separate a11y nodes): estimate their position as a small FIXED OFFSET from the window top-left corner — empirically ~(20,20) for the close(red) button on a standard macOS titlebar. This offset is far more stable across sessions than any pixel/resolution scale-factor, because it's a fixed UI-chrome constant, not dependent on physical display resolution at all.
+4. for a11y-EXPOSED elements(regular buttons, text fields, menu items) — always prefer their direct a11y-reported coords over ANY derived/computed position. This was independently re-confirmed multiple times this session(every a11y-coord click succeeded on the first try; every pixel-math click needed 2+ retries or failed outright).
+5. if a chrome element(icon-only, no accessible label) truly cannot be a11y-triangulated(e.g. its parent window isn't identifiable) — as a last resort, relaunch/refocus the relevant app via Spotlight(`cmd space`→app-name→`enter`) BEFORE attempting the click; this often changes what a11y exposes (e.g. re-invoking the macOS Screenshot tool while a recording is active newly exposed an explicit `AXButton "화면 기록 중단"` that wasn't discoverable any other way — see [[screen_recording]] recipe).
+
+WHAT NOT TO DO(all confirmed failure modes this session):
+- ✗ assume any single "the" physical resolution constant and hardcode it across sessions — every session/query can return a different-looking number(`system_profiler` text output showed 3456x2234, but its own `-json` output showed BOTH that value AND a separate `_spdisplays_pixels: 4112x2658` field — two different self-reported numbers from the SAME command).
+- ✗ read pixel coords off the Read-tool's downscaled preview image and multiply by any resolution ratio — tried multiple ratios(4112/2000, 3456/2000, plus assorted retina-scale divisors 2.0/2.06), none reliably worked.
+- ✗ retry the same pixel-math approach with a "corrected" constant after one failure — this wastes multiple rounds; switch to the a11y-anchor method(above) immediately on first miss instead(GATE-rule: 1x fail on this class of target = switch method, don't just recompute).
+
+VERIFY:
+- after any coordinate-derived click, confirm effect within ~2s(cf 2s-stall-rule). Small icon-sized target + miss = STOP pixel-math attempts entirely, switch to a11y-window-anchor(steps 1-3 above).
+- `AXWindow`'s reported [w x h] size is a reliable anchor ONLY if the window hasn't been resized/moved since the a11y query — re-query immediately before computing offsets, don't reuse a stale a11y dump from several actions ago.
+
+LIMIT/OPEN:
+- the ~(20,20) traffic-light offset from window top-left is empirical or this session's window-chrome style(macOS 26 Tahoe) — may differ on other window styles(e.g. inspector panels, sheets) or OS versions; re-verify if the offset ever misses.
+- root-cause of why `system_profiler`'s text vs `-json` output disagree on resolution, and why NEITHER matched what pixel-math needed, remains unexplained — not investigated further since the a11y-anchor method sidesteps the question entirely.

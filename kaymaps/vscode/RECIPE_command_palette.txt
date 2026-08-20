@@ -1,0 +1,5 @@
+RECIPE: command_palette(VS Code)
+REG: a_979/981(2026-08-20)
+WHY: kongtrol chord는 modifier 1개+key 1개만 지원, Cmd+Shift+P(3키) 직접입력 불가.
+STEPS: View 메뉴(a11y로 "View" MenuBarItem 좌표) 클릭 → "Command Palette…" 메뉴아이템 클릭. 검색창에 명령어 입력 가능(input text). Escape로 닫기.
+VERIFY: 상단 중앙에 ">" 프리픽스 입력창+명령어 드롭다운 목록 노출.

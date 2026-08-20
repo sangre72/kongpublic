@@ -1,0 +1,6 @@
+RECIPE: explorer_file_folder_create(VS Code)
+REG: a_981(2026-08-20)
+STEPS:
+1. Explorer 패널 툴바에서 "New File..."(파일아이콘) 또는 "New Folder..."(폴더아이콘) 버튼 클릭(a11y로 좌표확인, Explorer섹션 헤더 근처).
+2. 인라인 입력필드 자동포커스됨 → `input text "이름"` 으로 이름 입력(한글도 가능, 971/975 검증됨) → Enter로 확정.
+VERIFY: `see --a11y --compact | grep AXWindow`(첫줄=타이틀)에 방금 만든 파일명이 반영됨(예: "test-file.txt — <폴더명>"). 실제 파일시스템에서도 ls로 확인.

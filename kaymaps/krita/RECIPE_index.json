@@ -1,0 +1,12 @@
+[
+  {"name":"draw_line","app":"krita","desc":"straight line stroke via single drag","verified_runs":2,"gate":"2-run-verified","file":"RECIPE_draw_line.txt"},
+  {"name":"draw_dot","app":"krita","desc":"single point mark via click(no drag)","verified_runs":2,"gate":"2-run-verified","file":"RECIPE_draw_dot.txt"},
+  {"name":"fill_area","app":"krita","desc":"rectangle-select then Fill-Selection-with-Color button","verified_runs":2,"gate":"2-run-verified","file":"RECIPE_fill_area.txt"},
+  {"name":"erase","app":"krita","desc":"eraser-mode toggle + drag, makes active layer transparent(reveals layers below)","verified_runs":2,"gate":"2-run-verified","file":"RECIPE_erase.txt"},
+  {"name":"brush_size","app":"krita","desc":"numeric brush size field in top toolbar, click+type+enter","verified_runs":2,"gate":"2-run-verified","file":"RECIPE_brush_size.txt"},
+  {"name":"set_fill_color","app":"krita","desc":"CLOSED-INVESTIGATION(a_651): wheel+triangle click intermittently unreliable(0-30% isolated success, widget-click-path bug per X-key control test); always verify via canvas-dot; X-key=only 100%-reliable but 2-color-toggle-only","verified_runs":4,"gate":"2-run-verified","file":"RECIPE_set_fill_color.txt"},
+  {"name":"new_layer","app":"krita","desc":"레이어메뉴>새레이어(hover필수)>Add Paint Layer, Background 잠금 우회","verified_runs":1,"gate":"1-run","file":"RECIPE_new_layer.txt"},
+  {"name":"canvas_fit_reset","app":"krita","desc":"보기>Zoom,Rotate,and Mirror(hover필수)>Reset Display — 스크롤/줌/회전 전체 원위치","verified_runs":1,"gate":"1-run","file":"RECIPE_canvas_fit_reset.txt"},
+  {"name":"ring_coord","app":"krita","desc":"target_hue(0-360)→링클릭좌표 변환스크립트(36점픽셀스캔검증테이블+공식). python3 ring_coord.py <hue> 또는 import ring_coord(). GENERALIZATION VALIDATED(a_721): 6/6색(빨강·노랑·파랑·초록·주황·보라, 주황·보라는 사전측정없이 순수공식만으로) 전부 오차5도이내 성공","verified_runs":6,"gate":"2-run-verified","file":"ring_coord.py"},
+  {"name":"new_canvas","app":"krita","desc":"새 이미지 생성(시작화면 새이미지→만들기, 자동 페인트레이어 포함) — 재사용 원샷 절차","verified_runs":2,"gate":"2-run-verified","file":"RECIPE_new_canvas.txt"}
+]

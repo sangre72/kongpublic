@@ -1,0 +1,29 @@
+# MODULE: font_pt
+# PLAN: set selected text font size pt via 텍스트 탭 size field only
+# ARGS: pt  — plug only this value
+# DEFAULT_PLUG: pt=72
+# PRE: text object selected · FS · 포맷 · 텍스트 tab (BAN click_label 텍스트 on toolbar — use xy)
+# DUMP (prod_controls):
+# | control | xy | note |
+# | 포맷 | 1937,93 | |
+# | 텍스트 subtab | 1922,107 | format subtab (not toolbar 텍스트 button) |
+# | size field | 2002,326 | font-size-field |
+# FIELD: click → wait 200 → cmd-a → text → enter
+# wait 400–800
+# CALL: sed -e 's/{{PT}}/72/' … | kongtrol --yes input run
+# PROVE dry: kongtrol --yes input run kaymaps/keynote/seq/font_pt.txt
+app Keynote
+wait 400
+dump
+click 1937 93
+wait 400
+click 1922 107
+wait 400
+# PLUG PT
+click 2002 326
+wait 200
+chord cmd a
+text 72
+key enter
+wait 400
+dump

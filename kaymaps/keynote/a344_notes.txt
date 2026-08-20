@@ -1,0 +1,30 @@
+PID 30490
+MAX={'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}
+FS_ok
+objs=[('텍스트', 218.0, 120.0), ('사각형', 218.0, 154.0)]
+selected_rect
+align_pt_fields=[]
+size_before w=None h=None
+handles SE=1034.3541666666667,760.3541666666666 NW=961.6458333333334,687.6458333333334 scale=0.7270833333333333
+drag1 SE 1034.3541666666667,760.3541666666666 -> 1691.0,1274.0
+align_pt_fields=[]
+size_after_drag1 w=None h=None
+drag2 SE 1661.0,1244.0 -> 1691.0,1274.0
+align_pt_fields=[]
+size_after_drag2 w=None h=None
+drag3 NW -> 320,189.0
+drag3 SE again
+align_pt_fields=[]
+size_after_drag3 w=None h=None
+drag4 NW -> 320,189.0
+drag4 SE again
+align_pt_fields=[]
+size_after_drag4 w=None h=None
+align_pt_fields=[]
+size_final w=None h=None
+dump_w_ge_1500=False
+menus_final=['Apple', 'Keynote', '파일', '편집', '삽입', '슬라이드', '포맷', '정렬', '보기', '재생', '윈도우', '도움말']
+wins_final=[{'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}]
+objs_final=[('텍스트', 218.0, 120.0), ('텍스트', 218.0, 154.0), ('사각형', 218.0, 188.0)]
+shot=299165
+ELAPSED=30

@@ -1,0 +1,11 @@
+# MODULE: window_mode
+# PLAN: control windowed vs FS on Keynote 무제.key ONLY
+# LEARNED: 서체 471x270 is NOT Keynote. G_GEOM = max-area 무제.key
+# ENTER FS: dump menubar 보기 → 전체 화면 시작 (NOT 종료). prove MAX W>=display-20
+# LEAVE FS (need inspector on-screen): dump 보기 → 전체 화면 종료 if labeled
+#   OR green of MAX titlebar (max-X of 3 lights on 무제.key). prove W≈1500
+# BAN: click 종료 as 앱 종료 · treat 서체 as geom · click Grok/Finder
+# ARGS: want=windowed|fs
+app Keynote
+wait 400
+dump

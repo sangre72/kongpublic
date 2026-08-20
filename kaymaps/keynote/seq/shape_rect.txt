@@ -1,0 +1,85 @@
+# MODULE: shape_rect
+# PLAN: insert 직사각형 then set pos/size + fill HEX (well-first via fill path)
+# ARGS: x y w h HEX  — plug into marked text lines
+# DEFAULT_PLUG: x=100 y=100 w=400 h=200 HEX=202124
+# PRE: FS · Keynote doc · BAN live Google recolor this module is for new shape only
+# DUMP-NOW (a_319 submenus FS 2056×1290):
+# | control | xy | note |
+# | menubar 삽입 | 225,20 | |
+# | 삽입>도형 | 310,188 | |
+# | 삽입>도형>직사각형 | 492,188 | nest |
+# | 포맷 | 1937,93 | after insert select |
+# | 정렬 tab | 2013,107 | |
+# | W/H | 1903,266 / 1992,266 | |
+# | X/Y | 1903,346 / 1992,346 | |
+# | 비율 유지 | 2055,316 | off |
+# | 스타일 tab | 1831,107 | fill |
+# | 채우기 well | 2007,328 | |
+# | 보기 menubar | 440,39 | 색상 보기 path |
+# | 색상 보기 item | 518,553 | |
+# | HEX field | 202,1198 | 16진수 |
+# wait 400–800 · no mid experiments · BAN 종료
+# CALL: plug defaults then kongtrol --yes input run kaymaps/keynote/seq/shape_rect.txt
+app Keynote
+wait 400
+dump
+# insert rect
+click 225 20
+wait 400
+click 310 188
+wait 400
+click 492 188
+wait 800
+dump
+# size/pos
+click 1937 93
+wait 400
+click 2013 107
+wait 400
+click 2055 316
+wait 400
+# PLUG W
+click 1903 266
+wait 200
+chord cmd a
+text 400
+key enter
+wait 400
+# PLUG H
+click 1992 266
+wait 200
+chord cmd a
+text 200
+key enter
+wait 400
+# PLUG X
+click 1903 346
+wait 200
+chord cmd a
+text 100
+key enter
+wait 400
+# PLUG Y
+click 1992 346
+wait 200
+chord cmd a
+text 100
+key enter
+wait 400
+# fill well → HEX
+click 1831 107
+wait 400
+click 2007 328
+wait 800
+click 440 39
+wait 400
+click 518 553
+wait 800
+click 202 1198
+wait 200
+chord cmd a
+# PLUG HEX
+text 202124
+key enter
+wait 400
+dump

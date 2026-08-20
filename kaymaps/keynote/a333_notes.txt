@@ -1,0 +1,8 @@
+PID 30490
+menus0=['Apple', 'Keynote', '파일', '편집', '삽입', '슬라이드', '포맷', '정렬', '보기', '재생', '윈도우', '도움말']
+win0=(471.0, 270.0, 1490.0, 989.0)
+fs_start 518.0,778.0
+win1=(471.0, 270.0)
+FAIL_G_GEOM STOP_no_windowed_clicks
+shot=433986
+ELAPSED=6

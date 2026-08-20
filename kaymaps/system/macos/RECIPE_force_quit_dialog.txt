@@ -1,0 +1,15 @@
+RECIPE: force_quit_dialog
+REG: a_479final(u_492/493, 2026-08-16) — supersedes a_476/477/478
+WHY: handle system memory-low warning dialog, prevent force-quit misuse
+STEPS:
+1. detect"응용 프로그램 강제 종료"window
+2. list has"일시 정지됨"(red)app→click select it
+3. activated"재개"button→click
+4. close window
+5. resume prior task
+VERIFY: window closed + original app responds normally
+NOTE(measured 2026-08-16 ar_475): clicking Keynote row can flip red"(일시 정지됨)"label→white(normal) instantly
+  →in that case"재개"button may stay disabled(gray)
+  →don't force-click it, use Cmd+Tab to bring app to front→verify it actually responds
+  →if dialog still won't close(no cancel button structure)→wait then recheck, system sometimes auto-dismisses
+BAN: never click force-quit button(even if row is red-selected, only press"재개")

@@ -1,0 +1,10 @@
+RECIPE: audio_add_and_mix
+REG: a_904/ar_904(2026-08-19)
+WHY: 배경음악 추가+볼륨 믹싱 기본 흐름.
+STEPS:
+1. 상단 툴바 "Audio" 탭 클릭 → 좌측 Music 라이브러리(Hot Bgm/Vlog/Marketing 등 카테고리) 표시, 로딩 수 초 소요.
+2. 원하는 트랙 우측 다운로드(↓) 아이콘 클릭 → 다운로드+미리듣기 시작, 아이콘이 "+"(추가)로 바뀜.
+3. "+" 아이콘 클릭 → 타임라인에 새 오디오 트랙(파형 표시) 추가됨, 우측 패널이 자동으로 Basic/Voice changer/Speed 탭(오디오 속성)으로 전환.
+4. Basic 탭에서 Volume 슬라이더 드래그(kongtrol drag) → dB값 실시간 반영(우측 숫자 표시), 파형 색상도 즉시 갱신. Fade in/out 슬라이더, Normalize loudness/Enhance voice/Reduce noise/Isolate voice 체크박스도 동일 패널에 위치.
+VERIFY: 볼륨 슬라이더 드래그 후 dB 숫자 변경 확인(0.0dB→11.9dB 등), 타임라인 오디오 트랙 존재.
+NOTE: 좌표는 세션별 재계산 필요. 오디오 클립 선택 상태에서만 우측 Basic 패널 노출.

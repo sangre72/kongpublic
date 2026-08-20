@@ -1,0 +1,11 @@
+GATE_POLICY: self-verification for recipe registry
+REG: a_497/u_524, gap-analysis §3-1(Voyager-style self-verification)
+WHY: "1x success=immediate register" risk(wrong recipe stays, eg a_476→479 3x-correction case)
+RULE:
+1. new recipe candidate(procedure not yet in RECIPE_index.json)→after 1st success, mark tentative(verified_runs=0), do NOT write RECIPE_*.txt yet
+2. re-attempt same procedure(same session or next)→reproduced identically→verified_runs=1→write RECIPE file→register in index.json
+3. reproduction fails/differs→do NOT register, log divergence in ar_ instead
+4. existing 7 recipes(this session, repeat-use confirmed, verified_runs>=1 already in index.json)=grandfathered, no re-verify required
+INDEX_SCHEMA: {name, app, desc, verified_runs, gate, file}
+  gate field value="2-run-verified"(marker, documents which policy version applied)
+VERIFY: index.json entries carry gate field, RECIPE_*.txt content unchanged for grandfathered set

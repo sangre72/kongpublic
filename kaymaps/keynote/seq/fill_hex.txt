@@ -1,0 +1,40 @@
+# MODULE: fill_hex
+# PLAN: shape fill via 스타일 채우기 well → Colors panel HEX (well-first then HEX)
+# ARGS: HEX  — plug 6-char no-hash (e.g. 202124)
+# DEFAULT_PLUG: HEX=202124
+# PRE: shape selected · FS · 포맷 스타일 · BAN text color path · BAN live Google recolor unless intentional
+# DUMP (prod_controls / a_249 hex-via-colors-panel):
+# | control | xy | note |
+# | 포맷 | 1937,93 | |
+# | 스타일 tab | 1831,107 | |
+# | 채우기 well | 2007,328 | unlabeled 68×25 — expand fill |
+# | 보기 menubar | 440,39 | then 색상 보기 (NOT 전체 화면 종료) |
+# | HEX field | 202,1198 | 16진수 색상 # AXTextField |
+# ORDER: fill well → 색상 보기 → HEX field → type
+# wait 400–800 · no mid experiments
+# CALL: sed -e 's/{{HEX}}/202124/' … | kongtrol --yes input run
+# PROVE dry: kongtrol --yes input run kaymaps/keynote/seq/fill_hex.txt
+app Keynote
+wait 400
+dump
+click 1937 93
+wait 400
+click 1831 107
+wait 400
+# fill well expand
+click 2007 328
+wait 800
+# Colors panel (보기 > 색상 보기) — menubar 보기 then item; use dump-labeled path
+click 440 39
+wait 400
+# 색상 보기 ≈ y553 under 보기 menu (NOT 종료 ~778)
+click 440 553
+wait 800
+# HEX field
+click 202 1198
+wait 200
+chord cmd a
+text 202124
+key enter
+wait 400
+dump

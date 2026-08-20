@@ -1,0 +1,12 @@
+RECIPE: fill_tool_bucket(krita) — flood-fill enclosed area with current fg color
+REG: a_971(2026-08-19), verified 3x reliable (much more reliable than color-wheel clicks)
+STEPS:
+1. select fill tool in left toolbox: checkbox tooltip "색상이 인접한 영역을 지정한 색상으로 채우거나, 선택 영역을 채웁니다. (F)"
+   — query fresh via `see --a11y --compact` each time, position drifts slightly with toolbar state (~16,510 this session)
+2. click once inside the enclosed region you want filled (must be a closed boundary — e.g. inside a polygon-selection outline,
+   or inside any closed-line shape drawn with pencil/line tool). Single click, no drag needed.
+3. wait ~2s before screenshotting — Krita processes fill with noticeable lag in this session.
+VERIFY: screenshot, confirm interior pixel color matches current foreground swatch color.
+NOTE: much more reliable than color-WHEEL ring/triangle clicks (see RECIPE_set_fill_color.txt — that widget
+has a well-documented severe click-registration bug). If you only need dark/neutral/whatever-current-fg-is colors,
+prefer this fill-tool + polygon-selection combo over fighting the wheel.

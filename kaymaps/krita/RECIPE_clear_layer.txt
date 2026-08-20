@@ -1,0 +1,10 @@
+RECIPE: clear_layer / fill_with_fg(krita)
+REG: a_971(2026-08-19), verified 1x
+STEPS:
+1. click target layer in layer panel to make active
+2. kongtrol input chord cmd a --yes   (select all)
+3. kongtrol input key delete --yes
+RESULT: Delete does NOT clear to transparent — it FILLS the active selection with
+the current FOREGROUND color (confirmed: fg was terracotta/brown, layer became solid
+terracotta after select-all+delete). Use this as a quick "fill selection/layer with fg color" shortcut.
+If true transparent-clear is needed instead, look for a dedicated menu action (레이어 > 지우기 or similar) — not yet verified in this session.

@@ -1,0 +1,10 @@
+RECIPE: export
+REG: a_904/ar_904(2026-08-19)
+WHY: 편집 완료 영상을 파일로 내보내기.
+STEPS:
+1. 우상단 "Export" 버튼 클릭 → Export 다이얼로그(해상도/비트레이트/코덱/포맷/프레임레이트/저장경로/예상용량) 오픈.
+2. ★Pro 소재 포함시 결제유도 화면("You're using the following Pro feature", Join Pro/Get free Pro 버튼) 등장 — 0-결제 원칙상 반드시 "Back to edit"으로 복귀 후 Pro 소재(예: Pro 표시 붙은 배경음악) 제거 후 재시도.
+3. 무료 소재만 남은 상태에서 Export 클릭 → 인코딩 진행 → 완료시 "Video is saved to your desktop or laptop" 메시지+TikTok/YouTube 공유 패널.
+4. 공유는 로그인 필요(0-로그인 원칙 위반) → "Close" 버튼으로 다이얼로그만 닫고 종료.
+VERIFY: 결과 파일 실제 생성 확인 — ~/Movies/CapCut/<프로젝트명>.mov 존재.
+NOTE: 좌표는 세션별 재계산 필요. Export 버튼은 창 우상단 고정 위치(상대적으로 안정적).

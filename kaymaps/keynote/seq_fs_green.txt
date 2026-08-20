@@ -1,0 +1,4 @@
+# unlabeled titlebar green = max-X of 3 lights (dump-then-click). NEVER red(min-X) NEVER yellow(mid).
+app Keynote
+click 54 193
+wait 1200

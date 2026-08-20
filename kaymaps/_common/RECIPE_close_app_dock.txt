@@ -1,0 +1,21 @@
+RECIPE: close_app_dock(macOS generic, any app incl menubar/LSUIElement)
+REG: a_985(2026-08-20), derived-from a_984 empirical trials
+WHY: standard shortcuts(Cmd+W/Cmd+Q) unreliable when focus uncertain or app=menubar-resident(LSUIElement, no Quit handler). Dock-anchor method=focus-certain, safe default.
+
+STEPS:
+1. a11y locate: `see --a11y --compact --pid $(pgrep -x Dock) | grep -i <app>` → AXDockItem coord.
+2. FAIL(confirmed, do NOT retry): right-click Dock icon→context-menu"종료/Quit" — menu popup pos varies run-to-run(screen-edge flip), coord-calc misses >=2x observed. Cmd+W/Cmd+Q fired w/o confirmed-focus → risk leaking to wrong window(orch/worker term, real incident a_982).
+3. OK(verified): `input chord cmd tab`(app-switcher) OR Dock-icon-click(step 1 coord) → activates target app. Cmd+Tab sometimes leaves window off-screen anyway(observed a_988/992/995) — if so, Dock-icon-click is the more reliable re-activator.
+4. ★★COORD METHOD REVISED(a_997/998, supersedes screenshot-pixel-math below) — see [[screenshot_coord_conversion]](kaymaps/_common/RECIPE_screenshot_coord_conversion.txt) for full rationale: pixel-math from screenshots(any resolution constant tried) proved unreliable across many attempts. Use a11y-anchor instead: `see --a11y --pid <PID>` → find `AXWindow @(cx,cy)[w,h]` → close-btn ≈ (cx - w/2 + 20, cy - h/2 + 20)(empirical top-left+20,20 offset for standard macOS titlebar traffic-lights). Re-query a11y immediately before computing(window may have moved).
+5. (SUPERSEDED, kept for context) previously tried: zoom-crop `screencapture -R<x>,<y>,150,60` to visually locate red/gray traffic-light + pixel-offset math — this required guessing a resolution scale-factor and repeatedly missed(a_992/995/996 all hit this). Abandoned in favor of step 4's a11y-window-anchor method.
+6. VERIFY-CLOSE: window a11y element-count drops sharply(dashboard N-items→menubar-dropdown-only few-items) OR window disappears from screenshot. `pgrep -x <app>` still alive=expected for menubar-resident app(NOT quit, window-close only).
+7. If leftover menubar dropdown remains open: `Escape` NOT reliable(confirmed miss 1x) → click empty desktop/blank area outside dropdown instead.
+
+VERIFY:
+- target window gone from screenshot AND/OR a11y elem-count dropped.
+- `pgrep -x <app>` alive=OK for menubar apps(goal=window-close not app-quit) / dead=OK if goal=full quit(check TASK intent first).
+- NO other-window(orch/worker terminal) got focused mid-sequence(check via screenshot diff, SAFEGUARD from a_981/983).
+
+LIMIT/OPEN:
+- root-cause of Cmd+Q ignored by some LSUIElement apps unconfirmed(no Quit menu-item registered, suspected).
+- Dock right-click context-menu coord instability root-cause unconfirmed(dynamic reposition near screen edge, suspected).

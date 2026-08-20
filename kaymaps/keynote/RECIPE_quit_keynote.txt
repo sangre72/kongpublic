@@ -1,0 +1,10 @@
+RECIPE: quit_keynote
+REG: a_471/u_476,477
+WHY: fixed sequence for Keynote quit, no judgment, try in order
+STEPS:
+1. cmd+Q(when Keynote active)
+2. save-popup appears→click"저장"(keep work file)
+3. not closed→menubar"Keynote"→"Keynote 종료"click
+4. still fails→don't force, keep current state(if goal=clean-restart-verify not quit-itself, cmd+O reopen suffices)
+VERIFY: doc closed OR reopen succeeds
+NOTE: 3x fail within→skip directly to step4 bypass, don't make quit itself the goal

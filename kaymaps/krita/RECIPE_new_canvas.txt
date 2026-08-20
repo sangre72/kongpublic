@@ -1,0 +1,11 @@
+RECIPE: new_canvas(krita)
+REG: a_723(2026-08-18), verified 2x(multiple sessions this line used this exact flow)
+WHY: creating a fresh blank document was done manually click-by-click each time(start-screen "새 이미지" button → "만들기" confirm) — this is a fast, reusable single-flow.
+STEPS(from Krita start screen, e.g. after quit+relaunch or File>New from an existing doc):
+1a. IF at start screen(no doc open): click "새 이미지"(New Image) button — logical coord varies by window size, re-query via `see --a11y --compact` for "새 이미지" text, but commonly ~(113,184) at default start-screen layout(re-verify each session).
+1b. IF a doc is already open and you want ANOTHER new doc: 파일(File) menu(logical ~118,20) → 새로 만들기(New) submenu, or use the toolbar "새 문서" icon(top-left, near 15,55).
+2. a "새 이미지" dialog opens with size fields(width/height/units/resolution) pre-filled with defaults(commonly 2480x3508px @300dpi in this session) — for THIS use-case(matching grid_70x100.bin's 70x100 cell layout), default size is fine since drawing uses relative cell-position math, not absolute pixel-matching to a specific canvas size. If exact size needed, click width/height fields and type values before confirming.
+3. click "만들기(C)"(Create) button — a11y-reported coord shifts slightly per session, re-query, commonly ~(1288,931) or ~(1273,958).
+4. VERIFY: new tab/window opens titled "[저장되지 않음]", 레이어 patch shows "칠하기 레이어 1"(auto-created paint layer, NOT locked) + "Background"(locked, white). Canvas ready to draw on immediately — do NOT need RECIPE_new_layer.txt's Add-Paint-Layer flow separately, "새 이미지" already includes a paint layer by default.
+5. apply RECIPE_canvas_fit_reset.txt(보기>Zoom,Rotate,Mirror>Reset Display) to get to known zoom/rotation baseline, then re-measure canvas logical bounds(white-pixel horizontal+vertical scan) for THIS session's coordinate math.
+PITFALL: if canvas-restore/autosave dialog appears BEFORE reaching start screen(e.g. right after Krita launch, if a prior session crashed/was force-quit), handle that first(RECIPE_force_quit_dialog.txt pattern doesn't apply here — this is Krita's own recovery prompt, click 만들기/취소 based on whether you want the recovered doc or a truly fresh one).

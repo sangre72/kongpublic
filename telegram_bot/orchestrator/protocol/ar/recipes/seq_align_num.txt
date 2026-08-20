@@ -1,0 +1,5 @@
+app Keynote
+click_label 정렬
+wait 400
+# dump once for W/H/X/Y fields then:
+# click field / chord cmd a / text <n> / key enter / wait 200

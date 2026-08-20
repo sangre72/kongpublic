@@ -1,0 +1,11 @@
+RECIPE: gatekeeper_open_confirm
+REG: u_888~892(2026-08-19, CapCut install+launch)
+WHY: trusted-src app(brew cask/App Store) 1st launch → macOS Gatekeeper "다운로드된 앱입니다-열기?" dialog. block on needs-info every time = waste.
+STEPS:
+1. detect dialog: "다운로드된 앱입니다"/"downloaded from internet" + 열기/Open button
+2. src=trusted(brew cask|App Store)? → click 열기
+3. src=untrusted(random site direct dl) → do NOT click, STOP+needs-info
+4. dialog only appears once per app(binary), no recheck needed on relaunch
+VERIFY: app window opens normally after click
+NOTE: OS-common, applies to ANY app first launch — not app-specific.
+BAN: click 열기 on untrusted-src binary.

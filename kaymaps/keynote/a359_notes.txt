@@ -1,0 +1,19 @@
+PID 30490
+MAX={'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}
+FS_ok
+list_toggle
+objs_before=[]
+NO_RECT_list
+drag_SE_1 from 1034,706 -> 1800,1100
+drag_SE_2 from 1166,808 -> 1800,1100
+drag_SE_3 from 1326,938 -> 1800,1100
+drag_SE_4 from 1486,1040 -> 1800,1100
+objs_after_drag=[]
+after_삽입=[('슬라이드 레이아웃, 제목 전용', 2192.0, 168.0, 'AXButton'), ('표시 항목', 2097.0, 240.0, 'AXStaticText'), ('배경', 2084.0, 359.0, 'AXStaticText'), ('현재 채우기', 2101.0, 427.0, 'AXStaticText'), ('슬라이드 레이아웃 편집', 2192.0, 1296.0, 'AXButton'), ('무제.key', 1080.0, 52.0, 'AXStaticText'), ('재생', 650.0, 88.0, 'AXButton'), ('텍스트', 1082.0, 88.0, 'AXButton'), ('주석', 1230.0, 88.0, 'AXButton'), ('공유', 1565.0, 88.0, 'AXButton'), ('—', 1115.0, 52.0, 'AXStaticText'), ('무제.key', 1043.0, 52.0, 'AXImage'), ('Apple', 27.0, 20.0, 'AXMenuBarItem'), ('Keynote', 81.0, 20.0, 'AXMenuBarItem'), ('파일', 139.0, 20.0, 'AXMenuBarItem'), ('편집', 182.0, 20.0, 'AXMenuBarItem'), ('삽입', 225.0, 20.0, 'AXMenuBarItem'), ('줄바꿈', 340.0, 57.0, 'AXMenuItem'), ('열 나누기', 340.0, 81.0, 'AXMenuItem'), ('표', 340.0, 116.0, 'AXMenuItem'), ('차트', 340.0, 140.0, 'AXMenuItem'), ('텍스트 상자', 340.0, 164.0, 'AXMenuItem'), ('도형', 340.0, 188.0, 'AXMenuItem'), ('선', 340.0, 212.0, 'AXMenuItem'), ('하이라이트', 340.0, 236.0, 'AXMenuItem'), ('주석', 340.0, 260.0, 'AXMenuItem'), ('이미지 갤러리', 340.0, 284.0, 'AXMenuItem'), ('웹 비디오…', 340.0, 308.0, 'AXMenuItem'), ('라이브 비디오', 340.0, 332.0, 'AXMenuItem'), ('iPhone 또는 iPad에서 가져오기', 340.0, 356.0, 'AXMenuItem'), ('오디오 녹음', 340.0, 380.0, 'AXMenuItem'), ('공식', 340.0, 415.0, 'AXMenuItem'), ('방정식...', 340.0, 439.0, 'AXMenuItem'), ('선택...', 340.0, 474.0, 'AXMenuItem'), ('슬라이드', 279.0, 20.0, 'AXMenuBarItem'), ('포맷', 333.0, 20.0, 'AXMenuBarItem'), ('정렬', 376.0, 20.0, 'AXMenuBarItem'), ('보기', 419.0, 20.0, 'AXMenuBarItem'), ('재생', 462.0, 20.0, 'AXMenuBarItem'), ('윈도우', 510.0, 20.0, 'AXMenuBarItem')]
+click_textbox 340.0,164.0
+typed_Google
+objs_final=[]
+menus_final=['Apple', 'Keynote', '파일', '편집', '삽입', '슬라이드', '포맷', '정렬', '보기', '재생', '윈도우', '도움말']
+wins_final=[]
+shot=2591012
+ELAPSED=13

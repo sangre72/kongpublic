@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  com.kongbot.kongmaster — orch/worker claude 세션(프로세스) 생사감시+자동재기동.
+  a_946/ar_946(2026-08-19). session-independent(launchd), kongmaster.py 자체 루프에
+  poll interval(20s)이 있으므로 KeepAlive만으로 충분(no ThrottleInterval spam risk —
+  스크립트가 죽으면 즉시 재시작해도 무해, poll루프 자체는 내부 sleep으로 조절됨).
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.kongbot.kongmaster</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/bumsuklee/miniconda3/bin/python3</string>
+    <string>/Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/kongmaster.py</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/bumsuklee/git/kong-bot</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/bumsuklee/miniconda3/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/bumsuklee/git/kong-bot/logs/kongmaster.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/bumsuklee/git/kong-bot/logs/kongmaster.err</string>
+</dict>
+</plist>

@@ -1,0 +1,3 @@
+app Keynote
+key escape
+wait 200

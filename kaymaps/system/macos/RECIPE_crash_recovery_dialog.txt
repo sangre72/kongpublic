@@ -1,0 +1,20 @@
+RECIPE: crash_recovery_dialog(macOS, app-agnostic)
+REG: a_728/729/730(2026-08-18, Krita crash during a_723-726 line), verified 1x(multiple dialog instances handled in one session)
+WHY: any app can crash unexpectedly on macOS, triggering TWO possible dialogs: (1) Apple's system "문제 리포트"(problem report) dialog (2) the app's own autosave/document-recovery dialog. Both must be handled safely without losing important work.
+
+DETECTION(via screenshot, distinguish from normal dialogs):
+- Apple crash-report dialog: title bar reads "[App]에 대한 문제 리포트"("Problem Report for [App]"), body text "[App] 응용 프로그램이 예기치 않게 종료되었습니다"("...quit unexpectedly"), buttons: 확인(OK, safe default)/다시 열기(Reopen)/세부사항 가리기(Hide Details). This is a SEPARATE macOS system process(ReportCrash agent), NOT part of the crashed app itself — a11y queries against the crashed app's PID will NOT see this dialog's buttons.
+- App autosave-recovery dialog(app-specific wording, e.g. Krita's "파일 복구 – Krita" / "다음 자동 저장된 파일을 복구할 수 있습니다"): lists recoverable autosaved files with checkboxes, buttons typically: 취소(leave as-is)/확인(recover selected, delete unselected)/모두 버리기(discard all, clean start).
+
+DECISION TREE(before clicking anything on the recovery dialog):
+1. read what file(s) are being offered for recovery(filename/timestamp/thumbnail if shown).
+2. if it's the IMPORTANT completed/valuable artifact → choose 확인(recover) or 취소(leave untouched, safest) — do NOT discard.
+3. if it's a disposable in-progress/barely-started attempt(e.g. a fresh test canvas from minutes ago with little work) → 모두 버리기(discard-all) is safe, gives a clean start.
+4. ALWAYS separately verify(via file mtime check, `ls -la <important-file-path>`) that the important artifact's file on disk is untouched BEFORE and AFTER handling these dialogs — this is the real safety check, not just reading the dialog text.
+
+HANDLING SEQUENCE(this session's hard-won order, from a_729):
+1. handle the autosave-recovery dialog FIRST(it's usually the frontmost/actionable one) — click 모두 버리기(or 확인 if recovering).
+2. THEN handle the crash-report dialog — click 확인(safe: just sends report to Apple, no data risk). NOTE: this dialog was observed to be UNRESPONSIVE to direct-coordinate clicks multiple times in a row(same exact button coords clicked 3-4x with no visible effect) — this is a real observed flakiness, not a coordinate-calculation error. If repeated clicks don't close it and app relaunch attempts(`open -a <App>`) show the SAME dialog reappearing with different window layouts each time(e.g. buttons appearing to migrate into the menu-bar area — an artifact of window-focus/layering confusion, not a new dialog): the reliable fix is to fully kill the app process(`kill <PID>`) and relaunch fresh(`open -a <App>`) — a genuinely clean relaunch does NOT re-trigger the crash-report loop.
+3. after both dialogs are gone(verify via screenshot — app's normal start-screen/window is visible, no dialog remnants), re-verify important-artifact file mtime one final time before resuming work.
+
+PITFALL: `kill <PID>` on an app that already crashed may itself generate ANOTHER crash report(SIGTERM being caught as unexpected termination) — this is expected/harmless, just repeat step 2 for the new report.

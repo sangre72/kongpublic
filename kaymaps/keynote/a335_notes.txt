@@ -1,0 +1,25 @@
+PID 30490
+menus0=['Apple', 'Keynote', '파일', '편집', '삽입', '슬라이드', '포맷', '정렬', '보기', '재생', '윈도우', '도움말']
+WINDOWS=[{'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}, {'label': '서체', 'x': 1490.0, 'y': 989.0, 'w': 471.0, 'h': 270.0, 'area': 127170.0}]
+MAX={'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}
+FS0=True
+skip_FS_clicks already large or ok
+font_overlay={'label': '서체', 'x': 1490.0, 'y': 989.0, 'w': 471.0, 'h': 270.0, 'area': 127170.0}
+font_overlay={'label': '서체', 'x': 1490.0, 'y': 989.0, 'w': 471.0, 'h': 270.0, 'area': 127170.0}
+no_font_overlay
+WINDOWS_after_font=[{'label': '무제.key', 'x': 0.0, 'y': 40.0, 'w': 1500.0, 'h': 1000.0, 'area': 1500000.0}]
+OBJ_BEFORE=[('텍스트 상자 삽입', 182.0, 137.0, 'AXImage'), ('텍스트', 218.0, 137.0, 'AXTextField'), ('사각형', 218.0, 171.0, 'AXTextField'), ('텍스트 상자 삽입', 182.0, 205.0, 'AXImage'), ("I'm Feeling Lucky", 241.0, 205.0, 'AXTextField'), ('텍스트 상자 삽입', 182.0, 239.0, 'AXImage'), ('Search Google or type a URL', 241.0, 239.0, 'AXTextField'), ('검색', 159.0, 1026.0, 'AXButton')]
+select 텍스트 상자 삽입
+select 텍스트
+select 사각형
+select 텍스트 상자 삽입
+select I'm Feeling Lucky
+select 텍스트 상자 삽입
+select Search Google or type a URL
+select 검색
+no_menu_unlock_item
+OBJ_AFTER_DELETE=[('텍스트 상자 삽입', 182.0, 137.0), ('텍스트', 218.0, 137.0), ('사각형', 218.0, 171.0), ('텍스트 상자 삽입', 182.0, 205.0), ("I'm Feeling Lucky", 241.0, 205.0), ('텍스트 상자 삽입', 182.0, 239.0), ('Search Google or type a URL', 241.0, 239.0), ('검색', 159.0, 1026.0)]
+JUNK_LEFT=[('텍스트 상자 삽입', 182.0, 137.0), ('텍스트', 218.0, 137.0), ('사각형', 218.0, 171.0), ('텍스트 상자 삽입', 182.0, 205.0), ("I'm Feeling Lucky", 241.0, 205.0), ('텍스트 상자 삽입', 182.0, 239.0), ('Search Google or type a URL', 241.0, 239.0)]
+FAIL_leftover_not_empty
+shot=3408057
+ELAPSED=28

@@ -1,0 +1,16 @@
+# MODULE: fs_ensure
+# PLAN: ensure Keynote fullscreen geometry (window fills display) before any pos/size/color module
+# PRE: Keynote front · BAN click 종료 · BAN green traffic-light
+# DUMP (prod_controls / a_311): display 2056×1329 · FS win ≈2056×1290@(0,39) · G_GEOM=Y when W≥DW-20 H≥DH-80
+# traffic lights (do NOT click green): red 14,53 · green 54,53
+# windowed traffic y~193: click MAX-X green-ish 54,193 only when 보기 has 전체 화면 시작 (not 종료)
+# wait 400–800 · no mid-run experiments
+# CALL (dry): kongtrol --yes input run kaymaps/keynote/seq/fs_ensure.txt
+app Keynote
+wait 400
+dump
+# If already FS (보기 shows 전체 화면 종료): stop here — do not click 종료
+# If windowed: traffic-light green path (unlabeled max-x near lights)
+click 54 193
+wait 800
+dump

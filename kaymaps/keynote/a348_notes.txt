@@ -1,0 +1,25 @@
+PID 30490
+MAX={'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}
+FS_ok
+objs_before=[('텍스트', 218.0, 120.0), ('텍스트', 218.0, 154.0), ('사각형', 218.0, 188.0)]
+inspector_menu_click=518.0,116.0
+format_ctrls_sample=[{'label': '스타일', 'role': 'AXRadioButton', 'x': 2056.0, 'cx': 2102.0, 'cy': 107.0}, {'label': '텍스트', 'role': 'AXRadioButton', 'x': 2148.0, 'cx': 2193.0, 'cy': 107.0}, {'label': '정렬', 'role': 'AXRadioButton', 'x': 2237.0, 'cx': 2284.0, 'cy': 107.0}, {'label': '', 'role': 'AXButton', 'x': 2070.0, 'cx': 2100.0, 'cy': 154.0}, {'label': '', 'role': 'AXButton', 'x': 2129.0, 'cx': 2158.0, 'cy': 154.0}, {'label': '', 'role': 'AXButton', 'x': 2196.0, 'cx': 2226.0, 'cy': 154.0}, {'label': '', 'role': 'AXButton', 'x': 2255.0, 'cx': 2284.0, 'cy': 154.0}, {'label': '정렬', 'role': 'AXMenuButton', 'x': 2072.0, 'cx': 2129.0, 'cy': 212.0}, {'label': '비율 유지', 'role': 'AXCheckBox', 'x': 2142.0, 'cx': 2234.0, 'cy': 307.0}, {'label': '', 'role': 'AXButton', 'x': 2208.0, 'cx': 2216.0, 'cy': 261.0}, {'label': '', 'role': 'AXButton', 'x': 2208.0, 'cx': 2216.0, 'cy': 272.0}, {'label': '100pt', 'role': 'AXTextField', 'x': 2230.0, 'cx': 2263.0, 'cy': 266.0}, {'label': '100pt', 'role': 'AXTextField', 'x': 2141.0, 'cx': 2174.0, 'cy': 266.0}, {'label': '', 'role': 'AXButton', 'x': 2297.0, 'cx': 2305.0, 'cy': 261.0}, {'label': '', 'role': 'AXButton', 'x': 2297.0, 'cx': 2305.0, 'cy': 272.0}]
+onscreen_format_n=16
+INSPECTOR_ON_SCREEN
+insp_ok=True
+clicked_empty_canvas 998.0,804.0
+bg_cands=[]
+NO_BG_WELL_onscreen
+selected_rect_for_B cy=188.0
+drag_SE_handle_1 1043.0,769.0 -> 1681.0,1264.0
+drag_SE_handle_2 1048.0,774.0 -> 1681.0,1264.0
+drag_SE_handle_3 1053.0,779.0 -> 1681.0,1264.0
+texts_before_delete=[120.0, 154.0]
+deleted_text cy=120.0
+deleted_text cy=154.0
+method=B_se_drag
+menus_final=['Apple', 'Keynote', '파일', '편집', '삽입', '슬라이드', '포맷', '정렬', '보기', '재생', '윈도우', '도움말']
+wins_final=[{'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}]
+objs_final=[('텍스트', 218.0, 120.0), ('텍스트', 218.0, 154.0)]
+shot=305471
+ELAPSED=18

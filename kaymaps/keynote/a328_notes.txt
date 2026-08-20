@@ -1,0 +1,12 @@
+PID 30490
+fs0 (1500.0, 1000.0)
+fs1 (471.0, 270.0) ok=False
+shot scene_328_1.png 2678258
+shot scene_328_2.png 3353734
+text_well missing — black one-line OK
+shot scene_328_3.png 2393952
+shot scene_328_4.png 2668605
+shot scene_328_5.png 2694647
+shot scene_328_6.png 2746865
+shot slide_328.png 2746636
+ELAPSED 84

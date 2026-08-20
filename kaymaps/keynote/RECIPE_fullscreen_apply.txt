@@ -1,0 +1,13 @@
+RECIPE: fullscreen_apply
+REG: a_466/u_469-472
+WHY: reused every doc-open, no judgment needed
+STEPS:
+1. open doc(existing/new)
+2. menu"보기"(~419,20)click→a11y confirm"전체 화면 시작"AXMenuItem coord→click
+   (NOTE: Ctrl+Cmd+F 3-mod chord unsupported by kongtrol, use menu click)
+3. 1x screenshot verify
+   - ok→proceed
+   - fail→retry step2(max3x)
+4. 3x fail→report cause screenshot only, no guess
+VERIFY: fullscreen state(no other window visible) via screenshot
+NOTE: Esc during fullscreen=exits immediately, do not use Esc for other purposes(eg force-quit dialog=use its own UI button)

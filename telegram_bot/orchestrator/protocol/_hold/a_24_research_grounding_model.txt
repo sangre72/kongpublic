@@ -1,0 +1,25 @@
+@A [RESEARCH] UI grounding 모델 추천 (유저 다른-PC vLLM 설치용) (u_56~59)
+
+WHY: user "grounding 모델 추가(u_56)·LAN GPU는 다른 컴이라 니가 설치못함(u_58)·조사해서 알려줘(u_59)". = RESEARCH ONLY. orch/워커 조사→유저가 그 다른PC(NVIDIA·vLLM)에 설치.
+CONTEXT (measured): LAN 서버 192.168.45.183:8000 = 다른PC vLLM, 현재 Qwen3-VL-8B-AWQ-4bit. Qwen3-VL 실측=속도0.3s good but ★좌표 grounding 부정확(같은질의 좌표 흔들림 {667,36}/{380,449}/{688,688}, 일반VL이라 UI좌표 약함). a11y=버튼·텍스트 정확(<100ms). 벽=캔버스 도형·이미지 좌표.
+
+TASK: WebSearch로 [UI grounding 특화 모델] 조사 → 유저PC(vLLM)에 설치할 최선 1~2안 추천. 설치·서빙 명령까지.
+
+★EVAL 기준 (user u_62 "제일 퍼포먼스 빠른걸로" = 속도+정확 동시, ★속도 가중):
+1 ★★속도(user 최우선): vLLM 추론 latency(warm ms/img). 원격 GPU 서버라 무거워도 OK지만 [가장 빠른] 것 선택. 현 Qwen3-VL 0.3s baseline — 이보다 빠르거나 동급이면서 좌표정확한 것.
+2 ★좌표 정확도: ScreenSpot-V2/Pro 벤치. GUI 클릭좌표 정확·일관(Qwen3-VL 약점 보완).
+3 ★vLLM 서빙 필수: 그 서버=vLLM. HF model·vllm serve 가능. AWQ/GPTQ 양자화(속도↑·VRAM↓).
+4 크기·VRAM: 그 GPU 감안. 현 Qwen3-VL-8B와 공존 or 교체(속도 좋으면 교체도).
+5 조합: grounding 단독으로 [좌표+이해] 다 되면 Qwen3-VL 대체(1모델=더빠름) or 병용. 속도 최적 구성 추천.
+
+후보(ar_20 기반+최신): UI-TARS-1.5-7B(ScreenSpot SOTA·vLLM됨)·OS-Atlas-7B·UGround-V1-7B·OmniParser-V2(파서형·모델아닌 파이프라인)·Holo1·Aria-UI·ShowUI. 각 [벤치·vLLM지원·크기·라이선스·설치법] 비교.
+
+DELIVER (ar_24, 유저에 전달할 형태):
+ - 비교표: 후보별 [ScreenSpot점수·vLLM지원·모델크기/VRAM·라이선스].
+ - ★추천 1~2안 + 이유. "이거 설치하세요" 형태.
+ - ★설치·서빙 명령(그 PC에서 실행): `vllm serve <model> ...` or HF다운로드+vllm 명령. 포트·max-model-len 등.
+ - kongtrol 연결법: OpenAI /v1 호환이면 기존 ground_vl.sh 엔드포인트만 교체.
+
+CON: RESEARCH(WebSearch 허용). 조사=사실·벤치수치·출처(arXiv·HF·vllm docs). 추측금지. 설치는 유저몫(orch 설치 안함·명령만 제공). MLX 아님(그 PC=NVIDIA vLLM). a_/ar_=compressed-english. BUTTON=ask|.
+VERIFY(ar_24): R=추천 grounding모델(1~2안·이유·벤치) · V=비교표(ScreenSpot·vLLM지원·크기·라이선스)·설치명령·kongtrol연결법·출처 · F=research md · N=유저 설치 액션 명확
+USAGE: grounding모델 조사(유저 다른PC vLLM 설치용) / 산출=비교표·추천·설치명령 md / 제약=research·설치는 유저몫·vLLM/NVIDIA 대상

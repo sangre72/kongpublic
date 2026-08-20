@@ -1,0 +1,44 @@
+# Keynote Google-home method spec (orch 2026-08-16 u_398)
+# Use only rows with PASS. Change method if a row has FAIL.
+
+WINDOW
+- Must be able to toggle. Geom = MAX 무제.key only (BAN 서체 471x270).
+- To FS: 보기>전체 화면 시작. prove W>=display-20.
+- To windowed (inspector on-screen): 보기>전체 화면 종료 (dump label) or 무제.key green. prove W~1500.
+- BAN 앱 종료. BAN other-app windows.
+- For fill/color/정렬 fields: windowed. For full-bleed look: FS after fields set.
+- Keynote update: 지금 안 함.
+
+BG
+- Slide-1 selected → 현재 채우기 / 색상 채우기 well → dark. PASS a_365 a_377.
+- BAN 100pt rect as bg. BAN HEX typed onto slide.
+
+TEXT CREATE
+- 삽입 menu dump → 텍스트 상자 (live xy). BAN toolbar 텍스트.
+- BEFORE type: 텍스트 tab 세로 텍스트 checkbox OFF. dump prove.
+- Type the word only (Google). If leftover "텍스트" delete and retry.
+- If glyphs vertical after box is wide: DELETE box, do not toggle 세로 again (FAIL a_396).
+
+TEXT COLOR
+- 텍스트 tab → 텍스트 색상 well → white chip. PASS a_384.
+- BAN 보기>색상 보기 HEX for glyphs (FAIL many). HEX field FFFFFF ≠ glyphs.
+
+POS/SIZE
+- 정렬 tab dump-NOW fields. X710 Y338 W500. PASS a_385.
+- BAN type numbers into slide. BAN cmd-a delete all.
+
+PILL
+- 삽입 dump 도형 dump 직사각형. 정렬 557,532 806x59. 스타일 fill gray. PASS a_386.
+- BAN 세로 on labels.
+
+TOP NAV / BTNS
+- Only after logo horizontal white + pill PASS.
+- One object family per a_.
+
+VERIFY
+- Shot every a_. Worker RGB/dump not enough.
+
+AGENT (research 2026 apply)
+- Default: a11y dump + labeled click (Playwright MCP / Terminator style). Shot only at END.
+- BAN per-step VL (Claude CU / OpenAI CUA). Slow and we already fail mid-shot.
+- If no a11y label: dump-now then coord. Don't invent.

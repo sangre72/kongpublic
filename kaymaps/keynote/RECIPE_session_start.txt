@@ -1,0 +1,10 @@
+RECIPE: session_start
+REG: a_468/u_474
+WHY: combine "open doc→fullscreen" into 1 flow, no per-session redesign
+STEPS:
+1. decide open target: existing file(eg 무제1.key)→open it(Finder/open cmd) / none or "start new"→Keynote new doc(blank theme)
+   rule: continue-prior-work instruction→existing file / "start new" instruction→new doc / ambiguous→existing file(avoid loss)
+2. immediately on doc-open(no load-wait)→run RECIPE_fullscreen_apply.txt
+3. fullscreen confirmed→proceed directly to next task(coord placement etc), no mid-flow "what now" judgment
+VERIFY: fullscreen entered + target doc content loaded
+NOTE: don't treat "open" and "fullscreen" as separate steps to rethink each time, run this recipe start-to-end fixed(u_474)

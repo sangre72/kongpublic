@@ -1,0 +1,25 @@
+# MODULE: table_insert
+# PLAN: insert table via 삽입>표>기본. rows/cols are args (documented); grid picker a11y often absent — insert first style then stop.
+# ARGS: rows cols  — plug notes only until dump shows row/col fields (DEFAULT 3 3)
+# PRE: FS · BAN 종료 · no mid experiments
+# DUMP-NOW (a_319):
+# | control | xy | note |
+# | menubar 삽입 | 225,20 | |
+# | 삽입>표 | 310,116 | |
+# | 삽입>표>기본 | 449,140 | nest (also 머리말 449,116 · 일반 449,164 · 합계 449,188) |
+# wait 400–800
+# NOTE: rows×cols visual grid in Keynote table gallery is not AX-labeled in dump — plug style only.
+# CALL: kongtrol --yes input run kaymaps/keynote/seq/table_insert.txt
+app Keynote
+wait 400
+dump
+click 225 20
+wait 400
+click 310 116
+wait 400
+# PLUG style: 기본 (rows/cols not typed — gallery cell invent ban)
+click 449 140
+wait 800
+dump
+# ARGS rows=3 cols=3 reserved for future field path after dump-NOW of table inspector
+wait 400

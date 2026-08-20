@@ -1,0 +1,26 @@
+PID 30490
+menus0=['Apple', 'Keynote', '파일', '편집', '삽입', '슬라이드', '포맷', '정렬', '보기', '재생', '윈도우', '도움말']
+MAX={'label': '무제.key', 'x': 0.0, 'y': 40.0, 'w': 1500.0, 'h': 1000.0, 'area': 1500000.0}
+fs_start
+MAX={'label': '무제.key', 'x': 0.0, 'y': 39.0, 'w': 2056.0, 'h': 1290.0, 'area': 2652240.0}
+FS_ok
+OBJS_p0=[('0', 205.0, 120.0)]
+del 0
+OBJS_p1=[]
+LEFT=[]
+has_0=False
+has_202124=False
+rect_inserted
+size_type_leaked 1920 undo
+size_type_leaked 1080 undo
+size_type_leaked 0 undo
+size_type_leaked 0 undo
+size_ok w=False h=False x=False y=False
+selected_rect
+swatch_click 1880,450
+swatch_ok_no_text_leak
+menus_final=['Apple', 'Keynote', '파일', '편집', '삽입', '슬라이드', '포맷', '정렬', '보기', '재생', '윈도우', '도움말']
+wins_final=[{'label': '무제.key', 'x': 0.0, 'y': 40.0, 'w': 1500.0, 'h': 1000.0, 'area': 1500000.0}]
+objs_final=[('사각형', 218.0, 137.0)]
+shot=2399141
+ELAPSED=42

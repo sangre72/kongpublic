@@ -1,0 +1,12 @@
+RECIPE: first_run_onboarding
+REG: u_888~892(2026-08-19)
+WHY: CapCut 1st launch = ToS/onboarding screens before base editor screen. Repeat needs-info per screen = waste.
+STEPS:
+1. gatekeeper dialog(OS-common, see kaymaps/system/macos/RECIPE_gatekeeper_open_confirm.txt) → resolve first
+2. ToS/이용약관 screen → click Agree/동의
+3. further onboarding(login-prompt/tutorial/perm-popup) → skip/닫기/나중에 priority
+4. base editor screen reached → done
+VERIFY: base editor screen visible, no dialog remaining
+NOTE(confirmed ar_892, 2026-08-19): actual sequence = gatekeeper open → app launches directly to Home screen with ToS/Privacy Policy modal overlay (title "Terms of Service and Privacy Policy") → click "Agree and continue"(logical coord ~1105,751 at this session's window size — recompute per window bounds, do not hardcode) → modal closes, Home screen fully interactive, 0 further onboarding screens observed(no login-prompt/tutorial/perm-popup this run).
+BASE_SCREEN_SIGNATURE: left sidebar items "Home/Templates/Create with AI(동영상 스튜디오/Design Studio)/Management(Spaces)", top-center "Create project" button, top banner "EditPilot".
+BAN: 0 login, 0 account-create, 0 purchase/subscribe during onboarding.

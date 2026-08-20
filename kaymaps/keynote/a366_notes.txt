@@ -1,0 +1,15 @@
+PID 30490
+win0={'label': '무제.key', 'w': 1500.0, 'h': 1000.0, 'area': 1500000.0}
+objs0=[('Google', 137.0), ('직사각형', 171.0)]
+sel_Google cy=137.0
+fmt
+color_labs=[]
+chips=[('AXButton', '', 1478.0, 278.0), ('AXButton', '', 1478.0, 289.0), ('AXButton', '', 1478.0, 357.0), ('AXButton', '', 1478.0, 368.0), ('AXButton', '수직으로 뒤집습니다', 1466.0, 459.0), ('AXButton', '수평으로 뒤집습니다', 1423.0, 459.0)]
+chip 1478.0,278.0
+white_spots
+objs_final=[('Google', 137.0), ('직사각형', 171.0)]
+win_final={'label': '무제.key', 'w': 1500.0, 'h': 1000.0, 'area': 1500000.0}
+has_rect=True has_Google=True
+canvas_mean_rgb=(32.0, 33.0, 36.0)
+shot=2520819
+ELAPSED=8

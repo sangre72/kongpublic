@@ -1,0 +1,3 @@
+[
+  {"name":"first_run_onboarding","app":"google-flow","desc":"labs.google/fx/tools/flow 첫진입 다단계 온보딩(쿠키동의+마케팅동의x2+개인정보방침 스크롤)통과","verified_runs":1,"gate":"grandfathered","file":"RECIPE_first_run_onboarding.txt"}
+]

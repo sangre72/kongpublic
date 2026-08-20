@@ -1,0 +1,3 @@
+app Keynote
+key backspace
+wait 300

@@ -1,0 +1,29 @@
+# a_312 pipeline seq_google_white
+# PLAN TABLE (existing objects — do not recreate):
+# | obj | x,y | w×h | color | lock |
+# | bg 직사각형 | leave | 1920×1080 | 202124 | KEEP locked |
+# | Google | 710,338 | 500×92 | TEXT white | AFTER color bind |
+# DUMP-NOW (FS geom Y · 2026-08-15):
+# | control | xy | note |
+# | Keynote win | 2056×1290@(0,39) | display 2056×1329 G_GEOM=Y |
+# | 포맷 toolbar | 1908,72 | on-screen |
+# | Google list | 247,129 | select |
+# | 정렬 tab | 2192,107 | OFF-SCREEN x>2056 |
+# | 500pt field | 2174,266 | size OK |
+# | 텍스트 색상 well | ABSENT | cannot white |
+# FAILURE: STOP — no color click (SEQ_RULE state-gate / a_312 §5)
+# Intended clicks IF well had been present (NOT RUN — invent ban):
+# 1 select Google list 247,129
+# 2 포맷 1937,93
+# 3 텍스트 tab (dump xy if on-screen)
+# 4 텍스트 색상 well
+# 5 white swatch
+# Actual one-run: no color path — dry noop wait only to satisfy one-run discipline
+app Keynote
+wait 800
+dump
+# select Google (measured list center)
+click 247 129
+wait 600
+dump
+# STOP: 텍스트 색상 absent · inspector off-screen — no further clicks

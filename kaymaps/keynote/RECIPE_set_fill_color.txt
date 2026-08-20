@@ -1,0 +1,10 @@
+RECIPE: set_fill_color
+REG: a_485/u_502(2026-08-16)
+WHY: eyeball slider adjust=imprecise, hex direct input=100% accurate
+STEPS:
+1. select shape
+2. 스타일tab→click rainbow icon next to fill-color swatch→macOS standard color-picker opens
+3. click"16진수 색상 #"field→cmd+a→type hex6(eg 9aa0a6)→enter
+4. close color-picker window(red X or click elsewhere)
+VERIFY: color-picker hex field = input value, shape color reflects on canvas
+NOTE: rainbow icon=small round button right of fill swatch, not in a11y tree→click via screenshot coord

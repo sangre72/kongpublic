@@ -1,0 +1,8 @@
+[
+  {"name":"fullscreen_apply","app":"keynote","desc":"enter fullscreen via 보기 menu, retry up to 3x, verify by screenshot","verified_runs":2,"gate":"2-run-verified","file":"RECIPE_fullscreen_apply.txt"},
+  {"name":"session_start","app":"keynote","desc":"open doc(existing/new)+fullscreen combined start flow","verified_runs":2,"gate":"2-run-verified","file":"RECIPE_session_start.txt"},
+  {"name":"quit_keynote","app":"keynote","desc":"quit sequence: cmd+Q→save popup→menu fallback→bypass if stuck","verified_runs":1,"gate":"2-run-verified","file":"RECIPE_quit_keynote.txt"},
+  {"name":"resize_textbox_width","app":"keynote","desc":"numeric W/H edit via 정렬 tab + a11y field coord lookup","verified_runs":3,"gate":"2-run-verified","file":"RECIPE_resize_textbox_width.txt"},
+  {"name":"set_fill_color","app":"keynote","desc":"fill color via hex direct input in macOS color picker","verified_runs":3,"gate":"2-run-verified","file":"RECIPE_set_fill_color.txt"},
+  {"name":"shape_create_and_place","app":"keynote","desc":"create shape then immediately numeric-place via 정렬 tab, no draw-then-move","verified_runs":2,"gate":"2-run-verified","file":"RECIPE_shape_create_and_place.txt"}
+]

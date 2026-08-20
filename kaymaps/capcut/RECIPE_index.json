@@ -1,0 +1,9 @@
+[
+  {"name":"first_run_onboarding","app":"capcut","desc":"ToS agree + skip onboarding screens to reach base editor, 0 login/purchase","verified_runs":1,"gate":"2-run-verified","file":"RECIPE_first_run_onboarding.txt"},
+  {"name":"import_media","app":"capcut","desc":"base editor에서 미디어 파일 임포트","verified_runs":1,"gate":"grandfathered","file":"RECIPE_import_media.txt"},
+  {"name":"timeline_edit_split_delete","app":"capcut","desc":"타임라인 배치→split→삭제 기본 편집흐름","verified_runs":1,"gate":"grandfathered","file":"RECIPE_timeline_edit_split_delete.txt"},
+  {"name":"add_transition","app":"capcut","desc":"인접 클립 사이 전환효과 추가","verified_runs":1,"gate":"grandfathered","file":"RECIPE_add_transition.txt"},
+  {"name":"auto_captions","app":"capcut","desc":"음성기반 자막 자동생성","verified_runs":1,"gate":"grandfathered","file":"RECIPE_auto_captions.txt"},
+  {"name":"audio_add_and_mix","app":"capcut","desc":"배경음악 추가+볼륨 믹싱","verified_runs":1,"gate":"grandfathered","file":"RECIPE_audio_add_and_mix.txt"},
+  {"name":"export","app":"capcut","desc":"편집 완료 영상 파일로 내보내기","verified_runs":1,"gate":"grandfathered","file":"RECIPE_export.txt"}
+]

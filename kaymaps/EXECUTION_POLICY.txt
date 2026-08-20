@@ -1,0 +1,15 @@
+EXECUTION_POLICY: batch-plan-first
+REG: a_498/u_524, gap-analysis §2-1(K8 principle, convention-level enforcement)
+WHY: K8("plan first, no per-step screenshot judgment") only written in a_ text, not checked every task→repeated violation(u_504 case)
+SCOPE: this is a working-convention strengthening, NOT a kongtrol Rust code change(perception/actor.rs batch-API=separate dev task, request explicitly if needed)
+RULE:
+1. before any multi-step GUI task: write step list(what/where-coord/tool) FIRST, no execution yet
+2. numeric/hex/deterministic steps→execute ALL consecutively, 0 screenshot between
+3. screenshot ONLY at: (a)1x baseline before batch start (b)1x final verify after batch end (c)actual error/blocker
+4. violating this(screenshot after every step)=explicitly flag in ar_ as "K8 violation, corrected"
+SELF_CHECK: every ar_ for a multi-step task starts with 1 line "K8 checklist: OK" or "K8 checklist: violated(reason)"
+VERIFY: ar_ reports carry the self-check line, step count vs screenshot count ratio stays low(target: screenshots << steps)
+
+RULE(price-disclosure): a_507/u_539 — when recommending/reporting App Store apps, ALWAYS state price(free/₩amount) explicitly, never assume free
+RULE(quit-method): a_507/u_540 — app quit=Cmd+Q by default(not force-quit dialog, not other methods), unless Cmd+Q fails then fallback per RECIPE_quit_keynote.txt-style sequence
+RULE(universal-fullscreen-first): a_513/u_554,555 — EVERY app launch → apply fullscreen IMMEDIATELY, before any other action(draw/edit/navigate). WHY: fixed coord system per app avoids re-measuring every step(generalizes keynote-fixed-fullscreen-coordinate-reuse memory to all apps). Method: adapt RECIPE_fullscreen_apply.txt menu-click pattern per app("보기" menu label/position may vary, verify via a11y each new app first time)

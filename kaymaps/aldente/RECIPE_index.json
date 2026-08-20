@@ -1,0 +1,3 @@
+[
+  {"name":"set_charge_limit","app":"aldente","os":"macos","desc":"set charge-limit %(dashboard custom AXTextField, shift+left select+overwrite pattern) + close(window-only)/quit(full-terminate, distinct paths) via a11y-window-anchor coord method(NOT pixel-math)","verified_runs":4,"gate":"4-run-verified","file":"RECIPE_set_charge_limit.txt"}
+]

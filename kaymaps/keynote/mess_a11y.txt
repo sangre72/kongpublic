@@ -1,0 +1,48 @@
+AXWindow               @(1028,684) [2056x1290] · 무제.key
+AXRadioButton          @(2192,107) [272x30] · 슬라이드
+AXButton               @(2192,168) [270x94] · 슬라이드 레이아웃, 빈 페이지
+AXStaticText           @(2097,240) [47x19] · 표시 항목
+AXCheckBox             @(2191,265) [234x17] · 제목
+AXCheckBox             @(2191,290) [234x17] · 본문
+AXCheckBox             @(2191,315) [234x17] · 슬라이드 번호
+AXStaticText           @(2084,359) [23x19] · 배경
+AXRadioButton          @(2132,387) [121x24] · 표준
+AXRadioButton          @(2252,387) [120x24] · 다이내믹
+AXButton               @(2278,427) [68x25] · 
+AXStaticText           @(2101,427) [57x17] · 현재 채우기
+AXPopUpButton          @(2192,460) [240x22] · 색상 채우기
+AXButton               @(2192,1296) [202x22] · 슬라이드 레이아웃 편집
+AXTextField            @(224,1315) [160x21] · 
+AXButton               @(159,1315) [25x22] · 검색
+AXButton               @(317,1315) [17x11] · 슬라이드 대상체 필터
+AXStaticText           @(1080,52) [54x16] · 무제.key
+AXMenuButton           @(168,72) [52x42] · 보기
+AXMenuButton           @(226,72) [63x42] · 확대/축소
+AXCheckBox             @(294,72) [74x42] · 슬라이드 추가
+AXButton               @(645,72) [52x42] · 재생
+AXCheckBox             @(982,72) [48x42] · 표
+AXCheckBox             @(1030,72) [48x42] · 차트
+AXButton               @(1078,72) [48x42] · 텍스트
+AXCheckBox             @(1126,72) [48x42] · 도형
+AXMenuButton           @(1176,72) [52x42] · 미디어
+AXButton               @(1226,72) [48x42] · 주석
+AXButton               @(1563,72) [52x42] · 공유
+AXRadioButton          @(1908,72) [58x42] · 포맷
+AXRadioButton          @(1966,72) [57x42] · 애니메이션
+AXRadioButton          @(2023,72) [57x42] · 문서
+AXImage                @(1043,36) [18x18] · 무제.key
+AXMenuBarItem          @(27,20) [34x39] · Apple
+AXMenuBarItem          @(81,20) [73x39] · Keynote
+AXMenuBarItem          @(139,20) [43x39] · 파일
+AXMenuBarItem          @(182,20) [43x39] · 편집
+AXMenuBarItem          @(225,20) [43x39] · 삽입
+AXMenuBarItem          @(279,20) [65x39] · 슬라이드
+AXMenuBarItem          @(333,20) [43x39] · 포맷
+AXMenuBarItem          @(376,20) [43x39] · 정렬
+AXMenuBarItem          @(419,20) [43x39] · 보기
+AXMenuBarItem          @(462,20) [43x39] · 재생
+AXMenuBarItem          @(510,20) [54x39] · 윈도우
+AXMenuBarItem          @(564,20) [54x39] · 도움말
+AXTextField            @(170,1318) [342x24] · 
+AXButton               @(13,1318) [25x22] · 검색
+AXTable                @(180,1324) [362x12] · 검색 결과

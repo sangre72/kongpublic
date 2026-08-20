@@ -1,0 +1,10 @@
+RECIPE: fill_area(krita)
+REG: a_522(2026-08-16), verified 2x
+WHY: core primitive — solid color fill of a region
+STEPS:
+1. select "사각형 선택 도구"(rectangle select tool, toolbar checkbox)
+2. kongtrol input drag <x1> <y1> <x2> <y2> --yes(defines selection rectangle)
+3. click "Fill Selection with Color" button(a11y AXButton, coords shift with selection position — verify via a11y each time)
+VERIFY: selected rectangle fully filled with current foreground color, marching-ants selection border visible until deselected
+NOTE: "Enclose and Fill Tool"(freehand closed-shape auto-fill) TESTED and FAILED — only painted an outline stroke along the drag path, did NOT fill the interior. Do not use it for area fill; rectangle-select+Fill-Selection is the verified reliable method. For non-rectangular fills, would need polygon/lasso select tool(not yet tested) + same Fill Selection button.
+SIZE_VARIATIONS(a_531, verified 2026-08-16): tested small(~70x50px) and large(~120x150px) selections — both filled completely and cleanly, no size-dependent issue observed. Fill-Selection button coords shift based on selection rectangle's screen position(a11y re-query required each time).

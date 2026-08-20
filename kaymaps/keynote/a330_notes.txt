@@ -1,0 +1,9 @@
+PID 30490
+win0=(471.0, 270.0, 1490.0, 989.0)
+click_fs_start 518.0,778.0
+win1=(471.0, 270.0) G=False
+final_win=None
+google_labels=[]
+fs_ok=False
+shot=2393979
+ELAPSED=36

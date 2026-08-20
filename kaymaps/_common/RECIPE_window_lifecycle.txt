@@ -1,0 +1,24 @@
+RECIPE: window_lifecycle(macOS, generic — 3-branch decision tree for app/window end-of-task disposition)
+REG: a_1000(2026-08-20), refines a_998 Quit-vs-Close binary into 3 branches
+WHY: a_998 established Quit(full-terminate) vs Close(window-only, app stays resident) as two distinct goals. u_1071 adds a 3rd branch(Minimize) — decision should be made explicitly per-task-intent, not defaulted.
+
+DECISION-TREE(pick ONE branch based on task intent BEFORE acting):
+
+1. **QUIT(Cmd+Q or explicit power/quit-button)** — when: task done AND app not needed again soon AND app poses no risk left running(no stray background cost/security concern). Effect: process terminates(`pgrep -x <app>` returns empty). Method: prefer app-specific Quit-trigger if Cmd+Q is unreliable(cf AlDente sidebar "전원" button, RECIPE_set_charge_limit.txt STEP7 — some LSUIElement/menubar apps ignore Cmd+Q entirely). Verify: PID gone.
+
+2. **MINIMIZE(Cmd+M)** — when: task paused but app/window will likely be revisited soon(same session or near-future task), OR user/task explicitly wants state preserved without visual clutter. Effect: window hides to Dock, process AND window-state both persist(app stays fully resident, not just background process — window content/scroll-position/unsaved-edits all preserved, unlike Quit). Distinct from Close: minimized window can be restored to EXACT prior state via Dock-click; a closed(non-minimized) window may reset to a default view on reopen(app-dependent). Verify: window icon appears in Dock's minimized-item area, `pgrep -x <app>` still alive, a11y query on that PID may show 0 visible AXWindow elements(minimized windows sometimes drop out of the visible a11y tree — don't treat that as "closed").
+
+3. **CLOSE(window-only, Cmd+W or explicit close-button)** — when: this specific window/tab is done but the app itself should stay resident(menubar apps) or other windows of the same app remain relevant. Effect: this window's content is gone(not preserved like minimize), process may or may not survive depending on app type(menubar-resident apps like AlDente: process survives, cf RECIPE_close_app_dock.txt; normal multi-window apps: process also typically survives if other windows open, may quit if last window and app has no menubar-only mode). Verify: `pgrep -x <app>` per app-type expectation + a11y elem-count on that window drops/target window gone from screenshot.
+
+COMMON TO ALL 3 BRANCHES:
+- ★coord-method: use a11y-anchor(NOT pixel-math), see [[screenshot_coord_conversion]](kaymaps/_common/RECIPE_screenshot_coord_conversion.txt) — applies whether clicking a Quit-button, a Minimize-button(yellow traffic-light, same top-left+offset pattern as close), or a Close-button(red traffic-light).
+- ★Cmd+Q/Cmd+W/Cmd+M keyboard shortcuts require CONFIRMED focus on the target app first(cf SAFEGUARD from a_981/983/992 — a stray Cmd+W/Cmd+Q fired without confirmed focus can leak to an unintended window, e.g. orch/worker terminal). Prefer explicit button-click(a11y or window-anchor-derived coord) over blind keyboard-shortcut when focus is uncertain.
+- pick the branch EXPLICITLY per task wording — if task says "close" without further context, default to branch 3(window-only) as the least-destructive interpretation; only Quit(branch 1) if task explicitly says "quit"/"종료"/"완전히 닫기" or the app truly won't be needed again.
+
+VERIFY:
+- branch 1(Quit): `pgrep -x <app>` empty.
+- branch 2(Minimize): `pgrep -x <app>` alive + window in Dock's minimized area(visual check) + NOT counted as "closed" even if a11y momentarily shows 0 windows.
+- branch 3(Close): target window gone from screenshot/a11y for that specific window, `pgrep -x <app>` alive-or-dead per app-type norm(check before assuming either).
+
+LIMIT/OPEN:
+- Minimize branch not yet empirically exercised this session(documented from macOS standard behavior + a_1000 spec, not yet a11y-verified end-to-end like Quit/Close were in a_997-999) — first actual use should confirm the yellow-traffic-light coord offset matches the red one's pattern.

@@ -1,0 +1,41 @@
+# MODULE: size
+# PLAN: set selected object W/H (slide pt) via 정렬 크기 fields; 비율 유지 off first
+# ARGS: w h  — plug only these two into text lines marked PLUG
+# DEFAULT_PLUG: w=500 h=92
+# PRE: object selected · FS · 정렬 tab on-screen
+# DUMP (prod_controls):
+# | control | xy | note |
+# | 포맷 | 1937,93 | |
+# | 정렬 | 2013,107 | |
+# | W field | 1903,266 | left size |
+# | H field | 1992,266 | right size |
+# | 비율 유지 | 2055,316 | checkbox — click to uncheck if on |
+# FIELD: click → wait 200 → cmd-a → text → enter
+# wait 400–800 · no mid experiments
+# CALL: sed -e 's/{{W}}/500/' -e 's/{{H}}/92/' … | kongtrol --yes input run
+# PROVE dry: kongtrol --yes input run kaymaps/keynote/seq/size.txt
+app Keynote
+wait 400
+dump
+click 1937 93
+wait 400
+click 2013 107
+wait 400
+# 비율 유지 off (safe re-click may re-toggle — dump-confirm state; default path assumes may need uncheck once)
+click 2055 316
+wait 400
+# PLUG W
+click 1903 266
+wait 200
+chord cmd a
+text 500
+key enter
+wait 400
+# PLUG H
+click 1992 266
+wait 200
+chord cmd a
+text 92
+key enter
+wait 400
+dump

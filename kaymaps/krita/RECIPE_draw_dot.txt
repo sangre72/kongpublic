@@ -1,0 +1,9 @@
+RECIPE: draw_dot(krita)
+REG: a_522(2026-08-16), verified 2x
+WHY: core primitive — single point mark(no drag)
+STEPS:
+1. select freehand brush tool
+2. kongtrol input click <x> <y> --yes(single click, NOT drag)
+VERIFY: circular dot rendered at click point, diameter = current brush size, current foreground color
+SIZE_VARIATIONS(a_531, verified 2026-08-16): tested 3px(fine detail)/10px(medium)/30px(bold) — all visually distinct diameters, linear scaling confirmed. Size field: click(~1270,305 toolbar, coords shift w/ layout)→cmd+a→type px value→enter, BEFORE the click/drag action.
+PITFALL(a_532 diagnosed): if foreground color matches background, strokes are invisible even though technically rendered — always confirm foreground≠background before a batch of test strokes(check swatch, or use X-key swap to guarantee contrast).

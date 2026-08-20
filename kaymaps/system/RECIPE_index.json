@@ -1,0 +1,5 @@
+[
+  {"name":"force_quit_dialog","app":"system","os":"macos","desc":"force-quit dialog: click paused-app row→resume btn→close, never force-quit","verified_runs":2,"gate":"2-run-verified","file":"macos/RECIPE_force_quit_dialog.txt"},
+  {"name":"crash_recovery_dialog","app":"system","os":"macos","desc":"crash-report dialog(확인 safe-default) + app autosave-recovery dialog(decision-tree: recover valuable / discard disposable). crash-report can be unresponsive, repeat/kill-relaunch if stuck","verified_runs":1,"gate":"1-run","file":"macos/RECIPE_crash_recovery_dialog.txt"},
+  {"name":"gatekeeper_open_confirm","app":"system","os":"macos","desc":"trusted-src 1st-launch Gatekeeper dialog: auto-click 열기, untrusted→STOP+needs-info","verified_runs":0,"gate":"tentative","file":"macos/RECIPE_gatekeeper_open_confirm.txt"}
+]

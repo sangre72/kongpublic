@@ -1,0 +1,38 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "cat logs/worker1_status.txt 2>/dev/null || echo '⚠ 워커 감시 미기동'",
+    "refreshInterval": 5
+  },
+  "autoCompactWindow": "300k",
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash",
+      "Bash(*)",
+      "Monitor",
+      "Bash(cd \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" || exit 1*)",
+      "Bash(bash telegram_bot/orchestrator/scripts/worker1_monitor_tick.sh*)",
+      "Bash(bash telegram_bot/orchestrator/scripts/worker1_watch2.sh*)",
+      "Bash(bash telegram_bot/orchestrator/scripts/worker1_ensure_tick.sh*)",
+      "Bash(bash telegram_bot/orchestrator/scripts/worker1_session_p0.sh*)",
+      "Bash(KONG_WORKER_MON1=1 *)",
+      "Bash(KONG_WORKER_MON2=1 *)",
+      "Bash(python3 telegram_bot/orchestrator/scripts/worker1_monitor_loop.py*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash telegram_bot/orchestrator/scripts/worker1_session_p0.sh",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}
