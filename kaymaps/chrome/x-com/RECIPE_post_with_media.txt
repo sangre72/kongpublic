@@ -1,0 +1,41 @@
+RECIPE: post_with_media(X.com via Chrome)
+REG: a_1039(2026-08-20) — UI 학습 단계, 실제 게시(Post 클릭)는 미수행(범위 외)
+SEE-ALSO: [[chrome_common]](kaymaps/chrome/_common/RECIPE_chrome_common.txt) — Chrome 열기/새탭/주소창/DevTools 등 사이트 무관 공통 조작.
+
+WHY: kongtrol input 계열은 항상 --yes 필수(a_1035~1037, RiskLevel::Dangerous 설계).
+
+STEPS(Chrome 열기~X.com 접속):
+1. Chrome 열기 = Spotlight 경유(cmd+space→"Google Chrome"→return). Dock/메뉴바 좌표 불안정(AlDente 사례) 대비 권장.
+2. 새 탭: `input chord cmd t --yes`. 주소창 자동포커스 상태에서 `input text "x.com" --yes`→`input key return --yes`.
+3. ★함정: 페이지 로드 전에 텍스트 입력하면 포커스가 페이지 내 필드(로그인 이메일칸 등)로 넘어가 오타 유입 가능 — 로드 완료(sleep 2s+) 후 주소 입력 권장.
+
+LOGIN-STATE(2026-08-20 확인):
+- 비로그인 상태 → "지금 일어나고 있는 일" 랜딩+로그인 폼 표시(전화번호/Google/Apple 계속하기 버튼 + 이메일-또는-사용자이름 텍스트필드).
+- a11y 확인된 로그인 옵션: AXButton "전화번호로 계속"(590,597) / AXButton "Google 계정으로 계속하기"(590,660, 새탭 열림, "Continue as 살자, panic.hill@gmail.com" 버튼 포함) / AXButton "Apple로 계속"(590,729).
+- ★로그인 자체는 이 레시피 범위 아님(a_1039는 UI학습까지만, 계정 자격증명 입력은 사용자 판단 필요 시 별도 a_ 필요).
+
+LOGIN-PROCEDURE(a_1040 검증완료, Google 계정 원클릭):
+1. "Google로 계속" 버튼 클릭(비로그인 랜딩, a11y AXButton "Google 계정으로 계속하기").
+2. Google 계정선택 팝업(별도 윈도우, "로그인 - Google 계정") 등장 → 대상 계정 링크 클릭(a11y `AXLink "<이름> <email>"`, 예: "차카게살자 panic.hill@gmail.com").
+3. 팝업 자동 닫힘 + x.com/home으로 리다이렉트(로드 3~4초 소요, sleep 필요).
+4. ★함정: 클릭 직후 즉시 재조회하면 이전 페이지 a11y가 캐시처럼 보여 "안 눌렸다"고 오판하기 쉬움 — 매 클릭 후 최소 3s 대기 후 재조회.
+
+POST-LOGIN UI(a_1040 검증완료, 홈 피드 상단 인라인 작성 박스 기준):
+- AXTextArea "게시물 본문"(969,216) — 텍스트 입력 필드, placeholder "무슨 일이 일어나고 있나요?".
+- AXButton "사진 또는 동영상 추가"(722,272) — 미디어(이미지/동영상) 첨부.
+- AXButton "GIF 추가"(762,272).
+- AXButton "이미지 생성"(802,272) — AI 이미지 생성.
+- AXButton "투표 추가"(842,272).
+- AXButton "예약 게시물"(922,272).
+- AXButton "위치 태그하기"(962,272).
+- AXButton "게시하기"(1185,272) — ★실제 게시(공개), 이 레시피 실행 시 항상 신중 — 사용자 명시 승인 없이 클릭 금지.
+- ※좌표는 홈 피드 스크롤 위치·창 크기에 따라 달라질 수 있음 — 매번 `see --a11y --pid <PID> --yes` 재조회 권장(하드코딩 좌표 그대로 재사용 금지).
+
+VERIFY:
+- 로그인 상태 판별: a11y에 "전화번호로 계속"/"Google 계정으로 계속하기" 버튼 존재 = 비로그인. 부재+"게시물 본문" AXTextArea 존재 = 로그인됨.
+- 텍스트 입력 후 확인: `input text "<내용>" --yes` 후 zoom-crop 또는 a11y AXTextArea value로 오타/누락 확인.
+- 미디어 첨부 후: 첨부 썸네일이 작성박스 내 새 AXImage/AXGroup으로 나타나는지 a11y 재조회로 확인.
+
+LIMIT/OPEN:
+- 미디어 첨부(파일선택 다이얼로그) 세부 흐름(파일 경로 입력 방식)은 아직 실측 안 됨 — 다음 a_에서 실제 첨부 시도 시 확인 필요.
+- 실제 게시(Post 클릭)는 여전히 미실행 — 항상 별도 명시 지시 필요.
