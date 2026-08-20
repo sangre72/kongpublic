@@ -1,5 +1,15 @@
 TITLE:youtube-scheduled-upload-fortune-batch
-GATE:tentative(verified_runs=3, scene_01/02/03 real success incl real youtube.com/shorts/<id> url each)
+GATE:tentative(verified_runs=4, scene_01~04 real success incl real youtube.com/shorts/<id> url each)
+
+CONFIRMED_COORDS(ar_1098, this Chrome window/resolution — re-verify via see --a11y if window moved/resized):
+1. "만들기" @(1884,158) → "동영상 업로드" @(1820,204)
+2. drag scene_0N.mp4 from Finder → 드롭존 @(1002,777)
+3. 제목 필드 @(838,354) click → Cmd+A(select-all) → paste/type title
+4. "재생목록에 추가" @(700,1153) → "오늘의 운세" @(603,920) → "완료" @(924,1255)
+5. "다음" @(1430,1247) ×3
+6. ★"예약" @(606,700) — NOT the "공개"(public) radio button, easy to misclick → 날짜/시간 확인
+7. "예약" 버튼(save) @(1430,1247) → 확인 다이얼로그에서 진짜 URL 확인
+8. "닫기" @(1964,345) → 콘텐츠 리스트에서 실제 표시 재검증
 
 TAB_SWITCH(if CineBot tab missing/lost — ar_1094 lesson):
 - Cmd+Tab = APP switch, NOT browser tab switch. Do not use for tab nav.
