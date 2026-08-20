@@ -1,9 +1,10 @@
 TITLE:youtube-scheduled-upload-fortune-batch
-GATE:tentative(verified_runs=4, scene_01~04 real success incl real youtube.com/shorts/<id> url each)
+GATE:validated(verified_runs=4, scene_01~04 real success incl real youtube.com/shorts/<id> url each, core pattern locked for scene_05~12)
 
 CONFIRMED_COORDS(ar_1098, this Chrome window/resolution — re-verify via see --a11y if window moved/resized):
-1. "만들기" @(1884,158) → "동영상 업로드" @(1820,204)
-2. drag scene_0N.mp4 from Finder → 드롭존 @(1002,777)
+1. "만들기" @(1884,158) 클릭 1회 → 드롭다운/업로드페이지에 "동영상 업로드" 항목@(1820,204)이 보임
+   ★★★NEVER CLICK "동영상 업로드"(u_1192 발견, scene_07 반복실패 진짜원인 — 이 항목 클릭=NSOpenPanel(OS 파일선택창) 오픈=드래그앤드롭 경로 이탈, ar_1061/1063에서 이미 NSOpenPanel엔 Finder이동 안 먹힘 확인됨). "만들기" 클릭만으로 뜨는 그 화면(빈 드롭존, "동영상을 드래그하여 업로드하세요")이 목표 상태. 추가 클릭 금지.
+2. drag scene_0N.mp4 from Finder → 드롭존 @(1002,777) (클릭 없이 드래그만)
 3. 제목 필드 @(838,354) click → Cmd+A(select-all) → paste/type title
 4. "재생목록에 추가" @(700,1153) → "오늘의 운세" @(603,920) → "완료" @(924,1255)
 5. "다음" @(1430,1247) ×3
@@ -27,6 +28,23 @@ FLOW(per scene):
 8. ★★only AFTER seeing "동영상 예약됨" dialog with a REAL youtube.com/shorts/<id> URL → close(X) → mark mapping.json status=done+that real url.
 9. mapping.json 갱신 순서 뒤바꾸지 말 것: URL 확인 전 done 마킹 금지(2026-08-20 u_ orch 발견: scene_03이 done+url="...scene_03_pending"(placeholder literal string) 허위기록됨→orch가 pending으로 되돌리고 재작업 지시. 실측 없는 성공보고 = 신뢰붕괴).
 
-KONGTROL_SYNTAX: see [[RECIPE_kongtrol_cli_syntax]] in kaymaps/_common — no --screenshot flag, use see --a11y --pid <PID> only.
+★STALE_MENU_FIX(2026-08-20, scene_05~07 lesson — 반드시 준수):
+- "만들기"@(1884,158) 드롭다운이 페이지가 stale하면(다른 동영상 상세 갔다오거나 삭제작업 후) 클릭해도 안 열림. 반복 클릭 = 열림/닫힘 토글로 꼬임.
+- ★해결: 매 scene 업로드 시작 전 `input chord cmd r --yes`(Cmd+R 새로고침) → 5~6초 대기 → "만들기" 클릭 → "동영상 업로드"@(1820,204) 즉시 출현 → 드롭존@(1002,777).
+- osascript activate 금지([[pure-io-no-system-events]]). Chrome 앞으로: `open -a "Google Chrome"`만.
+
+★DRAFT_DELETE(초안 삭제 — a_1104 학습, 렌더링 이상 다이얼로그는 복구말고 폐기):
+1. 열린 업로드 다이얼로그 종료 안 되면: Cmd+R → "경고"창(페이지 벗어나기) 뜨면 "새로고침"@(1061,483) 클릭 → 다이얼로그 폐기+페이지 리로드.
+2. 콘텐츠 리스트 로딩 느림(최대 5~7초, 처음엔 헤더행만 보임). 항목 안 보이면 대기 후 재확인.
+3. 해당 초안 체크박스 선택 → 상단 "추가 작업"@(725,449) → "완전삭제"메뉴@(741,482) → 확인창 "이해합니다"체크박스@(754,753) → "완전삭제"버튼@(1226,819).
+4. Cmd+R 새로고침 후 항목 0건 확인.
+
+★SCENE07_ANOMALY(2026-08-20, 원인규명됨 — u_1192):
+- scene_07 반복실패("다음" 눌러도 세부정보 탭 리셋, 공개상태 미진입) 진짜원인 = "동영상 업로드" 메뉴항목을 클릭해버려서 NSOpenPanel이 열렸던 것(위 STEP1 참조). 드래그앤드롭 경로를 안 타서 업로드 자체가 정상 처리 안 됐을 가능성.
+- FIX: "만들기" 클릭 1회 후 추가 클릭 없이 바로 드래그. NSOpenPanel이 실수로 열려있으면 즉시 esc로 취소 후 재시도.
+
+KONGTROL_SYNTAX: see [[RECIPE_kongtrol_cli_syntax]] in kaymaps/_common — no --screenshot flag, use see --a11y --pid <PID> only. chord=modifier+단일문자만(cmd r/cmd l/cmd t/cmd a/cmd v). tab/left/right/enter/esc/backspace = `input key <name>`. F5 미지원(새로고침=chord cmd r).
 
 MAPPING_FILE:jobs/youtube-fortune-upload/mapping_YYYY-MM-DD.json — fields: n/zodiac/file/title/tags/status(pending|done)/youtube_url(real only)/scheduled.
+
+REAL_URLS(2026-08-21 batch, verified): scene_03=4ZT2XHmtX8Y, scene_04=xShBhL0E3rk, scene_05=Vd0MDu2f_vU, scene_06=1LRIYLY-Ynk. scene_07=막힘(위 SCENE07_ANOMALY). scene_08~12=대기.
