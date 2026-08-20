@@ -1,5 +1,5 @@
 TITLE:youtube-scheduled-upload-fortune-batch
-GATE:validated(verified_runs=4, scene_01~04 real success incl real youtube.com/shorts/<id> url each, core pattern locked for scene_05~12)
+GATE:validated(verified_runs=11, scene_01~06+08~12 real success incl real youtube.com/shorts/<id> url each. scene_07 unresolved zombie-dialog, see SCENE07_ANOMALY. FULL RECIPE = kaymaps/chrome/youtube/RECIPE_scheduled_upload_VERIFIED.txt)
 
 ★SCROLL_DRIFT(2026-08-20 u_1204, 근본원인 후보 — 좌표 불안정 전반의 진짜 원인일 가능성 높음):
 - 실수로 페이지 스크롤이 발생하면 CONFIRMED_COORDS 전체가 그대로 어긋난다(예약라디오 안눌림·닫기버튼 위치 다름 등 scene_07/08 다수 이슈의 근본원인 후보).
@@ -62,4 +62,4 @@ KONGTROL_SYNTAX: see [[RECIPE_kongtrol_cli_syntax]] in kaymaps/_common — no --
 
 MAPPING_FILE:jobs/youtube-fortune-upload/mapping_YYYY-MM-DD.json — fields: n/zodiac/file/title/tags/status(pending|done)/youtube_url(real only)/scheduled.
 
-REAL_URLS(2026-08-21 batch, verified): scene_03=4ZT2XHmtX8Y, scene_04=xShBhL0E3rk, scene_05=Vd0MDu2f_vU, scene_06=1LRIYLY-Ynk. scene_07=막힘(위 SCENE07_ANOMALY). scene_08~12=대기.
+REAL_URLS(2026-08-21 batch, final — 11/12): scene_01=7zrHTz6z-oc, scene_02=CVyDQpJd4lU, scene_03=4ZT2XHmtX8Y, scene_04=xShBhL0E3rk, scene_05=Vd0MDu2f_vU, scene_06=1LRIYLY-Ynk, scene_08=qXAKlgWA9OI(즉시공개, 예약아님), scene_09=bKR7z5fWpDI, scene_10=LR5nThLAhHI, scene_11=A_T5ZZ5cah4, scene_12=HNiMq8d2Nxk. scene_07=미완료(SCENE07_ANOMALY, 좀비다이얼로그 반복재현, 워커재시작으로 화면상태 재확보 필요).
