@@ -43,6 +43,11 @@ FLOW(per scene):
 - scene_07 반복실패("다음" 눌러도 세부정보 탭 리셋, 공개상태 미진입) 진짜원인 = "동영상 업로드" 메뉴항목을 클릭해버려서 NSOpenPanel이 열렸던 것(위 STEP1 참조). 드래그앤드롭 경로를 안 타서 업로드 자체가 정상 처리 안 됐을 가능성.
 - FIX: "만들기" 클릭 1회 후 추가 클릭 없이 바로 드래그. NSOpenPanel이 실수로 열려있으면 즉시 esc로 취소 후 재시도.
 
+★ZOMBIE_DIALOG(2026-08-20, 좀비 다이얼로그 = 탭 자체 종료로 해결):
+- 잘못된 업로드(NSOpenPanel 경로 등)로 생긴 다이얼로그가 닫기버튼/esc/Cmd+R 전부 무반응인 "좀비" 상태가 될 수 있음(scene_07에서 재현).
+- FIX: `input chord cmd w --yes`(현재 탭 종료, 다이얼로그도 함께 폐기) → `input chord cmd t --yes`(새탭) → `input chord cmd l --yes` → `input text "https://studio.youtube.com" --yes` → `input key enter --yes` → 콘텐츠 리스트에서 문제의 scene이 없는지(=폐기 성공) 확인 후 그 scene부터 재시작.
+- 이 방법도 안 되면 사용자 개입 요청(needs-info) — kongtrol 자동복구 한계.
+
 KONGTROL_SYNTAX: see [[RECIPE_kongtrol_cli_syntax]] in kaymaps/_common — no --screenshot flag, use see --a11y --pid <PID> only. chord=modifier+단일문자만(cmd r/cmd l/cmd t/cmd a/cmd v). tab/left/right/enter/esc/backspace = `input key <name>`. F5 미지원(새로고침=chord cmd r).
 
 MAPPING_FILE:jobs/youtube-fortune-upload/mapping_YYYY-MM-DD.json — fields: n/zodiac/file/title/tags/status(pending|done)/youtube_url(real only)/scheduled.
