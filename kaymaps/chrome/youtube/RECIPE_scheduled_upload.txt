@@ -17,7 +17,11 @@ CONFIRMED_COORDS(ar_1098, this window/res — re-verify via see --a11y if moved/
    ★ROOT: chord=1 mod only. cmd-shift-g(2 mod) impossible → NSOpenPanel path-input impossible via kongtrol. ONLY drag-drop path.
    ★★★FOCUS(a_1141): before click "만들기", ensure Chrome frontmost. `open -a "Google Chrome"` then WAIT 2-3s(focus switch not instant) → `see --a11y` verify Chrome frontmost → click. else click goes to prev-frontmost(터미널 등) = no-op(dropdown never opens). verify dropdown opened before next step.
 3. 제목 field @(838,354) click → Cmd-A(select-all) → paste/type title.
-4. ★target = "선택"(dropdown BUTTON under 재생목록 heading), NOT "재생목록" label/radio(a_1144 lesson: searching "재생목록" catches wrong elem). find "선택" btn → center@(679,1051), click +14px down=@(679,1065) ×1 opens directly(NO 2-split-click, repeat=toggle jam) → "오늘의 운세" → "완료" @(924,1255). ★scroll-dependent; if not @(679,1065) re-query "선택" via see --a11y.
+4. playlist(★VERIFIED a_1144, sequential 3-click, one at a time):
+   ① open dropdown: "재생목록 선택" AXButton @(700,1082) click ×1 → list opens(NO 2-split-click, repeat=toggle jam).
+   ② check playlist: "오늘의 운세" checkbox-group @(603,920) click ×1 → checkmark filled("저장 중" shows).
+   ③ confirm: "완료" AXButton @(924,1255) click ×1 → dropdown closes, 재생목록 shows "오늘의 운세".
+   ★all coords via see --a11y(target="선택"/"재생목록 선택" BUTTON, NOT "재생목록" label/radio). scroll-dependent → re-query if shifted. do NOT estimate 완료 coord(897,1219 was WRONG; a11y=924,1255 correct).
 5. "다음" @(1430,1247) ×3.
 6. ★"예약" @(606,700) — NOT "공개"(public) radio, easy misclick → verify date/time.
 7. "예약" save-btn @(1430,1247) → verify real URL in confirm dialog.
