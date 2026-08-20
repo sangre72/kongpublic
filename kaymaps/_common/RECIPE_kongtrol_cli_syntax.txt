@@ -25,3 +25,11 @@ WRONG(never do): `kongtrol click 100 100` / `kongtrol text "foo"` -> command not
 RIGHT: `<BIN_PATH> input click 100 100 --yes`
 
 RULE: before first use in a fresh session, run `<BIN_PATH> --help` and `<BIN_PATH> input --help` once to reconfirm subcommand tree instead of guessing from memory.
+
+MORE_WRONG(2026-08-20 u_1181 재발견):
+- `input keyboard Return` -> no such subcommand. RIGHT: `input key enter --yes` (lowercase, subcommand=key not keyboard).
+- `input screenshot <file>` -> no such subcommand, kongtrol has NO pixel-screenshot save feature.
+  For screen state: use `see --a11y --pid <PID>` (a11y tree, text+coords, NOT a saved image).
+  PID via `pgrep -x "Google Chrome"` etc.
+
+NEVER osascript/System Events(see [[pure-io-no-system-events]] memory) — kongtrol input/see ONLY, even when kongtrol syntax is unclear. On syntax confusion: re-run --help, do NOT fall back to osascript.
