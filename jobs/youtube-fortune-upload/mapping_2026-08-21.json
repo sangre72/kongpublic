@@ -30,9 +30,9 @@
       "file": "scene_03.mp4",
       "title": "2026년 8월 21일 호랑이띠 🐅 깊은 물 속 서서히 흐르는 운",
       "tags": "#호랑이띠운세 #띠별운세",
-      "status": "done",
-      "youtube_url": "https://youtube.com/shorts/4ZT2XHmtX8Y",
-      "scheduled": "2026-08-21T00:00"
+      "status": "pending",
+      "scheduled": "2026-08-21T00:00",
+      "note": "2026-08-20 자동화 재시도 중 NSOpenPanel 재사고 위험으로 중단, 실제 YouTube 목록엔 없음(삭제됨). 유저 수동 업로드 대기."
     },
     {
       "n": 4,
@@ -70,7 +70,10 @@
       "file": "scene_07.mp4",
       "title": "2026년 8월 21일 말띠 🐴 협력이 당신을 이끌어줄 날",
       "tags": "#말띠운세 #띠별운세",
-      "status": "pending"
+      "status": "done",
+      "youtube_url": "https://youtube.com/shorts/9OZW0i_Zbr4",
+      "scheduled": "2026-08-21T00:00",
+      "note": "재업로드(구url 5LnQHYjzuss 삭제 후 신규)"
     },
     {
       "n": 8,
@@ -109,7 +112,7 @@
       "title": "2026년 8월 21일 개띠 🐶 협력이 당신을 데려올 날",
       "tags": "#개띠운세 #띠별운세",
       "status": "done",
-      "youtube_url": "https://youtube.com/shorts/bJPMO5Uif5I",
+      "youtube_url": "https://youtube.com/shorts/A_T5ZZ5cah4",
       "scheduled": "2026-08-21T00:00"
     },
     {
@@ -118,7 +121,9 @@
       "file": "scene_12.mp4",
       "title": "2026년 8월 21일 돼지띠 🐷 조용한 힘으로 성취의 날",
       "tags": "#돼지띠운세 #띠별운세",
-      "status": "pending"
+      "status": "done",
+      "youtube_url": "https://youtube.com/shorts/HNiMq8d2Nxk",
+      "scheduled": "2026-08-21T00:00"
     }
   ]
 }
