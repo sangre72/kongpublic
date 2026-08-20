@@ -1,5 +1,5 @@
 TITLE:youtube-scheduled-upload-fortune-batch
-GATE:validated(verified_runs=12, ★ALL 12/12 scenes real success incl real youtube.com/shorts/<id> url each — 2026-08-20 batch complete. FULL=kaymaps/chrome/youtube/RECIPE_scheduled_upload_VERIFIED.txt)
+GATE:validated(verified_runs=11 real success; scene_03 reverted to pending — a_1142 found unresolved contradiction, see CONTRADICTION below. 2026-08-20 batch 11/12 auto + scene_03 needs user/hybrid. FULL=kaymaps/chrome/youtube/RECIPE_scheduled_upload_VERIFIED.txt)
 NOTE:앱 UI 라벨(한글 버튼명 "만들기"/"동영상 업로드"/"예약"/"다음" 등)=a11y 매칭 필수→한글유지(k7-app-label-exception). 설명·교훈=영문압축.
 
 ★SCROLL_DRIFT(u_1204, likely root-cause of coord instability):
@@ -8,8 +8,9 @@ NOTE:앱 UI 라벨(한글 버튼명 "만들기"/"동영상 업로드"/"예약"/"
 - abs-coord reuse valid ONLY when just-verified scroll == baseline. differ → re-query.
 
 CONFIRMED_COORDS(ar_1098, this window/res — re-verify via see --a11y if moved/resized/scrolled):
-1. "만들기" @(1884,158) click ×1 → "동영상 업로드" item@(1820,204) appears in dropdown.
-   ★★★NEVER CLICK "동영상 업로드"(u_1192, scene_07 fail root — item click=NSOpenPanel opens=drag-drop path lost; ar_1061/1063 confirmed NSOpenPanel rejects Finder-nav). target state=empty dropzone("동영상을 드래그하여 업로드하세요") shown by "만들기" click ALONE. no extra click.
+1. "만들기" @(1884,158) click ×1 → dropdown MENU appears(동영상 업로드/라이브 스트리밍/게시물 작성/새 재생목록/새로운 팟캐스트/새 강의), item "동영상 업로드"@(1820,204).
+   ★★★CONTRADICTION(a_1142, UNRESOLVED): recipe claimed "만들기 click ALONE shows dropzone" but REPRO shows "만들기 click → dropdown MENU only(no dropzone)". reaching dropzone REQUIRES "동영상 업로드" click → but that opens NSOpenPanel(a_1139 incident root). pure-kongtrol CANNOT pass this(NSOpenPanel path-input=chord 2mod impossible, no Finder-nav). → this scene needs USER manual or hybrid(user picks file in NSOpenPanel) or verify `input drag` real drag-drop works(untested). NOT auto-solvable now.
+   ★★★NEVER CLICK "동영상 업로드" blindly(u_1192, scene_07 fail root — opens NSOpenPanel=drag-drop path lost; ar_1061/1063 confirmed NSOpenPanel rejects Finder-nav). if reached, needs-info(don't risk 게시).
 2. drag scene_0N.mp4 from Finder → dropzone @(1002,777) (drag only, no click).
    ★★★INCIDENT(a_1139): click "동영상 업로드"@(1820,204) → NSOpenPanel opens → chord cmd-shift-g FAIL(2 mod, chord=1 mod only) → text+enter picked arbitrary file(project.json non-video) → upload attempt → YouTube auto-reject "처리 중단됨"(not published, safe).
    ★FIX: ① close bad dialog via X@(1397,198)~(re-check "닫기" via see --a11y) → "처리 중단됨"=not published=safe. ② restart: Cmd-R → click "만들기" ONLY → drag-drop from Finder. ③ if NSOpenPanel open → Esc → restart.
