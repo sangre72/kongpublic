@@ -1,5 +1,10 @@
 TITLE:youtube-scheduled-upload-fortune-batch
-GATE:tentative(verified_runs=2, scene_01/02 real success; scene_03+ in-progress with lessons below)
+GATE:tentative(verified_runs=3, scene_01/02/03 real success incl real youtube.com/shorts/<id> url each)
+
+TAB_SWITCH(if CineBot tab missing/lost — ar_1094 lesson):
+- Cmd+Tab = APP switch, NOT browser tab switch. Do not use for tab nav.
+- No 2-key-only chord shortcut works reliably for jumping to a specific existing tab by content.
+- RELIABLE: `input chord cmd t --yes`(new tab) → `input chord cmd l --yes`(focus address bar) → `input text "localhost:4000" --yes` → `input key enter --yes`. Verify via `see --a11y --pid <PID>` (AXWindow title contains "CineBot").
 
 FLOW(per scene):
 1. CineBot tab(localhost:4000) — verify date=target date BEFORE anything(if wrong date shown, switch date in-page, NO refresh — data auto-loads per date, u_1131).
