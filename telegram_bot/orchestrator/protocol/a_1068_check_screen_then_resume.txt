@@ -1,0 +1,11 @@
+[STATUS]new
+[REF]1068
+[CHAT_ID]8638561503
+[WORKER]kongewalker
+
+@A 1068 check-screen-then-resume
+IN: ar_1067 needs-info — 현재 브라우저 탭 상태 불확실(세션 재시작 후 컨텍스트 없음).
+TASK: 1) 먼저 스크린샷 찍어서 지금 화면이 뭔지 확인(어느 앱/탭이 떠있는지). 2) YouTube 탭이 열려있으면 그대로 사용, 없으면 Chrome에서 YouTube 스튜디오(업로드 화면)와 localhost:4000(포춘) 두 탭 준비. 3) mapping_2026-08-21.json 읽어서 scene_01/02=done, scene_03부터 이어서 진행할 것 확인. 4) scene_03(호랑이띠)부터 검증된 패턴 그대로 순차 진행:
+  포춘탭 3번 복사버튼→제목복사 → YouTube 만들기→동영상 업로드→Finder서 scene_03.mp4 드래그앤드롭→제목 붙여넣기→재생목록"오늘의 운세"→예약(2026-08-21 00:00)→닫기→mapping.json scene_03 status=done 갱신 → scene_04로 반복(~scene_12).
+CON: 같은 실패 2회 이상 반복시 자체 재시도 금지, 즉시 needs-info(정확한 화면상태+막힌 지점 스크린샷과 함께).
+OUT: ar_1068 done(scene_03~12 완료)|needs-info(현재 화면상태+막힌지점)

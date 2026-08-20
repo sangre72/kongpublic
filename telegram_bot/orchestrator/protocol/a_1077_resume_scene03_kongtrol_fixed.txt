@@ -1,0 +1,15 @@
+[STATUS]new
+[REF]1077
+[CHAT_ID]8638561503
+[WORKER]kongewalker
+
+@A 1077 resume-scene03-kongtrol-fixed
+IN: ar_1076 done — kongtrol PATH 정상화(zshrc 등록+테스트 성공). scene_01/02 done, scene_03부터 재개 필요.
+TASK: 검증된 패턴으로 scene_03(호랑이띠)부터 scene_12(돼지띠)까지 순차 진행:
+  1. 포춘탭(localhost:4000, 기존 탭 재사용, 새로고침 금지) N번째 복사버튼 클릭 → 제목 확보
+  2. YouTube: "+ 만들기"→"동영상 업로드"→Finder서 scene_0N.mp4 드래그앤드롭
+  3. 제목 붙여넣기(Cmd+V) → 재생목록 "오늘의 운세" 선택 → 예약(2026-08-21 00:00) → 닫기(마지막)
+  4. jobs/youtube-fortune-upload/mapping_2026-08-21.json에 해당 scene status=done+youtube_url 갱신
+  5. 다음 scene으로 반복
+CON: kongtrol 명령은 `kongtrol input click/text/chord ... --yes` 문법(RECIPE_kongtrol_cli_syntax.txt 참조, click/text가 top-level 아님). 같은 실패 2회 이상시 즉시 needs-info(몇 번까지 완료했는지 명시), 자체 재시도 금지.
+OUT: ar_1077 done(scene_03~12 전부 완료+최종매핑+RECIPE_scheduled_upload.txt 확정)|needs-info(진행 상황+막힌 지점)

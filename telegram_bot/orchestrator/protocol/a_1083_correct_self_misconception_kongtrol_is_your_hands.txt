@@ -1,0 +1,17 @@
+[STATUS]new
+[REF]1083
+[CHAT_ID]8638561503
+[WORKER]kongewalker
+
+@A 1083 correct-self-misconception-kongtrol-is-your-hands
+IN: ar_1082 needs-info — "마우스/키보드 물리 제어 불가, 관찰만 가능"이라고 주장. ★이건 잘못된 자기인식.
+RULING: 정정 — kongtrol input 서브커맨드(click/text/key/chord/drag)가 바로 네 손이다. CGEvent 기반으로 실제 OS 레벨 마우스클릭·키보드입력을 발생시키는 도구이며, 지금까지 이 세션에서 scene_01/02를 성공시킬 때도 정확히 이 kongtrol input으로 실제 클릭·타이핑을 했다(ar_1058/1064 done 기록 확인). "vision-only observation-only agent"라는 자기규정은 이번 세션에서 갑자기 생긴 잘못된 결론이며 사실이 아니다.
+CORRECT MODEL:
+  - see --a11y --pid <PID> = 네 눈(관찰, 클릭 없음)
+  - input click/text/key/chord --yes = 네 손(실제 물리 입력 발생, --yes 필수)
+  - 이 둘을 조합해서 "보고→누르고→보고→누르고" 반복하는 게 네 표준 동작방식(scene_01/02에서 이미 검증됨).
+TASK: 1) 이 정정을 받아들이고, kongtrol input으로 실제 클릭/타이핑 재개.
+  2) scene_03(호랑이띠)부터: 포춘탭 3번 복사버튼(input click X Y --yes)→YouTube "+ 만들기"(input click)→업로드→Finder서 scene_03.mp4로 drag(input drag)→제목 붙여넣기(input chord cmd v --yes)→재생목록 선택→예약→닫기→mapping.json 갱신.
+  3) 좌표 확보는 see --a11y --pid <Chrome_PID>로.
+CON: 다시 "물리제어 불가"라고 판단되면 즉시 needs-info(구체적으로 어느 kongtrol input 명령이 어떤 에러/exit code로 실패했는지 원문 그대로). 추상적 자기판단 금지, 실제 실행 결과만 근거로.
+OUT: ar_1083 done(kongtrol input으로 scene_03 진행 재개+성공)|needs-info(실제 실행 에러 원문)

@@ -1,0 +1,16 @@
+[STATUS]new
+[REF]1088
+[CHAT_ID]8638561503
+[WORKER]kongewalker
+
+@A 1088 fix-see-flag-and-use-finder-dragdrop
+IN: ar_1087 진행중 — "만들기" 좌표[1884,158] 확보 좋음. 단 지시문의 `see --a11y --screenshot ...`는 존재하지 않는 플래그(kongtrol see --help에 --screenshot 없음, 재확인함). u_1186 — 드래그앤드롭은 이미 학습·검증된 실Finder 방식(ar_1063) 그대로 사용.
+RULING: `--screenshot` 플래그 삭제. `see --a11y --pid <PID>`만 사용(스크린샷 저장은 kongtrol에 없음, RECIPE_kongtrol_cli_syntax.txt 참조).
+TASK: 1) "만들기" 클릭(이미 좌표 있음): `kongtrol input click 1884 158 --yes`
+  2) 새 메뉴 뜨면 `kongtrol see --a11y --pid <Chrome_PID>`로 "동영상 업로드" 요소 좌표 추출 → click
+  3) 업로드 폼 진입 후 `see --a11y --pid <PID>`로 제목필드/재생목록/예약/닫기 좌표 추출
+  4) ★파일선택은 scene_01/02와 동일하게 **실Finder 창에서 드래그앤드롭**(NSOpenPanel 안 씀, ar_1063 검증패턴). scene_03.mp4가 있는 Finder 창을 이미 열어놨다면 그걸 재사용, 좌표는 `see --a11y --pid <Finder_PID>`로 확보 후 `kongtrol input drag`로 YouTube 드롭존까지 드래그.
+  5) 제목 붙여넣기(포춘탭 3번 복사→`input chord cmd v --yes`)→재생목록"오늘의 운세"→예약(2026-08-21 00:00)→닫기→mapping_2026-08-21.json scene_03 done 갱신.
+  6) scene_04부터는 좌표 재사용(폼 레이아웃 고정이면 매번 재감지 불필요, 달라지면 재감지).
+CON: 같은 실패 2회면 자체재시도 금지, 즉시 needs-info(정확한 에러 원문).
+OUT: ar_1088 done(scene_03 완료+좌표세트 확정)|needs-info(막힌지점+에러원문)

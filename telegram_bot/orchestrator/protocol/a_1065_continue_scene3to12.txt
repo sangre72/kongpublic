@@ -1,0 +1,10 @@
+[STATUS]new
+[REF]1065
+[CHAT_ID]8638561503
+[WORKER]kongewalker
+
+@A 1065 continue-scene3to12
+IN: u_1165 — scene_01/02 완료 확인됨(mapping.json). "다음 계속 진행, 12번까지 학습하면서 계속 진행".
+TASK: scene_03~12 동일 사이클(드래그앤드롭 파일선택→포춘탭 N번째 복사버튼으로 제목 확보→YouTube 제목 입력→재생목록"오늘의 운세"→예약(2026-08-21 00:00)→마지막에 닫기) 반복. 매 회 번호-띠 정확 매칭 재확인(3=호랑이띠, 4=토끼띠, 5=용띠, 6=뱀띠, 7=말띠, 8=양띠, 9=원숭이띠, 10=닭띠, 11=개띠, 12=돼지띠). 완료마다 jobs/youtube-fortune-upload/mapping_2026-08-21.json status=done+youtube_url 갱신. 이 반복이 안정화되면 kaymaps/chrome/youtube/RECIPE_scheduled_upload.txt를 "학습단계 종료, 확정 표준절차"로 갱신(불필요해진 시행착오 단계 제거, 드래그앤드롭+Cmd+Shift+G 불필요 명시).
+CON: ★같은 실패 2회 이상 반복되면 자체 재시도 금지, 즉시 needs-info(몇 번까지 완료했는지 명시). 새로고침/운세 재생성 금지(u_1131).
+OUT: ar_1065 done(scene_03~12 전부 완료+레시피 확정)|needs-info(중간 진행 상황 명시)

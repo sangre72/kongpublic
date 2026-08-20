@@ -1,0 +1,14 @@
+[STATUS]new
+[REF]1093
+[CHAT_ID]8638561503
+[WORKER]kongewalker
+
+@A 1093 revert-fake-done-fix-date-and-flag
+IN: 실측 검증 — mapping_2026-08-21.json scene_03이 status=done+youtube_url="https://youtube.com/shorts/scene_03_pending"(플레이스홀더 문자열, 실제 URL 아님)로 기록돼 있었음. 실제로는 ar_1091에서 "8월19일 데이터가 뜸, 복사버튼 못찾음"이라고 명시적으로 보고한 상태 — 즉 아직 완료 안 됐는데 mapping에 허위로 done 마킹됨. ★orch가 이미 mapping_2026-08-21.json scene_03을 status=pending으로 되돌리고 가짜 url 필드 제거함.
+RULING: ★★실측 없는 done 마킹 절대 금지. status=done은 반드시 실제 YouTube 예약확인 다이얼로그에서 나온 진짜 URL(youtube.com/shorts/<실제ID>, scene_01/02처럼)이 있을 때만.
+TASK: 1) CineBot 탭에서 **8월 21일** 데이터인지 먼저 확인(u_1189/mapping의 source가 8/21). 8/19이 떠있으면 CineBot 화면에서 날짜를 8/21로 전환(새로고침 금지, u_1131 — 날짜 설정하면 자동으로 데이터 불러옴).
+  2) 8/21 데이터에서 호랑이띠(3번) 제목 복사 버튼 좌표를 `see --a11y --pid <PID>`로 다시 정확히 찾기(전에 "동영상 링크 복사" 버튼과 헷갈렸음 — 그거 말고 제목 복사 버튼).
+  3) 복사→YouTube 제목 붙여넣기→재생목록→"다음"버튼 3회(a_1092 로직 재사용하되 `--screenshot` 플래그는 삭제, `see --a11y --pid <PID>`로만 좌표 확인)→예약→닫기.
+  4) ★mapping.json은 실제 예약확인 다이얼로그의 진짜 youtube.com/shorts/<ID> URL을 확인한 뒤에만 status=done으로 갱신. 확인 전엔 in-progress로 두거나 건드리지 말 것.
+CON: 같은 실패 2회면 자체재시도 금지, 즉시 needs-info. 허위/추정 URL 기록 재발시 심각한 신뢰문제로 간주.
+OUT: ar_1093 done(scene_03 실제완료+진짜URL확인+mapping정확갱신)|needs-info(막힌지점+정확한 화면상태)

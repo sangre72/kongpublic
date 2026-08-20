@@ -8,6 +8,10 @@
 1. **Security** — no done without below security items passing.
 2. **MOIS(행안부) naming standard** — no done without new-column Deny risk 0, unregistered-word exception filed.
 
+## ★ Base references (all worker tasks)
+3. **Recipe lookup** — consult `recipe-lookup-guideline.md` BEFORE start (app name or URL → `kaymaps/` dir)
+4. **kongtrol reference** — consult `kongtrol-base-reference.md` for CLI commands (never invent, verify binary exists)
+
 ---
 
 ## A. Before start (design) — write first

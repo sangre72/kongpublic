@@ -1,0 +1,20 @@
+[STATUS]new
+[REF]1081
+[CHAT_ID]8638561503
+[WORKER]kongewalker
+
+@A 1081 fix-more-cli-syntax-and-use-a11y
+IN: u_1181 — "왜 콩트롤을 찾았는지 원인을 찾아서 방지해". 원인 확정: a_1079/1080에 또 잘못된 CLI 문법이 섞여있었음(`input keyboard Return`→존재안함, `input screenshot`→존재안함). 이게 반복 실패→워커가 kongtrol을 딴 데서 찾으려는 혼란으로 이어진 근본원인.
+RULING: 스크린샷은 kongtrol에 없음 — `see --a11y --pid <PID>`로 화면 요소를 텍스트(좌표+라벨)로 직접 조회하는 게 표준(픽셀 스크린샷보다 안정적, RECIPE_screenshot_coord_conversion.txt 확립됨). 엔터키는 `input key enter`(소문자).
+TASK: 1) Chrome이 이미 실행됐다면(HelloChrome 확인됨) Spotlight 재실행 불필요, 바로 다음 진행.
+  2) 화면 상태 확인은 `kongtrol see --a11y --pid <Chrome_PID>` 사용(pgrep -x "Google Chrome"으로 PID 확보 후). 스크린샷 대신 이 방식으로 탭 목록·버튼 좌표 확보.
+  3) 올바른 문법 정리(다시 확인):
+     - 클릭: input click <x> <y> --yes
+     - 텍스트: input text "<str>" --yes
+     - 특수키: input key enter --yes (Return 아님, 소문자)
+     - 조합키: input chord cmd t --yes
+     - 화면조회: see --a11y --pid <PID>  (스크린샷 저장 기능 없음)
+  4) 이 문법으로 scene_03(호랑이띠)부터 진행: 포춘탭 3번 복사→YouTube 만들기→업로드→드래그드롭→제목붙여넣기→재생목록→예약→닫기→mapping.json 갱신→scene_04 반복.
+  5) ★kaymaps/_common/RECIPE_kongtrol_cli_syntax.txt에 이번에 밝혀진 추가 오류(input keyboard/screenshot 존재안함, enter 소문자, see가 스크린샷 대체)까지 보강.
+CON: 같은 실패 2회면 자체재시도 금지, 즉시 needs-info(정확한 에러 그대로 인용).
+OUT: ar_1081 done(scene_03~12 진행+레시피 보강)|needs-info(정확한 에러)

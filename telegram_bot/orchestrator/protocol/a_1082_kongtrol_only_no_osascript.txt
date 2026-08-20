@@ -1,0 +1,12 @@
+[STATUS]new
+[REF]1082
+[CHAT_ID]8638561503
+[WORKER]kongewalker
+
+@A 1082 kongtrol-only-no-osascript
+IN: ar_1081 needs-info — worker rule(pure-io-no-system-events) vs a_1081 지시 충돌 우려.
+RULING: 명확화 — **osascript/System Events는 절대 사용 금지 원칙 유지, 변경 없음.** a_1081의 의도는 "osascript로 전환"이 아니라 "kongtrol의 올바른 문법(input key enter, see --a11y)으로 정정"이었음. 표현이 혼동을 줬다면 워커 판단(needs-info로 멈춤)이 옳았음 — 계속 이 판단기준 유지.
+CONFIRM: 1) kongtrol만 사용(input click/text/key/chord, see --a11y). 2) osascript/System Events 절대 금지. 3) 스크린샷 저장 기능 없음 — 화면상태 확인은 `see --a11y --pid <PID>`로.
+TASK: 이 원칙으로 scene_03(호랑이띠)부터 scene_12까지 순차 진행 재개(포춘탭 복사→YouTube 업로드→드래그드롭→제목→재생목록→예약→닫기→mapping.json 갱신 반복).
+CON: 같은 실패 2회면 자체재시도 금지, 즉시 needs-info(정확한 에러 원문 인용).
+OUT: ar_1082 done(scene_03~12 완료)|needs-info(정확한 막힌지점)

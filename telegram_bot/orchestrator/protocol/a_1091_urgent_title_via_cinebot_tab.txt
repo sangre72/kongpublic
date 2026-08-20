@@ -1,0 +1,17 @@
+[STATUS]new
+[REF]1091
+[CHAT_ID]8638561503
+[WORKER]kongewalker
+
+@A 1091 urgent-title-via-cinebot-tab
+IN: u_1188 — 긴급: 제목 못 넣음, 포춘에서 해당번호 복사해서 제목에 넣어라. u_1189 — 그 탭 이름은 "CineBot"(Fortune이 아니라 정확한 탭 제목).
+TASK: 지금 즉시:
+  1. Chrome에서 **"CineBot" 탭**(localhost:4000, 지금까지 "Fortune탭"이라 부르던 것과 동일 탭) 클릭
+  2. `kongtrol see --a11y --pid <Chrome_PID>` 로 화면 텍스트 조회 → "호랑이띠"(scene_03, 3번째) 항목의 복사 버튼 좌표 확인
+  3. `kongtrol input click <X> <Y> --yes` 로 그 복사 버튼 클릭 → 제목 클립보드 복사
+  4. YouTube 탭으로 전환(현재 scene_03.mp4 업로드 폼 열려있는 그 탭)
+  5. 제목 입력 필드 클릭 → `kongtrol input chord cmd v --yes` (붙여넣기)
+  6. `see --a11y --pid <PID>` 로 제목 필드에 정확히 들어갔는지(호랑이띠 제목 문자열) 확인
+  7. 재생목록 "오늘의 운세" 선택 → 예약(2026-08-21 00:00) → 닫기 → mapping_2026-08-21.json scene_03 done 갱신 → scene_04 반복
+CON: --screenshot 플래그 없음(see --a11y --pid만). 같은 실패 2회면 즉시 needs-info(정확한 에러 원문).
+OUT: ar_1091 done(scene_03 제목입력+완료)|needs-info(막힌지점+에러원문)

@@ -1,0 +1,63 @@
+========================================
+ 스카이워커 작업 현황판
+ 갱신: 2026-08-20 20:05:07
+========================================
+
+[폴러 5초]
+[2026-08-20 20:05:06] worker_1 kongewalker(kong-bot) · tick=19857 · pending=[1065_continue_scene_03_to_12 1066_continue_scene_03_to_12_retry 1067_force_proceed_now 1068_verify_and_start_scene_03 1069_continue_scene_03_immediately] needs-info=[1025_click_based_google_access 1026_use_computer_use_mcp_instead 1027_request_access_dialog 1028_trigger_accessibility_permission_prompt 1029_trigger_tcc_prompt_directly 1030_aldente_88pct_verify_recovery 956_fortune_localhost4000_explicit_resume 958_fortune_retry_correct_date 960_fortune_retry_after_15100_diagnosis 961_fortune_retry_15100_up 964_fortune_retry_qwen_timeout_hint 965_fortune_resume_after_server_fix 966_fortune_retry_both_servers_restarted 972_krita_color_selection_fix 977_pearl_earring_redo_parallel_dots 979_vscode_learn_recipe 980_vscode_new_window_only 982_aldente_charge_limit_80 993_screen_recording_common_recipe 996_dryrun60_close_then_fresh_record75] · 다음 리셋체크 ~5분
+
+[현재 큐] 148건
+
+----------------------------------------
+지시: a_01_adr.txt
+제목: a_01_adr.txt
+상태: (ar 없음 — 워커 미착수)
+
+----------------------------------------
+지시: a_02_adr_rename.txt
+제목: a_02_adr_rename.txt
+상태: (ar 없음 — 워커 미착수)
+
+----------------------------------------
+지시: a_03_worker_kill_watchers.txt
+제목: a_03_worker_kill_watchers.txt
+상태: (ar 없음 — 워커 미착수)
+
+----------------------------------------
+지시: a_04_adr_feasibility.txt
+제목: a_04_adr_feasibility.txt
+상태: (ar 없음 — 워커 미착수)
+
+----------------------------------------
+지시: a_05_game_litmus.txt
+제목: a_05_game_litmus.txt
+상태: (ar 없음 — 워커 미착수)
+
+----------------------------------------
+지시: a_06_sysinfo_039_verify.txt
+제목: a_06_sysinfo_039_verify.txt
+상태: (ar 없음 — 워커 미착수)
+
+----------------------------------------
+지시: a_07_m0_skeleton.txt
+제목: a_07_m0_skeleton.txt
+상태: (ar 없음 — 워커 미착수)
+
+----------------------------------------
+지시: a_08_adr0007_perception.txt
+제목: a_08_adr0007_perception.txt
+상태: (ar 없음 — 워커 미착수)
+
+----------------------------------------
+지시: a_09_minesweeper_poc.txt
+제목: a_09_minesweeper_poc.txt
+상태: (ar 없음 — 워커 미착수)
+
+----------------------------------------
+지시: a_10_minesweeper_native.txt
+제목: a_10_minesweeper_native.txt
+상태: (ar 없음 — 워커 미착수)
+
+----------------------------------------
+지시: a_101_fullscreen_coordmap.txt
+제목: a_101_fullscreen_coordmap.txt

@@ -4,7 +4,7 @@ WHY: CineBot(localhost:4000) 앱에서 12간지 띠별 운세 자동생성→시
 ★DAY-PARAMETERIZED 루틴(a_970): 이 레시피는 "일일 포춘 생성 루틴"으로, STEPS 3(날짜세팅)의 날짜값·STEPS 6-7(progress API)의 date 파라미터만 매일 바꿔 그대로 재사용 가능. 나머지 스텝(나레이터·백엔드·시나리오전송·슬라이드생성)은 날짜와 무관하게 동일 절차. 다음날 실행시 이 문서를 그대로 따르되 "2026-08-21"을 그날 날짜로 치환.
 
 STEPS:
-1. Chrome이 백그라운드로 밀릴 수 있음 — 포커스 확인: `see --a11y --compact --pid <chrome_pid>`로 요소 10여개(메뉴바만)면 백그라운드. 복구: Dock의 Chrome 아이콘 좌표를 `see --a11y --compact --pid $(pgrep -x Dock)`로 찾아 순수마우스 click(순수IO 원칙 준수, osascript 불필요 — Dock클릭이 표준).
+1. Chrome이 백그라운드로 밀릴 수 있음 — 포커스 확인: `see --a11y --compact --pid <chrome_pid>`로 요소 10여개(메뉴바만)면 백그라운드. 복구: Dock의 Chrome 아이콘 좌표를 `see --a11y --compact --pid $(pgrep -x Dock)`로 찾아 순수마우스 click(순수IO 원칙 준수, osascript 불필요 — Dock클릭이 표준). ★2026-08-21 실증(ar_2002): `open -a "Google Chrome"`도 포커스 복구에 유효(간단, sleep 2 필수). 백그라운드 상태에서 `kongtrol input key ...`는 "사용자가 작업을 거부했습니다" 오류로 실패(click은 되는데 key만 거부되는 비대칭 증상) — 이게 kongtrol 권한 문제가 아니라 ★Chrome 포커스 손실 신호임을 오판하지 말 것. 증상 발견시 먼저 `see --a11y --compact`로 요소개수 확인(10여개=백그라운드 확정) → 재포커스 → 재시도가 정답, needs-info 전에 이것부터 시도.
 2. 새로고침(좌표 약 95,102 "새로고침" 버튼) → 포춘 탭 클릭(라디오버튼 "포춘", 약 1150,646).
 3. 날짜 세팅: AXIncrementor(연/월/일) 클릭 후 방향키 up/down으로 조정. ★값 검증은 a11y value 미노출+VLM 신뢰불가(동일화면 반복질의에도 다른 답) → zoom-crop screencapture 표준방법 사용(kaymaps/_common/RECIPE_zoom_crop_value_verify.txt): `screencapture -R<x>,<y-17>,300,40` 날짜필드 주변 크롭 후 Read로 육안확인.
 4. 나레이터 드롭다운 클릭(약 775,867 — 페이지 스크롤위치에 따라 y좌표 변동 가능, 매번 a11y로 재확인 권장) → 메뉴에서 "괜찮은 음성- 여성 1" 클릭.

@@ -1,0 +1,12 @@
+RECIPE:youtube-studio-upload-entry
+GATE:verified 2026-08-20 u_1216
+REG:youtube-studio channel-content page
+WHY:worker repeatedly clicked wrong radio-row "동영상"@(400,296) → upload dialog never opened (VLM+a11y confirmed). Correct entry = "동영상 업로드" MENU ITEM, not the 콘텐츠유형 radio row.
+STEPS:
+- open -a "Google Chrome"; focus
+- click "만들기"@(1884,158) → dropdown menu opens (NOT the radio row)
+- click "동영상 업로드"@(1820,204) [AXMenuItem, 220x32] → upload dialog opens
+- VERIFY dialog: "파일 선택"@(1002,832) button appears (VLM "예")
+- then: 파일선택(NSOpenPanel) OR dragdrop
+WRONG:radio-row @y296 (아이디어/동영상/Shorts/...) = 콘텐츠유형 필터, NOT upload entry. clicking "동영상"@(400,296) does NOT open upload dialog.
+VERIFY:VLM "업로드창 떴나?"=예, a11y "파일 선택" button present.

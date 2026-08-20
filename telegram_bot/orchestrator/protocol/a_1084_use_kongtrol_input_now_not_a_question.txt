@@ -1,0 +1,18 @@
+[STATUS]new
+[REF]1084
+[CHAT_ID]8638561503
+[WORKER]kongewalker
+
+@A 1084 use-kongtrol-input-now-not-a-question
+IN: ar_1083 needs-info — a_1083에서 이미 "kongtrol input으로 손 사용해라"고 명확히 지시했는데도 다시 "재허용?"이라고 되물음. 반복 오류.
+RULING: ★이건 질문이 아니라 명령이다. "kongtrol input 명령어 사용 재허용?"이라는 질문 자체가 성립하지 않음 — 애초에 금지된 적이 없다. scene_01/02 성공(ar_1058/1064 done)도 전부 kongtrol input click/text/chord로 이뤄졌다. 지금 당장 실행하라.
+TASK: 지금 이 순간 아래를 순서대로 **직접 실행**(더 이상 되묻지 말고):
+  1. `pgrep -x "Google Chrome"`으로 Chrome PID 확보
+  2. `/Users/bumsuklee/git/kong-bot/kongtrol/target/release/kongtrol see --a11y --pid <PID>` 실행 → Fortune탭·YouTube탭·scene_03 복사버튼 좌표 확보(출력에서 role/label/좌표 읽기)
+  3. `kongtrol input click <X> <Y> --yes` 로 실제 클릭 실행(Fortune탭 3번 복사버튼)
+  4. YouTube 탭 전환도 동일하게 see→click
+  5. "+ 만들기"→"동영상 업로드"→scene_03.mp4 drag(kongtrol input drag)→제목 kongtrol input chord cmd v --yes→재생목록 click→예약 입력→닫기 click
+  6. mapping_2026-08-21.json scene_03 status=done 갱신
+  7. scene_04로 즉시 이어서 반복(2~6)
+CON: "재허용해달라"·"물리조작 불가" 같은 자기판단 재발행 금지 — 이미 확정된 사실(너는 kongtrol input으로 실제 물리입력 가능하다)을 의심하지 말 것. 실제 커맨드 실행 후 exit code/에러 메시지가 있을 때만 그 원문을 그대로 인용해서 needs-info.
+OUT: ar_1084 done(scene_03 최소 1개 완료 확인)|needs-info(실제 실행한 정확한 kongtrol 명령+exit code+에러원문)
