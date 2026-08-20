@@ -1,0 +1,20 @@
+{
+  "date": "2026-08-21",
+  "source_video_dir": "/Users/bumsuklee/workspace-egov/youtube-top/python-server/projects/20260819_2026-08-21_12간지_오늘의_운세_ko",
+  "playlist": "오늘의 운세",
+  "common_tags": "#오늘의운세 #띠별운세 #12간지운세 #사주 #재물운 #무료운세",
+  "scenes": [
+    {"n": 1, "zodiac": "쥐띠", "file": "scene_01.mp4", "title": "2026년 8월 21일 쥐띠 🐭 조용한 빛 속 새로운 기회", "tags": "#쥐띠운세 #띠별운세", "status": "done", "youtube_url": "https://youtube.com/shorts/7zrHTz6z-oc", "scheduled": "2026-08-21T00:00"},
+    {"n": 2, "zodiac": "소띠", "file": "scene_02.mp4", "title": "2026년 8월 21일 소띠 🐄 아침 이슬처럼 찾아오는 재물", "tags": "#소띠운세 #띠별운세", "status": "done", "youtube_url": "https://youtube.com/shorts/CVyDQpJd4lU", "scheduled": "2026-08-21T00:00"},
+    {"n": 3, "zodiac": "호랑이띠", "file": "scene_03.mp4", "title": "2026년 8월 21일 호랑이띠 🐅 깊은 물 속 서서히 흐르는 운", "tags": "#호랑이띠운세 #띠별운세", "status": "pending"},
+    {"n": 4, "zodiac": "토끼띠", "file": "scene_04.mp4", "title": "2026년 8월 21일 토끼띠 🐇 조용히 흐르는 재물운", "tags": "#토끼띠운세 #띠별운세", "status": "pending"},
+    {"n": 5, "zodiac": "용띠", "file": "scene_05.mp4", "title": "2026년 8월 21일 용띠 🐉 조용히 성장하는 하루", "tags": "#용띠운세 #띠별운세", "status": "pending"},
+    {"n": 6, "zodiac": "뱀띠", "file": "scene_06.mp4", "title": "2026년 8월 21일 뱀띠 🐍 깊은 물에서 뜨는 진주처럼", "tags": "#뱀띠운세 #띠별운세", "status": "pending"},
+    {"n": 7, "zodiac": "말띠", "file": "scene_07.mp4", "title": "2026년 8월 21일 말띠 🐴 협력이 당신을 이끌어줄 날", "tags": "#말띠운세 #띠별운세", "status": "pending"},
+    {"n": 8, "zodiac": "양띠", "file": "scene_08.mp4", "title": "2026년 8월 21일 양띠 🐑 물결처럼 천천히 흐르는 날", "tags": "#양띠운세 #띠별운세", "status": "pending"},
+    {"n": 9, "zodiac": "원숭이띠", "file": "scene_09.mp4", "title": "2026년 8월 21일 원숭이띠 🐒 일몰처럼 여유롭게 흐를 거예요", "tags": "#원숭이띠운세 #띠별운세", "status": "pending"},
+    {"n": 10, "zodiac": "닭띠", "file": "scene_10.mp4", "title": "2026년 8월 21일 닭띠 🐓 천천히 나아가는 당신의 길", "tags": "#닭띠운세 #띠별운세", "status": "pending"},
+    {"n": 11, "zodiac": "개띠", "file": "scene_11.mp4", "title": "2026년 8월 21일 개띠 🐶 협력이 당신을 데려올 날", "tags": "#개띠운세 #띠별운세", "status": "pending"},
+    {"n": 12, "zodiac": "돼지띠", "file": "scene_12.mp4", "title": "2026년 8월 21일 돼지띠 🐷 조용한 힘으로 성취의 날", "tags": "#돼지띠운세 #띠별운세", "status": "pending"}
+  ]
+}
