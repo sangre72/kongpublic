@@ -1,5 +1,5 @@
 TITLE:youtube-scheduled-upload-fortune-batch
-GATE:validated(verified_runs=11 real success; scene_03 reverted to pending — a_1142 found unresolved contradiction, see CONTRADICTION below. 2026-08-20 batch 11/12 auto + scene_03 needs user/hybrid. FULL=kaymaps/chrome/youtube/RECIPE_scheduled_upload_VERIFIED.txt)
+GATE:validated(verified_runs=11 real success; scene_03 in-progress w/ BREAKTHROUGH — ar_1144: `input drag` bypasses NSOpenPanel entirely. Real flow: 만들기→동영상업로드(dropzone, NOT NSOpenPanel)→NEVER "파일 선택" btn(only that opens NSOpenPanel)→`input drag` Finder→dropzone = full automation possible. FULL=kaymaps/chrome/youtube/RECIPE_scheduled_upload_VERIFIED.txt)
 NOTE:앱 UI 라벨(한글 버튼명 "만들기"/"동영상 업로드"/"예약"/"다음" 등)=a11y 매칭 필수→한글유지(k7-app-label-exception). 설명·교훈=영문압축.
 
 ★SCROLL_DRIFT(u_1204, likely root-cause of coord instability):
