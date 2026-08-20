@@ -24,12 +24,7 @@ $ kongtrol input chord cmd r --yes
 $ kongtrol input click 1884 158 --yes
 (1초 — 드롭다운 메뉴 열림)
 
-**[3] 동영상 업로드 선택**
-$ kongtrol see --a11y | grep -i "동영상업로드\|upload" -B1 -A1
-(좌표 추출: 기존 @(1820,204) 재확인)
-
-$ kongtrol input click 1820 204 --yes
-(2초 — 업로드 다이얼로그 열림)
+★★★[3] 삭제 — "동영상 업로드"@(1820,204) 절대 클릭 금지(2026-08-20 a_1139 INCIDENT: 이 클릭이 NSOpenPanel을 열어 project.json 오업로드 시도 사고 유발, 다행히 YouTube가 비영상 자동거부). "만들기" 클릭만으로 이미 드롭존이 떠있음 — 추가 클릭 없이 바로 [4]로.
 
 **[4] 파일 업로드 (Finder 드래그 드롭만)**
 - Finder에서 scene_0N.mp4 @(1318,374) 드래그

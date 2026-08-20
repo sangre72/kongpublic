@@ -10,12 +10,16 @@ CONFIRMED_COORDS(ar_1098, this Chrome window/resolution — re-verify via see --
 1. "만들기" @(1884,158) 클릭 1회 → 드롭다운/업로드페이지에 "동영상 업로드" 항목@(1820,204)이 보임
    ★★★NEVER CLICK "동영상 업로드"(u_1192 발견, scene_07 반복실패 진짜원인 — 이 항목 클릭=NSOpenPanel(OS 파일선택창) 오픈=드래그앤드롭 경로 이탈, ar_1061/1063에서 이미 NSOpenPanel엔 Finder이동 안 먹힘 확인됨). "만들기" 클릭만으로 뜨는 그 화면(빈 드롭존, "동영상을 드래그하여 업로드하세요")이 목표 상태. 추가 클릭 금지.
 2. drag scene_0N.mp4 from Finder → 드롭존 @(1002,777) (클릭 없이 드래그만)
+   ★★★INCIDENT(2026-08-20 a_1139, ar_1139 오류): "동영상 업로드"@(1820,204) 클릭 → NSOpenPanel(파일선택창) 오픈됨 → kongtrol `input chord cmd shift g`가 modifier 2개라 FAIL(chord는 modifier 1개만 지원) → 실패했는데 뒤이은 `input text`+`enter`가 NSOpenPanel의 현재 폴더에서 알파벳순 첫 파일 or 임의파일을 선택 → 엉뚱한 "project.json"(영상아님)이 업로드 시도됨 → YouTube "처리 중단됨: 동영상을 처리할 수 없습니다" 자동거부(다행히 게시 안 됨).
+   ★조치방법: ① 잘못된 업로드 다이얼로그는 X버튼(@1397,198 부근, see --a11y로 "닫기" 재확인)으로 닫기 → "처리 중단됨" 상태면 게시 안 되므로 안전. ② 처음부터 재시작: Cmd+R 새로고침 → "만들기"만 클릭(★"동영상 업로드" 항목 절대 클릭 금지) → 빈 드롭존 화면에서 Finder 드래그앤드롭. ③ NSOpenPanel이 이미 열렸으면 Esc로 닫고 재시작(NSOpenPanel엔 Finder 이동/드래그 안 먹힘).
+   ★근본교훈: kongtrol chord = modifier 1개 한정. Cmd+Shift+G(2 modifier) 불가 → NSOpenPanel 경로입력 방식 자체가 kongtrol로 불가능. 반드시 드래그앤드롭 경로만 사용(=만들기만 클릭, 동영상업로드 항목 클릭 안 함).
 3. 제목 필드 @(838,354) click → Cmd+A(select-all) → paste/type title
 4. "재생목록에 추가" @(700,1153) → "오늘의 운세" @(603,920) → "완료" @(924,1255)
 5. "다음" @(1430,1247) ×3
 6. ★"예약" @(606,700) — NOT the "공개"(public) radio button, easy to misclick → 날짜/시간 확인
 7. "예약" 버튼(save) @(1430,1247) → 확인 다이얼로그에서 진짜 URL 확인
 8. "닫기" @(1964,345) → 콘텐츠 리스트에서 실제 표시 재검증
+   ★닫기버튼 좌표 불안정 주의(2026-08-20 재검증): URL 확인다이얼로그의 "닫기"는 스크롤/렌더상태에 따라 @(1964,345) 외에 다른 위치(예: @1222,577)로도 나타날 수 있음. `see --a11y --pid <PID>`로 그 순간 "닫기" 전체목록 재조회 후, `input location`(커서 조회)과 대조하거나 zoom-crop 실측으로 URL다이얼로그 소속 "닫기"를 특정할 것 — 고정좌표 맹신 금지. 화면에 여러 "닫기"(비활성 알림바 등)가 동시에 존재할 수 있음, URL텍스트가 근처에 실제로 보이는 것만 대상.
 
 TAB_SWITCH(if CineBot tab missing/lost — ar_1094 lesson):
 - Cmd+Tab = APP switch, NOT browser tab switch. Do not use for tab nav.
@@ -25,7 +29,7 @@ TAB_SWITCH(if CineBot tab missing/lost — ar_1094 lesson):
 FLOW(per scene):
 1. CineBot tab(localhost:4000) — verify date=target date BEFORE anything(if wrong date shown, switch date in-page, NO refresh — data auto-loads per date, u_1131).
 2. Copy button = the TITLE copy button, NOT "동영상 링크 복사"(link-copy, different button, easy to confuse — u_1091 lesson).
-3. YouTube: "+ 만들기"→"동영상 업로드"→drag scene_0N.mp4 from real Finder window(NOT NSOpenPanel — NSOpenPanel has no Finder "go to folder" support, ar_1061 root cause).
+3. YouTube: "+ 만들기" 클릭만(★"동영상 업로드" 항목 클릭 금지, 위 INCIDENT 참조)→drag scene_0N.mp4 from real Finder window(NOT NSOpenPanel — NSOpenPanel has no Finder "go to folder" support, ar_1061 root cause).
 4. Title field click→paste(kongtrol input chord cmd v --yes), NOT type(preserves exact copied string incl emoji).
 5. Playlist="오늘의 운세".
 6. "다음" 버튼 3회(세부정보→동영상요소→검토→공개상태).
@@ -35,7 +39,7 @@ FLOW(per scene):
 
 ★STALE_MENU_FIX(2026-08-20, scene_05~07 lesson — 반드시 준수):
 - "만들기"@(1884,158) 드롭다운이 페이지가 stale하면(다른 동영상 상세 갔다오거나 삭제작업 후) 클릭해도 안 열림. 반복 클릭 = 열림/닫힘 토글로 꼬임.
-- ★해결: 매 scene 업로드 시작 전 `input chord cmd r --yes`(Cmd+R 새로고침) → 5~6초 대기 → "만들기" 클릭 → "동영상 업로드"@(1820,204) 즉시 출현 → 드롭존@(1002,777).
+- ★해결: 매 scene 업로드 시작 전 `input chord cmd r --yes`(Cmd+R 새로고침) → 5~6초 대기 → "만들기" 클릭만(★★★"동영상 업로드"@(1820,204) 절대 클릭 금지, 위 INCIDENT 참조) → 드롭존@(1002,777) 이미 떠있는 상태에서 바로 Finder 드래그.
 - osascript activate 금지([[pure-io-no-system-events]]). Chrome 앞으로: `open -a "Google Chrome"`만.
 
 ★DRAFT_DELETE(초안 삭제 — a_1104 학습, 렌더링 이상 다이얼로그는 복구말고 폐기):
@@ -51,7 +55,7 @@ FLOW(per scene):
 ★SCENE07_RESOLVED(2026-08-20 ar_1133 최종): 좀비 다이얼로그 발견시 삭제절차(★DRAFT_DELETE)를 스킵하고 바로 새 업로드로 직행하는 게 정답이었음(유저 지시). 좀비/초안 삭제에 시간 쓰지 말고, 막히면 곧장 처음부터(만들기→드래그드롭) 재시작 우선 시도.
 
 ★SCENE07_ANOMALY(2026-08-20, 과거 이력 참고용 — 부분 원인규명 — u_1192 + ar_1109 추가발견):
-- 1차원인(확정): "동영상 업로드" 메뉴항목이 아니라 "파일 선택"@(1002,832) 버튼을 눌러야 NSOpenPanel이 열림. "동영상 업로드" 메뉴@(1820,204) 클릭은 정상(드롭존만 뜸, 파일선택 버튼 안 누르면 NSOpenPanel 안 뜸).
+- 1차원인(과거 이력, 2026-08-20 a_1139 INCIDENT로 번복됨): 당시엔 "파일 선택"@(1002,832) 버튼만 위험하다고 판단했으나, a_1139 재현에서 "동영상 업로드"@(1820,204) 클릭 자체도 NSOpenPanel을 열었음(화면상태/타이밍에 따라 다르게 동작할 수 있는 것으로 추정). ★최종결론(위 CONFIRMED_COORDS INCIDENT 우선): "동영상 업로드" 항목도 클릭하지 말 것 — "만들기" 클릭만으로 뜨는 드롭존에서 바로 드래그.
 - ★NSOpenPanel 특징 판별: 3버튼(옵션보기@(537,1084)/취소@(1552,1084)/열기@(1632,1084))이 하단에 있으면 NSOpenPanel. 이게 뒤에 숨어있으면 앞 다이얼로그의 모든 입력(닫기/esc/Cmd+R/Cmd+W)이 무반응인 "좀비"처럼 보임 → 먼저 NSOpenPanel "취소" 클릭으로 해소.
 - 2차원인(가설, ar_1109 — scene_08에서도 재현): NSOpenPanel 없이 정상 드래그드롭해도 "다음"이 세부정보 탭을 못 벗어나는 경우 있음. 의심=업로드/트랜스코딩 백그라운드 처리 미완료 상태에서 "다음"을 너무 빨리 누름("검사완료" 문구는 저작권검사일 뿐 처리완료 신호 아닐 수 있음). scene_03~06은 우연히 처리 끝난 후 클릭됐을 가능성.
 - FIX: "만들기" 클릭 1회 후 추가 클릭 없이 바로 드래그. 드래그 후 진행률/처리중 표시가 사라지고 완료 신호(또는 최소 30~45초 대기) 확인 후에만 "다음" 클릭.
