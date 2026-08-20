@@ -1,0 +1,172 @@
+[GATE]verified
+[VERIFIED_RUNS]9 (scene_01~06, 08~11)
+[STATUS]LOCKED_FOR_SCENES_12_AND_07
+[CREATED]2026-08-20
+[AUTHOR]orchestrator
+
+★★★ VERIFIED RECIPE - SCENE 12 & 07 MUST FOLLOW EXACTLY ★★★
+
+이 레시피는 scene_01~06, 08~11에서 검증됨.
+scene_12, 07은 이 레시피를 정확히 따를 것.
+추측, 변경, "딴짓" 절대 금지.
+
+===== 📋 STEP-BY-STEP (반복 가능한 정확한 순서) =====
+
+**[1] 환경 설정 (매 장면 시작)**
+$ alias kongtrol=/Users/bumsuklee/git/kong-bot/kongtrol/target/release/kongtrol
+$ open -a "Google Chrome"
+(2초)
+$ kongtrol input chord cmd r --yes
+(5~6초 대기 — 페이지 새로고침 완료)
+
+**[2] 만들기 메뉴 진입**
+$ kongtrol input click 1884 158 --yes
+(1초 — 드롭다운 메뉴 열림)
+
+**[3] 동영상 업로드 선택**
+$ kongtrol see --a11y | grep -i "동영상업로드\|upload" -B1 -A1
+(좌표 추출: 기존 @(1820,204) 재확인)
+
+$ kongtrol input click 1820 204 --yes
+(2초 — 업로드 다이얼로그 열림)
+
+**[4] 파일 업로드 (Finder 드래그 드롭만)**
+- Finder에서 scene_0N.mp4 @(1318,374) 드래그
+- YouTube 드롭존 @(1002,777) 드롭
+- 업로드 진행률 100% 대기 (30~45초 필수)
+
+※ NSOpenPanel 버튼 클릭 절대 금지
+
+**[5] 제목 입력**
+$ kongtrol input click 838 354 --yes
+(1초)
+
+$ kongtrol input chord cmd a --yes
+(전체 선택)
+
+$ kongtrol input chord cmd v --yes
+(제목 붙여넣기 — 포춘 사이트에서 미리 복사해놓기)
+
+**[6] 재생목록 선택 (★좌표 재확인 필수)**
+$ kongtrol input click 700 1153 --yes
+(1초 — 재생목록 드롭다운 열림)
+
+$ kongtrol see --a11y | grep -i "오늘\|운세" -B2 -A2
+(현재 드롭다운에서 "오늘의 운세"의 정확한 좌표 찾기)
+
+★드롭다운 내 스크롤 필요 시:
+$ kongtrol input click 650 700 --yes
+(드롭다운 영역 포커스)
+
+$ kongtrol input key down --yes
+(필요시 반복하여 "오늘의 운세" 찾기)
+
+$ kongtrol see --a11y | grep -i "오늘\|운세" -B1 -A1
+(재확인)
+
+★추출된 좌표로 클릭:
+$ kongtrol input click [추출된X] [추출된Y] --yes
+(1초)
+
+$ kongtrol input click 924 1255 --yes
+("완료" 버튼)
+
+**[7] 다음 진행** ×3 (각 2초 대기)
+$ kongtrol input click 1430 1247 --yes
+(다음 1 — 세부정보 탭)
+
+(2초)
+
+$ kongtrol input click 1430 1247 --yes
+(다음 2 — 동영상요소 탭)
+
+(2초)
+
+$ kongtrol input click 1430 1247 --yes
+(다음 3 — 검토 탭)
+
+(3초 — 공개상태 탭 진입 완료)
+
+**[8] 공개상태 탭에서 "예약" 선택**
+$ kongtrol see --a11y | grep -i "예약\|공개" -B1 -A1
+(현재 상태 확인)
+
+★반드시 "예약" 라디오 선택:
+$ kongtrol input click 606 700 --yes
+(예약 라디오)
+
+(2초 대기)
+
+$ kongtrol see --a11y | grep -i "예약\|게시" -B1 -A1
+(버튼이 "게시"→"예약"으로 바뀌었는지 확인)
+
+★만약 버튼이 여전히 "게시"면:
+위 클릭 반복 (최대 3회), 안 되면 needs-info
+
+**[9] 예약 버튼 클릭**
+$ kongtrol input click 1430 1247 --yes
+(예약 버튼 — "동영상 예약됨" 다이얼로그 기대)
+
+(5초 대기)
+
+**[10] URL 추출**
+$ kongtrol see --a11y | grep -i "shorts" -B1 -A1
+(youtube.com/shorts/[12자리ID] 찾기)
+
+★형식 확인: https://youtube.com/shorts/XXXXXXXXXXXX
+
+**[11] 다이얼로그 닫기**
+$ kongtrol input click 1964 345 --yes
+(닫기 버튼 @우측상단)
+
+(2초)
+
+===== 📌 CRITICAL COORDINATES (VERIFIED) =====
+
+★ 이 좌표들은 scene_01~11에서 모두 동일하게 작동됨:
+
+- "만들기" @(1884,158)
+- "동영상 업로드" @(1820,204)
+- 드롭존 @(1002,777)
+- 제목 필드 @(838,354)
+- "재생목록에 추가" @(700,1153)
+- "완료"(재생목록) @(924,1255)
+- "다음" @(1430,1247)
+- "예약" @(606,700) ← 중요!
+- 닫기 @(1964,345)
+
+★ 변동 좌표 (매번 a11y로 재확인):
+- "오늘의 운세" in 드롭다운 (드롭다운 내 스크롤 가능)
+
+===== ⚠️ 절대 금지사항 =====
+
+❌ 추측하기 (좌표 변경될 가능성)
+❌ 이전 장면 좌표 재사용 (매번 a11y 확인)
+❌ NSOpenPanel 버튼 클릭 (드래그 드롭만)
+❌ "공개" 선택 (반드시 "예약")
+❌ "게시" 버튼 즉시 클릭 (예약 선택 후만)
+❌ 페이지 스크롤 (새로고침으로만 초기화)
+❌ 재생목록 드롭다운 스크롤 없이 클릭 (좌표 재확인 필수)
+❌ 업로드 완료 대기 없이 다음 (30~45초 필수)
+
+===== 📋 SCENE 제목 (포춘 사이트에서 복사) =====
+
+12. 2026년 8월 21일 돼지띠 🐷 조용한 힘으로 성취의 날
+07. 2026년 8월 21일 말띠 🐴 협력이 당신을 이끌어줄 날
+
+===== ✅ 사용 방법 =====
+
+**scene_12 진행 시**:
+[1]~[11] 순서대로 정확히 따르기.
+각 단계에서 막히면 a11y로 좌표 재확인.
+추측 금지 → needs-info.
+
+**scene_07 복구 시**:
+동일한 [1]~[11] 패턴 적용.
+
+===== 🔒 LOCKED FOR ACCURACY =====
+
+이 레시피는 수정 금지.
+변경 필요 시 → 오케스트레이터만 수정 가능.
+worker는 정확히 따르기만 할 것.
+
