@@ -39,3 +39,8 @@ MORE_WRONG(2026-08-20 a_1097/1100, recurring pattern — worker keeps guessing c
 - `input key Escape --yes` -> WRONG case. RIGHT: `input key esc --yes` (lowercase).
 - `input key Return --yes` -> WRONG name+case. RIGHT: `input key enter --yes` (lowercase, "enter" not "Return").
 RULE: key names are ALWAYS lowercase short-form(esc/enter/space/left/right/up/down), never capitalized JS-KeyboardEvent-style names(Escape/Return/ArrowLeft). When a key isn't in the documented list, use `input chord` with the real shortcut instead of guessing a key name.
+
+MORE_WRONG(2026-08-20 a_1125 worker-restart bootstrap):
+- `input key return` (lowercase but wrong name) -> not in list. RIGHT: `input key enter --yes`.
+- `input chord cmd Home` -> "Home" not a valid single-char chord key. "home" not in `input key` supported list either(left/right/up/down/space/enter/esc only). Scroll-reset = `input chord cmd r --yes`(refresh) ONLY, no Home-key shortcut exists in kongtrol.
+FRESH-SESSION-CHECKLIST: on worker restart, before any click, run `<BIN_PATH> --version` + `<BIN_PATH> input --help` to reconfirm binary+syntax(session memory of prior corrections is lost on restart — this file is the durable source of truth, re-read it instead of re-guessing).
