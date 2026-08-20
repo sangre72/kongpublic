@@ -33,3 +33,9 @@ MORE_WRONG(2026-08-20 u_1181 재발견):
   PID via `pgrep -x "Google Chrome"` etc.
 
 NEVER osascript/System Events(see [[pure-io-no-system-events]] memory) — kongtrol input/see ONLY, even when kongtrol syntax is unclear. On syntax confusion: re-run --help, do NOT fall back to osascript.
+
+MORE_WRONG(2026-08-20 a_1097/1100, recurring pattern — worker keeps guessing capitalized/JS-style key names):
+- `input key F5 --yes` -> not in supported list(left/right/up/down/space/enter/esc/cmd-n). Refresh = `input chord cmd r --yes` instead.
+- `input key Escape --yes` -> WRONG case. RIGHT: `input key esc --yes` (lowercase).
+- `input key Return --yes` -> WRONG name+case. RIGHT: `input key enter --yes` (lowercase, "enter" not "Return").
+RULE: key names are ALWAYS lowercase short-form(esc/enter/space/left/right/up/down), never capitalized JS-KeyboardEvent-style names(Escape/Return/ArrowLeft). When a key isn't in the documented list, use `input chord` with the real shortcut instead of guessing a key name.
