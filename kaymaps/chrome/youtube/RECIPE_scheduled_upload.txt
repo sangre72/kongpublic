@@ -1,46 +1,17 @@
-RECIPE: youtube_scheduled_upload(YouTube Studio via Chrome)
-REG: a_1048~1059(2026-08-20), scene_01(1사이클) 완전검증 성공(GATE_POLICY: verified_runs=1)
-SEE-ALSO: [[chrome_common]](kaymaps/chrome/_common/RECIPE_chrome_common.txt)
+TITLE:youtube-scheduled-upload-fortune-batch
+GATE:tentative(verified_runs=2, scene_01/02 real success; scene_03+ in-progress with lessons below)
 
-WHY: 배치 업로드(예: 12간지 운세 영상 12개)를 번호-제목 정확 매칭으로 예약게시. 모든 kongtrol input 호출에 --yes 필수.
+FLOW(per scene):
+1. CineBot tab(localhost:4000) — verify date=target date BEFORE anything(if wrong date shown, switch date in-page, NO refresh — data auto-loads per date, u_1131).
+2. Copy button = the TITLE copy button, NOT "동영상 링크 복사"(link-copy, different button, easy to confuse — u_1091 lesson).
+3. YouTube: "+ 만들기"→"동영상 업로드"→drag scene_0N.mp4 from real Finder window(NOT NSOpenPanel — NSOpenPanel has no Finder "go to folder" support, ar_1061 root cause).
+4. Title field click→paste(kongtrol input chord cmd v --yes), NOT type(preserves exact copied string incl emoji).
+5. Playlist="오늘의 운세".
+6. "다음" 버튼 3회(세부정보→동영상요소→검토→공개상태).
+7. 공개상태 화면에서 예약 날짜/시간 확인(기본 자동 제시값 검증) → 예약 클릭.
+8. ★★only AFTER seeing "동영상 예약됨" dialog with a REAL youtube.com/shorts/<id> URL → close(X) → mark mapping.json status=done+that real url.
+9. mapping.json 갱신 순서 뒤바꾸지 말 것: URL 확인 전 done 마킹 금지(2026-08-20 u_ orch 발견: scene_03이 done+url="...scene_03_pending"(placeholder literal string) 허위기록됨→orch가 pending으로 되돌리고 재작업 지시. 실측 없는 성공보고 = 신뢰붕괴).
 
-STEPS(1 사이클 = 파일선택→제목→재생목록→예약→닫기):
+KONGTROL_SYNTAX: see [[RECIPE_kongtrol_cli_syntax]] in kaymaps/_common — no --screenshot flag, use see --a11y --pid <PID> only.
 
-1. YouTube Studio 채널 콘텐츠 화면에서 우측상단 "만들기"(+) 클릭 → "동영상 업로드" 클릭 → 업로드 다이얼로그(같은 탭 내 이동, 새탭 아님).
-
-2. ★★파일 첨부 = 드래그앤드롭이 표준방법(a_1063 검증완료). "파일 선택" 버튼(NSOpenPanel 경유) 방식은 비권장 — 아래 이유로 폐기:
-   - NSOpenPanel은 Chrome 소유 시트라 Finder 앱 메뉴바("이동→폴더로 이동...")가 적용 안 됨(메뉴바가 여전히 "Chrome"으로 표시, 경로 직접입력 불가).
-   - 우클릭 컨텍스트 메뉴에도 "폴더로 이동" 없음(이름변경/휴지통/복제/훑어보기/Finder에서보기/태그만 존재).
-   - 컬럼뷰 클릭탐색(사이드바→하위폴더 반복클릭)은 대량폴더(projects 등) 로딩지연+오클릭으로 반복 헤맴 발생(a_1049~1057, a_1061/1062 다수 실패 사례).
-   - ★표준절차: 별도 실제 Finder 창을 [[finder_common]](kaymaps/_common/RECIPE_finder_common.txt)의 "폴더로 이동"으로 대상 폴더에 미리 이동 → `input drag <scene파일 아이콘 좌표> <YouTube 드롭영역 좌표> --yes`로 직접 드래그.
-   - 드롭 성공 확인: 업로드 다이얼로그 상단 진행바 표시+파일명(우측 패널 "파일 이름")이 의도한 scene_NN.mp4와 일치.
-
-3. 업로드 시작 확인: "세부정보" 단계 진입, 우측 미리보기에 "곧 처리 시작됨"→처리완료시 실제 썸네일+"검사가 완료되었습니다" 표시. 파일 이름이 의도한 scene_NN.mp4와 일치하는지 재확인(우측 패널 "파일 이름").
-
-4. 제목 입력: AXTextArea "동영상을 설명하는 제목 추가" 클릭 → `input chord cmd a --yes`+`input key backspace --yes`(기존 placeholder/자동채움 제거) → `input text "<N번째 간지 제목>" --yes`.
-   - ★제목 소스 = CineBot(localhost:4000) 포춘탭의 "YouTube 제목+해시태그" 섹션(날짜 정확히 맞춰 조회, 예: "2026년 8월 21일 쥐띠 🐭 조용한 빛 속 새로운 기회") — a11y로 전체 12개 미리 확보해 job 매핑표(jobs/youtube-fortune-upload/mapping_<date>.json)에 저장해두고 그 값 그대로 사용.
-   - ★번호-제목 매칭 안전장치: N번 파일(scene_0N.mp4)에는 반드시 매핑표의 n=N 항목 제목만 사용, 매 영상마다 재확인.
-
-5. 재생목록 지정: 스크롤하여 "재생목록" 섹션 → "재생목록 선택" 버튼(또는 이미 선택된 드롭다운) 클릭 → 팝업에서 대상 재생목록(예: "오늘의 운세") 체크박스 클릭 → "완료" 클릭.
-   - 재생목록이 이미 채널에 존재하면 검색없이 리스트에서 바로 보임(별도 "새 재생목록" 생성 불필요한 경우 많음).
-
-6. "다음" 버튼(우측하단) 3회 클릭하여 세부정보→동영상요소→검토→공개상태 단계 순차 진행(중간 "동영상요소"는 클릭만으로 스킵 가능, 특별 설정 불필요시). "검토" 단계에서 저작권 등 문제없음(녹색 체크) 확인.
-
-7. "공개 상태" 단계: 라디오버튼 기본값 "공개"choix 상태에서 "예약" 섹션 펼치기(클릭) → 날짜/시간 필드가 ★YouTube가 합리적 기본값(예: 요청한 날짜의 00:00)을 자동 제안하는 경우 많음 — 요구사항과 일치하면 그대로 사용, 아니면 직접 수정.
-   - "예약" 버튼(우측하단, 최종 확정) 클릭 → "동영상 예약됨" 확인 다이얼로그(예약날짜/시간+동영상 링크 표시) 등장.
-
-8. ★★사이클 완료 = 확인 다이얼로그의 X(닫기) 버튼까지 클릭(user 명시: "닫기 버튼 누르는 것까지가 한 사이클") — 안 누르면 다음 업로드 시작 전 이 다이얼로그가 방해될 수 있음.
-
-VERIFY:
-- 예약 확정 다이얼로그의 텍스트("YYYY년 M월 D일 H:MM에 동영상이 공개 상태로 설정됩니다")로 예약일시 확인.
-- 동영상 링크(youtube.com/shorts/... 형태) 확보 → job 매핑표에 기록.
-- 채널 콘텐츠 목록으로 복귀했는지(닫기 후) 확인 — 다음 사이클 시작 전 필수.
-
-BATCH-PATTERN(N개 반복시):
-- 매 사이클: 파일선택(scene_0N)→제목(매핑표 n=N)→재생목록→예약(동일 재생목록/시간 패턴 재사용)→예약확정→닫기→매핑표 status=done+url 갱신→다음 파일 선택으로 복귀(우측상단 "만들기"부터 반복).
-- 1개(scene_01) 완전검증 후 배치 진행(GATE_POLICY: 검증 없이 12개 일괄 금지, a_1049 원칙).
-- 중간 문제 발생시 즉시 중단+needs-info(몇 번까지 완료했는지 매핑표로 명시).
-
-LIMIT/OPEN:
-- 파일선택 다이얼로그 검색 기능이 이전 세션 필터를 이어받아 오작동하는 근본원인 미확인 — 클릭 경로 탐색이 현재 유일한 신뢰 가능 방법.
-- "예약" 시간대(시간대 버튼) 커스터마이징은 미검증(기본 채널 시간대 사용, 이번엔 문제없었음).
+MAPPING_FILE:jobs/youtube-fortune-upload/mapping_YYYY-MM-DD.json — fields: n/zodiac/file/title/tags/status(pending|done)/youtube_url(real only)/scheduled.
