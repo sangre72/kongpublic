@@ -1,7 +1,12 @@
 TITLE:youtube-scheduled-upload-fortune-batch
 GATE:validated(verified_runs=4, scene_01~04 real success incl real youtube.com/shorts/<id> url each, core pattern locked for scene_05~12)
 
-CONFIRMED_COORDS(ar_1098, this Chrome window/resolution — re-verify via see --a11y if window moved/resized):
+★SCROLL_DRIFT(2026-08-20 u_1204, 근본원인 후보 — 좌표 불안정 전반의 진짜 원인일 가능성 높음):
+- 실수로 페이지 스크롤이 발생하면 CONFIRMED_COORDS 전체가 그대로 어긋난다(예약라디오 안눌림·닫기버튼 위치 다름 등 scene_07/08 다수 이슈의 근본원인 후보).
+- ★매 scene 시작 전, 그리고 다이얼로그/탭 전환 후에는 반드시 `see --a11y --pid <PID>`로 스크롤 상태 확인. 의심되면 `input key home --yes` 또는 Cmd+R로 최상단 복귀 후 좌표 재사용.
+- 절대좌표 재사용은 "방금 확인한 스크롤 위치가 기준과 같을 때"만 유효 — 다르면 반드시 재조회.
+
+CONFIRMED_COORDS(ar_1098, this Chrome window/resolution — re-verify via see --a11y if window moved/resized/scrolled):
 1. "만들기" @(1884,158) 클릭 1회 → 드롭다운/업로드페이지에 "동영상 업로드" 항목@(1820,204)이 보임
    ★★★NEVER CLICK "동영상 업로드"(u_1192 발견, scene_07 반복실패 진짜원인 — 이 항목 클릭=NSOpenPanel(OS 파일선택창) 오픈=드래그앤드롭 경로 이탈, ar_1061/1063에서 이미 NSOpenPanel엔 Finder이동 안 먹힘 확인됨). "만들기" 클릭만으로 뜨는 그 화면(빈 드롭존, "동영상을 드래그하여 업로드하세요")이 목표 상태. 추가 클릭 금지.
 2. drag scene_0N.mp4 from Finder → 드롭존 @(1002,777) (클릭 없이 드래그만)
