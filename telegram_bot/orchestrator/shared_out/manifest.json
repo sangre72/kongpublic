@@ -1,0 +1,68 @@
+{
+  "owner": "kong-bot",
+  "updated": "2026-08-21T22:00:00+09:00",
+  "items": [
+    {
+      "path": "jobs/ocrlake-sample-collect-2026-08-21/images/images_01.jpg",
+      "desc": "무료라이선스 이미지 샘플1",
+      "requested_by": "ocr-lake",
+      "purpose": "OCR 테스트 샘플",
+      "status": "done",
+      "updated": "2026-08-21T22:00:00+09:00",
+      "delivery": "telegram_sendPhoto_to_ocrlakebot"
+    },
+    {
+      "path": "jobs/ocrlake-sample-collect-2026-08-21/images/images_02.jpg",
+      "desc": "무료라이선스 이미지 샘플2",
+      "requested_by": "ocr-lake",
+      "purpose": "OCR 테스트 샘플",
+      "status": "done",
+      "updated": "2026-08-21T22:00:00+09:00",
+      "delivery": "telegram_sendPhoto_to_ocrlakebot"
+    },
+    {
+      "path": "jobs/ocrlake-sample-collect-2026-08-21/photos/photos_01.tif",
+      "desc": "텍스트 포함 사진 샘플1",
+      "requested_by": "ocr-lake",
+      "purpose": "OCR 테스트 샘플",
+      "status": "done",
+      "updated": "2026-08-21T22:00:00+09:00",
+      "delivery": "telegram_sendDocument_to_ocrlakebot"
+    },
+    {
+      "path": "jobs/ocrlake-sample-collect-2026-08-21/photos/photos_02.tif",
+      "desc": "텍스트 포함 사진 샘플2",
+      "requested_by": "ocr-lake",
+      "purpose": "OCR 테스트 샘플",
+      "status": "done",
+      "updated": "2026-08-21T22:00:00+09:00",
+      "delivery": "telegram_sendDocument_to_ocrlakebot"
+    },
+    {
+      "path": "jobs/ocrlake-sample-collect-2026-08-21/docs/docs_01.pdf",
+      "desc": "공개 문서 샘플1",
+      "requested_by": "ocr-lake",
+      "purpose": "OCR 테스트 샘플",
+      "status": "done",
+      "updated": "2026-08-21T22:00:00+09:00",
+      "delivery": "telegram_sendDocument_to_ocrlakebot"
+    },
+    {
+      "path": "jobs/ocrlake-sample-collect-2026-08-21/docs/docs_02.pdf",
+      "desc": "공개 문서 샘플2",
+      "requested_by": "ocr-lake",
+      "purpose": "OCR 테스트 샘플",
+      "status": "done",
+      "updated": "2026-08-21T22:00:00+09:00",
+      "delivery": "telegram_sendDocument_to_ocrlakebot"
+    }
+  ],
+  "_schema": {
+    "path": "실제 파일 경로(kaymaps/·jobs/ 등, manifest는 인덱스일 뿐 원본 복사 아님)",
+    "desc": "무엇인지",
+    "requested_by": "요청 주체(프로젝트명 또는 'kong-bot-self' — 자체 판단으로 공유한 경우)",
+    "purpose": "요청/공유 목적(왜 필요한지)",
+    "status": "collecting | done | blocked",
+    "updated": "ISO8601 마지막 갱신시각"
+  }
+}

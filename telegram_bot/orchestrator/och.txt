@@ -134,6 +134,15 @@ P6 keep loop: keep receive-processing loop alive even at task end
 ## P0 on boot: ①bot alive (dead→`bash telegram_bot/orchestrator/scripts/start_orchestrator.sh start`) ②Monitor re-arm. Banned: launchd·cron·ScheduleWakeup·orch_wait nohup
 ## P0.5 parallel default: serial only if dependent. Delegate on discovery (orch doesn't hold work)
 
+## SHARED_OUT (cross-project data share, established 2026-08-21 u_2013~2016)
+##   PURPOSE: sibling projects(sky, fortune, zodiac etc under ~/git/) read-only reference kong-bot artifacts(recipes·job outputs). NOT a request/response protocol — kong-bot doesn't process incoming requests from other bots, only PUBLISHES.
+##   LOCATION: telegram_bot/orchestrator/shared_out/manifest.json — {owner, updated, items:[{path, desc, requested_by, purpose, status, updated}]}. Real files live at their normal repo path(kaymaps/·jobs/); manifest = INDEX only, not a copy-store.
+##   ITEM FIELDS(user 2026-08-21 "누가 어떤 목적으로 요청한 자료인지, 수집중/완료 상태 필요"): requested_by=요청주체(프로젝트명 or "kong-bot-self"), purpose=왜 필요한지, status=collecting|done|blocked. status는 실제 산출물 진행상황과 동기화 필수(수집 시작→collecting, 산출물 확정→done) — stale status=violation.
+##   DISCOVERY: sibling project's CLAUDE.md/rules should reference this manifest path directly(symlink or absolute-path note) — kong-bot does NOT push notifications to other projects, they pull by reading manifest.json when their session boots.
+##   UPDATE RULE: whenever a new recipe(kaymaps/) or job deliverable(jobs/) is finalized AND deemed cross-project-useful, append 1 manifest.json entry same-turn(same discipline as 1G recipe-sync) — "finished-but-not-manifested" = same violation class as 1G.
+##   SCOPE: kong-bot-family repos only(sky, kongtrol siblings) — not a general public-facing API.
+##   NOTIFY-TRIGGER(user 2026-08-21 u_2017 "완료시에 알려주면되겠지 그래야 한번에 작업하지"): notify sibling ONLY when an item's status flips to `done`(NOT per-item-added, NOT per-collecting-update). Batch-friendly — sibling processes accumulated done-items together, not piecemeal mid-collection pings. Mechanism: write u_ file into `<sibling-repo>/telegram_bot/orchestrator/protocol/u/u_<seq>_<slug>.txt`(same [FROM]/[CHAT_ID]/[SEQ]/원문 format as kong-bot's own, so sibling's own tick picks it up as a fresh request) — text body references shared_out/manifest.json path + which items newly went done.
+
 ## COMMS protocol/
 u_NN = user (bot-saved) / a_NN = worker instruction (orch writes) / ar_NN = worker reply. same NN pairs
 ★AR-EXISTS=CLOSED (user 2026-08-14×3 "ar 존재=종료, 새 일은 새 a_"): ar_NN present (any path protocol/a|ar|done) = that NN ended. Continue/retry/next-phase/needs-info-followup = NEW a_{NN+1} new file. NEVER delete/edit ar to reopen same a_. NEVER tell worker "continue a_N" if ar_N exists. (this-session: deleted ar_51 = wrong; a_54 is the correct next.)

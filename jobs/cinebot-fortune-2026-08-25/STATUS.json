@@ -1,0 +1,18 @@
+{
+  "job_name": "cinebot-fortune-2026-08-25",
+  "date": "2026-08-25",
+  "steps": {
+    "fortune_generate_12": {"status": "done", "ref": "ar_2006", "verified": "12/12 completed, API+visual confirmed"},
+    "title_regenerate": {"status": "done", "ref": "ar_2009", "verified": "12/12 titles show 8/25 date"},
+    "scenario_convert": {"status": "unknown", "note": "미확인, 다음 확인시 화면조회만(재생성 금지)"},
+    "slide_generate": {"status": "unknown", "note": "미확인"},
+    "merge_description": {"status": "not_started", "note": "병합+설명생성 버튼 상태 미확인(a_2013에서 확인시도 중 중단됨, u_2015 지적)"}
+  },
+  "DO_NOT": [
+    "이미 done인 step(fortune_generate_12, title_regenerate)은 워커 자체판단으로 재실행 금지",
+    "다음단계 확인시 날짜필드 재설정+운세생성 버튼 클릭 금지 — 화면조회만(프로젝트 불러오기/히스토리 활용)",
+    "재생성 필요시 반드시 needs-info로 먼저 확인 후 진행",
+    "예외: 사용자(u_)가 a_ 지시서에서 명시적으로 재생성/재실행을 요청한 경우는 이 DO_NOT 무시하고 지시대로 수행"
+  ],
+  "last_updated": "2026-08-21T20:00:00Z"
+}
