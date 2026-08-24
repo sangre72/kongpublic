@@ -43,6 +43,12 @@ This clip records the very first time kong-bot ran/operated the AlDente app, tri
 
 See [How recipes get built](./docs/appkb/recipe-howto.md) for the methodology behind this learn-once-reuse-forever loop.
 
+**Multi-app composite recipe**: this clip records a full end-to-end batch — CineBot (fortune-video generation) → Chrome/YouTube Studio (12 scheduled uploads) — orchestrated by kong-bot from a single Telegram instruction, with no manual steps in between.
+
+![kong-bot multi-app recipe demo (YouTube batch upload)](./docs/assets/timelapse_youtube_upload_sample.gif)
+
+*Original recording: ~29.4 min real elapsed (1761s). Compressed ~13.1x into this ~2 min timelapse (122s body + 3s title card). Full MP4: [jobs/youtube-fortune-upload/timelapse_2026-08-25_150s.mp4](./jobs/youtube-fortune-upload/timelapse_2026-08-25_150s.mp4)*
+
 ## Overview
 
 kong-bot runs as a two-role collaboration between a **Orchestrator (orch)** session and a **Worker** session, both powered by Claude.

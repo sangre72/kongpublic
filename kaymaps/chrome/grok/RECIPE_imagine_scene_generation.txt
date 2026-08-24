@@ -1,0 +1,26 @@
+RECIPE: grok-imagine-scene-generation
+GATE: verified 2026-08-23 a_2115(ghost-movie-slideshow-v3), 1회 성공
+REG: grok.com/imagine
+WHY: 씬별 이미지 생성 워크플로우 확립. 최초 진입시 유저의 기존 프로젝트(사이드바 항목, 민감콘텐츠 포함 가능)로 잘못 진입하는 함정 있음 — 반드시 "New Generation" 클릭으로 진입, URL이 grok.com/imagine(프로젝트 ID 없음)인지 확인 후 진행.
+
+STEPS:
+1. 주소창에 grok.com 입력 → Enter. 로그인 상태 유지되어 있으면 Imagine 페이지 진입.
+2. 좌측 사이드바 "New Generation" 클릭(@161,272) — ★사이드바의 기존 프로젝트 항목(예: "Overlord Characters...")을 절대 클릭하지 말 것, 민감콘텐츠 포함 가능.
+3. URL 확인: grok.com/imagine (쿼리파라미터 없는 순수 형태)여야 안전. /imagine/agent/<id> 형태면 기존 프로젝트로 잘못 들어간 것 — 즉시 New Generation 재클릭.
+4. "Introducing Image 2.0" 안내 팝업이 뜰 수 있음 — X 버튼 좌표가 불안정(레이아웃에 따라 밀림). 무시하고 바로 진행해도 입력창 사용 가능(팝업이 입력을 막지 않음).
+5. 모드 전환: 기본이 "Video" 모드일 수 있음 — 이미지 아이콘 클릭(입력창 하단, "+" 다음 아이콘)하여 "Image" 모드로 전환.
+6. 비율 설정: "9:16"(기본) 버튼 클릭 → 드롭다운에서 "16:9 Widescreen" 선택(YouTube 가로 영상용).
+   - 드롭다운 옵션 목록(위→아래): Auto, 2:3 Poster, 3:2 Photo Print, 4:3 Presentation, 1:1 Square, 9:16 Story, 16:9 Widescreen, 21:9 Cinematic, 5:2 Banner.
+7. "Type to imagine" 입력창 클릭 → 영문 프롬프트 입력(스타일+장면묘사+구도, 한글보다 영문이 안정적).
+8. "Submit" 버튼(우측 끝 원형 화살표 아이콘, a11y 라벨="Submit") 클릭 — ★입력창 근처의 마이크 아이콘을 오클릭하면 "마이크 사용 권한" 시스템 팝업이 뜸(오작동), 뜨면 "허용 안함" 클릭 후 Submit 버튼 좌표 a11y로 재확인 필수(레이아웃 밀림).
+9. 생성 중 회색 블러 플레이스홀더 4장 표시 → 완료시 실제 이미지로 교체(수 초~수십 초 소요, "Server failed to respond" 에러 발생시 동일 프롬프트로 즉시 재시도하면 대부분 성공).
+10. 다운로드: 원하는 이미지 클릭 → 상세보기 진입(우측에 Segments/Remove Background/Make Video 등 편집패널) → 하단 아이콘열의 다운로드 버튼(a11y 라벨="Download") 클릭 → ~/Downloads/<uuid>.jpg 로 저장됨.
+
+VERIFY:
+- URL이 grok.com/imagine (New Generation 직후) 또는 grok.com/imagine/post/<id> (상세보기)여야 함. /imagine/agent/<id>면 오진입.
+- 이미지 모드가 "Image"(비디오 아님), 비율이 "16:9"로 표시되는지 스크린샷 확인.
+- 다운로드 후 find ~/Downloads -newermt "<시각>" 로 실제 파일 존재 실측 확인(파일명은 UUID.jpg 형태, 원하는 이름으로 즉시 rename 권장).
+
+LIMIT/OPEN:
+- 씬마다 반복시 "New Generation"으로 매번 새 세션을 시작하는 게 안전(연속 편집모드로 들어가면 이전 씬 참조가 섞일 수 있음, 미검증).
+- 4장 중 어느 것을 쓸지는 육안 판단 필요(가장 원하는 구도/표정 선택).

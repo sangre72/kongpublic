@@ -28,3 +28,9 @@ VERIFY:
 LIMIT/OPEN:
 - MODE-B(window-only) and MODE-C(region-only) toolbar flows are documented from UI-observation but not run end-to-end this session(all 3 demo recordings used MODE-A full-screen) — first actual use of B/C should re-verify+update this recipe with any surprises.
 - no confirmed keyboard-shortcut-only stop method tested(icon-click was always used).
+
+## 병행작업 출력경로 충돌 방지 (2026-08-23 추가)
+- 오케스트레이터와 워커가 같은 작업(예: 영상 편집)을 병행/중복 수행할 가능성이 있을 때, **처음부터 서로 다른 출력 파일명/경로 사용 원칙** 필수.
+- 사고사례: 오케가 만든 완성 파일(jobs/.../timelapse_X.mp4)과 워커가 진행 중이던 ffmpeg 출력이 동일 경로를 써서 덮어쓰기 충돌 → 미완성 파일(moov atom 없음)을 완성본으로 착각하는 오판이 3차례(ar_2081→2083→2084) 반복됨.
+- 원칙: (1) "파일 존재/완료" 주장은 **반드시 ls -la + ffprobe 등 실측**으로 검증 후 판단(지시서 텍스트만 믿고 단정 금지). (2) 동일 작업 병행 가능성 인지되면 처음부터 접미사(_FINAL, _v2 등)나 별도 디렉토리로 경로 분리.
+- 세션별 scratchpad는 서로 다른 세션에서 접근 불가(격리) — 워커에게 파일을 넘길 때는 프로젝트 공용 경로(jobs/ 등)로 복사해서 전달할 것, scratchpad 경로를 그대로 지시서에 언급하지 말 것.

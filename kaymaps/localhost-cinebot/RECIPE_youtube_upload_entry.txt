@@ -1,9 +1,15 @@
 RECIPE:youtube-studio-upload-entry
-GATE:verified 2026-08-20 u_1216
+GATE:verified 2026-08-20 u_1216 / entry-path 추가 2026-08-23 u_2057(유저 실측)
 REG:youtube-studio channel-content page
 WHY:worker repeatedly clicked wrong radio-row "동영상"@(400,296) → upload dialog never opened (VLM+a11y confirmed). Correct entry = "동영상 업로드" MENU ITEM, not the 콘텐츠유형 radio row.
+
+STEP-1(YouTube 스튜디오 진입, u_2057 유저 지적 — 이 스텝 누락되어 있었음):
+- YouTube(youtube.com) 페이지에서 우측 상단 "내 캐릭터"(프로필 아이콘) 클릭 → 드롭다운 메뉴에서 "YouTube 스튜디오" 메뉴 클릭.
+- 이렇게 해야 studio.youtube.com(채널 콘텐츠 페이지)으로 이동함 — URL 직접 입력이나 다른 경로 시도 금지, a11y로 프로필 아이콘 좌표 확인 후 클릭.
+
 STEPS:
 - open -a "Google Chrome"; focus
+- (STEP-1 미완료시) 위 STEP-1 먼저 수행하여 studio.youtube.com 진입
 - click "만들기"@(1884,158) → dropdown menu opens (NOT the radio row)
 - click "동영상 업로드"@(1820,204) [AXMenuItem, 220x32] → upload dialog opens
 - VERIFY dialog: "파일 선택"@(1002,832) button appears (VLM "예")

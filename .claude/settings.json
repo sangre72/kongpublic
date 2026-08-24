@@ -4,7 +4,7 @@
     "command": "cat logs/worker1_status.txt 2>/dev/null || echo '⚠ 워커 감시 미기동'",
     "refreshInterval": 5
   },
-  "autoCompactWindow": "300k",
+  "autoCompactWindow": "100k",
   "permissions": {
     "defaultMode": "bypassPermissions",
     "allow": [

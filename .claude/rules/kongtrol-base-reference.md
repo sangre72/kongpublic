@@ -58,41 +58,43 @@ $KT input click <X> <Y> --yes          # click at logical coord (X,Y)
 
 #### 2b. Key (single keys)
 ```bash
-$KT input key <key-name>               # key press
-# Names: pagedown, pageup, return, space, escape, tab, delete, up, down, left, right
+$KT input key <key-name> --yes         # key press (★--yes 필수, DANGEROUS 등급 — 없으면 "사용자가 작업을 거부했습니다" exit=2)
+# ★2026-08-23 실증(ar_2053): 지원 키 이름은 left/right/up/down/space/enter/esc/tab/backspace/delete/단일문자만.
+#   pagedown/pageup/return 은 "지원 안 하는 키 이름" 오류(--help 출력과 실제 불일치 — --help 재확인 권장).
+#   스크롤은 `down` 화살표키를 여러 번 반복(--repeat 옵션 활용)으로 대체.
 # Examples:
-$KT input key escape                   # close dialog
-$KT input key pagedown                 # scroll down
-$KT input key return                   # confirm
+$KT input key esc --yes                # close dialog
+$KT input key down --repeat 10 --yes   # scroll down (pagedown 대체)
+$KT input key enter --yes              # confirm (return 대신 enter)
 ```
+★2026-08-23 실증(ar_2053): `input key`는 click과 마찬가지로 `--yes` 없으면 항상 UserDeclined(exit=2) — Chrome 포커스 손실이 아니라 단순 플래그 누락이었음. click은 되는데 key만 거부되는 비대칭 증상을 보면 먼저 `--yes` 누락부터 의심할 것(포커스 손실 진단보다 우선 체크).
 
 #### 2c. Chord (modifier + key, 1 modifier only)
 ```bash
-$KT input chord <mod> <key>            # modifier + key
+$KT input chord <mod> <key> --yes      # modifier + key (★--yes 필수, DANGEROUS 등급)
 # Modifiers: cmd, shift, ctrl, alt (only 1 per chord)
 # Examples:
-$KT input chord cmd a                  # Cmd+A (select all)
-$KT input chord cmd c                  # Cmd+C (copy)
-$KT input chord shift tab              # Shift+Tab (reverse tab)
+$KT input chord cmd a --yes            # Cmd+A (select all)
+$KT input chord cmd c --yes            # Cmd+C (copy)
+$KT input chord shift tab --yes        # Shift+Tab (reverse tab)
 # ❌ WRONG: $KT input chord cmd shift g  (2 modifiers = not supported)
 ```
 
 #### 2d. Text (direct typing)
 ```bash
-$KT input text "<string>"               # type text directly
-$KT input text "<string>" --yes         # with confirm
+$KT input text "<string>" --yes         # type text directly (★--yes 필수, DANGEROUS 등급)
 # Examples:
-$KT input text "hello world"
-$KT input text "2026-08-24"
+$KT input text "hello world" --yes
+$KT input text "2026-08-24" --yes
 # Limitations: no copy-paste, direct keyboard input only
 ```
 
 #### 2e. Drag (cross-app drag-drop)
 ```bash
-$KT input drag <SRC_X> <SRC_Y> <DST_X> <DST_Y> [--human]
-# --human = human-speed interpolation (reliability boost)
+$KT input drag <SRC_X> <SRC_Y> <DST_X> <DST_Y> --yes [--human]
+# --yes = DANGEROUS 명령 필수(없으면 거부), --human = human-speed interpolation (reliability boost)
 # Examples:
-$KT input drag 1318 274 1002 777 --human   # Finder → Chrome dropzone
+$KT input drag 1318 274 1002 777 --yes --human   # Finder → Chrome dropzone
 ```
 
 ---
@@ -159,7 +161,7 @@ $KT see --a11y | grep -i "state-changed"           # verify new state
 # AXIncrementor @(X,Y) for day/month/year
 $KT input click X Y --yes    # click incrementor
 sleep 0.3
-$KT input key up              # or down, arrow keys work
+$KT input key up --yes        # or down, arrow keys work
 # Or: multiple clicks to increment
 $KT input click X Y --yes && sleep 0.2
 $KT input click X Y --yes && sleep 0.2
@@ -170,17 +172,17 @@ $KT input click X Y --yes
 ```bash
 $KT input click X Y --yes                    # focus field
 sleep 0.2
-$KT input chord cmd a                        # select all
+$KT input chord cmd a --yes                  # select all
 sleep 0.2
-$KT input text "new value"                   # replace
+$KT input text "new value" --yes             # replace
 sleep 0.3
-$KT input key return                         # confirm
+$KT input key enter --yes                    # confirm
 ```
 
 ### Pattern D: Drag-drop cross-app
 ```bash
 open -a "Google Chrome" && sleep 2           # focus dest
-$KT input drag SRC_X SRC_Y DST_X DST_Y --human
+$KT input drag SRC_X SRC_Y DST_X DST_Y --yes --human
 sleep 1                                      # verify drop processed
 screencapture -x out.png                     # confirm visually
 ```
@@ -242,12 +244,12 @@ $KT see --pid $PID --a11y | grep -i "button" | head -5
 
 # Basic input sequence
 $KT input click 1197 867 --yes && sleep 0.5
-$KT input chord cmd a && sleep 0.2
-$KT input text "value" && sleep 0.3
-$KT input key return && sleep 1
+$KT input chord cmd a --yes && sleep 0.2
+$KT input text "value" --yes && sleep 0.3
+$KT input key enter --yes && sleep 1
 
 # Drag
-$KT input drag 100 200 500 600 --human && sleep 1
+$KT input drag 100 200 500 600 --yes --human && sleep 1
 
 # Verify via screenshot
 screencapture -x /tmp/verify.png && echo "done"

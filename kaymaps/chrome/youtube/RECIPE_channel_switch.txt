@@ -1,0 +1,18 @@
+RECIPE: youtube-studio-channel-switch
+GATE: verified 2026-08-23 u_2093~2095
+REG: studio.youtube.com any channel dashboard page
+WHY: 여러 YouTube 채널(Google 계정 하나에 다중 채널)을 오가며 작업할 때 필요. AXGroup이 아니라 AXPopUpButton "Account"를 클릭해야 메뉴가 열림(AXGroup 클릭은 무반응).
+
+STEPS:
+1. 우측 상단 프로필 아이콘 @(1963,158) 클릭 — a11y에 AXGroup "계정"과 AXPopUpButton "Account"가 같은 좌표로 겹쳐있는데, 실제로 열리는 건 AXPopUpButton임(둘 다 같은 좌표라 좌표 자체는 무관, 클릭 후 2초 대기가 중요 — 즉시 확인하면 메뉴 렌더링 전이라 무반응처럼 보임).
+2. 드롭다운에서 "계정 전환"(AXLink) 클릭 — 좌표는 매번 a11y로 재확인(메뉴 내용에 따라 y좌표 변동 가능).
+3. 계정 목록에서 원하는 채널명 클릭(예: "WhenCoding") — 각 채널은 AXStaticText로 이름+@handle 표시됨.
+4. 전환 완료 확인: URL이 studio.youtube.com/channel/<새채널ID>로 바뀌고, 좌측 "내 채널" 아래 채널명이 바뀜, 우측 상단 프로필 아이콘도 변경됨.
+
+VERIFY:
+- URL의 채널ID(UC...) 값이 전환 전후로 달라짐.
+- 좌측 사이드바 "내 채널" 라벨 텍스트가 새 채널명과 일치.
+- screencapture로 전체화면 캡처해 육안 확인(대시보드 콘텐츠가 실제로 바뀌었는지 — 구독자수, 최근 동영상 등).
+
+LIMIT/OPEN:
+- 계정 목록에 없는 채널(별도 로그인 필요한 계정)로 전환하는 경우는 미검증.
