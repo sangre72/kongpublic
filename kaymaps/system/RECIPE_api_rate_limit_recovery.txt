@@ -1,0 +1,20 @@
+RECIPE: api_rate_limit_recovery
+REG: worker/orch session hit "API Error: Server is temporarily limiting requests(Rate limited)" or similar
+WHY: 2026-08-25 u_2365 — repeated stalls this session traced to Claude API rate-limit(not kongtrol/recipe/workflow bug). Need standard poll-then-nudge pattern instead of guessing root-cause each time.
+STEPS:
+1. detect: ar_ file stops updating + worker CPU still shows activity(ps -p PID) → suspect rate-limit BEFORE assuming logic/UI bug
+2. poll: send lightweight a_ instruction("即status 1-2 lines to ar_X now") every ~10s(orch-side, via ScheduleWakeup short interval) — this is a cheap nudge, not a heavy retry
+3. if worker responds with real progress → resume normal monitoring interval, drop nudge-mode
+4. if worker stays silent AND API-error visible in worker terminal screenshot(explicit "rate limit"/"temporarily limiting" text) → this IS the cause, stop guessing UI/focus/overlap issues, just wait
+5. if truly nothing happens for extended period(judge case-by-case, no fixed threshold) → escalate: 유저 명령(explicit restart/kill decision) required — orch does NOT unilaterally kill(per feedback-no-kill-worker-process memory)
+VERIFY: worker CPU% via ps + screenshot showing actual terminal state(not just ar_ file silence) — silence alone doesn't prove rate-limit, must see the error text or CPU-idle to confirm
+NOTE: this is a GENERIC recipe — applies whenever any worker/orch session hits API-level throttling, not specific to YouTube/CineBot tasks.
+
+---
+RECIPE: fixed-delay-vs-verify-decision (2026-08-25 u_2370)
+WHY: not every UI step needs screenshot+judge — over-verification wastes time/tokens on obviously-sequential predictable actions.
+RULE: classify each step BEFORE acting:
+  (A) MUST-VERIFY: file-selection-correctness, error-presence, ambiguous-result, irreversible-action — screenshot+judge required.
+  (B) PREDICTABLE-SEQUENCE: known 2-step chains where step2 is the standard next-action after step1(e.g. 만들기-click → dropdown-item-click) — just apply fixed delay(~2s, modern UI renders fast) and proceed, no intermediate screenshot/verify.
+APPLY: default new steps to (B) unless a specific known failure-mode requires (A) checking(cite the failure-mode when marking something (A)).
+

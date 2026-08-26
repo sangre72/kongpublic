@@ -362,7 +362,9 @@ def _process_update(tg: TelegramIO, upd: dict, allowed_ids: set[int]) -> None:
     file_ref = _extract_image_file(msg)
     if file_ref is not None:
         file_id, ext = file_ref
-        caption = msg.get("caption", "") or ""
+        # 이 메시지 자체에 사진이 있으면 caption을, 답장(reply)으로 원본 사진을
+        # 참조하는 경우엔 이 메시지의 text 자체가 요청 내용이므로 그걸 caption으로 사용.
+        caption = msg.get("caption", "") or msg.get("text", "") or ""
         handle_photo(tg, chat_id, username, file_id, ext, caption)
         return
 
@@ -542,6 +544,8 @@ def _extract_image_file(msg: dict) -> tuple[str, str] | None:
     반환: (file_id, ext) | None
       - photo: 가장 큰 사이즈(마지막 항목) 선택, ext=jpg.
       - document: image/* mime 만 허용. ext 는 mime 서브타입 또는 파일명 확장자.
+      - ★현재 메시지에 없으면 reply_to_message(답장 대상 원본)도 확인 —
+        오케/봇이 보낸 사진에 유저가 텍스트로 답장(reply)한 경우 원본 이미지를 참조하기 위함.
     """
     photos = msg.get("photo") or []
     if photos:
@@ -557,6 +561,10 @@ def _extract_image_file(msg: dict) -> tuple[str, str] | None:
         subtype = mime.split("/", 1)[1] if "/" in mime else "jpg"
         ext = "jpg" if subtype in ("jpeg", "jpg") else subtype
         return (doc["file_id"], ext)
+
+    reply = msg.get("reply_to_message")
+    if reply:
+        return _extract_image_file(reply)
     return None
 
 

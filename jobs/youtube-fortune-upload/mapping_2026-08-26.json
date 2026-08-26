@@ -1,0 +1,116 @@
+{
+    "date": "2026-08-26",
+    "source_video_dir": "/Users/bumsuklee/workspace-egov/youtube-top/python-server/projects/20260825_2026-08-26_12간지_오늘의_운세_ko",
+    "playlist": "오늘의 운세",
+    "common_tags": "#오늘의운세 #띠별운세 #12간지운세 #사주 #재물운 #무료운세",
+    "scenes": [
+        {
+            "n": 1,
+            "zodiac": "쥐띠",
+            "file": "scene_01.mp4",
+            "title": "2026년 8월 26일 쥐띠 🐭 안정의 힘, 기회 잡을 때",
+            "tags": "#쥐띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/l39X-NU97Rw"
+        },
+        {
+            "n": 2,
+            "zodiac": "소띠",
+            "file": "scene_02.mp4",
+            "title": "2026년 8월 26일 소띠 🐮 느림에 풍성함의 비밀",
+            "tags": "#소띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/ze-M4QKk9Q8"
+        },
+        {
+            "n": 3,
+            "zodiac": "호랑이띠",
+            "file": "scene_03.mp4",
+            "title": "2026년 8월 26일 호랑이띠 🐯 금생토 힘, 조심도 필요",
+            "tags": "#호랑이띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/lZswe7a4QdM"
+        },
+        {
+            "n": 4,
+            "zodiac": "토끼띠",
+            "file": "scene_04.mp4",
+            "title": "2026년 8월 26일 토끼띠 🐰 조용한 성장의 날",
+            "tags": "#토끼띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/_vWwrcf6UM4"
+        },
+        {
+            "n": 5,
+            "zodiac": "용띠",
+            "file": "scene_05.mp4",
+            "title": "2026년 8월 26일 용띠 🐲 조용한 기적, 재물 운 상승",
+            "tags": "#용띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/1R5hUoBTRxA"
+        },
+        {
+            "n": 6,
+            "zodiac": "뱀띠",
+            "file": "scene_06.mp4",
+            "title": "2026년 8월 26일 뱀띠 🐍 창조의 기운, 조용히 흐르는 힘",
+            "tags": "#뱀띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/PvZsIfGBAjo"
+        },
+        {
+            "n": 7,
+            "zodiac": "말띠",
+            "file": "scene_07.mp4",
+            "title": "2026년 8월 26일 말띠 🐴 변화, 극복의 힘",
+            "tags": "#말띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/vMyRDDmoKUI"
+        },
+        {
+            "n": 8,
+            "zodiac": "양띠",
+            "file": "scene_08.mp4",
+            "title": "2026년 8월 26일 양띠 🐑 평온한 날, 천천히 성공",
+            "tags": "#양띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/opbXrZVS7fE"
+        },
+        {
+            "n": 9,
+            "zodiac": "원숭이띠",
+            "file": "scene_09.mp4",
+            "title": "2026년 8월 26일 원숭이띠 🐵 어제보다 밝은 하루",
+            "tags": "#원숭이띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/VhV7yGsEJR8"
+        },
+        {
+            "n": 10,
+            "zodiac": "닭띠",
+            "file": "scene_10.mp4",
+            "title": "2026년 8월 26일 닭띠 🐓 조화로움, 평화의 힘",
+            "tags": "#닭띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/MRY_xYCcjyI"
+        },
+        {
+            "n": 11,
+            "zodiac": "개띠",
+            "file": "scene_11.mp4",
+            "title": "2026년 8월 26일 개띠 🐕 느림의 미학, 조용히 성장",
+            "tags": "#개띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/O5E10x-V7UQ"
+        },
+        {
+            "n": 12,
+            "zodiac": "돼지띠",
+            "file": "scene_12.mp4",
+            "title": "2026년 8월 26일 돼지띠 🐷 조용한 힘, 자연스러운 성장",
+            "tags": "#돼지띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/ewmPTgQ8kt8"
+        }
+    ]
+}

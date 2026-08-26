@@ -1,0 +1,116 @@
+{
+  "date": "2026-08-24",
+  "source_video_dir": "/Users/bumsuklee/workspace-egov/youtube-top/python-server/projects/20260821_2026-08-24_12간지_오늘의_운세_ko",
+  "playlist": "오늘의 운세",
+  "common_tags": "#오늘의운세 #띠별운세 #12간지운세 #사주 #재물운 #무료운세",
+  "scenes": [
+    {
+      "n": 1,
+      "zodiac": "쥐띠",
+      "file": "scene_01.mp4",
+      "title": "2026년 8월 24일 쥐띠 🐭 오늘은 조용히 흐르는 별",
+      "tags": "#쥐띠운세 #띠별운세",
+      "status": "done",
+      "url": "https://youtube.com/shorts/5SgrK1IZ6sI"
+    },
+    {
+      "n": 2,
+      "zodiac": "소띠",
+      "file": "scene_02.mp4",
+      "title": "2026년 8월 24일 소띠 🐄 조용히 흐르는 강물처럼",
+      "tags": "#소띠운세 #띠별운세",
+      "status": "done",
+      "url": "https://youtube.com/shorts/CMGfUOHyMZA"
+    },
+    {
+      "n": 3,
+      "zodiac": "호랑이띠",
+      "file": "scene_03.mp4",
+      "title": "2026년 8월 24일 호랑이띠 🐅 기회가 다가오고 있어요",
+      "tags": "#호랑이띠운세 #띠별운세",
+      "status": "done",
+      "url": "https://youtube.com/shorts/O0ucSUkcuLU"
+    },
+    {
+      "n": 4,
+      "zodiac": "토끼띠",
+      "file": "scene_04.mp4",
+      "title": "2026년 8월 24일 토끼띠 🐇 진실한 흐름을 믿어요",
+      "tags": "#토끼띠운세 #띠별운세",
+      "status": "done",
+      "url": "https://youtube.com/shorts/2hmZ8slsIIo"
+    },
+    {
+      "n": 5,
+      "zodiac": "용띠",
+      "file": "scene_05.mp4",
+      "title": "2026년 8월 24일 용띠 🐉 날개 활짝 펴는 날!",
+      "tags": "#용띠운세 #띠별운세",
+      "status": "done",
+      "url": "https://youtube.com/shorts/BwQ_yAZ9QlQ"
+    },
+    {
+      "n": 6,
+      "zodiac": "뱀띠",
+      "file": "scene_06.mp4",
+      "title": "2026년 8월 24일 뱀띠 🐍 조용한 별 드는 하루",
+      "tags": "#뱀띠운세 #띠별운세",
+      "status": "done",
+      "url": "https://youtube.com/shorts/PgKkPohU1-Y"
+    },
+    {
+      "n": 7,
+      "zodiac": "말띠",
+      "file": "scene_07.mp4",
+      "title": "2026년 8월 24일 말띠 🐴 천천히 움직여 빛받는 날",
+      "tags": "#말띠운세 #띠별운세",
+      "status": "done",
+      "url": "https://youtube.com/shorts/44oFkN44KXE"
+    },
+    {
+      "n": 8,
+      "zodiac": "양띠",
+      "file": "scene_08.mp4",
+      "title": "2026년 8월 24일 양띠 🐑 조화로운 하루, 길 열려 있어요",
+      "tags": "#양띠운세 #띠별운세",
+      "status": "done",
+      "url": "https://youtube.com/shorts/Hdfy8W8Fb_Q"
+    },
+    {
+      "n": 9,
+      "zodiac": "원숭이띠",
+      "file": "scene_09.mp4",
+      "title": "2026년 8월 24일 원숭이띠 🐒 조심스러운 날",
+      "tags": "#원숭이띠운세 #띠별운세",
+      "status": "done",
+      "url": "https://youtube.com/shorts/mDpr0X6bIbw"
+    },
+    {
+      "n": 10,
+      "zodiac": "닭띠",
+      "file": "scene_10.mp4",
+      "title": "2026년 8월 24일 닭띠 🐓 조용히도 성공하는 날",
+      "tags": "#닭띠운세 #띠별운세",
+      "status": "done",
+      "url": "https://youtube.com/shorts/TV1nQh5kweo"
+    },
+    {
+      "n": 11,
+      "zodiac": "개띠",
+      "file": "scene_11.mp4",
+      "title": "2026년 8월 24일 개띠 🐶 협력이 길이지",
+      "tags": "#개띠운세 #띠별운세",
+      "status": "done",
+      "url": "https://youtube.com/shorts/0KaeKat0C3Y"
+    },
+    {
+      "n": 12,
+      "zodiac": "돼지띠",
+      "file": "scene_12.mp4",
+      "title": "2026년 8월 24일 돼지띠 🐷 조용한 힘으로 기회 키워요",
+      "tags": "#돼지띠운세 #띠별운세",
+      "status": "done",
+      "url": "https://youtube.com/shorts/6XsF1gxAuQI"
+    }
+  ]
+}

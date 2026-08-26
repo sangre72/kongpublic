@@ -1,0 +1,21 @@
+RECIPE: workflow_json_load (ComfyUI 웹UI에서 워크플로 JSON 파일 불러오기 — ★성공확정)
+REG: http://127.0.0.1:8188 (ComfyUI 웹UI)
+WHY: 캔버스 노드 드래그배선 방식이 너무 느리고 어려움(RECIPE_wire_connect 별도) → JSON 사전작성+불러오기 전략(a_2214/2216/2219)으로 전환. 파일다이얼로그(AXSheet) 방식은 kongtrol 합성클릭으로 확정(열기버튼/더블클릭/Enter)이 안 먹히는 문제 반복 → ★디렉토리 직접배치 우회로 완전 해결.
+
+★★★확정된 성공 방법 (파일다이얼로그 완전 우회):
+1. ComfyUI 워크플로 저장경로 확인: `~/Documents/ComfyUI/user/default/workflows/` — 사이드바 "워크플로" 패널이 실제 스캔하는 디렉토리(find로 확인, ComfyUI-src 소스 아니라 Documents/ComfyUI쪽 = 데이터 디렉토리).
+2. 미리 작성한 워크플로 JSON을 **bash `cp`로 이 디렉토리에 직접 복사**(kongtrol UI조작 불필요, 100% 신뢰가능):
+   `cp <작성한.json> ~/Documents/ComfyUI/user/default/workflows/<이름>.json`
+3. Chrome ComfyUI 웹UI에서 좌측 사이드바 "워크플로"(w) 버튼(≈29,421) 클릭 → 사이드바 오픈.
+4. "새로 고침" 버튼(≈347,196, 사이드바 상단 우측) 클릭 → 방금 복사한 JSON파일명이 목록에 노출(파일 stem만, .json 확장자 제외).
+5. 목록 항목 클릭(예: ≈219,326, 첫번째 행) → ★탭 제목이 "<파일명> - ComfyUI"로 변경되면 로드 성공 확정(a11y로 AXWindow 타이틀 재확인).
+6. 사이드바 닫고(29,421 재클릭) "노드" 탭에서 노드 목록 재확인해 전체 로드 검증.
+
+★파일다이얼로그(로고→파일→열기, AXSheet) 자체는 여전히 열리긴 함(레퍼런스용으로 남김) — 단, 파일선택 후 "열기"버튼 클릭/더블클릭/Enter키 확정이 kongtrol 합성클릭 이벤트로는 반영 안 되는 문제 반복재현(4가지 조합 시도, 전부 실패) → **위 우회방법을 표준으로 사용**.
+
+VERIFY:
+- 탭 제목(`AXWindow`) 변경 확인이 가장 확실한 로드성공 지표.
+- "노드" 탭에서 예상 노드 전부(개수·타입) 존재 확인.
+- "실행" 버튼(≈1416,192) 클릭 → "작업이 대기열에 추가됨" 메시지 확인 → output디렉토리 파일생성으로 최종 검증.
+
+REF: a_2214_workflow_json_preset_approach.txt, a_2216_try_comfyui_logo_menu_and_drop.txt, a_2219_search_field_and_research_json_load.txt, ar_2219(★성공 기록).

@@ -1,0 +1,42 @@
+RECIPE: wan22_image_to_video_mps (Wan2.2 Image-to-Video, GGUF+Lightning LoRA+MPS GPU가속 — ★성공확정)
+REG: http://127.0.0.1:8188 (ComfyUI 웹UI), macOS Apple Silicon(M3 Max 등, MPS 지원 GPU 탑재 필수)
+WHY: LTX-2.3(22B)은 이 로컬환경(48GB메모리)에 부적합함이 판명됨(체크포인트가 MODEL+VAE+오디오VAE+CLIP 4중역할이라 GGUF 부분전환 불가, RECIPE_wire_connect.txt/STRATEGY 참고) — Wan2.2(14B급, GGUF양자화 보유)로 전환해 최종 성공.
+
+★★★핵심 결정: --cpu 플래그 절대 쓰지 말 것. macOS Apple Silicon은 반드시 MPS(GPU)로 구동.
+- CPU모드: GGUF 8.6GB 모델 로드 단계에서 18분+ hang 재현(a_2288), 메모리 스왑 26GB+ 포화로 OOM 위험 극대(여유메모리 68MB까지 떨어짐).
+- MPS모드: 같은 로드 단계를 수초~수십초 내 통과, 전체 diffusion 2스텝(HighNoise+LowNoise)이 각 7~13분, 총 39분16초 만에 완주. 프로세스 RSS도 3GB대로 낮게 유지(모델이 GPU 통합메모리 쪽에 올라감).
+- 구동커맨드: `~/Documents/ComfyUI/.venv/bin/python3 main.py --base-directory ~/Documents/ComfyUI` (★--cpu 제거, 로그에 `[INFO] Device: mps` 확인 필수).
+
+STEPS:
+1. 모델 준비(로컬 보유 확인, 무료 오픈웨이트만 — network-budget 준수):
+   - `models/diffusion_models/HighNoise/Wan2.2-Fun-A14B-InP_HighNoise-Q4_K_S.gguf` + `LowNoise/..._LowNoise-Q4_K_S.gguf`
+   - `models/vae/wan_2.1_vae.safetensors`
+   - `models/loras/LoRAs/Wan22-Lightning/old/Wan2.2-Lightning_I2V-A14B-4steps-lora_HIGH_fp16.safetensors` + `..._LOW_fp16.safetensors`
+2. blueprint 확보: `~/ComfyUI-src/blueprints/Image to Video (Wan 2.2).json` — 공식 blueprint 존재, 처음부터 JSON 작성 불필요.
+3. blueprint 로드: RECIPE_workflow_json_load.txt 방법(파일다이얼로그 대신 `~/Documents/ComfyUI/user/default/workflows/`에 직접 cp+사이드바 새로고침) 그대로 사용.
+4. ★파일명 불일치 대응(중요, blueprint 원본은 다른 배포처 파일명 기대): blueprint가 요구하는 파일명(`wan2.2_i2v_*_14B_fp8_scaled.safetensors`, `wan2.2_i2v_lightx2v_4steps_lora_v1_*`)이 우리 보유파일명과 다름 — JSON 직접편집(python)으로 노드의 위젯값을 실제 보유 파일명으로 교체. UNETLoader→UnetLoaderGGUF로 노드타입 자체도 교체(GGUF 파일이라 표준 UNETLoader론 못 읽음).
+   - ★★UI 파라미터패널의 LoRA 필드는 "위젯 프로모션" 방식이라 JSON수정만으론 반영 안 됨 — 반드시 UI 드롭다운에서 직접 재선택 필요(파일명 검색+클릭). 새로고침시 이 값이 원래 blueprint 기본값으로 되돌아가는 부작용 관찰됨 — 새로고침 후 반드시 재확인.
+5. ★출력노드 부재 대응(LTX와 동일 패턴): blueprint에 SaveVideo/저장노드가 없어 "프롬프트에 출력이 없습니다" 에러 발생 — 노드라이브러리에서 "비디오 저장" 노드를 캔버스에 추가 배치 필요.
+6. ★★★소켓연결(서브그래프 VIDEO출력→비디오저장 입력) — 캔버스 drag가 반복 실패(노드가 자동스냅되며 소켓이 계속 가려짐, LTX때보다 심함, 1시간+ 시행착오)했으나 **JSON 직접 링크추가로 완전 해결**:
+   - `links` 배열에 새 항목 `[신규link_id, 출력노드id, 출력slot, 입력노드id, 입력slot, 'VIDEO']` 추가.
+   - 양쪽 노드의 참조필드도 함께 갱신(`inputs[].link` = 신규id, `outputs[].links` 배열에 신규id 추가).
+   - `last_link_id`도 갱신.
+   - ★★★결론: 캔버스에서 소켓드래그가 반복실패하면, 정밀좌표 재시도보다 **JSON 링크 직접추가가 압도적으로 빠르고 확실**함 — 다음부턴 소켓연결 막히면 곧바로 이 방법 사용.
+7. first_frame(이미지 입력) 연결: LoadImage 노드 배치+캐릭터이미지 선택 → start image 소켓에 연결(같은 JSON편집 또는 UI drag, 이번엔 UI로 성공 — 단, ★연결 성공 여부를 스크린샷으로 즉시 확인하는 습관 필수, 성공한 걸 모르고 계속 재시도하는 시간낭비 발생했음).
+8. ★★검증 관행(u_2294 반영): duration을 짧게(1~5초)먼저 설정해서 전체 파이프라인 검증 후, 성공하면 원하는 길이로 늘려 재실행 — 처음부터 긴 영상 시도하면 실패시 손실이 큼.
+9. 오류패널 0건 확인 → "실행" 클릭 → 로그로 진행률 확인(`50%|...| 1/2`, `100%|...| 2/2` 등 tqdm 진행바가 UI %표시보다 훨씬 신뢰도 높음, UI는 갱신지연 있음).
+10. output에서 결과 확인: `~/Documents/ComfyUI/output/video/ComfyUI_XXXXX_.mp4`.
+
+VERIFY:
+- 로그에 `[INFO] Device: mps` 확인(CPU폴백 아님).
+- `Prompt executed in HH:MM:SS` 로그로 전체 소요시간 확인.
+- ffprobe로 codec/resolution/fps/duration 실측(요청 파라미터와 일치 확인).
+- 진짜 정지(hang)인지 느린 진행인지 판별: `sample <PID>`로 스택트레이스 확인 — `mps::`/`MPSGraph`/`Metal.CommandQueueDispatch` 등이 보이면 실제 GPU 연산중(hang 아님).
+
+LIMIT/OPEN:
+- Wan2.2-Fun-A14B-InP(우리가 가진 GGUF)는 blueprint 원 의도(순수 I2V, Fun/InPainting 특화 아닌 버전)와 정확히 같은 모델은 아님 — 결과 품질이 살짝 다를 수 있음(이번엔 정상 생성됨, 문제 없었음).
+- MPS 여유메모리 표시(메뉴바 "XXX MB Free")가 실제 위험도를 그대로 반영하는지는 불확실 — CPU모드처럼 프로세스가 죽는 형태의 위험은 낮아 보이나 완전 검증은 안 됨.
+
+★2026-08-26 재검증: LTX-2.3(22b-dev-fp8/distilled-lora/gemma-encoder/upscaler) = 로컬 models/ 디렉토리에 전혀 없음(find 결과 0건, upscaler만 구버전 x2-1.0 존재). GGUF 대안(unsloth/LTX-2.3-GGUF) 최소 Q2_K도 8.28GB+별도 text-encoder(gemma_3_12B)+upscaler 추가 다운로드 필요 — network-budget "꼭 필요한 경우만" 기준상 이번 세션은 SKIP, Wan2.2(이 레시피)를 SFW 파이프라인 표준으로 계속 사용. LTX 시도하려면 사전에 GGUF 다운로드를 명시적 별도 작업으로 승인받을 것.
+
+REF: a_2264/2274/2277~2294 전체 체인, ar_2294(최종 성공 상세기록), STRATEGY_canvas_learning.txt, RECIPE_wire_connect.txt, RECIPE_workflow_json_load.txt.
