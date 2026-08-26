@@ -34,3 +34,32 @@ LIMIT/OPEN:
 - RAW(비-Turbo) 버전은 스텝수 더 필요·CFG도 양수 권장(WaveSpeed 블로그 기준) — 아직 미시도.
 
 REF: a_2411~2421 체인(2026-08-26 overnight-video-learning), STRATEGY_canvas_learning.txt(JSON우선원칙), RECIPE_wan22_image_to_video_mps.txt(같은 세션 I2V 파트).
+
+---
+
+## ★UPDATE(2026-08-26 speed-bench, a_2505~2525)
+
+SPEED-TABLE(Q3_K_M,MPS,all node_errors={}):
+- base(8step,832x1216) cold/warm=132s/124s — cold-load-overhead=5.8%only,NOT real factor
+- v1(4step,832x1216)=59s LOSSLESS
+- v2(8step,432x768)=52s LOSSLESS
+- v3(4step,432x768)=26s mild-coin-text-soft
+- v4(3step,432x768)=22s worse-text-blur,NOT-rec(15%gain vs real-quality-loss)
+- ★v3+2x-upscale(RealESRGAN_x4→ImageScale-lanczos-downres-to-target)=~40s,★ADOPTED-CONFIG — no-x2-model→4x-then-downscale works artifact-free(lanczos rec)
+- mflux(MLX-native)=127s,NO-speed-diff-vs-ComfyUI-GGUF(no need to switch)
+
+QUANT-FLOOR: Q3_K_M=practical-floor. sub-Q3(Q3_K_S/IQ3-family/Q2_K/IQ2/IQ1)exist-but-NOT-rec — diffusion(unlike LLM)degrades-visibly-at-low-quant(no self-correction-mechanism). community-consensus-floor=Q4_K_M/Q5_K_M,already-pushing-below-that-at-Q3.
+
+★★★CRITICAL: cfg=1.0(guidance-distilled)→negative-prompt=INERT
+guidance-distilled-models(Krea2-Turbo incl)skip-unconditional-pass-at-cfg≈1.0 → negative-prompt-content=NO-EFFECT(confirmed via HF-community). "text,watermark"-negative did-NOT-block-text-hallucination. ★negative-prompt-tuning=POINTLESS for this failure-class.
+
+★★★CRITICAL: text-hallucination(garbled-banner) = genre-word-trigger, NOT step-count
+- symptom: prompt containing "OO app illustration style"/card/document/banner-assoc-words → large garbled-hangul-banner-hallucination at 4-step AND ★8-step(official-doc-min-step, still fails, 2/2 repro, seed-independent)
+- cause: genre-words prime model→"this-is-UI/card/doc"→attempts-text-render→Turbo-distill weak-at-text-render(civitai official: "Krea2 not good with a lot of text")→garbled
+- FIX: strip ALL app/UI/card/document/poster-assoc words from positive-prompt, use pure visual/scene-desc only(e.g. "chubby plush-toy style, cel-shaded, thick outline"). ONE fix-attempt=fully resolved(0/1 repro after).
+- tradeoff: model now SKIPS text-attempt on props(coin=blank) — blank>garbled, acceptable.
+- ★APPLY THIS PATTERN RETROACTIVELY to ALL zodiac/character prompts(not rooster-specific luck, structural risk).
+
+8-step=official-doc-min(4-step=below-spec): HF-model-card rec-min=8step(4-step=community-LoRA-compensated territory, i.e. raw-4-step=known-degraded-by-design). real-world: 4-step(v1/v3) shows near-zero visual-degradation in practice→keep using 4-step. ★BUT text-hallucination-class-issues=step-count-INDEPENDENT(8-step repro'd identically)→step-bump does NOT fix this, prompt-rewrite=ONLY fix.
+
+REF(add): a_2505~2525(speed+quality bench), ar_2518(consolidated-report), ar_2524(genre-word-trigger root-cause+fix).
