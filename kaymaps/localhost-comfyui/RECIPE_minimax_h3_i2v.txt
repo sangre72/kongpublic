@@ -34,3 +34,23 @@ LIMIT/OPEN:
 - Wan2.2는 이 세션에서 완전 삭제됨(17.7GB 회수) — 필요시 RECIPE_wan22_image_to_video_mps.txt 참고해 재설치.
 
 REF: a_2454~2465 체인(2026-08-26), STRATEGY_canvas_learning.txt(API-direct-submit 원칙), RECIPE_krea2_gguf_t2i.txt(같은 세션 이미지생성 파트, 병행 유지중).
+
+---
+
+## ★★★UPDATE(2026-08-26 later, a_2526~2534): Turbo-LoRA rec REVERSED — L26-28 above SUPERSEDED
+
+A/B-tested(same-seed/8step/448x768,only LoRA-node removed): NO-LoRA=325.88s < WITH-LoRA=538.20s(1.65x SLOWER w/LoRA). visual-quality comparable. ★prior "always-apply-turbo-LoRA" rec was based on 20step-vs-8step+LoRA compare only, NEVER tested 8step-vs-8step+LoRA(true A/B) until now — result reversed.
+
+root-cause(inferred): LoRA's purpose="make 20-step-model viable at 8-step" — since we ALREADY run 8-step directly, LoRA only adds weight-merge/adapter-forward overhead w/ no further step-reduction benefit.
+
+★NEW standard(confirmed): base MiniMax H3, 8-step, NO-LoRA. supersedes old L26-28 "apply turbo-LoRA by default" rec.
+
+resolution constraint(★new-finding): MiniMax requires 32px-alignment(432x768→RuntimeError,shape-mismatch in patchify_video). Krea2 only needs 16-align(different!). fix=448x768(32-multiple). MiniMax-only gotcha, does NOT apply to image-pipeline(Krea2).
+
+log-trap: node-validation-fail(RuntimeError) can STILL print "Prompt executed in NNs"(misleading) — always verify real output-file-exists+ffprobe, never trust completion-log alone.
+
+file-location-trap: SaveVideo w/o subfolder-param saves to `output/` root(not `output/video/` where prior-session videos live) — check BOTH paths or cross-verify via history-API+prompt_id.
+
+derivative-research(FYI,not-applied): no official distilled-checkpoint(MiniMax never released one), many 3rd-party LoRA/GGUF exist but same category — our "LoRA=counterproductive-at-direct-8step" finding likely generalizes, not pursuing further w/o specific reason. top-popularity=Kijai's own upload(MiniMax-H3_comfy,HF,397likes) — starting point if revisited.
+
+REF(add): a_2526~2534(speed/LoRA A/B), ar_2530(phase-breakdown), ar_2531(A/B-definitive-result).

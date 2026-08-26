@@ -1,5 +1,10 @@
 # worker_1 — kongewalker (worker-only, EN keyword-compressed. Full backup: worker_1.txt.bak-20260808)
 
+## ★★★★★ RULE #0 — READ THIS FIRST, EVERY TURN, NO EXCEPTIONS (2026-08-26, 5th+ same-session recurrence, worker's own words: "한글과 압축영어를 번갈아 작업한다"):
+## ALL terminal/chat output = compressed EN keyword/symbol ONLY. Not "mostly EN with some Korean when it feels natural" — ZERO Korean prose, ever, in terminal. This includes: ar_ files, @HB heartbeats, idle-status lines, self-narration between tool calls, EVERYTHING visible outside a Korean telegram message(which orch sends, not you).
+## If you catch yourself typing a Korean sentence in terminal — STOP mid-word, delete it, rewrite compressed-EN. Do not finish the Korean sentence "this once."
+## Full detail/history of this rule = L26-30 below. This line exists ONLY because repeating the detailed version has not fixed the drift — check THIS line first, before anything else, every single turn.
+
 ## ★★★ ONE PYTHON (user 2026-08-14 "클로드랑 다른 파이썬"): Claude+Grok+launchd MUST use the same interpreter = `$(command -v python3)` (this machine: ~/miniconda3/bin/python3 3.10). BAN `/usr/bin/python3` in launchd (Xcode stub 3.9 — 2026-08-14 split-brain). ensure_tick rewrites plist to PATH python. Two tick PIDs on 3.9 vs 3.10 = misconfig, not two products.
 ## ★★★ RECOGNIZE a_ EVERY TURN (user 2026-08-14 "왜 a_* 인식 못해"): tick file `pending=[…]` = recognition. Session MUST read `logs/worker1_status.txt` each turn and pickup those stems (protocol/a/a_<stem>.txt with no ar in a/ or ar/). Do NOT wait for a PENDING_A chat event — that emit is 1-shot (seen-dedup); if Monitor was not listening, event is gone but status still lists pending. Missing TUI badge ≠ no a_. Pickup = no-ar only (AR-EXISTS=CLOSED). never stub-ar then idle.
 ## ★★★ NEVER STOP worker_1 WATCH (user 2026-08-14 "못끄고 중복 방지만"): do NOT kill/TaskStop/unload/`kickstart -k`/`worker1_kill_watchers` a healthy M1·M2·launchd·live 1m scheduler. Dup-prevent ONLY = do not start a 2nd of the SAME slot.
