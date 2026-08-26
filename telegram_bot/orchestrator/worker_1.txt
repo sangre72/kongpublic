@@ -188,7 +188,17 @@ gatekeeper(OS-common,trust-src→auto-열기,no-ask) + app-specific onboarding(T
 ## ★ WEB-UI 2s-STALL RULE (2026-08-19, u_948 5초→u_965 2초로 단축, ar_942/943 VLM binary판단 0.45s 실측 근거)
 web app(브라우저 작업) 기본 기대치: 클릭/제출 후 결과·상태변화는 즉시~수초내 발생이 정상. **2초 이상 무응답/무변화** → 정상 "생성중" 로딩상태(진행 스피너·프로그레스바 등 명시적 signal 있음)가 아니면 STALL 의심 → 즉시 스크린 재확인(binary판단=`kongtrol see --vl "화면이 바뀌었나?"` 우선 사용, ar_942/943 검증: 있다/없다류 binary는 VLM 4/5정답·0.45s로 신뢰가능. 애매하면 워커 자체판단 병행) → 에러/멈춤/미제출 여부 판별. 명시적 진행신호(로딩스피너 등) 있으면 그 작업 특성상 정상 대기(예: 영상생성 수분 소요)로 판단, 2초룰 미적용. 신호 없이 2초+ 무반응 = 잘못 클릭됐거나 페이지 멈춘 것으로 간주, 재시도/재확인.
 ★VLM 사용범위(ar_942/943 종합, 매판단시 재확인): 적합=있다/없다·화면종류판별·1~2개카운트 / 부적합=3개+정확카운트·텍스트인용·전체나열(942에서 0/5 오답 확인, 세밀판단엔 워커 자체판단 유지).
+★★PROACTIVE-SPEED-JUDGMENT(2026-08-26 u_2548 "빠른작업방법 판단을 니가 해야지" — 반복 지적: VLM binary-check를 유저가 매번 알려줘야 워커가 씀): 위 VLM범위·[[compute-vs-ai-split]] 원칙을 매 스텝마다 유저 지시 기다리지 말고 **선제적으로 적용**. binary Y/N 화면판단(다이얼로그떴나·텍스트있나 등) = 기본적으로 먼저 `see --vl`시도, 워커자체 풀분석(스크린샷+시각판단)은 그게 부적합한 경우(세밀카운트·텍스트인용 등)에만. "눈이 없다"는 핑계로 매번 느린 방법 기본값 쓰지 말 것 — 상황판단해서 빠른 도구 스스로 고를 것.
+★★REPEATED-INPUT STALL GAP(2026-08-26 u_2524/2527 "상황대처 너무 부족" — 실사고: swap 46.96/48.13GB 근접상태서 반복 스크롤/키입력 하다 앱행+강제종료창 발생, 2s-STALL룰 미적용): 위 2s-STALL룰은 단발 클릭/제출엔 적용해왔으나 **반복입력(스크롤루프·multi-key-repeat)엔 그동안 적용 안 함**(rapid-fire로 죽 진행) — 이게 진짜 공백이었음. FIX: 반복입력 시퀀스는 ~5회마다 짧은 pause+응답성 체크(스크린샷 또는 a11y query) 삽입, blind rapid-fire 금지. 장시간작업 진입 전(또는 반복입력 시작 전) 메모리압박 사전체크 습관화(`vm_stat`/swap 사용량) — 사후반응(행걸린 뒤 발견)이 아니라 사전예방으로 전환.
 ★ZOOM-CROP 값확인(ar_962/a_963, kaymaps/_common/RECIPE_zoom_crop_value_verify.txt): a11y가 값 미노출(AXIncrementor 등)+VLM도 세밀숫자/텍스트 부적합인 경우 → `screencapture -R<x,y,w,h>`로 대상필드만 좁게 크롭 후 Read로 육안확인(100% 신뢰, 느림). VLM=대략/이진판단 우선(빠름), zoom-crop=정확값 확정 필요시 상호보완 사용.
+
+★★★ COMFYUI OVERNIGHT-LEARNING(2026-08-26, a_2411~2465 체인) 핵심교훈:
+1. 캔버스UI편집 stale-tab버그(오늘 최다시간소모) — 파일은 python으로 정확히 편집했는데 브라우저가 옛값 표시하는 경우 매우 흔함. ★해결=UI씨름 대신 API `/prompt` 직접 POST(캔버스 완전우회, 훨씬빠르고확실). 이 방식으로 Krea2/MiniMax 둘 다 성공시킴 — 새 워크플로 만들때 처음부터 이 방식 우선고려.
+2. SaveVideo의 `format`필드는 CreateVideo아니라 SaveVideo에 넣어야함(헷갈리기 쉬움, TypeError로 명확히 알려줌).
+3. 안전관련: 캐릭터레퍼런스 사용시 원작(캐논) 디자인 WebSearch로 먼저확인, 팬아트 이미지 그대로 쓰면 의도보다 노출도 높을 위험(다키마쿠라류) — Negative프롬프트에 nsfw/revealing 명시가 안전판.
+4. 손실/무손실 하드제약: TeaCache·SVDQuant/Nunchaku 등 인기 speedup기법 다수가 실제로는 손실압축(양자화/스텝스킵) — "lossless만" 요구시 배제. CUDA전용(SageAttention 등)도 Mac에선 배제. mps-flash-attn=설치는되나 이 macOS환경에서 Metal셰이더 컴파일이 불안정해 서버크래시 유발(XPC연결끊김, Swift Fatal Error) — 재시도 비추천.
+5. 모델별 GGUF encoder 분할파일(main+mmproj)은 ComfyUI 표준감지로직과 안 맞을 수 있음(둘다 같은 state_dict에 있어야 하는데 별도로드됨) — 공식 단일파일(safetensors)이 있으면 그걸 우선사용.
+6. 시스템메모리 위기징후: 알수없이 느린 gen(선형스케일 안맞음)은 O(n^2)어텐션스케일링보다 swap-thrashing이 원인일수있음 — `sysctl vm.swapusage`+`vm_stat`으로 반드시 실측확인, 여러 큰다운로드+gen 동시진행 피할것.
 
 ## ★ YT-STUDIO UPLOAD WIZARD STALE-COORD (2026-08-25, scene_01 8/26-batch)
 WHY: stepper modal(세부정보→동영상요소→검토→공개상태) btn(다음/예약) coord SHIFTS per tab, reused stale coord(1390,1211 from earlier tab)=silent miss(0 visible change, no error).
