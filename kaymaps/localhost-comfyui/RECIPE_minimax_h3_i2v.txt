@@ -233,3 +233,18 @@ REF(add): a_2855(SageAttention/sol-attn platform research), a_2860(real install-
   ★TAKEAWAY: torch2.13 upgrade is a net win for BOTH configs(no regression either way), but **always cite which config(turbo vs quality) when quoting a torch-upgrade speedup %** — the two numbers(23% vs 8.4%) are not interchangeable, this was a real apples-to-oranges catch by the user(u_2867/2868), not a computation error.
 
 REF(add): a_2869(quality-mode apples-to-apples re-test, this section).
+
+## ★★★★★★★★★★★★UPDATE(2026-08-29, a_2873): FlexAttention-into-model = BENCHMARK-CONFIRMED COUNTERPRODUCTIVE(4-24x SLOWER, DON'T WIRE). Refined page-turn prompt = CLEAN FIX(natural motion, no artifacts).
+
+★FlexAttention wiring INVESTIGATED THOROUGHLY, NOT IMPLEMENTED(would be a regression, not an optimization) — MiniMax H3's attention(`comfy/ldm/minimax/model.py` L169-195) is **fully DENSE**(single packed `[text|cond|audio|video]` stream, `optimized_attention(...,mask=None)` unconditionally, zero native sparsity). Real MPS benchmark(MiniMax-H3-scale tensors, B=1,H=24,S=8000,D=128) BEFORE writing any patch code:
+  - stock SDPA: 117.6ms/call
+  - FlexAttention eager: 477.1ms/call(4.1x SLOWER)
+  - FlexAttention `torch.compile()`'d(fully warmed, 20-call avg): **2861.5ms/call(24.3x SLOWER)**
+  **DO NOT WIRE FlexAttention into MiniMax H3's dense attention** — torch2.13's MPS FlexAttention kernel is optimized for SPARSE block-mask patterns(matches the 12x-headline-number's fine print); on a fully-dense mask it pays block-mask overhead with none of the compute-skip benefit, worse than mask-free SDPA. This is architecture-specific(MiniMax H3 has no native sparsity) — re-derive fresh if the model ever gains genuine block-sparse structure, don't assume this conclusion transfers to other models.
+  ★torch2.13's REAL, CONFIRMED speedup(a_2860/2869, 8.4-23% depending on config) comes from GENERAL kernel/backend improvements, UNRELATED to FlexAttention specifically — keep the torch2.13 upgrade(still a net win), just don't chase FlexAttention-wiring on top of it.
+
+★REFINED PAGE-TURN PROMPT(fixes a_2814/a_2822's original awkward-motion complaint) — CONFIRMED via 7-frame visual check across full clip:
+  `"anime style illustration, a girl sitting on a park bench, turning a page of her book with her right hand, moving the right page smoothly to the left, natural hand motion, trees and sunlight in the park"`
+  Combined with the already-established EasyCache-off+8-step fix(a_2822): right hand visibly lifts/turns page mid-air(readable text on page), settles naturally left, ZERO blur/smear artifacts throughout. Explicit hand/direction/motion-quality language in the prompt + EasyCache-off together = clean result. Output: 384x672/73f/3.04s, TOTAL gen time=471.59s(quality-mode+73f, this specific config not directly comparable to shorter-length prior timings).
+
+REF(add): a_2873(FlexAttention benchmark+decision-not-to-implement, refined-prompt validated fix, this section).
