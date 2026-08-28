@@ -23,6 +23,7 @@ och.txt / protocol/a/README.md 규약 + 유저 지시(2026-08-05):
 from __future__ import annotations
 
 import os
+import subprocess
 import time
 from pathlib import Path
 
@@ -51,6 +52,24 @@ _ORCH_ALIVE_TIMEOUT = int(os.environ.get("ORCH_ALIVE_TIMEOUT_SEC", "300"))
 _ORCH_ALERT_INTERVAL = int(os.environ.get("ORCH_ALIVE_ALERT_INTERVAL_SEC", "1800"))
 # 마지막 경보 발송 시각(모듈 변수). 0 = 아직 미발송(또는 오케 생존 중 리셋됨).
 _orch_alert_sent_at: float = 0.0
+
+# ---------- 오케 즉시 깨우기 (u_2801, 2026-08-28) ----------
+# M1(10s 폴링)만으로는 최대 10s 지연 가능 — u_ 저장 즉시(로컬 수신 시점) 오케 터미널창에
+# 텍스트 주입해 지연 없이 깨운다. orch_wake_self.sh 는 Terminal.app "do script" 사용
+# (System Events 아님 — 권한불요, kongmaster.py 제거 후 대체 메커니즘).
+_ORCH_WAKE_SELF_SCRIPT = _REPO_ROOT / "telegram_bot" / "orchestrator" / "scripts" / "orch_wake_self.sh"
+
+
+def _wake_orch_self(seq: int) -> None:
+    """u_ 저장 직후(로컬 수신 시점) 오케 세션을 즉시 깨운다. 실패해도 무해(M1 폴링이 fallback)."""
+    if not _ORCH_WAKE_SELF_SCRIPT.exists():
+        return
+    subprocess.run(
+        ["bash", str(_ORCH_WAKE_SELF_SCRIPT), f"새 텔레그램 요청 로컬 수신됨(u_{seq:02d}). 확인하세요."],
+        capture_output=True,
+        timeout=5,
+        check=False,
+    )
 
 # ---------- 응답지연 감지 (a_224, 2026-08-07) ----------
 # check_orch_alive 는 '세션 죽음'(생존신호 끊김)을 잡지만, 20분 loop 틱마다 신호가 갱신돼
@@ -534,6 +553,11 @@ def handle_message(tg: TelegramIO, chat_id: int, username: str, text: str) -> No
         f"✅ 접수했습니다 (#{seq:02d}). 곧 워커에 배정해 진행하겠습니다.",
     )
     print(f"[수신→u_{seq:02d}] 저장 완료 — 다음 루프에서 자동배정")
+    # ★로컬 u_ 파일 수신 즉시 오케 세션을 깨움(M1 10s 폴링 지연 없이) — u_2801.
+    try:
+        _wake_orch_self(seq)
+    except Exception:  # noqa: BLE001
+        pass  # 깨우기 실패해도 u_ 자체는 이미 저장됨(M1 폴링이 fallback)
 
 
 # ---------- 사진(참조 이미지) 수신 ----------

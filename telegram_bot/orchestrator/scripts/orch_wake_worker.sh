@@ -5,7 +5,10 @@
 # 사용: bash orch_wake_worker.sh ["메시지"]  (기본메시지="지시서를 확인하세요.")
 set -euo pipefail
 
-MSG="${1:-지시서를 확인하세요.}"
+BASE_MSG="${1:-지시서를 확인하세요.}"
+# ★K7 리마인더 자동첨부(u_2802): 워커 깨울 때마다 압축영문+기호(K7 COMPRESSED-COMMS) 준수를
+#   같이 상기시킴 — 반복 위반(K7 위반 재발) 방지, och.txt 1G/embed-feedback-reminder 패턴과 동일 취지.
+MSG="${BASE_MSG} [K7: ar_/report=compressed-EN+symbol ONLY, no korean-prose]"
 WINDOW_HINT="Worker_1.txt"
 
 RESULT=$(osascript <<EOF

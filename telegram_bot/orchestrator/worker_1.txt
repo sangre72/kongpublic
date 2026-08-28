@@ -232,6 +232,7 @@ end tell
 EOF
 ```
 2026-08-28 실증: AR_2797/2798(MiniMax H3 애니메 해변 테스트영상) 완료 후 위 방식으로 정상 주입 확인(1회 시도 창목록 미리 `osascript ... repeat...name of w`로 실측 후 정확 매칭 — 추측 매칭 1차 실패, 실제 창제목 로그 확인 후 2차 성공).
+★정식 스크립트화(2026-08-28 u_2802/2803): `bash telegram_bot/orchestrator/scripts/worker1_wake_orch.sh "AR_NN 작업을 완료 함"` — 위 applescript 그대로 스크립트로 저장됨, 매번 osascript 손타이핑 대신 이거 호출. K7 리마인더 자동첨부됨(오케 결과요약도 압축영문 하라는 문구).
 
 ## ★ SERVER MODE :3100 no-restart (orch-managed)
 :3100 = orch runs production (next start). state web/.SERVER_MODE (don't infer). ★worker must NOT kill·npm build·restart :3100. Only edit source·report ar. reflect = orch `bash scripts/redeploy.sh` (tunnel kept·URL unchanged). live-verify = code/tsc/unit/E2E (no :3100 restart; dev on other port temp if needed)
