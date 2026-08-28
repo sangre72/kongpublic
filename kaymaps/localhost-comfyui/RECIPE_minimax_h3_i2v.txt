@@ -143,3 +143,33 @@ REF(add): a_2796(model-files-present correction, API-vs-object_info lesson), a_2
 ★if the 40GB concern needs a real fix: target is unloading the text-encoder(19GB) after node 5 completes(before KSampler needs the 8.9GB DiT — ComfyUI's own memory manager may already do this via VRAM/RAM eviction between nodes depending on `--reserve-vram`/model-caching settings, not verified this round) or reducing model precision(Q4_K_M→smaller quant if one exists) rather than tiled-VAE — the encoder LOAD is the actual spike, not any decode step.
 
 REF(add): a_2799(2sec-clip gen w/ per-stage ws-timing), a_2801(memory-spike investigation, RSS+swap sampling correlated to node windows, VAEDecodeTiled/H3TAEDecode researched+ruled-out as fixes for THIS symptom).
+
+## ★★★★★★UPDATE(2026-08-28 later, a_2803/2807): CONFIRMED comfy-core BUG(not turbo/inherent) — text_encoder_device() excludes VRAMState.SHARED(Apple-Silicon unified-mem) → CPU fallback. PATCHED+VERIFIED.
+
+★ROOT-CAUSE(a_2803, confirmed via source trace not inference): `~/ComfyUI-src/comfy/model_management.py` — `unet_inital_load_device()`(L1082) explicitly includes `VRAMState.SHARED` in its GPU-eligible check, but `text_encoder_device()`(L~1189) did NOT — asymmetry within comfy-core itself. `H3ClipLoaderAny` never sets `model_options["load_device"]` explicitly → inherits whatever `text_encoder_device()` returns → CPU on Apple Silicon(SHARED-classified) despite MPS being available.
+
+★PATCH APPLIED(a_2807, user-approved option "a", local/uncommitted — separate git repo from kong-bot):
+```
+# file: ~/ComfyUI-src/comfy/model_management.py, text_encoder_device()
+# BEFORE:
+elif vram_state in (VRAMState.HIGH_VRAM, VRAMState.NORMAL_VRAM) or comfy.memory_management.aimdo_enabled:
+# AFTER:
+elif vram_state in (VRAMState.HIGH_VRAM, VRAMState.NORMAL_VRAM, VRAMState.SHARED) or comfy.memory_management.aimdo_enabled:
+```
+Mirrors existing `unet_inital_load_device()` SHARED-inclusive pattern. Only `text_encoder_device()` changed — unet/vae loader logic untouched.
+
+★VERIFY: `venv/bin/python3 -c "import comfy.model_management as mm; print(mm.text_encoder_device())"` → now returns `mps`(was `cpu` pre-patch). Server restart clean(★MUST use `~/ComfyUI-src/venv/bin/python3 main.py`, NOT bare `python` — bare python=miniconda, lacks `gguf` pkg, breaks ComfyUI-GGUF/UnetLoaderGGUF entirely; confirmed via `lsof` on prior PID showing venv was the correct interpreter all along). Post-restart `/object_info/UnetLoaderGGUF` confirmed present(no regression).
+
+★RE-TEST(same girl-on-bench config as a_2799, L119-129 above, seed changed to force fresh non-cached exec):
+| stage | node(s) | BEFORE(cpu) | AFTER(mps) |
+|---|---|---|---|
+| text-encode+conditioning-prep(model-load+run) | 2+5 | 24.4s / 9.2% | 21.8s / 8.1% |
+| KSampler(4 turbo-steps) | 6 | 184.6s / 69.8% | 187.7s / 69.9% |
+| VAEDecode | 7 | 54.6s / 20.6% | 55.1s / 20.5% |
+| **TOTAL** | | **264.4s** | **268.4s** |
+
+★RESULT: patch VERIFIED functionally correct(text_encoder_device()→mps, no regressions, output file valid: 384x672/56frames/2.33s matches spec exactly) but **measured wall-clock speedup is marginal/within noise**(~2.6s faster on text-encode stage, totals within run-to-run variance — KSampler/VAEDecode deltas are noise, not signal). Likely cause: node2(H3ClipLoaderAny, the 19.7GB GGUF file-load) is disk-I/O-bound not compute-bound, so device(cpu vs mps) doesn't matter much for the LOAD portion; the actual text-encode FORWARD-PASS compute is a small fraction of the 21.8s. Correctness/architectural-cleanliness win(now behaves as ComfyUI intends for Apple Silicon unified-mem) more than a performance win for THIS specific bottleneck.
+
+★RISK FLAG: local patch to `~/ComfyUI-src`(uncommitted). If this repo has auto-update/git-pull configured anywhere, a future pull will silently revert this fix — not blocking, just flag for awareness. No upstream PR filed(user didn't request one).
+
+REF(add): a_2803(root-cause source-trace), a_2807(patch+verify+re-test, this section).
