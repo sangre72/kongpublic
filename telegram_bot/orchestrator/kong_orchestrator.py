@@ -17,7 +17,7 @@ och.txt / protocol/a/README.md 규약 + 유저 지시(2026-08-05):
 무손실·안죽음(och.txt 제2원칙): spawn 실패·claude 미설치 등은 worker.py 가 (False,사유)로
 반환하고 봇 루프는 try/except 로 감싸 절대 죽지 않는다. u_ 는 항상 먼저 저장(유실 0).
 
-실행:  cd python-server && uv run python -m telegram_bot.orchestrator.orchestrator
+실행:  cd python-server && uv run python -m telegram_bot.orchestrator.kong_orchestrator
 """
 
 from __future__ import annotations

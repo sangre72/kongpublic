@@ -88,7 +88,7 @@
 ##   ★IRREVERSIBLE-KEYWORD gate (kongtrol-gap-analysis §2-4): if incoming u_ contains ambiguous irreversible-action words(quit/delete/force/force-quit/kill) AND the exact intended action is not 100% clear from context, orch MUST send a 1-line clarifying reply BEFORE issuing any a_ that could trigger that action. Prevents repeat of u_487→a_476(wrong force-quit interpretation, 2x correction needed, telegram-korean-typo-misread-caution memory).
 ##   ★BUTTON callback = `label|ask|key|value` ONLY (§COMMS orch-only u_). bot orchestrator.py accepts `startswith("ask|")`→u_; other prefix(`ans|`)→scene-sel misroute→dropped (this-session bug: `ans|` killed all buttons). MUST use `ask|`.
 ##   ★BOT-SINGLE-INSTANCE: only 1 bot proc polling(getUpdates offset shared). dup bot procs→callback race→button lost (this-session: 3 zombie bots ate callbacks). verify `ps|grep orchestrator.orchestrator`=1.
-##   ★BOT-PROC-TAG (u_48 "봇이름에 프로젝트명"): start_orchestrator.sh launches via `exec -a kong-orchestrator` → argv[0]=kong-orchestrator, distinct from sky/other bots(same module `telegram_bot.orchestrator.orchestrator` else indistinguishable in ps→confusion→wrong kill). verify `ps|grep kong-orchestrator`. any project's bot = tag `<proj>-orchestrator`.
+##   ★BOT-PROC-TAG (u_48 "봇이름에 프로젝트명"): start_orchestrator.sh launches via `exec -a kong-orchestrator` → argv[0]=kong-orchestrator, distinct from sky/other bots. module path also now `telegram_bot.orchestrator.kong_orchestrator`(2026-08-27 a_2737 rename, was `telegram_bot.orchestrator.orchestrator` shared-name w/ sibling repos→ps confusion risk). verify `ps|grep kong-orchestrator`. any project's bot = tag `<proj>-orchestrator`.
 ##   cf [[a-instruction-compressed]]
 ##   ⚖ litmus: "does my output land as a file outside protocol/ ?" YES→worker.  NO & in allowed-verbs→ok.
 
@@ -160,6 +160,7 @@ compressed: a_ = @A <TASK> + task/input/expected/constraints minimal lines / ar_
 ## WORKER MODEL
 A auto-worker worker.py (bot-embedded, ORCH_MAX_WORKERS=1 serial) / B session-worker = separate Claude Code session user spawned (kongwalker)·picks a_·replies ar_
 ★orch internal agent (4P, writes instructions) ≠ B session-worker (does work). scope-separated
+★★WORKER-WAKE MUST(2026-08-28, kongmaster.py removed — infinite-restart bug, kept spawning new terminal windows·launchd job com.kongbot.kongmaster bootout'd same day): auto-revive is GONE. orch MUST manually wake worker via `bash telegram_bot/orchestrator/scripts/orch_wake_worker.sh ["msg"]`(Terminal.app "do script" into the window whose name contains "Worker_1.txt" — verified-working 2026-08-28, no System Events, no perm popup). Use whenever worker looks idle/stale after a fresh a_ dispatch or user asks to wake/check worker — don't just passively poll tick, actively wake if a_ sits unpicked.
 
 ## MONITORING 10s
 ar_ 10s watch = orch duty (done/needs-info/bot-dead/40min-reset). reuse existing scripts/ (don't make new). orch Monitor = watches u_ only (a_ is orch's to write)

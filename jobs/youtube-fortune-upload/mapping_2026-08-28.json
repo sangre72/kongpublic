@@ -1,0 +1,116 @@
+{
+    "date": "2026-08-28",
+    "source_video_dir": "/Users/bumsuklee/workspace-egov/youtube-top/python-server/projects/20260827_2026-08-28_12간지_오늘의_운세_ko",
+    "playlist": "오늘의 운세",
+    "common_tags": "#오늘의운세 #띠별운세 #12간지운세 #사주 #재물운 #무료운세",
+    "scenes": [
+        {
+            "n": 1,
+            "zodiac": "쥐띠",
+            "file": "scene_01.mp4",
+            "title": "2026년 8월 28일 쥐띠 🐭 깊은 그늘",
+            "tags": "#쥐띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/n3PZmsLmrZY"
+        },
+        {
+            "n": 2,
+            "zodiac": "소띠",
+            "file": "scene_02.mp4",
+            "title": "2026년 8월 28일 소띠 🐮 조용한 풍성함",
+            "tags": "#소띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/9a90sNt6vdc"
+        },
+        {
+            "n": 3,
+            "zodiac": "호랑이띠",
+            "file": "scene_03.mp4",
+            "title": "2026년 8월 28일 호랑이띠 🐯 깊은 숲",
+            "tags": "#호랑이띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/p364AM0IbnY"
+        },
+        {
+            "n": 4,
+            "zodiac": "토끼띠",
+            "file": "scene_04.mp4",
+            "title": "2026년 8월 28일 토끼띠 🐰 묵은 그늘",
+            "tags": "#토끼띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/KMoIM8k35JI"
+        },
+        {
+            "n": 5,
+            "zodiac": "용띠",
+            "file": "scene_05.mp4",
+            "title": "2026년 8월 28일 용띠 🐲 조심스레",
+            "tags": "#용띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/wrYOJ-ZbrrM"
+        },
+        {
+            "n": 6,
+            "zodiac": "뱀띠",
+            "file": "scene_06.mp4",
+            "title": "2026년 8월 28일 뱀띠 🐍 깊은 물",
+            "tags": "#뱀띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/gP1yWD6cc7I"
+        },
+        {
+            "n": 7,
+            "zodiac": "말띠",
+            "file": "scene_07.mp4",
+            "title": "2026년 8월 28일 말띠 🐴 조화",
+            "tags": "#말띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/YV82_HZNdRQ"
+        },
+        {
+            "n": 8,
+            "zodiac": "양띠",
+            "file": "scene_08.mp4",
+            "title": "2026년 8월 28일 양띠 🐑 만족",
+            "tags": "#양띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/TEKYFJprVCw"
+        },
+        {
+            "n": 9,
+            "zodiac": "원숭이띠",
+            "file": "scene_09.mp4",
+            "title": "2026년 8월 28일 원숭이띠 🐵 무성한 하루",
+            "tags": "#원숭이띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/0mNcb8D5qho"
+        },
+        {
+            "n": 10,
+            "zodiac": "닭띠",
+            "file": "scene_10.mp4",
+            "title": "2026년 8월 28일 닭띠 🐔 변화의 기운",
+            "tags": "#닭띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/3YCT8kyijvY"
+        },
+        {
+            "n": 11,
+            "zodiac": "개띠",
+            "file": "scene_11.mp4",
+            "title": "2026년 8월 28일 개띠 🐶 기회",
+            "tags": "#개띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/e41P4gIEZ4w"
+        },
+        {
+            "n": 12,
+            "zodiac": "돼지띠",
+            "file": "scene_12.mp4",
+            "title": "2026년 8월 28일 돼지띠 🐷 깊은 물",
+            "tags": "#돼지띠운세 #띠별운세",
+            "status": "done",
+            "url": "https://youtube.com/shorts/8G6ohoS0UXo"
+        }
+    ]
+}

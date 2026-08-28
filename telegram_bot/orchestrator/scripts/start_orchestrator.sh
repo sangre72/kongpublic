@@ -16,7 +16,7 @@ cd "$REPO_ROOT"
 
 LOG_DIR="$REPO_ROOT/logs"
 LOG_FILE="$LOG_DIR/orchestrator.log"
-MODULE="telegram_bot.orchestrator.orchestrator"
+MODULE="telegram_bot.orchestrator.kong_orchestrator"
 PYTHON="${PYTHON:-python3}"
 
 mkdir -p "$LOG_DIR"
@@ -39,12 +39,22 @@ bot_username() {
   if [ -n "$uname" ]; then echo "@$uname"; else echo "봇"; fi
 }
 
-# 이 repo(sky)에서 뜬 봇 프로세스의 PID 만 찾는다.
+# 이 repo(kong-bot)에서 뜬 봇 프로세스의 PID 만 찾는다.
 # (workspace-egov 등 다른 경로의 동명 프로세스는 REPO_ROOT 로 걸러 제외)
+# ★argv0 태그(kong-orchestrator, exec -a 로 고정)로 매칭 — 현재 $MODULE 문자열이 아닌
+#   안정 불변값 기준(2026-08-27 a_2739): 모듈파일명이 리네임되어도(orchestrator.py→
+#   kong_orchestrator.py 사례) 이전 경로로 떠 있던 프로세스를 계속 잡아낸다.
+#   $MODULE 하드코딩 매칭이었을 때는 리네임 직후 구모듈 생존 PID를 놓쳐(정지로 오판)
+#   start 가 중복 기동→같은 토큰 2중 폴링→Telegram 409 Conflict 발생(ar_2737 N).
 find_pid() {
-  pgrep -f "$MODULE" 2>/dev/null | while read -r pid; do
-    # 프로세스의 cwd 가 이 repo 인지 확인 (lsof; 실패 시 그냥 통과)
-    if lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | grep -q "n$REPO_ROOT"; then
+  pgrep -f "^kong-orchestrator " 2>/dev/null | while read -r pid; do
+    # 프로세스의 cwd 가 이 repo 인지 확인 (lsof 순간 실패 대비 최대 2회 재시도 — 2026-08-27 flaky-false-dead 사고)
+    local out=""
+    for _try in 1 2; do
+      out="$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null)"
+      [ -n "$out" ] && break
+    done
+    if echo "$out" | grep -q "n$REPO_ROOT"; then
       echo "$pid"
     fi
   done | head -1

@@ -54,3 +54,62 @@ file-location-trap: SaveVideo w/o subfolder-param saves to `output/` root(not `o
 derivative-research(FYI,not-applied): no official distilled-checkpoint(MiniMax never released one), many 3rd-party LoRA/GGUF exist but same category — our "LoRA=counterproductive-at-direct-8step" finding likely generalizes, not pursuing further w/o specific reason. top-popularity=Kijai's own upload(MiniMax-H3_comfy,HF,397likes) — starting point if revisited.
 
 REF(add): a_2526~2534(speed/LoRA A/B), ar_2530(phase-breakdown), ar_2531(A/B-definitive-result).
+
+---
+
+## ★★★UPDATE(2026-08-28, a_2794/2795): env-path correction + real CUDA/quant-backend limitation found(not a bug, no code fix exists)
+
+★REG correction: real ComfyUI source = `~/ComfyUI-src`(git repo). `~/Documents/ComfyUI` is a **symlink** to `~/ComfyUI-Shared`(only contains `models/`+`custom_nodes/`+`input/`, no `comfy_extras`/core code there — don't edit files under Shared expecting them to be the real source). Server actually runs on **port 8000**(not 8188 as L2 states — verify via `ps aux|grep main.py`, port may drift between sessions).
+
+★installed MiniMax-H3-specific custom nodes(both at `~/ComfyUI-Shared/custom_nodes/`, fresh-cloned 2026-08-28):
+- `ComfyUI-MiniMaxH3-TeaCache`(step-skip speedup via output-reuse, `teacache.py` reviewed line-by-line — genuinely device-agnostic, `rel_l1()` works "on any device" per its own docstring, NOT a CUDA-only bug source).
+- `ComfyUI-H3-Multishot`(large/elaborate node pack, 382KB `h3_multishot_utils.py` alone — episode-chaining/color-matching/keyframe tools). Contains 2 `"cuda" if available else "cpu"` fallback patterns(`h3_episode_tools.py:160` `_match()` color-blend helper, `h3_multishot_utils.py:1541` backend-availability print) — both are graceful CPU-fallbacks with a perf-warning, NOT hard MPS-incompatible breaks.
+- `ComfyUI-GGUF`(shared/general-purpose, not MiniMax-specific).
+
+★★★REAL finding(user's "CUDA-only" memory = correct in spirit, root cause = comfy_kitchen quantization backend, not app code):
+- text encoder file `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` uses **nvfp4/awq quantization** — dequant/fast-matmul kernels for these live in the `comfy_kitchen` pip package(`~/miniconda3/lib/python3.10/site-packages/comfy_kitchen/`), which has **3 backends: cuda(compiled .so, none built for macOS), triton(no triton on macOS), eager(pure-PyTorch fallback, always available)**. Verified live via `python3 -c "import comfy_kitchen as ck; print(ck.list_backends())"` → cuda/triton both `available:False`, eager `available:True` with `dequantize_nvfp4`+`scaled_mm_nvfp4` etc IN its capability list(eager CAN do nvfp4, just unfused/slower).
+- `h3_multishot_utils.py:1541` prints this exact tradeoff at model-load time: eager-mode "measured ~2x slower and ~1.6x the activation pool" vs cuda/triton fused kernels. This is the "CUDA-only" limitation — **not a missing feature/bug to patch, it's comfy_kitchen(3rd-party pip pkg) never having shipped MPS kernels for nvfp4/awq quant ops**. No local/upstream code patch exists(confirmed via `git -C ~/ComfyUI-src diff -- "*minimax*"`=empty, `git log --all` shows only upstream feature commits, no local fix commit).
+- ★NOT re-discoverable as "text-encoding MPS acceleration" task — server itself IS already MPS(`curl :8000/system_stats`→`device:{name:mps,type:mps}` confirmed), this is a below-server-level quantization-kernel gap. Options if revisited: (a) accept eager-mode 2x slowdown as macOS's ceiling for THIS specific quantized checkpoint (b) find/use a non-quantized(bf16/fp16) variant of the text encoder if one exists upstream(not searched this task) (c) `--enable-triton-backend` flag won't help(triton itself unavailable on macOS, ImportError not just a disabled flag).
+
+★★blocker(separate from above, orthogonal issue): as of 2026-08-28, `models/diffusion_models/`=EMPTY(DiT gone) and `models/text_encoders/`=only `qwen3vl_4b_fp8_scaled.safetensors`(NOT the 32b minimax variant) — verified via `curl :8000/models/diffusion_models`→`[]`. Only `vae/minimax_h3_video_vae_fp16.safetensors` survived. Matches this doc's own L34 pattern("Wan2.2는 이 세션에서 완전 삭제됨") — MiniMax's ~24.6GB(DiT 8.9GB+text-encoder 15.7GB) likely similarly cleaned up since 2026-08-26. Re-download needs explicit approval(network-budget GB-scale rule) before any further MiniMax H3 work can resume.
+
+REF(add): a_2794(MPS-investigate, found server already-MPS+missing models), a_2795(CUDA-only code-search, found comfy_kitchen quant-backend gap, no code fix exists to apply).
+
+---
+
+## ★★★★UPDATE(2026-08-28 later, a_2796/2797/2798): CORRECTION — models were NEVER missing(API-check gap), GGUF dual-file merge SOLVED, working generation confirmed(141.4s)
+
+★a_2794's "models missing" finding = WRONG(API-check limitation, not real). Real files(GGUF-quantized variant, replaces old .safetensors path from L5-8 above):
+- diffusion: `~/ComfyUI-Shared/models/diffusion_models/MiniMax-H3/minimax_h3_fl2va-Q3_K_M.gguf`(15.6GB)
+- text_encoder(2 files, see H3ClipLoaderAny below for how they combine): `~/ComfyUI-Shared/models/text_encoders/MiniMax-H3-encoder-Q4_K_M.gguf`(19.7GB, main) + `MiniMax-H3-encoder-mmproj-F16.gguf`(1.2GB, mmproj)
+- vae: `~/ComfyUI-Shared/models/vae/minimax_h3_video_vae_fp16.safetensors`(unchanged from original recipe)
+- turbo lora: `~/ComfyUI-Shared/models/loras/minimax_h3_turbo_4step_v4_fixed.safetensors`(current-standard, 4-step turbo — supersedes the earlier "NO-LoRA" finding at L40-46 above; that A/B was on the *old safetensors 8-step* setup, this is a *different* 4-step turbo variant on the *new GGUF* setup, not directly comparable, not re-tested against no-lora this round)
+
+★★★why `/models/diffusion_models` REST API showed `[]`(empty) despite files existing: that generic endpoint doesn't recurse into subfolders(`MiniMax-H3/`) or doesn't index GGUF-custom-loader-registered models. **Real model list = check the SPECIFIC loader node's own `/object_info/<NodeName>`**, e.g. `curl :8000/object_info/UnetLoaderGGUF` correctly lists `MiniMax-H3/minimax_h3_fl2va-Q3_K_M.gguf` with full subpath. Lesson for future model-existence checks on this box: don't trust `/models/*` alone when GGUF/custom-node models are involved, cross-check via the loader's object_info.
+
+★★★★THE ANSWER to "how do 2 GGUF text-encoder files merge"(recipe's original §2 warning about DualCLIPLoaderGGUF failing for minimax — still true, but irrelevant, a DIFFERENT node solves it):
+**`H3ClipLoaderAny`** — a custom node shipped in the `ComfyUI-H3-Multishot` pack(NOT core ComfyUI-GGUF's CLIPLoaderGGUF/DualCLIPLoaderGGUF, which genuinely can't do this for type="minimax" — DualCLIPLoaderGGUF's type-list doesn't even include "minimax"). Takes `clip_name`+`type`+`mmproj_name` as 3 params in ONE node call, handles the internal dual-GGUF merge(the `visual.deepstack_merger_list`+main-transformer-weights merge that plain single-file CLIPLoaderGGUF can't do) internally. This is why core-ComfyUI grep-searches for merge logic came up empty — it's 3rd-party custom-node logic, not comfy core.
+
+★★★FULL WORKING WORKFLOW(API-direct-POST payload, verified 2026-08-28, produced real output — copy-paste-ready reference):
+```json
+{
+  "1": {"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": "MiniMax-H3/minimax_h3_fl2va-Q3_K_M.gguf"}},
+  "2": {"class_type": "H3ClipLoaderAny", "inputs": {"clip_name": "MiniMax-H3-encoder-Q4_K_M.gguf", "type": "minimax", "mmproj_name": "MiniMax-H3-encoder-mmproj-F16.gguf"}},
+  "3": {"class_type": "VAELoader", "inputs": {"vae_name": "minimax_h3_video_vae_fp16.safetensors"}},
+  "20": {"class_type": "LoraLoaderModelOnly", "inputs": {"model": ["1", 0], "lora_name": "minimax_h3_turbo_4step_v4_fixed.safetensors", "strength_model": 1.0}},
+  "23": {"class_type": "EasyCache", "inputs": {"model": ["20", 0], "reuse_threshold": 0.3, "start_percent": 0.15, "end_percent": 0.95, "verbose": false}},
+  "22": {"class_type": "MiniMaxH3SigmaShift", "inputs": {"model": ["23", 0], "shift_video": 12.0, "shift_audio": 6.0}},
+  "5": {"class_type": "MiniMaxH3ImageToVideo", "inputs": {"clip": ["2", 0], "vae": ["3", 0], "prompt": "<YOUR PROMPT HERE>", "width": 384, "height": 672, "length": 22}},
+  "6": {"class_type": "KSampler", "inputs": {"model": ["22", 0], "positive": ["5", 0], "negative": ["5", 0], "latent_image": ["5", 1], "seed": 42, "steps": 4, "cfg": 1.0, "sampler_name": "res_multistep", "scheduler": "simple", "denoise": 1.0}},
+  "7": {"class_type": "VAEDecode", "inputs": {"samples": ["6", 0], "vae": ["3", 0]}},
+  "30": {"class_type": "CreateVideo", "inputs": {"images": ["7", 0], "fps": 24.0}},
+  "31": {"class_type": "SaveVideo", "inputs": {"video": ["30", 0], "filename_prefix": "minimax_h3_video_output", "format": "mp4"}}
+}
+```
+Submit via `POST http://127.0.0.1:8000/prompt` with body `{"prompt": <above>}`. Only field to change per-generation = node `"5"`'s `"prompt"` text(and optionally `"6"`'s `"seed"`). ★node numbering(1,2,3,5,6,7,20,22,23,30,31 — non-sequential, gaps are normal/harmless, don't renumber) chain: `1→20(lora)→23(easycache)→22(sigmashift)→6(ksampler model input)`; `2+3→5(clip+vae+prompt→conditioning+latent)→6(positive/negative/latent_image)`; `6→7(vaedecode)→30(createvideo)→31(savevideo)`.
+
+★★measured timing(this exact config, turbo-4step+EasyCache+GGUF): **141.4s**(ComfyUI's own `execution_start`→`execution_success` history timestamps, ms-precision) for a 22-frame/384x672/0.92s output. This supersedes L26/L42 timings above(those were the *old safetensors 8-step* setup) — current-standard GGUF+4step+EasyCache pipeline real-world number.
+
+★verified via: real generation submitted(anime boy+girl walking on beach test, a_2797/2798), `node_errors={}` at submit(clean graph), `status:"success"` in history, output file(`minimax_h3_anime_beach_test_00001_.mp4`, 240KB) ffprobe-confirmed 384x672/24fps/0.9167s exact, visual content-match confirmed via last-frame extract(anime-style boy+girl hand-in-hand on beach, ocean waves, matches prompt).
+
+REF(add): a_2796(model-files-present correction, API-vs-object_info lesson), a_2797(test-gen request), a_2798(orch found reference_working_minimax_workflow.json via history API replay, H3ClipLoaderAny identified, generation confirmed+timed).

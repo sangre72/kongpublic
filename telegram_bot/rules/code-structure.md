@@ -1,152 +1,54 @@
-# Code Structure Rules (MUST — user 2026-08-01)
+# Code Structure Rules — kong-bot real layout (MUST — rewritten 2026-08-27 a_2740, was sky Next.js doc)
 
-Always applies to all code work in this repo(work root = repo root, any project).
+Always applies to all code work in this repo(`telegram_bot/`, `kongtrol/`, scripts).
 
-> **Also required**: feature consistency · per-role feature matrix → [feature-consistency-guideline.md](./feature-consistency-guideline.md)
-
-
-## 1. Isolate mock data in a separate dir (user: "later just delete the dir")
-
-> Goal: **when removing mocks / swapping to real API, deleting the mock dir alone suffices.**
-
-- **All fake data · fake stores · mock values** → isolate under a dedicated mock dir as per-domain files.
-- **Real logic never imports mocks directly.** Data-access layer·services·handlers don't scatter-reference mocks — inject only at a **single boundary**(data-access module references only mocks, or mock barrel).
-- No inline hardcoded mock data in modules/functions → move to mock dir.
-- Real backend·real API: delete mock dir + swap only data boundary to real calls. Rest of code unchanged.
-- Each mock file top comment: `# MOCK — 실서버 연동 시 제거`.
+## 1. Package layout (actual, not aspirational)
+```
+telegram_bot/
+  handlers/            텔레그램 명령/이벤트 핸들러
+  services/            비즈니스 로직(핸들러가 호출)
+  orchestrator/
+    orchestrator.py(→kong_orchestrator.py, a_2737) 메인 루프: u_→a_ 변환+워커 spawn+ar_ 감지 회신
+    protocol_store.py  protocol/ 파일 IO(status normalize 등)
+    telegram_io.py      텔레그램 send/receive 래퍼
+    worker.py           claude -p 워커 spawn
+    protocol/{u,a,ar,archive}/  u_/a_/ar_ 파일 저장소(cf §3)
+    scripts/            운영 스크립트(start_orchestrator.sh·worker1_*.sh 등)
+  rules/                .claude/rules/ 미러(8-copy, cf §5 — 항상 동기화)
+  guides/                운영 가이드 문서
+kongtrol/
+  src/{main.rs,sys.rs,process.rs,service.rs,input.rs}  물리 IO CLI(Rust)
+  target/release/kongtrol  빌드된 바이너리(절대경로 참조, PATH 미등록)
+kaymaps/<app-or-domain>/RECIPE_*.txt   앱별 조작 레시피(compressed-EN, cf recipe-lookup-guideline.md)
+jobs/<job-name>/         작업 산출물(영상·이미지·mapping_*.json 등, job별 디렉토리)
+docs/appkb/               앱 첫실행/온보딩 화면 카탈로그(first-run-screens.md)
+```
 
 ## 2. Libraryize (extract reusable common)
+- Reusable **pure logic**(코드 파싱·시간 포맷·좌표 변환 등 계산 가능한 것, cf [[compute-vs-ar-split]]) → shared module(`services/` or a dedicated `lib`), not copy-pasted per handler.
+- No hardcoded per-recipe coordinate/timing logic scattered across handlers — kongtrol coordinates live in `kaymaps/**/RECIPE_*.txt`(data), not hardcoded in `.py`.
+- Common protocol-file helpers(status parse·seen-dedup·file naming) → `protocol_store.py`, don't reimplement per script.
 
-- Reusable **pure logic**(calc·date·format·status-map·config etc.) → common lib module, side-effect-free.
-- No hardcoded domain logic in logic consumers(handlers·workers·components) — call lib fn.
-- Separate common primitives(shared utils·UI primitives) from per-domain modules.
-- Shared types → common types module. No duplicate defs.
+## 3. protocol/u·a·ar file-naming convention (cross-ref och.txt COMMS section — don't duplicate detail)
+- `u_{NN}_{topic}.txt`(telegram user request, bot-written) → `a_{NN}_{topic}.txt`(orch instruction) → `ar_{NN}_{topic}.txt`(worker reply). Same NN pairs across the three.
+- Terminal states(done/error/blocked/needs-info/failed) → archived to `protocol/archive/{a,ar}/` by bot; `in-progress` never archived.
+- Full lifecycle/state-machine detail = `telegram_bot/orchestrator/och.txt`(authoritative), this file only states the naming shape.
 
-## 3. Data-screen common standard (user 2026-08-01, applies on web UI work)
+## 4. File line-count cap (same spirit as sky, right-sized for this repo's languages)
+- Python/shell files: same modularization principle — **ideal ~200, rec cap ~300, warning 500-800, violation >800**. Split by responsibility(handler vs service vs protocol-IO), not arbitrary cut.
+- Exception: `kaymaps/**/RECIPE_*.txt`(data/spec-like, per-app recipe listings can run long — split per-app dir instead, not per-line-count).
+- Rust(`kongtrol/src/*.rs`): same cap principle, split by command-group(`sys`/`process`/`service`/`input`) as already structured.
+- No formal split-registry doc exists for this repo(sky's was Next.js-app-scale) — if a file crosses 800, flag in the relevant ar_/handoff note instead, propose split, don't force unless asked.
 
-> Applies if a data-handling web UI exists. Not applicable to pure pipeline/bot code.
+## 5. ★ Two rule-dir sync (`~.claude/rules/` ⟷ `telegram_bot/rules/`, MUST — cf worker_1.txt L43)
+- This project has an **8-file mirror**: `.claude/rules/*.md` and `telegram_bot/rules/*.md` must stay content-equivalent (both loaded per different contexts — session vs worker). On any edit to one, **update the other in the same task**, don't leave them drifting.
+- Before any rules-touching task: `diff .claude/rules/<f>.md telegram_bot/rules/<f>.md` to check current sync state first(no assuming they match).
 
-All data screens (list·search·history·admin) provide via reusable `DataView` pattern:
-- **View toggle**: table ↔ gallery(card grid).
-- **Paging**: pagination/load-more + page size(10/20/50) + total count.
-- **Basics**: search·filter(per-domain)·sort·count summary·empty/skeleton/error·(if applicable) bulk-select·export·refresh.
-- **URL sync**: filter·sort·page in querystring.
-- **A11y**: semantic table/list, aria-sort, keyboard.
-- Don't reimplement per screen → **libraryize as common component**.
+## 6. Recipe-first for kongtrol UI automation (cross-ref recipe-lookup-guideline.md — don't duplicate)
+- Any new app/screen kongtrol interacts with = check `kaymaps/<app>/RECIPE_*.txt` first, follow exact STEPS(no invented coords/keys). New/undocumented UI element = max 2 attempts(different methods) then escalate, never loop-retry same method (cf pre-development-checklist.md-adjacent gate in worker_1.txt §NEW-UI-ELEMENT GATE).
+- After a successful new flow, extract it into a recipe file(compressed-EN K7 format) — don't leave tribal knowledge only in a_/ar_ history.
 
-## 3-1. File line-count cap (user 2026-08-03 "files too long" · 2026-08-05 u_146 "modularize → right line count")
+## 7. No role/RBAC/tenant/i18n scaffolding here
+- Kong-bot has no multi-user-role, multi-tenant, or i18n surface(single-operator telegram bot + local macOS automation) — §6-8 of the old sky version(role-array-compare, tenant/region/language context) do not apply. If this project ever grows a multi-user/multi-tenant surface, re-derive those sections fresh rather than reviving the sky-specific ones(different domain shape).
 
-> **Too-long file hurts maintenance·modularity·review·portability.** Line count = mgmt metric.
-
-> ### ★ Goal = "modularize to reach right line count" (user 2026-08-05 u_146)
-> **Line count = outcome metric, modularization = means.** Don't force-cut/paste; **split modules by responsibility·domain boundary → each file lands at right count (rec ~300, cap 800).**
-> - Not "over 800 → cut anywhere" but **"how many responsibilities does this file hold → split per-responsibility via §4 modularization·§2 libraryization"** → line count naturally right.
-> - Split = **behavior-preserving pure refactor**. Barrel(`index.ts`) keeps public API so **external import paths don't break**(if must change → update all + regression test).
->
-> ### ★★ Consider line count from the start (user 2026-08-05 — "doing it later means re-running all tests")
-> **New files·features designed·built under 400 lines from the start.** Post-hoc split = re-run all regression → expensive.
-> - Before start(§A checklist): "how many responsibilities → if likely >400, split files/modules from the start".
-> - Goal: each file **under 400**(ideal ~200, rec ~300). If trending over → split per-responsibility right there(no bulk split later).
-> - Big modules → sub-fns·pure fns; data-access → per-responsibility files; specs/definitions → per-domain files, **from the start**.
-> - Why: post-completion split needs tsc + full E2E/regression re-verify(cost·time). Split at dev time → only that feature's tests.
-
-### Recommended thresholds (differentiated by nature)
-| Range | Verdict | Action |
-|------|------|------|
-| **~200 lines** | ideal | — |
-| **~300 lines** | rec cap | keep |
-| **300~500 lines** | caution | check cohesion, split if growing |
-| **500~800 lines** | warning | **plan a split**(domain·responsibility unit) |
-| **>800 lines** | ★violation | **split required**(sign of many domains/responsibilities in one file) |
-
-### Exceptions by nature (cap relaxed)
-- **Spec/definition files**(openapi spec·type dict·codes·naming dict·route registration): data listings can be long → >800 allowed but **per-domain file split** recommended(e.g. openapi/ per-domain).
-- **Generated artifacts**(code-generator output etc.): out of scope.
-- Else **logic/module/data-access files = strict cap**.
-
-### Split method
-- **Central data-access/util holding many domains** → extract via §4 per-business modularization(`features/<업무>/`).
-- **Big module/component** → split sub-units·pure fns(lib).
-- **A fn over 100 lines** → split into helpers.
-
-### ★ Split-target registry (category·description·plan — user 2026-08-05)
-
-> Violation/warning files' **list·category·split plan·progress = single-managed in one ledger**. (If a split-ledger doc exists, manage there and don't hardcode in body.)
-
-- Categorize nature → **apply different split method**: `LOGIC`(logic/lib)·`MODULE`(general source module)·`DATA`(data-access) = strict cap / `SPEC`(spec·code dict·route reg)·`TYPES`(type defs) = relaxed(>800 allowed, per-domain split recommended) / `GENERATED`(generated artifact) = out of scope.
-- **New/modified file >800** → add registry row(file·lines·category·**description**·verdict·priority·split plan). If can't split now, at least priority(P).
-  - **Description** column(what responsibility) required — basis for which boundary to split(user 2026-08-05: "need file with category and description").
-- **On split start/progress** → verdict → 🔀 in-progress, note how far(1st helper extraction etc.) in plan column.
-- **On split done** → verdict → ✅ + result·final line count. Regression test pass required.
-- **Procedure**: ① find >800 → register(category·description·plan) → ② at refactor split per that plan via §4/§2 → ③ build/lint pass + regression pass → ④ update registry ✅.
-
-### Verification
-- At review/done, new/modified file **>800 → register + split plan**.
-- Actual split work delegated per-domain unit, **P1(violation) first** — not all at once, per-domain unit with regression tests.
-
-Basis: user "files too long, put recommended line count in standard" / "add split-target split work + need file with category·description"(2026-08-05). Central module bloat → resolved via features modularization.
-
-## 4. Per-business modularization (user 2026-08-01 — call it "업무별 모듈화")
-
-> **Independent, large business features** cohere **self-contained** in `features/<업무>/`(under this project's source tree). Goal: **portability where copying the dir alone lets another project use it almost as-is.**
-
-- Target: independent system-grade business(e.g. orchestrator·worker pipeline unit, notifications, collectors — migrate when they grow). Small domain modules(a few files) stay in place — no over-splitting.
-- Module internal standard layout(rename to fit stack):
-  ```
-  features/<업무>/
-    ├─ lib/         순수 로직·설정·타입 (덩치 있는 것은 여기)
-    ├─ handlers/    그 업무 전용 진입점/핸들러
-    ├─ services/    그 업무 서비스 로직
-    ├─ mocks/       그 업무 mock (# MOCK 주석, 삭제 가능)
-    ├─ data.py|ts   그 업무 데이터 접근 경계
-    └─ index         공개 API 배럴 (외부는 여기서만 import)
-  ```
-- **Declare external deps**: list project-common the module uses(shared utils·config·session) as "external deps" in the public API entry top comment → what's needed at port time, at a glance.
-- **Self-contained·single boundary**: external(central module etc.) doesn't reference module internals directly, only public API. No circular ref, keep server/client boundary.
-
-## 5. Current structure (maintenance baseline)
-
-> Below = example skeleton. Apply names·layers to the real stack(python pipeline/bot), but keep **responsibility separation·data boundary·mock isolation·libraryization** principles.
-```
-<진입점>/                  실행 진입점/라우팅은 얇게, features/<업무> 만 호출
-<도메인>/ (또는 features/) 기능별 모듈 (+ 공통 프리미티브)
-services/ (또는 actions/)  업무 로직 (도메인별)
-data/ (DAL)               데이터 접근 경계 (인가·서버전용) — mock 주입 지점
-lib/                      순수 로직·타입·유틸 (라이브러리화 대상)
-mocks/                    ★ 모든 mock 격리 (삭제 가능 단위)
-```
-
-Basis: user "libraryization matters too", "make per-applied subdir individually for mock data — later just delete the dir".
-
-## 6. Compare roles as arrays (user 2026-08-03 — "may have duplicate roles")
-
-> For projects with roles/permissions: **all role/permission comparison = array-includes(`['X'].includes(role)`), not direct string(`role === 'X'`).** A user may hold duplicate roles, and multi allowed-roles is common.
-
-- Menu/button/screen gate: `roles?: string[]` + `roles.includes(viewer.role)`.
-- Data-access/server authz: `requireRole([...])` array. Single also `['X']`.
-- New = array from start. Existing `role === 'X'` → migrate to array at refactor.
-
-Basis: user "all role comparison as array. Duplicate roles may exist."
-
-## 7. Common functions — catalog first (user 2026-08-03)
-
-> **Before writing new logic, check the common function catalog(if any).** Exists → import & use it(no re-implement). Missing → make in lib/features & **add 1 line to catalog**.
-> Background: re-implementing existing common fns everywhere collapses the standard. Catalog forces reuse instead of grep every time.
-
-- Check catalog before start. Find common modules by nature(authz·calc·session·naming·code value etc.) first.
-- ★Role comparison via common rbac fn — no direct `role === 'X'`(with §6 array compare).
-- New common fn = register in catalog. Same logic 2nd time = promote to lib + register. No re-invention.
-- On finding direct compare·inline logic → migrate to catalog fn(at refactor).
-
-Basis: user "make a common function list doc, use if exists·make & add doc if not."
-
-## 8. Request-context standard — tenant·region·language (user 2026-08-03)
-
-> **Prep future expansion(multi-tenant·multi-region·i18n).** Don't fully implement now; new code = **context-propagatable structure**.
-
-- **Tenant**(per host/server): reserve tenant identifier in context. Data query via tenant-boundary fn habit(no-op ok now). No hardcoded specific tenant.
-- **Region**: region-dependent logic via common lib. Multi-region = infra level.
-- **Language**(i18n): even if single locale fixed now, date·currency·sort via lib(date·format·compare) as locale injection points. New bulk copy = constants for future i18n. Avoid direct locale hardcode.
-- On activation(multi-tenant·i18n), routing via these already makes filling values work.
-
-Basis: user "tenant·server(region)·language(i18n) standard into guideline".
+Basis: user 2026-08-27(u_2740) — prior version was sky's Next.js app/features/DAL/RBAC/tenant doc, entirely inapplicable to this Python-bot+Rust-CLI+recipe-automation project, causing confusion loaded into every kong-bot session.
