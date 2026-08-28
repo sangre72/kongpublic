@@ -10,12 +10,15 @@ BASE_MSG="${1:-새 텔레그램 요청 접수됨. u_ 확인하세요.}"
 # ★K7 리마인더 자동첨부(u_2802/2803): 오케 깨울 때도 압축영문+기호(터미널 narration) 준수 상기.
 MSG="${BASE_MSG} [K7: orch own terminal narration=compressed-EN+symbol too, full-KR explain=telegram ONLY]"
 
+# ★2026-08-28 u_2803/2804 fix: needs explicit 2nd newline do-script to submit(see orch_wake_worker.sh).
 RESULT=$(osascript <<EOF
 tell application "Terminal"
   repeat with w in windows
     set wname to name of w
     if wname contains "kong-bot" and wname contains "och.txt" then
       do script "$MSG" in w
+      delay 0.3
+      do script (return & "") in w
       return "SUCCESS: " & wname
     end if
   end repeat

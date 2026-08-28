@@ -113,3 +113,33 @@ Submit via `POST http://127.0.0.1:8000/prompt` with body `{"prompt": <above>}`. 
 ★verified via: real generation submitted(anime boy+girl walking on beach test, a_2797/2798), `node_errors={}` at submit(clean graph), `status:"success"` in history, output file(`minimax_h3_anime_beach_test_00001_.mp4`, 240KB) ffprobe-confirmed 384x672/24fps/0.9167s exact, visual content-match confirmed via last-frame extract(anime-style boy+girl hand-in-hand on beach, ocean waves, matches prompt).
 
 REF(add): a_2796(model-files-present correction, API-vs-object_info lesson), a_2797(test-gen request), a_2798(orch found reference_working_minimax_workflow.json via history API replay, H3ClipLoaderAny identified, generation confirmed+timed).
+
+---
+
+## ★★★★★UPDATE(2026-08-28 later, a_2799/2801): per-stage timing breakdown + memory-spike root-cause found(NOT VAE decode, it's text-encoder model-load)
+
+★★★per-stage timing(56-frame/2.33s clip, same turbo-4step+EasyCache+GGUF config as L60-115 above, measured via ComfyUI websocket `executing`/`progress` event wall-clock capture, NOT just total execution_start→success delta):
+| stage | node(s) | duration | % of total |
+|---|---|---|---|
+| model-load(cached after 1st run) | 1,2,3,20,23,22 | 0s(cached) / ~25s(cold, see below) | — |
+| text-encode+conditioning-prep | 5(H3ClipLoaderAny+MiniMaxH3ImageToVideo) | 24.4s | 9.2% |
+| KSampler(4 turbo-steps) | 6 | 184.6s(≈46s/step avg) | 69.8% |
+| VAEDecode | 7 | 54.6s | 20.6% |
+| CreateVideo+SaveVideo | 30,31 | 0.8s | 0.3% |
+| **TOTAL** | | **264.4s** | 100% |
+
+★★★★ANSWERS the original a_2794 "MPS 텍스트인코딩 문제" question definitively: **text-encoding is NOT the bottleneck**(only 9.2% of wall-time). KSampler diffusion dominates(69.8%) — this is expected/inherent to 4-step turbo sampling on MPS, not a fixable "bug". If further speedup is wanted, target KSampler(already at practical step-minimum, res_multistep+turbo-lora) or investigate why VAEDecode(20.6%, node 7) is disproportionately slow for a decode-only step — possibly worth investigating VAEDecodeTiled(see below) even for speed, not just memory, if its tiled-batching happens to pipeline better on MPS.
+
+★★★★MEMORY-SPIKE root-cause(user observed ~40GB, asked if tiled-VAE-decode needed): **peak RSS(19.02GB) occurs during text-encoder model-LOAD(node 2, loading the 19.7GB Q4_K_M GGUF text-encoder file into memory), NOT during VAEDecode**. Measured via 1s-interval `ps -o rss` sampling correlated to node-execution-window boundaries(same run as the timing table above):
+- text-encode window(node 2→5 load+run): peak 19.02GB RSS
+- KSampler window(node 6, both DiT 8.9GB + already-loaded text-encoder resident): peak 15.25GB RSS
+- **VAEDecode window(node 7): peak only 0.91GB RSS** — VAE decode itself is NOT memory-heavy for this 56-frame/384x672 case.
+- swap grew mildly during run(+1.62GB, peak used 20.16GB) — pressure present but not thrashing-level(cf worker_1.txt §COMFYUI-OVERNIGHT-LEARNING pt.6 swap-thrashing warning — this run doesn't match that crisis pattern).
+- ★conclusion: the ~40GB user observed is likely **total system memory**(this ComfyUI process's ~19GB peak + macOS/other-apps overhead + possibly a concurrent second model still resident from a prior run), not a single-node runaway — frame-count(56 vs 22) does NOT meaningfully change VAEDecode memory footprint per this measurement(would need a direct 22-vs-56 frame VAEDecode-only A/B to fully confirm scaling, not done this round — the model-load cost dominates regardless of frame-count).
+
+★VAEDecodeTiled node EXISTS(ComfyUI core) and DOES support video VAEs explicitly(`temporal_size`/`temporal_overlap` params, tooltip: "Only used for video VAEs: Amount of frames to decode at a time") — compatible drop-in replacement for node "7"(same `samples`+`vae` inputs, adds `tile_size`/`overlap`/`temporal_size`/`temporal_overlap`). **NOT applied this round** — given VAEDecode measured only 0.91GB peak(not the actual memory driver), tiled-decode would NOT solve the reported 40GB concern; would only matter for MUCH longer clips(hundreds of frames) where decode-batch memory might eventually dominate. Not recommended as a fix for the current symptom.
+★H3TAEDecode(h3_tae_decode.py, H3-Multishot pack) is a DIFFERENT thing — explicitly a draft-quality/preview-only fast decoder(tiny-autoencoder approximation, own docstring: "the real VAE renders finals") — NOT a production-quality memory-saving alternative, don't substitute it for node 7 in final-output workflows.
+
+★if the 40GB concern needs a real fix: target is unloading the text-encoder(19GB) after node 5 completes(before KSampler needs the 8.9GB DiT — ComfyUI's own memory manager may already do this via VRAM/RAM eviction between nodes depending on `--reserve-vram`/model-caching settings, not verified this round) or reducing model precision(Q4_K_M→smaller quant if one exists) rather than tiled-VAE — the encoder LOAD is the actual spike, not any decode step.
+
+REF(add): a_2799(2sec-clip gen w/ per-stage ws-timing), a_2801(memory-spike investigation, RSS+swap sampling correlated to node windows, VAEDecodeTiled/H3TAEDecode researched+ruled-out as fixes for THIS symptom).
