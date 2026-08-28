@@ -225,3 +225,11 @@ REF(add): a_2848(quant survey, no local Q2/Q8), a_2852(2 download attempts, both
 ★FlexAttention WIRED-INTO-MODEL(deeper optimization, actually replacing MiniMax H3's attention forward with FlexAttention) — NOT attempted, real scope: would need a custom monkey-patch on `comfy/ldm/minimax/model.py`'s attn `forward`(L169-195), similar shape to sol-attn's own `_make_sol_attention_forward`(now have a real reference implementation to study, cf `~/ComfyUI-Shared/custom_nodes/ComfyUI-sol-attn/minimax.py`) — block-mask construction for H3's packed audio-video-text token layout is non-trivial custom work, separate REF if wanted.
 
 REF(add): a_2855(SageAttention/sol-attn platform research), a_2860(real install-attempt confirmation + torch upgrade execution+verify, this section).
+
+## ★★★★★★★★★★★UPDATE(2026-08-29, a_2869): CORRECTION — a_2860's "23% faster" was TURBO-config-only. Quality-mode(EasyCache-off) gets a SMALLER but real ~8.4% gain. Cite config when quoting either %.
+
+★a_2860's 206.11s/268.4s(=23% faster) comparison used the FAST config(turbo-4step+EasyCache-ON). This REF re-tested the SLOW/quality config(EasyCache-OFF+8-step, same as a_2822's qa_D) for a genuine apples-to-apples: **BEFORE(torch2.11)=362.35s → AFTER(torch2.13, identical config/seed=40001/prompt)=332.02s = 8.4% faster**(not 23%).
+  ★WHY smaller gain here(not just noise): quality-mode is more compute-bound(2x KSampler steps, no EasyCache reuse-savings) — general MPS-backend/kernel improvements(the likely torch2.11→2.13 source) help proportionally less against raw-FLOP-dominated workloads vs the turbo config's more overhead-sensitive profile.
+  ★TAKEAWAY: torch2.13 upgrade is a net win for BOTH configs(no regression either way), but **always cite which config(turbo vs quality) when quoting a torch-upgrade speedup %** — the two numbers(23% vs 8.4%) are not interchangeable, this was a real apples-to-oranges catch by the user(u_2867/2868), not a computation error.
+
+REF(add): a_2869(quality-mode apples-to-apples re-test, this section).
