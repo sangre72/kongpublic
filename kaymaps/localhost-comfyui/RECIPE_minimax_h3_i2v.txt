@@ -173,3 +173,40 @@ Mirrors existing `unet_inital_load_device()` SHARED-inclusive pattern. Only `tex
 ★RISK FLAG: local patch to `~/ComfyUI-src`(uncommitted). If this repo has auto-update/git-pull configured anywhere, a future pull will silently revert this fix — not blocking, just flag for awareness. No upstream PR filed(user didn't request one).
 
 REF(add): a_2803(root-cause source-trace), a_2807(patch+verify+re-test, this section).
+
+## ★★★★★★★UPDATE(2026-08-28 later, a_2814): QUALITY/SPEED TRADEOFF CONFIRMED — turbo-4step+EasyCache visibly softer than 8-step+no-EasyCache
+
+★USER COMPLAINT(u_2813) has merit: turbo-4step(steps=4,cfg=1.0,res_multistep)+EasyCache(reuse_threshold=0.3) config used throughout a_2798/2799/2807 trades VISIBLE sharpness/detail for speed. Confirmed via matched-frame A/B(same seed+prompt, girl-on-bench, 22frames):
+- **A(4-step+EasyCache)**: softer/flatter — less-distinct foliage texture, less-defined character detail(hair/clothing).
+- **B(8-step, EasyCache REMOVED from chain — node20→node22 direct, bypass node23)**: visibly sharper — clearer leaf/tree texture, more natural lighting gradient, better character detail.
+- Timing: A(KSampler)=135.3s vs B(KSampler)=207.8s → **B is 1.54x slower**(not 2x despite 2x steps — EasyCache's normal savings partially offset).
+
+★RECOMMENDATION: turbo-4step+EasyCache = good for DRAFT/preview/iteration speed. For FINAL/deliverable-quality output, switch to 8+step + EasyCache removed(bypass node23, feed node20's output directly into node22's `model` input) — ~1.5x slower but meaningfully sharper. Not a bug, a real config tradeoff — document per-job which mode is wanted, don't silently default to turbo for final deliverables.
+
+★HOW TO DISABLE EasyCache in workflow JSON: change node22("MiniMaxH3SigmaShift").inputs.model from `["23",0]` to `["20",0]`(skip EasyCache node23 entirely, feed LoRA-output directly), optionally raise node6("KSampler").inputs.steps from 4→8.
+
+REF(add): a_2814(quality A/B, this section).
+
+## ★★★★★★★★UPDATE(2026-08-28 later, a_2822): EasyCache CONFIRMED to specifically damage MOTION(not just sharpness) — direct cause of awkward page-turn. Unused guided-motion node found.
+
+★EasyCache=motion-coherence bug(not just softness): isolated A/B(same seed/prompt/length=39f pageturn, EasyCache ON vs OFF+8step) — EasyCache-ON shows moving hand/page region degrading into a blurred white smear/blob mid-motion(frame-reuse applied to a REGION THAT'S ACTUALLY CHANGING = wrong-content artifact), while static background(trees/bench) stays fine both variants. EasyCache-OFF shows coherent hand+legible page/finger detail throughout. **For ANY motion-heavy shot(hand gestures, object manipulation, page-turns, etc), disable EasyCache** — not just a speed/sharpness tradeoff(cf a_2814 above), it's a correctness issue for moving regions specifically.
+
+★UNUSED CAPABILITY: `H3Keyframes`(h3_keyframes.py, ComfyUI-H3-Multishot pack) accepts image-anchors at ANY frame position(not just first/last — generalizes stock ComfyUI's endpoint-only keyframing). This session's reference workflow is 100% text-prompt-only, never wires an anchor image for the described action. Real capability gap for precise guided-motion(e.g. anchor an image AT the mid-page-turn moment) — NOT implemented(bigger workflow-restructure, needs a prepared anchor image first), flagged as an open enhancement path if EasyCache-off alone isn't sufficient for a given shot.
+  Note: `MiniMaxH3AddGuide`(a name mentioned in passing) does NOT exist in this pack — `H3Keyframes` is the actual mechanism, don't search for the other name.
+
+REF(add): a_2822(motion-specific EasyCache A/B + H3Keyframes gap, this section).
+
+## ★★★★★★★★★UPDATE(2026-08-29, a_2848/2852): Q2_K quant — NOT AVAILABLE in current-family repo, 2 alternate-repo downloads BOTH INCOMPATIBLE(broken GGUF), don't retry these 2 sources.
+
+★a_2848 survey: `Abiray/MiniMax-H3-Pruned-GGUF`(the repo our current Q3_K_M diffusion file comes from) has NO Q2_K — lowest tier there IS Q3_K_M(currently installed, already the smallest in that repo-family). `joeygambino/MiniMax-H3-encoder-GGUF`(our Q4_K_M text-encoder source) also has no Q2 variant.
+
+★a_2852 attempted 2 alternate-repo downloads(user-approved, ~19.82GB total, both size-verified exact-match post-download) — **BOTH FAILED AT RUNTIME, DON'T RETRY THESE SPECIFIC FILES**:
+  - ❌`unsloth/MiniMax-H3-GGUF`'s `minimax_h3_fl2va_pruned-Q2_K.gguf`(6.72GB) → `ValueError: Unknown model architecture!`(ComfyUI-GGUF's `detect_arch()` tensor-name heuristic fails to recognize it as MiniMax H3, despite correct FL2VA-pruned family/filename match).
+  - ❌`leejet/MiniMax-H3-GGUF`'s `qwen3vl_32b_minimax_h3-Q2_K_M.gguf`(13.1GB) → `ValueError: This gguf file is incompatible with llama.cpp!` — direct inspection(`gguf.GGUFReader`) shows only 3 metadata KV fields(vs working Q4_K_M's 31 fields) — genuinely malformed/stripped GGUF header, missing `general.architecture` entirely.
+  - Both files were removed after confirming failure(don't re-download from these exact URLs expecting a different result — verified broken, not a config/path issue on our end).
+
+★IF Q2_K still wanted later: try a DIFFERENT repo not yet checked(`molbal/MiniMax-H3-GGUF`, `joeygambino/MiniMax-H3-GGUF`'s fl2va/ref2va subdirs — not fully surveyed this round) OR accept Q2_K may be a fragile/undertested tier for this model's unusual audio-video-packed architecture and use Q3_K_S instead(smaller than current Q3_K_M, exists in `Abiray/MiniMax-H3-GGUF`'s non-pruned unet/ subdir at 15.57GB — note: NON-pruned family, larger than pruned-Q3_K_M's 8.9GB despite lower quant letter, different base-model size).
+
+★USER'S "1분/60s" RECALL for a 1sec-clip(vs current ~141-268s baseline) remains UNEXPLAINED — could not test Q2 to confirm/deny as the cause. Open question, not resolved.
+
+REF(add): a_2848(quant survey, no local Q2/Q8), a_2852(2 download attempts, both broken, this section).
