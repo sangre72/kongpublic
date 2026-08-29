@@ -1,0 +1,38 @@
+RECIPE: restricted_category_precheck(general/cross-site, K7-compressed)
+REG: a_2904(2026-08-29)
+WHY: shopping-automation groundwork. a_2903(real incident, this recipe's case-study) spent 50+min partly because the shipping-restriction pattern only became explicit AFTER multiple sequential candidate-detail-page visits, not surfaced upfront.
+
+CASE-STUDY(a_2903's real sequence, not hypothetical):
+1. searched "Tylenol" → top results were mostly "Tylenol 근육 및 관절 보충제"(muscle&joint SUPPLEMENT, drug-free, NOT actual acetaminophen medication) — a DIFFERENT product-line sharing the brand name. Clicked into it FIRST(candidate #1) → real UI showed "이 품목은 선택하신 배송 위치로 배송할 수 없습니다"(cannot ship to Korea).
+2. had to REFINE search("Tylenol Extra Strength acetaminophen") to even reach the genuine medication products — this alone consumed real time before the actual target category was even correctly identified.
+3. clicked into genuine acetaminophen Tylenol(candidate #2, real target) → SAME restriction message.
+4. clicked into GoodSense generic-equivalent(candidate #3) → SAME restriction message again(3rd confirmation).
+5. clicked into Advil/ibuprofen(different active ingredient, contrast-check) → NO restriction, ships normally.
+  ★By step 3(2nd genuine-medication check), the pattern was already clear(2-for-2 acetaminophen products blocked) — step 4 added confirmation-value but wasn't strictly necessary to SURFACE the finding, only to solidify it before reporting. The bigger time-cost was actually step 1-2(wrong-product-line confusion), not excessive redundant-checking per se.
+
+TRIGGER CATEGORIES(domain-knowledge to actively watch for, not a hardcoded exhaustive list — new categories may emerge, use judgment):
+- medication/supplements/pharmaceuticals(esp. ACTIVE-INGREDIENT-specific restrictions, not just brand-level — a_2903 showed acetaminophen blocked while ibuprofen under a different brand wasn't, so restriction can be substance-specific not product-category-blanket).
+- alcohol/tobacco/vaping products.
+- weapons/weapon-adjacent items(knives past certain specs, ammunition components, etc).
+- certain electronics(lithium-battery-heavy items, some countries restrict air-shipped batteries).
+- food/perishables(customs/agricultural-import rules vary widely by country).
+- age-restricted or licensed-professional-only items(some medical devices, certain chemicals).
+
+PRECHECK PROCEDURE:
+1. BEFORE reviewing a full 5-10+ candidate list one-by-one, click into the FIRST 1-2 GENUINELY-ON-TARGET candidates only(★verify it's actually the right product-type first — a_2903's candidate #1 was the WRONG product-line, wasting a check; confirm title/description matches the actual target category before treating its restriction-status as representative).
+2. Check that candidate's shipping/restriction-status via the real UI(not assumed from general knowledge — e.g. Amazon's explicit "cannot ship to your delivery location" message, or equivalent restriction-language on other sites).
+3. IF restriction found on the first genuinely-on-target candidate: IMMEDIATELY relay via `worker1_wake_orch.sh` as an interim update BEFORE continuing(e.g. "found <item> restricted, checking if this is category-wide before continuing full review") — don't silently grind through remaining candidates hoping for a different outcome.
+4. Check ONE more candidate(ideally a different brand/seller within the same active-ingredient/category) to confirm PATTERN vs single-listing-fluke. 2 consistent results = reasonable confidence to report a category-level finding.
+5. OPTIONAL contrast-check: 1 candidate from an ADJACENT-but-different category/active-ingredient(a_2903's Advil-vs-Tylenol contrast) — strengthens the finding by showing the restriction is specific, not a general guest-mode/session issue affecting everything.
+
+DECISION BRANCH:
+- (a) DEFAULT: if precheck(step 3-4) shows consistent restriction → STOP full candidate-by-candidate review, report the pattern-level finding(this is usually the more useful answer than an exhaustive list of equally-restricted items).
+- (b) IF the task's explicit ask is transparency-first/exhaustive-candidate-logging(e.g. a_2893's ladle-test standard, where the USER wants to see full accept/reject reasoning regardless of outcome) → continue the full review AS REQUESTED, but flag the likely-futile restriction-pattern EARLY(after step 4) so the user can decide to cut it short rather than wait for a full log of N consistently-blocked items.
+
+VERIFY:
+- restriction-status claims = real UI-text-checked(screenshot/a11y-verified), not assumed from general product-category knowledge.
+- "genuinely on-target candidate" claim = product title/description actually matches the target(a_2903's step-1 mistake: assumed brand-name-match=correct-category, was wrong).
+
+LIMIT/OPEN:
+- this precheck pattern is NOT yet live-validated on a fresh restricted-category task(this REF is documentation-only per its own scope) — first real future application should confirm the pattern holds+refine timing-estimates.
+- "how many candidates=enough for pattern-confidence" is a judgment call(this recipe suggests 2 consistent + 1 contrast = 3 total checks as a reasonable default, not a hard rule).
