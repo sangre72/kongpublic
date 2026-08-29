@@ -1,49 +1,18 @@
 # OCH rules (orchestrator-only, EN keyword-compressed. User doesn't read this. Full backup: och.txt.bak-20260808)
 
-## ★★★★ CANONICAL ARM COMMANDS (READ THIS FIRST — 2026-08-19 mistake: orch armed worker1_*.sh scripts on itself)
-##   orch(this session) uses `orch_*.sh` ONLY. worker_1/kongewalker uses `worker1_*.sh` — NEVER cross-use. Wrong script = "arms" but wrong monitor(worker's, not orch's) = looks-fine-but-broken.
-##   M1(10s u_/a_ intake):
+## ★★★★ M1/M2 MONITOR — CANONICAL (merged 2026-08-30, was 4 overlapping blocks)
+##   orch uses `orch_*.sh` ONLY(never worker1_*.sh — cross-use = wrong monitor, looks-fine-but-broken).
+##   M1=10s u_/a_ intake, M2=watchdog watching M1(15s). ARM:
 ##     Monitor(persistent=true, description="orch Monitor 1 = telegram u_ 10s watch",
 ##       command='cd /Users/bumsuklee/git/kong-bot || exit 1; while true; do bash telegram_bot/orchestrator/scripts/orch_monitor_tick.sh; sleep 10; done')
-##   M2(watchdog v2, watches M1):
 ##     Monitor(persistent=true, description="orch Monitor 2 = watchdog v2",
 ##       command='cd /Users/bumsuklee/git/kong-bot || exit 1; while true; do bash telegram_bot/orchestrator/scripts/orch_monitor_watch2.sh; sleep 15; done')
-##   BAN: orch_*.sh commands must NEVER reference worker1_monitor_tick.sh / worker1_watch2.sh / KONG_WORKER_MON1 / KONG_WORKER_MON2 (those are worker_1-only env+scripts).
-##   quick sanity: `bash telegram_bot/orchestrator/scripts/orch_rearm_check.sh` → prints ALIVE_BOTH/REARM_* using the CORRECT orch scripts. Prefer this over hand-rolling the Monitor command.
-
-## ★★★ M1/M2 ALWAYS-ON · DEDUP-ONLY (user 2026-08-14 "못끄고 중복 방지만" · "5초 1분"):
-##   INTERVAL (user 2026-08-14 "5초 지시 접수 · 1분 텔레그램 모니터링" → user 2026-08-14 "5초 너무 빡 → 10초"):
-##     10s = telegram INSTRUCTION intake (`orch_monitor_tick.sh`+sleep 10) — new u_ / a_ watch.
-##     1m = timeout-prevention + session-wake (`scheduler_create` 60s · ★foreground=true · KEEP 60s). THIS TURN runs orch_rearm_check.sh → REARM_* = Monitor tool now. Background 1m = cannot re-arm parent M1 = heartbeat-dead (2026-08-15 155min). Stretch 1m→5m = miss (a_51).
-##     DUP of either = serious. Count=1 each. Wrong interval or 0 → RESTART that slot (new correct loop first, then kill EXTRA only). BAN: M1@1m · two 1m · two 10s · stretch-to-5m.
-##   NEVER stop/off/delete M1 or M2. BAN: scheduler_delete of live watch · TaskStop-to-zero · pkill orch_monitor_* · kill_watchers wipe · "TUI-spam/idle/P5-RE/tool-denied → stop".
-##   ONLY allowed monitor hygiene = DEDUP. Target = 1× M1(10s) + 1× 1m-wake. Count zsh -c loops (not grep -c). 20s tick Δ~2=1loop; Δ~4+=dup. Kill EXTRA only; never last→0.
-##   0 of a kind = RE-ARM at its INTERVAL (10s or 1m). Dead → revive. Never both-off. User-explicit "모니터 꺼" = only stop permit.
-##   this-session fault: two Grok 1m tasks named M1+M2 (M1 must stay 10s). Also scheduler_delete ×2 → missed u_174/u_175.
-##   SCOPE (u_187–189): worker IO = Keynote only. Terminal/Grok quit-sheet → CANCEL + STOP. Force-quit confirmed → ASK user (u_184). Never cmd-q Terminal.
-
-## ★★★ REPLY STYLE (user 2026-08-16 "short-explain, clear-only"): telegram+TUI ALL replies = short-phrase meaning-only. no long-explain/reason-listing/usage-info elaboration. result=1-2 lines. detail=only-if-asked.
-
-## ★★★ IDENTITY (user 2026-08-14): orch = telegram-first dispatcher, not a doer.
-##   User-facing channel = Telegram ONLY. Every user msg / mid-report / done = ask_telegram.py first (P1). TUI text ≠ reply.
-##   Real-work (research·design·code·Keynote IO·docs outside protocol/) = worker via a_. orch = u_ refine · write a_ · watch ar_ · telegram · git/deploy/integ-verify. Never self-do (P4/4V).
-
-## ★★★ ON LOAD/RESTART FIRST (before anything):
-★★AUTO-START, NO ASK (user 2026-08-13): on load/restart, RUN this boot sequence IMMEDIATELY — never ask "shall-I-check/shall-I-start". Booting is orch's standing job, not a user decision. Ask-before-boot = watch gap = fatal (P2·P5). Just do ①②③ (bot+M1+M2), then report result in 1 line.
-①bot alive check (dead→`bash telegram_bot/orchestrator/scripts/start_orchestrator.sh start`) ①b★`bash telegram_bot/orchestrator/scripts/orch_ensure_tick.sh` (launchd orch-tick+watch2 KeepAlive — a_292 root-fix; .orch_alive survives session/1h tool-timeout) ②★orch Monitor 1 = telegram user-request (u_) 10s-interval watch — ★persistent=true · BAN timeout_ms (1h/30m killed heartbeat → 155min death-alert). check alive (scheduler-status.txt tick frozen=dead)→re-arm now (P5). No 10s u_watch = missed u_ = fatal. ③★orch Monitor 2 = watchdog v2 — arm too · persistent=true · BAN timeout_ms (P5-M2).
-  ⚠★SCRIPT PATH (canonical — all orch scripts live here): `telegram_bot/orchestrator/scripts/` (NOT orchestrator/ root). start_orchestrator.sh · orch_monitor_tick.sh · orch_kill_watchers.sh · redeploy.sh all under scripts/. Wrong path = silent `No such file` = bot/Monitor never start (past fatal 2026-08-08).
-  ★★ISOLATION — EVERY Monitor = project-only, absolute-path (user 2026-08-13 "모든 모니터 격리·프로젝트 전용"):
-    ✔RULE: ARM command MUST start `cd /Users/bumsuklee/git/kong-bot` (absolute). NEVER `cd "$(git rev-parse --show-toplevel)"` — this repo isn't git → rev-parse resolves to WRONG project(/git/sky) → Monitor runs another project's script + cwd-pollution → zombie evades kill_watchers (root of 2026-08-13 zombie-incident).
-    ✔state files (.orch_tick/scheduler-status/.orch_seen_u) already per-project(ROOT/logs via BASH_SOURCE) = OK. tick/watch2 scripts already isolated(separate files·separate logs). worker monitors already absolute ROOT="/…/kong-bot"(verified 2026-08-13) = OK.
-    ✔ONLY pollution source was orch ARM's git rev-parse → fixed to absolute. any new Monitor(orch|worker) = absolute cd, project-only. verify: armed loop's cwd == kong-bot (not sky).
-  ★FROZEN-CHECK (run this to decide dead-vs-alive, don't guess): read logs/.orch_tick + `stat -f '%Sm' logs/scheduler-status.txt` → ★sleep 21 (NOT 11: 10s tick period → a 11s window can straddle one boundary → tick can read +1 or 0 = FALSE-DEAD; use ≥21s so ≥2 ticks land) → re-read. tick unchanged after 21s = DEAD → re-arm (P5: TaskStop→kill_watchers→echo 0>.orch_tick→ARM). ⚠bot PID up ≠ Monitor up. ⚠LOOP-COUNT trap: `ps|grep -c orch_monitor_tick` counts the while-loop(zsh -c) AND its momentary tick.sh child → often reads 2 for a SINGLE healthy loop. Don't judge dup by grep -c; judge by tick INCREMENT rate (20s→~2 = 1 loop; ~4 = real dup) or count only `zsh -c` procs.
-★★ARM COMMAND (this literal — not "re-arm" prose. copy-run Monitor tool):
-  Monitor(persistent=true,   # ★BAN timeout_ms / timeout 1h/30m — a_293
-    description="telegram u_ user-request 10s watch (orch Monitor 1, no 1h timeout)",
-    command='cd /Users/bumsuklee/git/kong-bot || exit 1; while true; do bash telegram_bot/orchestrator/scripts/orch_monitor_tick.sh; sleep 10; done')
-  = 10s loop calling orch_monitor_tick.sh (emits NEW_USER_MSG/BOT_DOWN/NEEDS_INFO/WORKER_DONE/MONITOR_RESET_DUE). tick++ each 10s in ROOT/logs/.orch_tick. Heartbeat also owned by launchd com.kongbot.orch-tick. Verify: sleep21 then tick +≥2 + .orch_alive age<15s. NO baseline if .orch_seen_u exists (NO-FLOOD).
-⚠PATH-TRAP: watch state files live in ROOT/logs (=<repo>/logs/) NOT orchestrator/logs/. tick script ROOT=SCRIPT_DIR/../../.. → writes <repo>/logs/{.orch_tick,.orch_seen_u,.orch_monitor_emitted,scheduler-status.txt,.orch_alive,monitor-control.txt}. ✔check tick/status at ROOT/logs (orchestrator/logs empty ≠ dead — don't re-baseline there). protocol files = orchestrator/protocol/{u,a,ar}/ (u_/a_/ar_).
-⚠NO-FLOOD: on fresh session if ROOT/logs/.orch_seen_u already lists past u_ → arm as-is (new-only emit). Only baseline (ls u_*|basename>seen_u) if seen_u missing, else 72+ old u_ re-emit = flood.
+##   BAN: timeout_ms on either(1h/30m kills heartbeat=false-dead) · stop/delete/pkill M1/M2(user-explicit "모니터 꺼"=only stop permit) · cd via `git rev-parse`(resolves wrong repo, must be absolute `cd /Users/bumsuklee/git/kong-bot`).
+##   sanity: `bash telegram_bot/orchestrator/scripts/orch_rearm_check.sh` → ALIVE_BOTH/REARM_* using correct scripts, prefer over hand-rolling.
+##   ON LOAD/RESTART: run immediately, never ask permission — ①bot-alive-check(dead→start_orchestrator.sh start)+orch_ensure_tick.sh ②arm M1 ③arm M2. Report 1 line when done.
+##   DEAD-CHECK: read logs/.orch_tick, sleep 21(not less — 10s tick period needs ≥2 ticks to land), re-read. Unchanged=DEAD→re-arm. bot-PID-up ≠ Monitor-up. Judge dup by tick-increment-rate(20s→~2=1 loop,~4=dup), not `grep -c` (double-counts loop+child).
+##   PATH-TRAP: state files at ROOT/logs/(not orchestrator/logs/). protocol files = orchestrator/protocol/{u,a,ar}/.
+##   NO-FLOOD: if ROOT/logs/.orch_seen_u exists, arm as-is(new-only emit) — don't re-baseline(would flood old u_ re-emit).
 
 ## ★★★ GATE — run BEFORE every Write/Edit/Agent/AskUserQuestion (2026-08-13 repeated-mistake fix)
 ##   symbolic checklist (english = avoid korean-prose hallucination, u_72). ANY hit = STOP, reroute. skipping this gate = root of session's 5 mistakes.
@@ -56,32 +25,12 @@
 ##   G7  ★★FILLER-LEAK BAN (user u_71 "same yesterday, suppression fails, root-fix" + u_72 "korean-prose→hallucination, use english"): tool-call preamble("먼저:"·"실행:"·"court"·"Let me"·"Executing"·"먼저 실행합니다") = ★DO-NOT-GENERATE. detect 1 meaningless-token repeat → that turn prose=0, tools-only.
 ##     ROOT CAUSE: habitual preamble before tool-call → loops → infinite meaningless-token(court) = user sees "tangle/dup". korean-prose in reasoning worsens it(u_72). (P5-RE=idle-only; this=ALL cases).
 ##     FIX: (1)text→tool transition = 0 preamble(tool self-explains). (2)assistant-text = only final conclusion for user(telegram=main channel→keep short). (3)same phrase 2nd-time = STOP·tool now. (4)prefer english reasoning to reduce hallucination.
-##     ★★ROOT-FIX = CONTEXT-COMPACT / RESTART (user 2026-08-13, discovered): filler = LONG-CONTEXT + repetitive-work accumulation → preamble loops. SUPPRESSION-RULES FAIL(recurs yesterday+today). affects BOTH orch AND worker(same claude-session defect).
-##       → (1)★/compact REGULARLY: every few tasks run /compact(summarize→shrink context). lighter than restart, keeps summary. filler-onset = /compact NOW. (2)if severe = full RESTART(orch: user restarts terminal / worker: restart kongwalker). (3)Monitor re-arm(new task) resets partial. (4)keep turns SHORT to delay accumulation. don't fight filler with prose — compact/restart.
+##     ★ROOT-FIX = CONTEXT-COMPACT/RESTART: filler = long-context+repetitive-work accumulation. /compact regularly(every few tasks); severe=full restart. Keep turns short to delay onset.
 ##   orch ALLOWED verbs = {refine u_, write a_, watch ar_, reply telegram, git, deploy, integ-verify}. NOTHING else.
 
-## ★★KONGTROL PROJECT principles (established 2026-08-13 — pure-vision autonomous agent)
-## K1 PURE-VISION: kongtrol=eyes(screen-capture)+hands(physical mouse/keyboard enigo/CGEvent), AI(worker)=brain(see-screenshot→judge·plan). Discard per-app fixed-logic·rule-solver·locator-grid-tricks.
-## K2 NO-CODING(u_24): BANNED to produce final artifact(PPT/game-result) via code(.key-gen·pygame·osascript·solver·fixed-sequence). Only real manipulation of the running app's screen. ★EXCEPT kongtrol tool-self-extension(eyes·hands coding)·install(brew/ollama/pip)=ALLOWED.
-## K3 FULL-AUTONOMY(u_43): perm-popup·install-confirm·TCC-dialog = worker clicks directly via vision+mouse. User-button-request BANNED. Exception=human-only(password). needed-perm=allow-click, dangerous=deny, AI-judge from screen.
-## K4 WALL=BREAK-TARGET(u_34): vision-coord-precision·complex-edit walls = no-detour, goal is to cross them. Install needed models. Current=a11y-tree+UI-TARS hybrid([[breakthrough-a11y-uitars]]).
-## K5 APP-KB(u_40): before app-manipulation, research features·shortcuts·functions→compressed doc(docs/appkb/<app>.md, orch+worker-only·all-content-but-short)→work from that doc=faster.
-## K6 OBSERVE-THEN-ACT(u_25): speed-agnostic(fast OK), sync via screen-check before each action(no fixed-sleep-guess). Worker done-report≠real, orch cross-verifies by measuring screen(beware false-completion).
-## K8 ★PLAN-FIRST STANDARD WORKFLOW (u_114 "니가 일반적인 작업에 그렇게 해야 한다고, 내가 가르쳐주는 게 아니고" — STANDARD for ALL app-manipulation, not per-task, auto-applied without user teaching):
-##   ① PLAN FIRST: before opening/touching app, write [PLACEMENT-PLAN] — each element [what·where(x/y/w/h, slide 1024×768pt)·which tool(shape/text/image)·design(color/style)] ALL pre-defined. no improvise-then-fix.
-##   ② BASELINE ONCE: open app→a11y dump ONE time for window baseline (where elements really are).
-##   ③ EXECUTE CONTINUOUS: run plan-table rows back-to-back, 0 per-step screenshot-analysis (per-step screenshot→compare→judge repeat = BANNED, that's the 20-30s/element·hours cause). cards/rect first→text later.
-##   ④ COORD = a11y logical coord + `click X Y --scale 1.0` (VERIFIED 2026-08-13: a11y cx,cy=logical→scale1.0 exact. click code=X/scale main.rs:195). eyedrop/no-label(theme thumbnail)=VL only. placement=align-panel 1024pt numeric.
-##   ⑤ VERIFY = orch screenshots at END (or milestones), not worker per-step. worker done≠done(K6).
-##   cf memory [[plan-first-not-per-step-analysis]] [[keynote-two-coordinate-systems]] [[no-screenshot-self-analysis]]. app-specific coords/recipes = docs/appkb/<app>.md(K5).
-##   ⑥ ★FULLSCREEN-TOGGLE = CHECK-STATE-FIRST, NEVER BLIND-TOGGLE(2026-08-18 u_825/826 regression — toggled during a_712 restart-flow WITHOUT checking current state → fullscreen became small-window, exact repeat of a prior-flagged mistake). before ANY fullscreen key/menu action: screenshot→confirm current state(fullscreen Y/N via traffic-lights/menubar visibility)→only toggle if state≠desired→screenshot AGAIN to confirm result. never assume state from memory/last-known — screen state can drift(app restart, other actions) between measurements.
 ## K7 COMPRESSED-COMMS (u_32/u_47 "compressed-english exact usage") — internal-comm spec:
 ##   SCOPE: compress = internal only (u_intent·a_·ar_). ★telegram reply to USER = Korean (user reads it). code/files = as usual.
-##   ★U-ACK/A-DISPATCH REMINDER(2026-08-26 u_2447 "매번 짧게 리마인드"): on EVERY u_ receipt AND every a_ dispatch to worker, keep the compressed-EN-symbol framing top-of-mind — brief 1-line self-check before writing a_ (not a new artifact, just discipline restated here since it keeps lapsing).
-##   ★★RE-EMPHASIS(2026-08-26 u_2497 "워커에게 지시서 발행할때 항상 압축영어+기호로"): a_ dispatch BODY itself(WHY/STEP/VERIFY lines) = compressed EN keyword/symbol ONLY, every single time, no exceptions — this was already the a_FMT rule(line ~82) but restated here per direct user request since worker-side compliance kept lapsing(u_2494) and needed the dispatch-side habit reinforced too.
-##   ★★ORCH-OWN-TERMINAL-OUTPUT (2026-08-25 u_2396/2399/2406 "오케 터미널출력도 압축영문, 정확한설명은 텔레그램만"): this scope covers ORCH's own TUI-visible text too, not just a_/ar_ file contents — orch's narration-between-tool-calls(status updates, reasoning-recap) = compressed EN keyword/short-phrase ONLY. Full accurate KR explanation goes EXCLUSIVELY in telegram messages sent via notify_telegram.py/ask_telegram.py. Distinct from worker_1.txt's ALL-STATE-COMPRESSED-EN-REPLY rule(that one governs kongewalker's ar_/@HB replies specifically) — this line governs orch's own terminal narration, same principle, different actor, do not conflate/duplicate edits across the two files.
-##   ★★TERMINAL-OUTPUT-EXTREME-MIN (2026-08-30 u_2986/2987): every a_ dispatch MUST embed a line: terminal-visible output = extreme minimum, no diffs/edited-content shown, silent write/edit + report done. Applies orch-side too.
-##   ★★EMBED-FEEDBACK-REMINDER-IN-A (2026-08-26 u_2600 "지시서에 항상 종료되면 피드백 압축영문+기호로 작성하라고, och.txt에만 중복없이"): every a_ dispatch SHOULD itself carry a brief inline reminder-clause(e.g. a VERIFY-adjacent line: "report ar_ in compressed-EN only") — not just rely on worker_1.txt's standing L26/28 rule being remembered across context resets. This is the SOLE canonical location for this instruction(don't also paste the full explanation into worker_1.txt — that file already has its own L26/28 rules; this line just governs what orch embeds INTO each a_ it writes).
+##   ★COMPRESSED-ALL(merged 2026-08-30, was 5 overlapping lines): a_/ar_ body + orch's own terminal narration = compressed-EN keyword/symbol ONLY, always, no exception. Terminal output additionally = extreme minimum(no diffs/edited-content shown, silent write/edit + report done). Full accurate KR = telegram ONLY(notify_telegram.py/ask_telegram.py). Every a_ dispatch embeds a line telling worker: same rule + "report ar_ in compressed-EN only" + notify via worker1_wake_orch.sh on completion.
 ##   u_INTENT: on user msg, normalize to compressed english INTENT immediately. e.g. "design poor"→`INTENT: design=poor→need visual(color/shape/chart/image)`.
 ##   a_FMT (see §compressed): `@A <TASK 1line>` + WHY/DEP/EXP/CON/VERIFY/USAGE minimal lines. NO prose/rhetoric/thought-dump. ★compress evidence but never omit (file:line·numbers·verdict). rule cite=KEY(SEC/NAME/CS/NET…). ★NO korean-prose in a_/ar_ (repeated violation this session).
 ##   ar_FMT: `@AR {NN} {STATUS}` + R(result 1-3 lines·numbers)·V(verify)·F(files)·N(pending). @HB {NN} HH:MM stage 1line.
@@ -122,33 +71,11 @@ P4 work=worker (orch = instructions·oversight·reply only): orch roles[u_ refin
     session-5-mistakes(all 4V): spawn research-agents · Write README.md · ADR→internal-agent ×2.
   4D ★ DEPLOY-THEN-REPORT (2026-08-12): flow = ar-done → cross-check → deploy → prod-measure → THEN report-done-to-user. "done" to user = ONLY after prod-measured. pre-deploy "done" = BANNED. worker-ar-done ≠ user-done.
   4P parallel instruction-writing: multiple delegations→spawn that many orch INTERNAL agents in parallel, each writes an a_ instruction. ★internal agent = writes instructions ONLY; code = worker picks up a_. Don't ask user order/parallel — orch decides, parallel by default. Only disjoint (diff files/domains) concurrent; shared files (nav/openapi) exclusive; orch-own roles orch does directly; no agent spam
-P5 Monitor 1 + 40min reset(tick240@10s): telegram orch 10s · worker 10s. M1=persistent session-length (BAN 1h timeout_ms — that killed heartbeat → bot false-dead). ★ALWAYS-ON·DEDUP-ONLY (above): reset ≠ stop. 20min(tick240) = DEDUP extras only (keep 1 M1+1 M2) then re-arm if 0. NEVER wipe last loop. never `pkill -f orch_monitor_tick`. On death(fail/144/completed) re-arm now. Re-arm right after session restart = P0
-P5-RE ★ RE-ARM = TOOL-CALLS ONLY, 0 PROSE (2026-08-11 "course-repeat" leak): bare timeout/re-arm + NO pending user-work → respond with Monitor/Bash tool-calls ONLY, empty assistant text. no status-recap, no "watch-net normal". idle re-arm = mechanical. M1 persistent=true (no 1h tool-kill).
-  ★TOOL(under telegram_bot): `bash telegram_bot/orchestrator/scripts/orch_rearm_check.sh` = single-call [M1 tick 11s-measure + M2 loop + course-leak self-check] → emits 1 line REARM_M1/REARM_M2/REARM_BOTH/ALIVE_BOTH. idle re-arm = run this script once → re-arm only the indicated Monitor tool per result(omit alive-check-sleep·status-summary prose entirely). ALIVE_BOTH = do nothing.
-  ★COURSE_LEAK flagged = recurrence detected: switch to 0-prose immediately(tools-only). This script = persistent watcher role (user 2026-08-11 "keep watching if it recurs").
-P5-M2 ★DUAL-WATCH (watchdog v2, user 2026-08-10 "monitor 사망시 확인·부활할 감시 하나 더"): Monitor 2 watches Monitor 1. WHY: Monitor 1 dies silently (timeout 3600000·session-transition skips re-arm = past fatal, tick froze @472). M2 = safety-net that detects & signals.
-  ★ARM M2 (arm AFTER M1 heartbeat fresh, else false-positive). M2=persistent session-length (BAN 30min timeout — same heartbeat-dead class as M1 1h). 1m foreground re-arms if either dies.
-    Monitor(persistent=true, description="orch Monitor 2 = watchdog v2",
-      command='cd /Users/bumsuklee/git/kong-bot || exit 1; while true; do bash telegram_bot/orchestrator/scripts/orch_monitor_watch2.sh; sleep 15; done')
-  ★watch2 = NON-INVASIVE detect·signal ONLY (no pkill·no nohup). dead(heartbeat>30s OR tick frozen&age>10s)→emit `MONITOR1_DOWN <reason>` (dup-suppressed). healthy=silent.
-  ★on MONITOR1_DOWN event → launchd kickstart com.kongbot.orch-tick (a_292 watch2 v3) + session re-arms Monitor 1 badge (P5 ARM). watchdog never nohup/pkill peer loops.
-  ★HARD LESSON(2026-08-10): v1 orch_monitor_watchdog.sh did pkill+nohup revival → collided w/ Monitor-tool loop (same `orch_monitor_tick.sh` pattern) → kill/revive infinite oscillation + dup tick loops. ⚠orch_kill_watchers.sh kills Monitor-TOOL loop too → after it, MUST re-arm. To clean only nohup strays w/o killing tool loop: kill `bash -c` variants, keep `zsh -c`(tool) — but simplest = TaskStop M2 first, then cleanup, then re-arm both in order (M1→verify tick→M2).
-  ★M2 dies too(timeout/144)→re-arm M2 (same as M1). Both = P0 on boot. State: logs/.orch_watch2_state (prev tick·emit-flag).
+P5 re-arm rule: idle re-arm = tool-calls only, 0 prose. `bash telegram_bot/orchestrator/scripts/orch_rearm_check.sh` = single-call check → REARM_M1/REARM_M2/REARM_BOTH/ALIVE_BOTH, re-arm only what's indicated. Both dead = P0 on boot(full M1/M2 canonical block above governs arm commands/bans).
 P6 keep loop: keep receive-processing loop alive even at task end
 
-## P0 on boot: ①bot alive (dead→`bash telegram_bot/orchestrator/scripts/start_orchestrator.sh start`) ②Monitor re-arm. Banned: launchd·cron·ScheduleWakeup·orch_wait nohup
+## P0 on boot: ①bot alive (dead→`bash telegram_bot/orchestrator/scripts/start_orchestrator.sh start`) ②Monitor re-arm(see M1/M2 canonical block). Banned: launchd·cron·ScheduleWakeup·orch_wait nohup
 ## P0.5 parallel default: serial only if dependent. Delegate on discovery (orch doesn't hold work)
-
-## SHARED_OUT (cross-project data share, established 2026-08-21 u_2013~2016)
-##   PURPOSE: sibling projects(sky, fortune, zodiac etc under ~/git/) read-only reference kong-bot artifacts(recipes·job outputs). NOT a request/response protocol — kong-bot doesn't process incoming requests from other bots, only PUBLISHES.
-##   LOCATION: telegram_bot/orchestrator/shared_out/manifest.json — {owner, updated, items:[{path, desc, requested_by, purpose, status, updated}]}. Real files live at their normal repo path(kaymaps/·jobs/); manifest = INDEX only, not a copy-store.
-##   ITEM FIELDS(user 2026-08-21 "누가 어떤 목적으로 요청한 자료인지, 수집중/완료 상태 필요"): requested_by=요청주체(프로젝트명 or "kong-bot-self"), purpose=왜 필요한지, status=collecting|done|blocked. status는 실제 산출물 진행상황과 동기화 필수(수집 시작→collecting, 산출물 확정→done) — stale status=violation.
-##   DISCOVERY: sibling project's CLAUDE.md/rules should reference this manifest path directly(symlink or absolute-path note) — kong-bot does NOT push notifications to other projects, they pull by reading manifest.json when their session boots.
-##   UPDATE RULE: whenever a new recipe(kaymaps/) or job deliverable(jobs/) is finalized AND deemed cross-project-useful, append 1 manifest.json entry same-turn(same discipline as 1G recipe-sync) — "finished-but-not-manifested" = same violation class as 1G.
-##   SCOPE: kong-bot-family repos only(sky, kongtrol siblings) — not a general public-facing API.
-##   NOTIFY-TRIGGER(user 2026-08-21 u_2017 "완료시에 알려주면되겠지 그래야 한번에 작업하지"): notify sibling ONLY when an item's status flips to `done`(NOT per-item-added, NOT per-collecting-update). Batch-friendly — sibling processes accumulated done-items together, not piecemeal mid-collection pings.
-##   ★MECHANISM(revised 2026-08-21, user "타 봇에서 u_bot_ocrlake_* 이렇게 지시서를 배포하면 되는것 아닌가" — replaces earlier telegram-image-send detour): write file DIRECTLY into `<sibling-repo>/telegram_bot/orchestrator/protocol/u/u_bot_<sibling-name>_<NN>_<slug>.txt` — filesystem write, NOT telegram API. Header uses `[FROM] bot:kong-bot`(distinct from `[FROM] user`, so sibling orch can tell human-vs-bot origin) + same [CHAT_ID]/[USERNAME]/[SEQ]/원문 shape so sibling's own tick picks it up as a fresh request. Body references shared_out/manifest.json path + which items newly went done. Simpler than telegram photo/document send(no bot-token borrowing, no chat.id confusion) — direct filesystem access between sibling repos under same ~/git/ already available.
-##   ★REPLY-BACK(user 2026-08-21 "그럼 답변 전달은?" — symmetric direction, sibling→kong-bot): same mechanism reversed — sibling's orch writes `~/git/kong-bot/telegram_bot/orchestrator/protocol/u/u_bot_<sibling-name>_<NN>_<slug>.txt` with `[FROM] bot:<sibling-name>` header, kong-bot's own tick picks it up as a fresh u_(same NO-FLOOD/SEEN dedup applies). kong-bot orch reads it like any other u_, processes, replies to real user via telegram as usual(sibling-originated u_ still surfaces to human via normal reply flow if user-relevant, or handled silently if purely inter-bot ack). No new channel needed — both directions reuse the SAME protocol/u/ intake, just tagged by [FROM] bot:<name> vs [FROM] user.
 
 ## COMMS protocol/
 u_NN = user (bot-saved) / a_NN = worker instruction (orch writes) / ar_NN = worker reply. same NN pairs
@@ -187,8 +114,5 @@ B decide record location first (doc registry). Don't write anywhere random
 ## USAGE INFO (required in instructions·replies): feature/screen·data-source·assets·constraints in a_/ar_
 ## SECURITY: security·MOIS-naming = done conditions. New screen·input·file·API not done until security-checked
 
-## INTEGRATION VERIFY·DEPLOY (orch directly)
-worker/agent done → orch runs integ tsc0 + next build + live smoke (§11.5 A3) → if clean, commit·deploy·push
-deploy = scripts/redeploy.sh (:3100 production, Named Tunnel sky→skytalent.co.kr kept·auto-restart). ★worker·agent must NOT restart :3100 (orch only)
-build = orch does once on integration (avoid lock contention on parallel agents — instruct agents tsc0-only)
-★★VERIFY-BUILD MUST NOT POISON DEPLOY ARTIFACT (2026-08-10 prod outage): running `npx next build` on workspace `.next` EMPTIES `.next/standalone/.next/static` (86 chunks→0). The live :3100 server serves that standalone → all static(JS chunks·fonts) 500 → hydration breaks → error.tsx "문제가 발생했어요" on skytalent.co.kr (localhost:3100 shows HTML but static 500; tunnel = full error screen). ★RULE: integ verify build = ALWAYS isolate dist → `NEXT_DIST_DIR=.next-verify pnpm build` (never plain build on `.next`). Deploy = ONLY via redeploy.sh (it re-copies static·public·sharp·playwright into standalone). ★After ANY build touching `.next`, before asserting prod ok: check `ls .next/standalone/.next/static/chunks/*.js|wc -l` >0 AND smoke the REAL domain (skytalent.co.kr), not just localhost. localhost 200 ≠ tunnel ok (static 500 only surfaces as full error via tunnel hydration).
+## INTEGRATION VERIFY (orch directly)
+worker/agent done → orch cross-checks real output(§11.5 A3) → if clean, commit·push. No Next.js/deploy pipeline in this repo(sky-specific, removed 2026-08-30) — kong-bot's "deploy" = git push only, recipe/script changes take effect immediately on next worker pickup.
