@@ -327,3 +327,14 @@ REF(add): a_2885(4-clip Albedo test, refined motion-risk model, this section).
 ★If the 19GB text-encoder-load spike ever needs a real fix: target is still MODEL-LOAD-stage streaming/precision-reduction(a_2817's conclusion), not a purge-node anywhere in the graph.
 
 REF(add): a_2886(PurgeVRAM wired+honest negative-result, this section).
+
+## ★★★★★★★★★★★★★★★★★★★UPDATE(2026-08-29, a_2887/2888): ★★384x672 = RESOLUTION CEILING for this machine. 768x1344/1360 = CONFIRMED IMPRACTICAL(severe swap-thrashing, effective hang) — DO NOT RE-ATTEMPT.
+
+★a_2887 attempted 768x1344(exact 2x of working 384x672 — note: requested "768x1360" is INVALID, not a step-32 multiple per `MiniMaxH3ImageToVideo`'s width/height constraint(min=32,max=16384,step=32); 1360%32=16≠0. 1344 is the correct step-32-valid 2x value, used instead) — job appeared to HANG: 0 KSampler steps completed in 20+ minutes(vs ~30s/step at 384x672).
+★DIAGNOSED(not assumed) via `sample`+swap-check: swap usage climbed to 32.7GB/33.8GB(97%, only 1GB free), process RSS collapsed to ~927MB(mostly paged to disk), CPU near-0%, dominant thread-state=`__psynch_cvwait`(blocked) — **genuine severe swap-thrashing**, not normal MPS-async-wait or just "slow".
+★a_2888(user-approved kill+restart): `/interrupt` API cleared the queue cleanly, but swap STAYED pinned(28.8GB/29.7GB, 97%) — confirms the interrupt alone doesn't release swapped model/tensor allocations. Full server restart(`kill <PID>`+relaunch, correct venv) required — swap dropped 29.7GB→16.4GB within seconds of kill. Post-restart REAL generation(not just health-check) confirmed server genuinely functional at 384x672.
+
+★★**CONCLUSIVE FINDING**: 768x1344/1360 EXCEEDS practical memory limits on this 48GB M3 Max — MiniMax H3's baseline model footprint(text-encoder 16.5GB+DiT 15.2GB≈31.7GB weights alone) PLUS 4x-larger activation/intermediate tensors at 2x-linear-resolution pushes total memory demand past available RAM+swap headroom, causing thrashing regardless of starting server state(cold or warm). **384x672 IS THE WORKING RESOLUTION CEILING for this hardware+pipeline — DO NOT RE-TEST 768x1344/1360(or higher) expecting a different result**, this is a hardware-memory-limit finding, not a config/timing issue fixable by patience or a fresh session.
+★If higher-resolution output is genuinely needed later: the only viable paths are(a) post-hoc AI upscaling of a 384x672 generation(separate tool, not MiniMax H3 itself), or (b) a fundamentally different memory-management approach(streaming/tiled generation if MiniMax H3 ever supports it) — not attempted, flagged as future-scope only if this becomes a real requirement.
+
+REF(add): a_2887(hires attempt+swap-thrashing diagnosis), a_2888(interrupt+restart+conclusive finding, this section).
