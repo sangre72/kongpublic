@@ -1,6 +1,8 @@
 RECIPE: amazon_product_search(amazon.com, guest-mode, macOS Chrome)
-REG: a_2890(2026-08-29)
+REG: a_2890(2026-08-29), MANDATORY-RULE added a_2914(2026-08-30)
 WHY: shopping-automation groundwork, LEARNING-ONLY per user scope(no login/purchase).
+
+★MANDATORY(not style-pref, u_2966): search = ONLY via clicking the ON-PAGE search input field + typing query there. NEVER via URL-bar query-string shortcut(e.g. `amazon.com/s?k=...` typed directly into address bar) — bypasses the real user-flow automation/recording is meant to demonstrate. ALWAYS: nav to plain `amazon.com`(bare domain, no query params) FIRST, THEN click the real `AXTextField "Amazon 검색"` search box(a11y-verify it's the actual search input, not address bar), THEN type+enter. Violation caught a_2913(2026-08-30) — recording discarded, redone clean in a_2914.
 
 GATE: guest-mode confirmed working — landed on amazon.com homepage w/ zero login-wall, zero CAPTCHA. KR-locale detected(배송처=대한민국), search functions normally as anonymous visitor.
 
@@ -22,3 +24,7 @@ VERIFY:
 LIMIT/OPEN:
 - add-to-cart click-through NOT yet tested from search-results page directly(see RECIPE_product_select_and_cart.txt for the click-through-from-detail-page path tested this session).
 - filter-sidebar(brand/rating/price checkboxes) present but NOT interacted with this round — future recipe if needed.
+
+★SPARSE-CATEGORY WARNING(a_2916-2918, 2026-08-30, MUST READ before storage-hardware/niche-electronics search): certain product categories(observed: "SSD", "Samsung 970 Pro"/"Samsung SSD 9100 PRO" specifically) return GENUINELY SPARSE organic results on Amazon guest-mode search — page-1 may show ONLY 1 sponsored ad-slot(sometimes even off-brand/unrelated, e.g. KIOXIA ad on a Samsung query) and ZERO standard "장바구니에 추가" organic listings, with the results area jumping straight from pagination-controls to the "도움이 필요하십니까?"(help) footer section. This is NOT a kongtrol/scroll/rendering bug — confirmed via: (a) full a11y dump(400+ elements) genuinely containing zero product AXLinks for the query, (b) direct visual screenshot confirming the same empty gap, (c) a DIFFERENT query("coffee mug") in the SAME session instantly rendering 6 real product cards with zero scroll needed. Root cause = genuine thin/ad-only catalog depth for that specific query, not automation-tooling.
+- ★DON'T burn time re-testing scroll-mechanics/timing/focus-tricks if a query shows this pattern — it will not resolve via scroll-method changes. Instead: (1) broaden the query(drop exact model number) and re-search, (2) if still sparse, treat any found sponsored slot's action button carefully — some are "지금 쇼핑"(Shop Now/direct-buy) not "장바구니에 추가"(standard add-to-cart), a DIFFERENT flow, note this explicitly if used, (3) for recording/demo purposes where reliable add-to-cart UX matters, PREFER product categories with normal retail density(kitchenware, general electronics accessories, home goods) over storage-hardware/niche-SKU-specific searches.
+- Verification discipline: before concluding "product doesn't exist", check BOTH a11y dump for `AXButton "장바구니에 추가"` AND take a direct screenshot — don't rely on scroll-position assumptions, query the FULL compact a11y dump(no manual scroll-then-check loop) since it returns the whole DOM regardless of visual scroll position.
