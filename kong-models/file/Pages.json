@@ -1,0 +1,20 @@
+{
+  "app": "Pages",
+  "menu_type": "file",
+  "menu_label": "파일",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[파일]",
+  "verified_date": "2026-08-27",
+  "items": [
+    {"label": "신규…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[신규…]", "shortcut": null, "safe_to_click": true, "notes": "iWork-pattern"},
+    {"label": "열기…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[열기…]", "shortcut": null, "safe_to_click": false, "notes": "unverified-behavior"},
+    {"label": "닫기", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[닫기]", "shortcut": null, "safe_to_click": true, "notes": "close doc, reversible"},
+    {"label": "저장", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[저장]", "shortcut": null, "safe_to_click": true, "notes": "Save"},
+    {"label": "별도 저장…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[별도 저장…]", "shortcut": null, "safe_to_click": true, "notes": "Save As, cancelable"},
+    {"label": "복제", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[복제]", "shortcut": null, "safe_to_click": true, "notes": "duplicate"},
+    {"label": "이름 변경…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[이름 변경…]", "shortcut": null, "safe_to_click": false, "notes": "unverified-behavior"},
+    {"label": "공유…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[공유…]", "shortcut": null, "safe_to_click": false, "notes": "external side-effects"},
+    {"label": "메일 병합…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[메일 병합…]", "shortcut": null, "safe_to_click": false, "notes": "Pages-specific, complex multi-step feature, unverified-behavior"},
+    {"label": "암호 설정…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[암호 설정…]", "shortcut": null, "safe_to_click": false, "notes": "★sensitive-security-action, skip"},
+    {"label": "프린트…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[프린트…]", "shortcut": null, "safe_to_click": false, "notes": "unverified-behavior"}
+  ]
+}

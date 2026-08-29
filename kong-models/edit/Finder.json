@@ -1,0 +1,15 @@
+{
+  "app": "Finder",
+  "menu_type": "edit",
+  "menu_label": "편집",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[편집]",
+  "verified_date": "2026-08-27",
+  "items": [
+    {"label": "실행 복귀", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[실행 복귀]", "shortcut": "Cmd+Z", "safe_to_click": true, "notes": "Undo, reversible by design"},
+    {"label": "오려두기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[오려두기]", "shortcut": "Cmd+X", "safe_to_click": true, "notes": "Cut, clipboard-only until paste, reversible"},
+    {"label": "복사", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[복사]", "shortcut": "Cmd+C", "safe_to_click": true, "notes": "Copy, zero side-effect, per pattern:Cmd+C-universal"},
+    {"label": "붙여넣기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[붙여넣기]", "shortcut": "Cmd+V", "safe_to_click": true, "notes": "Paste, per pattern:Cmd+V-universal"},
+    {"label": "전체 선택", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[전체 선택]", "shortcut": "Cmd+A", "safe_to_click": true, "notes": "Select All, non-destructive"},
+    {"label": "클립보드 보기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[클립보드 보기]", "shortcut": null, "safe_to_click": true, "notes": "read-only viewer"}
+  ]
+}

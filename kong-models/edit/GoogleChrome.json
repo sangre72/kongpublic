@@ -1,0 +1,18 @@
+{
+  "app": "Google Chrome",
+  "menu_type": "edit",
+  "menu_label": "수정",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[수정]",
+  "verified_date": "2026-08-27",
+  "notes_app_level": "★label-variant: menu-bar-item itself is '수정'(literally 'modify'), not '편집'(the usual Edit-menu word seen in all other apps this session) — function is identical(Edit menu), just different Korean naming choice by Google.",
+  "items": [
+    {"label": "실행취소", "path": "AXMenuBar > AXMenuBarItem[수정] > AXMenuItem[실행취소]", "shortcut": "Cmd+Z", "safe_to_click": true, "notes": "Undo, universal-pattern 7th app confirmed(despite menu itself being named differently)"},
+    {"label": "다시실행", "path": "AXMenuBar > AXMenuBarItem[수정] > AXMenuItem[다시실행]", "shortcut": "Cmd+Shift+Z", "safe_to_click": true, "notes": "★label-variant: '다시실행' not '실행복귀'(others used 실행복귀) — same Redo function"},
+    {"label": "잘라내기", "path": "AXMenuBar > AXMenuBarItem[수정] > AXMenuItem[잘라내기]", "shortcut": "Cmd+X", "safe_to_click": true, "notes": "★label-variant: '잘라내기' not '오려두기'(others used 오려두기) — same Cut function"},
+    {"label": "복사", "path": "AXMenuBar > AXMenuBarItem[수정] > AXMenuItem[복사]", "shortcut": "Cmd+C", "safe_to_click": true, "notes": "Copy, matches Finder/Keynote/Numbers/Pages label"},
+    {"label": "붙여넣기", "path": "AXMenuBar > AXMenuBarItem[수정] > AXMenuItem[붙여넣기]", "shortcut": "Cmd+V", "safe_to_click": true, "notes": "Paste, universal 7th app confirmed"},
+    {"label": "삭제", "path": "AXMenuBar > AXMenuBarItem[수정] > AXMenuItem[삭제]", "shortcut": null, "safe_to_click": false, "notes": "★DESTRUCTIVE-label, observe-only per rule"},
+    {"label": "모두 선택", "path": "AXMenuBar > AXMenuBarItem[수정] > AXMenuItem[모두 선택]", "shortcut": null, "safe_to_click": true, "notes": "★label-variant: '모두 선택' not '전체 선택'(others used 전체선택) — same Select-All function"},
+    {"label": "찾기", "path": "AXMenuBar > AXMenuBarItem[수정] > AXMenuItem[찾기]", "shortcut": null, "safe_to_click": true, "notes": "Find, matches others"}
+  ]
+}

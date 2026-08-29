@@ -1,0 +1,18 @@
+{
+  "app": "Google Chrome",
+  "menu_type": "file",
+  "menu_label": "파일",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[파일]",
+  "verified_date": "2026-08-27",
+  "items": [
+    {"label": "새 탭", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[새 탭]", "shortcut": null, "safe_to_click": true, "notes": "new tab, reversible"},
+    {"label": "새 창", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[새 창]", "shortcut": null, "safe_to_click": true, "notes": "new window, reversible"},
+    {"label": "닫은 탭 다시 열기", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[닫은 탭 다시 열기]", "shortcut": null, "safe_to_click": true, "notes": "reopen closed tab, non-destructive"},
+    {"label": "파일 열기…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[파일 열기…]", "shortcut": null, "safe_to_click": false, "notes": "file-picker, unverified-behavior"},
+    {"label": "창 닫기", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[창 닫기]", "shortcut": null, "safe_to_click": true, "notes": "close window, reversible"},
+    {"label": "탭 닫기", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[탭 닫기]", "shortcut": null, "safe_to_click": true, "notes": "close tab, reversible(닫은탭다시열기 recovers)"},
+    {"label": "페이지를 다른 이름으로 저장…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[페이지를 다른 이름으로 저장…]", "shortcut": null, "safe_to_click": true, "notes": "Save As, cancelable dialog"},
+    {"label": "공유", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[공유]", "shortcut": null, "safe_to_click": false, "notes": "external side-effects, unverified"},
+    {"label": "인쇄", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[인쇄]", "shortcut": null, "safe_to_click": false, "notes": "★label-variant: '인쇄' not '프린트'(iWork/Finder used 프린트) — same Print function, different Korean word choice"}
+  ]
+}

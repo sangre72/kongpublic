@@ -1,0 +1,31 @@
+{
+  "app": "Visual Studio Code",
+  "menu_type": "file",
+  "menu_label": "File",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[File]",
+  "verified_date": "2026-08-27",
+  "notes_app_level": "★resolved earlier a11y-empty gotcha: must use MAIN electron process(pgrep pattern 'Visual Studio Code.app/Contents/MacOS', NOT the generic 'Visual Studio Code' name-match which can hit a Helper-process with 0 a11y elements) + click-to-focus-first before query.",
+  "items": [
+    {"label": "New Text File", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[New Text File]", "shortcut": null, "safe_to_click": true, "notes": "new file, reversible"},
+    {"label": "Open…", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Open…]", "shortcut": null, "safe_to_click": true, "notes": "per a_2546 safe-click-whitelist, opens file-picker dialog(cancelable, non-destructive)"},
+    {"label": "Open Recent", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Open Recent]", "shortcut": null, "safe_to_click": true, "notes": "★submenu, hovered+captured full structure(see recent_files_submenu below)"},
+    {"label": "Save", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Save]", "shortcut": null, "safe_to_click": true, "notes": "Save"},
+    {"label": "Save As…", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Save As…]", "shortcut": null, "safe_to_click": true, "notes": "cancelable dialog"},
+    {"label": "Save All", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Save All]", "shortcut": null, "safe_to_click": true, "notes": "saves all open editors, non-destructive(saving, not deleting)"},
+    {"label": "Share", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Share]", "shortcut": null, "safe_to_click": false, "notes": "external side-effects"},
+    {"label": "Revert File", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Revert File]", "shortcut": null, "safe_to_click": false, "notes": "★destructive-adjacent(discards unsaved changes, reverts to disk version), skip"},
+    {"label": "Close Editor", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Close Editor]", "shortcut": null, "safe_to_click": true, "notes": "close tab, reversible"},
+    {"label": "Close Folder [⌘K F]", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Close Folder]", "shortcut": "Cmd+K F", "safe_to_click": true, "notes": "close workspace, reversible via Open Recent"},
+    {"label": "Close Window", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Close Window]", "shortcut": null, "safe_to_click": true, "notes": "reversible"}
+  ],
+  "recent_files_submenu": {
+    "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Open Recent] > submenu",
+    "structure": "workspace-folders-list(recent ~/-paths) THEN files-list(recent individual file paths) THEN action-items",
+    "action_items": [
+      {"label": "Reopen Closed Editor", "safe_to_click": true, "notes": "reopens last closed tab"},
+      {"label": "More…", "safe_to_click": true, "notes": "opens full recent-items list dialog, non-destructive"},
+      {"label": "Clear Recently Opened…", "safe_to_click": false, "notes": "★DESTRUCTIVE-adjacent(clears history list, not files themselves, but irreversible list-wipe), observe-only per pattern"}
+    ],
+    "notes": "confirms cross-app pattern: 'Open Recent'/'최근 사용한 파일 열기'-type submenu = 2-tier list(recent-items + management-actions), management-actions(Clear/Remove-from-list) = flag as destructive-adjacent even though it doesn't delete actual files"
+  }
+}

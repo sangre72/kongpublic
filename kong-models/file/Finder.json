@@ -1,0 +1,22 @@
+{
+  "app": "Finder",
+  "menu_type": "file",
+  "menu_label": "파일",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[파일]",
+  "verified_date": "2026-08-27",
+  "items": [
+    {"label": "새로운 Finder 윈도우", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[새로운 Finder 윈도우]", "shortcut": null, "safe_to_click": true, "notes": "new window"},
+    {"label": "새로운 폴더", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[새로운 폴더]", "shortcut": null, "safe_to_click": true, "notes": "new folder, reversible(can delete after)"},
+    {"label": "열기", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[열기]", "shortcut": null, "safe_to_click": true, "notes": "open selected item"},
+    {"label": "윈도우 닫기", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[윈도우 닫기]", "shortcut": null, "safe_to_click": true, "notes": "close window, reversible(reopen)"},
+    {"label": "정보 가져오기", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[정보 가져오기]", "shortcut": null, "safe_to_click": true, "notes": "get info panel, read-only action"},
+    {"label": "이름 변경", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[이름 변경]", "shortcut": null, "safe_to_click": false, "notes": "renames file, could confuse other processes referencing old name - unverified-behavior, skip test-click"},
+    {"label": "압축", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[압축]", "shortcut": null, "safe_to_click": true, "notes": "creates zip copy, non-destructive to original"},
+    {"label": "복제", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[복제]", "shortcut": null, "safe_to_click": true, "notes": "duplicate, non-destructive"},
+    {"label": "프린트", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[프린트]", "shortcut": null, "safe_to_click": false, "notes": "unverified-behavior, skip(could trigger real print job/dialog side-effects)"},
+    {"label": "공유…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[공유…]", "shortcut": null, "safe_to_click": false, "notes": "unverified-behavior, opens share sheet with external side-effects possible"},
+    {"label": "휴지통으로 이동", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[휴지통으로 이동]", "shortcut": null, "safe_to_click": false, "notes": "★DESTRUCTIVE - moves to trash, observe-only, never click-to-test"},
+    {"label": "즉시 삭제…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[즉시 삭제…]", "shortcut": null, "safe_to_click": false, "notes": "★DESTRUCTIVE - permanent delete, observe-only, never click-to-test"},
+    {"label": "찾기", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[찾기]", "shortcut": null, "safe_to_click": true, "notes": "search, read-only action"}
+  ]
+}

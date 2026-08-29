@@ -1,0 +1,18 @@
+{
+  "app": "Arc",
+  "menu_type": "edit",
+  "menu_label": "Edit",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[Edit]",
+  "verified_date": "2026-08-27",
+  "notes_app_level": "★mixed Korean+English labels(like KakaoTalk) — '실행 취소'/'실행 복귀' Korean, rest English(Cut/Copy/Paste/Delete/Select All/Find).",
+  "items": [
+    {"label": "실행 취소", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[실행 취소]", "shortcut": "Cmd+Z", "safe_to_click": true, "notes": "Undo, universal 10th app confirmed"},
+    {"label": "실행 복귀", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[실행 복귀]", "shortcut": "Cmd+Shift+Z", "safe_to_click": true, "notes": "Redo, matches Finder/iWork/Word label(not Chrome's 다시실행)"},
+    {"label": "Cut", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Cut]", "shortcut": "Cmd+X", "safe_to_click": true, "notes": "Cut, English"},
+    {"label": "Copy", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Copy]", "shortcut": "Cmd+C", "safe_to_click": true, "notes": "Copy, English"},
+    {"label": "Paste", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Paste]", "shortcut": "Cmd+V", "safe_to_click": true, "notes": "Paste, universal 10th app confirmed"},
+    {"label": "Delete", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Delete]", "shortcut": null, "safe_to_click": false, "notes": "★DESTRUCTIVE-label, observe-only"},
+    {"label": "Select All", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Select All]", "shortcut": null, "safe_to_click": true, "notes": "Select All, matches Chrome/Word's English-style label"},
+    {"label": "Find", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Find]", "shortcut": null, "safe_to_click": true, "notes": "Find"}
+  ]
+}

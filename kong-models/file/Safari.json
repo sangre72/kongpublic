@@ -1,0 +1,19 @@
+{
+  "app": "Safari",
+  "menu_type": "file",
+  "menu_label": "파일",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[파일]",
+  "verified_date": "2026-08-27",
+  "items": [
+    {"label": "새로운 탭", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[새로운 탭]", "shortcut": null, "safe_to_click": true, "notes": "new tab, reversible(close after)"},
+    {"label": "파일 열기…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[파일 열기…]", "shortcut": null, "safe_to_click": false, "notes": "opens file-picker dialog, unverified-behavior, skip test-click"},
+    {"label": "윈도우 닫기", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[윈도우 닫기]", "shortcut": null, "safe_to_click": true, "notes": "close window, reversible"},
+    {"label": "탭 닫기", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[탭 닫기]", "shortcut": null, "safe_to_click": true, "notes": "close tab, reversible(reopen closed tab)"},
+    {"label": "탭 그룹 삭제", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[탭 그룹 삭제]", "shortcut": null, "safe_to_click": false, "notes": "★ambiguous-destructive('삭제'=delete), observe-only"},
+    {"label": "별도 저장…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[별도 저장…]", "shortcut": null, "safe_to_click": true, "notes": "Save As, opens dialog only, cancelable, non-destructive to existing data"},
+    {"label": "공유…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[공유…]", "shortcut": null, "safe_to_click": false, "notes": "unverified-behavior, external side-effects possible"},
+    {"label": "PDF로 내보내기…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[PDF로 내보내기…]", "shortcut": null, "safe_to_click": true, "notes": "export dialog, cancelable, non-destructive"},
+    {"label": "브라우징 데이터를 파일로 내보내기…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[브라우징 데이터를 파일로 내보내기…]", "shortcut": null, "safe_to_click": false, "notes": "handles sensitive browsing-history data, unverified-behavior, skip"},
+    {"label": "프린트…", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[프린트…]", "shortcut": null, "safe_to_click": false, "notes": "unverified-behavior, print-dialog side-effects"}
+  ]
+}

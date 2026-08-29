@@ -1,0 +1,18 @@
+{
+  "app": "Microsoft Word",
+  "menu_type": "file",
+  "menu_label": "파일",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[파일]",
+  "verified_date": "2026-08-27",
+  "notes_app_level": "app opens a template-picker/start-screen window FIRST(no menu-bar visible there) — must click '새 문서'(New Document) to reach the real editor window before menu-bar appears. gotcha for future automation of this app.",
+  "items": [
+    {"label": "새 문서", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[새 문서]", "shortcut": null, "safe_to_click": true, "notes": "new doc"},
+    {"label": "열기...", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[열기...]", "shortcut": null, "safe_to_click": false, "notes": "file-picker, unverified-behavior"},
+    {"label": "닫기", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[닫기]", "shortcut": null, "safe_to_click": true, "notes": "close doc, reversible"},
+    {"label": "저장", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[저장]", "shortcut": null, "safe_to_click": true, "notes": "Save"},
+    {"label": "다른 이름으로 저장...", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[다른 이름으로 저장...]", "shortcut": null, "safe_to_click": true, "notes": "★label-variant: '다른 이름으로 저장' not '별도 저장'(iWork used 별도저장) — same Save-As function, MS-office wording"},
+    {"label": "공유", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[공유]", "shortcut": null, "safe_to_click": false, "notes": "external side-effects"},
+    {"label": "인쇄...", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[인쇄...]", "shortcut": null, "safe_to_click": false, "notes": "★3rd Print-label-variant seen: 프린트(iWork/Finder)/인쇄(Chrome+here MS-Word)/인쇄...(this) — 2 distinct Korean words for Print across vendors"},
+    {"label": "속성...", "path": "AXMenuBar > AXMenuBarItem[파일] > AXMenuItem[속성...]", "shortcut": null, "safe_to_click": true, "notes": "properties dialog, read-only info display"}
+  ]
+}

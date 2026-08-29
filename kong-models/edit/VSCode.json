@@ -1,0 +1,19 @@
+{
+  "app": "Visual Studio Code",
+  "menu_type": "edit",
+  "menu_label": "Edit",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[Edit]",
+  "verified_date": "2026-08-27",
+  "notes_app_level": "mostly-English UI, only OS-native items(자동완성/받아쓰기/이모지) remain Korean — code-editor category tends English-first regardless of OS locale.",
+  "items": [
+    {"label": "Undo", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Undo]", "shortcut": "Cmd+Z", "safe_to_click": true, "notes": "Undo, universal 11th app confirmed"},
+    {"label": "Redo", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Redo]", "shortcut": "Cmd+Shift+Z", "safe_to_click": true, "notes": "Redo"},
+    {"label": "Cut", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Cut]", "shortcut": "Cmd+X", "safe_to_click": true, "notes": "Cut"},
+    {"label": "Copy", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Copy]", "shortcut": "Cmd+C", "safe_to_click": true, "notes": "Copy"},
+    {"label": "Paste", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Paste]", "shortcut": "Cmd+V", "safe_to_click": true, "notes": "Paste, universal 11th app confirmed"},
+    {"label": "Find", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Find]", "shortcut": null, "safe_to_click": true, "notes": "Find"},
+    {"label": "Replace", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Replace]", "shortcut": null, "safe_to_click": true, "notes": "★code-editor-specific, opens replace-UI(not auto-applied), safe to open"},
+    {"label": "Toggle Line Comment", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Toggle Line Comment]", "shortcut": null, "safe_to_click": true, "notes": "code-editor-specific, reversible(toggle)"}
+  ],
+  "notes_no_delete_item": "★NO explicit Delete/Clear item in this menu(unlike most other apps) — code-editor's Edit menu is content-editing-focused, deletion happens via keyboard Delete-key not menu-item here."
+}

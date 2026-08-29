@@ -1,0 +1,17 @@
+{
+  "app": "Microsoft Word",
+  "menu_type": "edit",
+  "menu_label": "편집",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[편집]",
+  "verified_date": "2026-08-27",
+  "items": [
+    {"label": "실행 취소", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[실행 취소]", "shortcut": "Cmd+Z", "safe_to_click": true, "notes": "Undo, universal 9th app confirmed"},
+    {"label": "실행 복귀", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[실행 복귀]", "shortcut": "Cmd+Shift+Z", "safe_to_click": true, "notes": "Redo, matches Finder/Keynote/Numbers/Pages label"},
+    {"label": "잘라내기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[잘라내기]", "shortcut": "Cmd+X", "safe_to_click": true, "notes": "Cut, matches Chrome's label(not Finder's 오려두기)"},
+    {"label": "복사하기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[복사하기]", "shortcut": "Cmd+C", "safe_to_click": true, "notes": "Copy, matches Safari's label(not Finder/Keynote's 복사)"},
+    {"label": "붙여넣기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[붙여넣기]", "shortcut": "Cmd+V", "safe_to_click": true, "notes": "Paste, universal 9th app confirmed"},
+    {"label": "지우기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[지우기]", "shortcut": null, "safe_to_click": false, "notes": "★DESTRUCTIVE-label(Clear), observe-only"},
+    {"label": "모두 선택", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[모두 선택]", "shortcut": "Cmd+A", "safe_to_click": true, "notes": "Select All, matches Chrome's label(not Finder/iWork's 전체선택)"},
+    {"label": "찾기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[찾기]", "shortcut": null, "safe_to_click": true, "notes": "Find"}
+  ]
+}

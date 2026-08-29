@@ -1,0 +1,18 @@
+{
+  "app": "KakaoTalk",
+  "menu_type": "edit",
+  "menu_label": "편집",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[편집]",
+  "verified_date": "2026-08-27",
+  "notes_app_level": "no File menu at all(chat-app pattern, only Edit/Window/Help) — first N/A-for-File-menu app found",
+  "items": [
+    {"label": "실행 취소", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[실행 취소]", "shortcut": "Cmd+Z", "safe_to_click": true, "notes": "Undo, universal-pattern 6th app confirmed"},
+    {"label": "실행 복귀", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[실행 복귀]", "shortcut": "Cmd+Shift+Z", "safe_to_click": true, "notes": "Redo"},
+    {"label": "Cut", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[Cut]", "shortcut": "Cmd+X", "safe_to_click": true, "notes": "★INCONSISTENT-localization — app mixes Korean(실행취소) and English(Cut/Copy/Paste) labels in same menu"},
+    {"label": "Copy", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[Copy]", "shortcut": "Cmd+C", "safe_to_click": true, "notes": "same function as other apps' 복사, but English label here"},
+    {"label": "Paste", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[Paste]", "shortcut": "Cmd+V", "safe_to_click": true, "notes": "same function, English label"},
+    {"label": "Delete", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[Delete]", "shortcut": null, "safe_to_click": false, "notes": "★DESTRUCTIVE-label(English this time), observe-only regardless of language"},
+    {"label": "Select All", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[Select All]", "shortcut": null, "safe_to_click": true, "notes": "same function, English label"},
+    {"label": "Find", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[Find]", "shortcut": null, "safe_to_click": true, "notes": "Find, English label"}
+  ]
+}

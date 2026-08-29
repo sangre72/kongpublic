@@ -1,0 +1,18 @@
+{
+  "app": "Safari",
+  "menu_type": "edit",
+  "menu_label": "편집",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[편집]",
+  "verified_date": "2026-08-27",
+  "items": [
+    {"label": "실행 취소", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[실행 취소]", "shortcut": "Cmd+Z", "safe_to_click": true, "notes": "Undo, per pattern:Cmd+Z-universal, matches Finder's 실행 취소/실행 복귀 pairing"},
+    {"label": "실행 복귀", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[실행 복귀]", "shortcut": "Cmd+Shift+Z", "safe_to_click": true, "notes": "Redo"},
+    {"label": "오려두기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[오려두기]", "shortcut": "Cmd+X", "safe_to_click": true, "notes": "Cut, matches Finder's label exactly - cross-app pattern confirmed"},
+    {"label": "복사하기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[복사하기]", "shortcut": "Cmd+C", "safe_to_click": true, "notes": "Copy — NOTE label differs slightly from Finder's '복사'(no -하기 suffix), same function/shortcut though"},
+    {"label": "붙여넣기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[붙여넣기]", "shortcut": "Cmd+V", "safe_to_click": true, "notes": "Paste, matches Finder's label exactly"},
+    {"label": "삭제", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[삭제]", "shortcut": null, "safe_to_click": false, "notes": "★DESTRUCTIVE-sounding label, observe-only despite being in Edit menu(context=deletes selected text/content, not app-level, but skip per rule anyway)"},
+    {"label": "전체 선택", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[전체 선택]", "shortcut": "Cmd+A", "safe_to_click": true, "notes": "Select All, matches Finder's label+shortcut exactly - cross-app pattern confirmed"},
+    {"label": "찾기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[찾기]", "shortcut": "Cmd+F", "safe_to_click": true, "notes": "Find, read-only search"},
+    {"label": "맞춤법 및 문법", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[맞춤법 및 문법]", "shortcut": null, "safe_to_click": true, "notes": "submenu, opens settings-like panel, non-destructive"}
+  ]
+}

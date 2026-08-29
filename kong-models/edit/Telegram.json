@@ -1,0 +1,17 @@
+{
+  "app": "Telegram",
+  "menu_type": "edit",
+  "menu_label": "Edit",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[Edit]",
+  "verified_date": "2026-08-27",
+  "items": [
+    {"label": "Undo", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Undo]", "shortcut": "Cmd+Z", "safe_to_click": true, "notes": "Undo, universal 8th app confirmed"},
+    {"label": "Redo", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Redo]", "shortcut": "Cmd+Shift+Z", "safe_to_click": true, "notes": "Redo"},
+    {"label": "Cut", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Cut]", "shortcut": "Cmd+X", "safe_to_click": true, "notes": "Cut"},
+    {"label": "Copy", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Copy]", "shortcut": "Cmd+C", "safe_to_click": true, "notes": "Copy, matches KakaoTalk's English label(not Finder's Korean)"},
+    {"label": "Paste", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Paste]", "shortcut": "Cmd+V", "safe_to_click": true, "notes": "Paste, universal 8th app confirmed"},
+    {"label": "Delete", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Delete]", "shortcut": null, "safe_to_click": false, "notes": "★DESTRUCTIVE-label, observe-only"},
+    {"label": "Clear formatting", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Clear formatting]", "shortcut": null, "safe_to_click": true, "notes": "text-formatting-only, non-destructive to content(just removes bold/italic/etc)"},
+    {"label": "Select All", "path": "AXMenuBar > AXMenuBarItem[Edit] > AXMenuItem[Select All]", "shortcut": null, "safe_to_click": true, "notes": "Select All, universal 8th app confirmed"}
+  ]
+}

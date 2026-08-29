@@ -1,0 +1,11 @@
+{
+  "app": "Telegram",
+  "menu_type": "file",
+  "menu_label": "File",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[File]",
+  "verified_date": "2026-08-27",
+  "notes_app_level": "★entirely-English UI(no Korean menu-labels at all, unlike KakaoTalk's mixed approach) — minimal File menu, only 1 item.",
+  "items": [
+    {"label": "Log Out", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Log Out]", "shortcut": null, "safe_to_click": false, "notes": "★session-level-destructive-adjacent(logs out account, requires re-auth), observe-only despite not matching literal delete/erase keywords — extend destructive-pattern to session/account-level actions"}
+  ]
+}

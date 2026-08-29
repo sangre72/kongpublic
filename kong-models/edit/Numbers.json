@@ -1,0 +1,18 @@
+{
+  "app": "Numbers",
+  "menu_type": "edit",
+  "menu_label": "편집",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[편집]",
+  "verified_date": "2026-08-27",
+  "items": [
+    {"label": "실행 취소", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[실행 취소]", "shortcut": "Cmd+Z", "safe_to_click": true, "notes": "Undo, universal-pattern 4th app confirmed"},
+    {"label": "실행 복귀", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[실행 복귀]", "shortcut": "Cmd+Shift+Z", "safe_to_click": true, "notes": "Redo"},
+    {"label": "오려두기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[오려두기]", "shortcut": "Cmd+X", "safe_to_click": true, "notes": "Cut"},
+    {"label": "복사", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[복사]", "shortcut": "Cmd+C", "safe_to_click": true, "notes": "Copy, matches Keynote/Finder label"},
+    {"label": "붙여넣기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[붙여넣기]", "shortcut": "Cmd+V", "safe_to_click": true, "notes": "Paste, universal 4th app confirmed"},
+    {"label": "삭제", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[삭제]", "shortcut": null, "safe_to_click": false, "notes": "★DESTRUCTIVE-label, matches Keynote exactly(iWork-shared-menu-structure)"},
+    {"label": "모두 지우기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[모두 지우기]", "shortcut": null, "safe_to_click": false, "notes": "★DESTRUCTIVE-label, matches Keynote exactly"},
+    {"label": "전체 선택", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[전체 선택]", "shortcut": "Cmd+A", "safe_to_click": true, "notes": "Select All, universal 4th app confirmed"},
+    {"label": "찾기", "path": "AXMenuBar > AXMenuBarItem[편집] > AXMenuItem[찾기]", "shortcut": null, "safe_to_click": true, "notes": "Find"}
+  ]
+}

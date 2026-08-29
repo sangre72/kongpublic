@@ -248,3 +248,21 @@ REF(add): a_2869(quality-mode apples-to-apples re-test, this section).
   Combined with the already-established EasyCache-off+8-step fix(a_2822): right hand visibly lifts/turns page mid-air(readable text on page), settles naturally left, ZERO blur/smear artifacts throughout. Explicit hand/direction/motion-quality language in the prompt + EasyCache-off together = clean result. Output: 384x672/73f/3.04s, TOTAL gen time=471.59s(quality-mode+73f, this specific config not directly comparable to shorter-length prior timings).
 
 REF(add): a_2873(FlexAttention benchmark+decision-not-to-implement, refined-prompt validated fix, this section).
+
+## ★★★★★★★★★★★★★UPDATE(2026-08-29, a_2879): sampler/scheduler swap — SWITCH default to uni_pc+simple(31.9% faster, quality-clean). karras scheduler = BROKEN for MiniMax H3(avoid entirely).
+
+★KSampler(node6) sampler_name+scheduler tested(quality-mode, EasyCache-off+8-step, same 73f/seed as a_2873, torch2.13):
+| sampler+scheduler | total(s) | vs old-default | verdict |
+|---|---|---|---|
+| res_multistep+simple(OLD DEFAULT) | 471.59 | — | clean |
+| dpmpp_2m+karras | 502.98 | -6.7%(slower) | **BROKEN**(severe garbled-texture artifact, no subject) |
+| dpmpp_2m_sde+karras | 340.84 | +27.7% | **BROKEN**(same artifact) |
+| euler+normal | 327.11 | +30.6% | clean |
+| **uni_pc+simple(★NEW DEFAULT)** | **321.17** | **+31.9%** | **clean, fastest** |
+
+★**NEW RECOMMENDED DEFAULT for node6: `sampler_name=uni_pc`, `scheduler=simple`**(was res_multistep+simple) — 31.9% faster(321.17s vs 471.59s @73f/8-step), quality-verified clean via frame-extraction(coherent character+motion, no new artifacts).
+★**★★NEVER USE `karras` scheduler with MiniMax H3★★** — BOTH dpmpp variants tested with karras produced catastrophically broken output(dense scale-like garbled texture, unrecognizable subject) despite ZERO node-error(silent quality-failure, not an exception — don't trust "ran without error"=quality-ok for this model). Root cause = scheduler incompatibility with H3's sampling wrapper, not the sampler algorithm(euler/dpmpp_2m_sde both worked fine paired with non-karras schedulers).
+★euler+normal(327.11s, +30.6%) is a solid fallback if uni_pc ever shows an issue — also clean, nearly as fast.
+★only 1 seed/prompt tested(same as a_2873 for comparability) — broader multi-seed validation would strengthen confidence further, but this is real measured evidence, not a guess.
+
+REF(add): a_2879(sampler/scheduler speedtest, this section).

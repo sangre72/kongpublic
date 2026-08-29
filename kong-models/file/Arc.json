@@ -1,0 +1,18 @@
+{
+  "app": "Arc",
+  "menu_type": "file",
+  "menu_label": "File",
+  "menu_bar_path": "AXMenuBar > AXMenuBarItem[File]",
+  "verified_date": "2026-08-27",
+  "notes_app_level": "★resolved a11y-targeting gotcha from earlier attempt: querying `see --a11y --pid <arc-pid>` returned empty UNTIL a click was made into the Arc window first to properly establish focus — this specific app needed an explicit focus-click before a11y-query worked, unlike Finder/Safari/Chrome which worked with just `open -a` + pid-query. worth applying to any app that returns empty a11y despite process running.",
+  "items": [
+    {"label": "New Tab…", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[New Tab…]", "shortcut": null, "safe_to_click": true, "notes": "new tab"},
+    {"label": "New Window", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[New Window]", "shortcut": null, "safe_to_click": true, "notes": "new window"},
+    {"label": "Restore Last Closed Tab", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Restore Last Closed Tab]", "shortcut": null, "safe_to_click": true, "notes": "reopen, non-destructive"},
+    {"label": "Close Window", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Close Window]", "shortcut": null, "safe_to_click": true, "notes": "reversible"},
+    {"label": "Share…", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Share…]", "shortcut": null, "safe_to_click": false, "notes": "external side-effects"},
+    {"label": "Save Page As", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Save Page As]", "shortcut": null, "safe_to_click": true, "notes": "cancelable save dialog"},
+    {"label": "Print", "path": "AXMenuBar > AXMenuBarItem[File] > AXMenuItem[Print]", "shortcut": null, "safe_to_click": false, "notes": "unverified-behavior"}
+  ],
+  "notes_no_open_item": "★browser-pattern: NO 'Open File'/'Recent Files' item in File menu at all(unlike document-editors) — browsers use tab/history-based navigation instead of file-open. this is expected/normal for this app-category, not a gap."
+}
