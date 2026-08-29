@@ -266,3 +266,28 @@ REF(add): a_2873(FlexAttention benchmark+decision-not-to-implement, refined-prom
 ★only 1 seed/prompt tested(same as a_2873 for comparability) — broader multi-seed validation would strengthen confidence further, but this is real measured evidence, not a guess.
 
 REF(add): a_2879(sampler/scheduler speedtest, this section).
+
+## ★★★★★★★★★★★★★★UPDATE(2026-08-29, a_2881): uni_pc+simple RE-CONFIRMED on full comparable job — but WARM vs COLD timing differs, don't treat all timing numbers as directly comparable.
+
+★Full identical-config regen of a_2873's park-book scene(same prompt/seed/length=73f) w/ uni_pc+simple: **FRESH(cold-start, models reloaded)=390.60s**(17.2% faster than 471.59s baseline) vs a_2879's isolated **WARM(models already resident)=321.17s**(31.9% faster). Root cause confirmed via server log(not guessed): a full model reload(text-encoder 16.5GB+DiT 15.2GB+VAE 5.0GB) adds ~70s overhead when the server/session state is cold — a_2879's back-to-back candidate tests ran warm, this run followed a deliberate `/free` cache-clear to force honest fresh-not-cached measurement(first attempt came back 100%-`execution_cached`, discarded, this is why the clear was needed).
+★**TAKEAWAY for future timing comparisons**: note whether a measurement is WARM(models resident, mid-session back-to-back tests) or COLD(fresh server start/first-job-of-session) — the two are NOT directly comparable, both are "real" numbers just under different conditions. uni_pc+simple's speedup holds in BOTH cases(17.2%-31.9% depending on warm/cold), recommendation to switch default stands.
+★output: `park_book_refined_unipc_00002_.mp4`(384x672/73f/3.04s spec-exact), 5-frame visual check confirms clean/coherent, consistent w/ a_2879's quality-verdict.
+
+REF(add): a_2881(full-job warm/cold timing distinction, this section).
+
+## ★★★★★★★★★★★★★★★UPDATE(2026-08-29, a_2882/2883): uni_pc+simple works in TURBO-mode too(fastest config found tonight), 3-way real comparison table. Motion-caveat flagged(untested combo).
+
+★uni_pc+simple TESTED in turbo-mode(EasyCache-ON+4-step, a_2799's original config, ONLY sampler/scheduler swapped) — carefully risk-checked(6-frame full-clip visual review, not just "did it error") since this combo was previously untested and karras had shown silent-breakage is possible. **RESULT: CLEAN**(no smearing/artifact, coherent throughout) — NOT broken like karras was. EasyCache's own log confirms `skipped 0/4 steps(1.00x speedup)` — the speed gain is genuinely from uni_pc's algorithm, not a hidden EasyCache-interaction shortcut.
+
+★3-WAY REAL COMPARISON(56f park-bench scene, all warm-state, same prompt/seed=42):
+| config | sampler+scheduler | total(s) | quality |
+|---|---|---|---|
+| turbo(a_2799 original) | res_multistep+simple | 264.0 | clean |
+| **turbo+uni_pc(★FASTEST)** | uni_pc+simple | **147.86** | clean |
+| qualitymode+uni_pc | uni_pc+simple | 427.42 | clean |
+
+★**uni_pc+simple = universal recommendation**(both turbo AND quality mode confirmed clean+faster) — no longer quality-mode-only.
+
+★★MOTION-CAVEAT(NOT re-tested, flag before trusting blindly on motion-heavy shots): a_2883's test scene was STATIC/LOW-MOTION(girl sitting still) — does NOT re-validate a_2822's EasyCache-vs-motion finding(hand/page smearing during ACTIVE motion, e.g. page-turns) with uni_pc specifically. a_2822's EasyCache-motion-damage issue is orthogonal to sampler choice — if turbo-mode(EasyCache-ON) is wanted for a MOTION-HEAVY shot with uni_pc, test that specific combo before trusting it; for motion-heavy shots, the existing a_2822 fix(disable EasyCache entirely) remains the safe default regardless of sampler.
+
+REF(add): a_2882(qualitymode 56f data point), a_2883(turbo+uni_pc risk-checked+clean, 3-way table, this section).
