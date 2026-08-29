@@ -25,9 +25,25 @@ PRECHECK PROCEDURE:
 4. Check ONE more candidate(ideally a different brand/seller within the same active-ingredient/category) to confirm PATTERN vs single-listing-fluke. 2 consistent results = reasonable confidence to report a category-level finding.
 5. OPTIONAL contrast-check: 1 candidate from an ADJACENT-but-different category/active-ingredient(a_2903's Advil-vs-Tylenol contrast) — strengthens the finding by showing the restriction is specific, not a general guest-mode/session issue affecting everything.
 
-DECISION BRANCH:
+DECISION BRANCH(BINARY, superseded below by the 3-AXIS framework — kept for backward-compat reference, use the 3-axis version for real decisions going forward):
 - (a) DEFAULT: if precheck(step 3-4) shows consistent restriction → STOP full candidate-by-candidate review, report the pattern-level finding(this is usually the more useful answer than an exhaustive list of equally-restricted items).
 - (b) IF the task's explicit ask is transparency-first/exhaustive-candidate-logging(e.g. a_2893's ladle-test standard, where the USER wants to see full accept/reject reasoning regardless of outcome) → continue the full review AS REQUESTED, but flag the likely-futile restriction-pattern EARLY(after step 4) so the user can decide to cut it short rather than wait for a full log of N consistently-blocked items.
+
+★★★UPDATE(a_2905, 2026-08-29): 3-AXIS DECISION FRAMEWORK(replaces the binary ship-or-not framing above — a_2903's Tylenol case only demonstrated AXIS2, but real decisions need all 3 evaluated)
+
+The binary "ships or doesn't" question above is INCOMPLETE — even when something technically ships, cross-border purchase may not be the right recommendation. Evaluate ALL 3 axes, not just shipping-availability:
+
+**AXIS1 — ships, no restriction**: proceed w/ cross-border purchase evaluation(this is the "normal" case, most of tonight's non-medication product tests — mice/ladles — landed here).
+
+**AXIS2 — blocked/restricted(shipping-level OR legal/customs-level)**: recommend domestic Korea channel, don't force cross-border. This is a_2903's Tylenol case — Amazon's own UI explicitly refused to ship, making the question moot at the shipping-gate before customs/legal even needed evaluating. Also covers cases where shipping WOULD technically work but the item is legally restricted for personal import(the customs/legal half of this axis, distinct from the shipping-UI half — a product could pass Amazon's shipping-check yet still be a customs-restricted import, these are two different checks that both gate AXIS2).
+
+**AXIS3 — ships fine, but total-landed-cost may not beat domestic**: even with NO shipping restriction, cross-border isn't automatically the better choice. Total landed cost = item-price + international-shipping + forwarding-agent(배대지) fee(if the seller doesn't ship directly to Korea and a forwarding-service is needed) + estimated customs/duty(if applicable above Korea's de-minimis threshold). If this total doesn't meaningfully beat the domestic-Korea price for an equivalent/same product, flag this as a COST/EFFICIENCY judgment call — don't silently assume "it ships, so buy it cross-border" without this comparison. This axis was NOT triggered by a_2903's case(shipping was blocked before cost-comparison became relevant) but WILL apply to future non-restricted products where the user wants a genuine buy-here-vs-there recommendation.
+
+★NO HARDCODED FORWARDING-AGENT(배대지) FEE VALUES in this recipe or any derived report — these vary significantly per-provider/service-tier/weight/season, baking in a stale number would actively mislead future users of this recipe. If a real AXIS3 cost-comparison is requested: (a) live-lookup current typical fee-ranges via WebSearch at time-of-decision, or (b) explicitly ask the user for a specific forwarding-service estimate if they have one in mind, or (c) present the comparison qualitatively("forwarding fees typically add a non-trivial % on top of item+shipping — worth checking current rates before assuming cross-border wins") if a precise number genuinely isn't obtainable in-task. Never present a remembered/assumed fee number as current fact.
+
+★CUSTOMS/TARIFF/IMPORT-REGULATION INFO = ALWAYS LIVE-LOOKUP, standing principle(same spirit as feedback_dont_ask_researchable_things memory — don't guess what's checkable): Korea's customs de-minimis thresholds, category-specific duty rates, and import-eligibility rules for restricted-adjacent categories(medication, food, certain electronics) CHANGE over time and are NOT something to answer from training-data memory. WebSearch(or equivalent real-time source) at time-of-answer, every time — never assume prior-session or general-knowledge info is still current. This applies REGARDLESS of which axis is being evaluated(AXIS2's legal-restriction-check AND AXIS3's customs-duty-estimate both require this).
+
+★CROSS-REFERENCE: a_2903's Tylenol case = AXIS2(shipping blocked before customs/legal needed separate evaluation — the "moot" note in that report's original finding was CORRECT, just needed this framework to state why explicitly). A DIFFERENT product(e.g. something that DOES ship to Korea but is bulky/heavy, where forwarding-fees would be substantial relative to item-value) would instead hit AXIS3 — recipe now guides that judgment call too, not just the AXIS2-blocked case a_2903 happened to surface first.
 
 VERIFY:
 - restriction-status claims = real UI-text-checked(screenshot/a11y-verified), not assumed from general product-category knowledge.
@@ -36,3 +52,5 @@ VERIFY:
 LIMIT/OPEN:
 - this precheck pattern is NOT yet live-validated on a fresh restricted-category task(this REF is documentation-only per its own scope) — first real future application should confirm the pattern holds+refine timing-estimates.
 - "how many candidates=enough for pattern-confidence" is a judgment call(this recipe suggests 2 consistent + 1 contrast = 3 total checks as a reasonable default, not a hard rule).
+- AXIS3(cost-comparison) is NOT yet live-validated either(a_2905, documentation-only, no product hit this axis tonight — a_2903 stopped at AXIS2 before cost-comparison became relevant). First real AXIS3 case should confirm the live-lookup-fee-estimate approach works in practice and refine the "meaningfully beat domestic price" threshold(currently a qualitative judgment call, no fixed % defined).
+
