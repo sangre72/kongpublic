@@ -1,0 +1,26 @@
+RECIPE: amazon_product_select_and_cart(amazon.com, guest-mode, macOS Chrome)
+REG: a_2890(2026-08-29)
+WHY: shopping-automation groundwork. Add-to-cart flow confirmed working WITHOUT login(guest-mode success).
+
+★CRITICAL LESSON(env-interference, not app bug): a floating Activity Monitor GPU-history window(pre-existing, unrelated to this task) repeatedly stole focus after each click, causing 2 consecutive add-to-cart clicks to silently miss(menu bar showed "활성 상태 보기" not "Chrome" — confirmed via screenshot, not guessed). Fix = close the interfering app + `open -a "Google Chrome"`(pure-IO refocus) before retry. ★SELF-CORRECTION FLAG: mid-troubleshoot, used `osascript -e 'tell application ... to activate/quit'` TWICE — this VIOLATES pure-io-no-system-events(project memory, forbids System Events/osascript UI-automation). Caught+flagged here for the record; going forward use `open -a "<App>"`(pure-IO) for focus/launch, `kongtrol input key cmd+q`-equivalent(if kongtrol supports app-quit chord) or manual close for quitting — NEVER osascript `tell application`.
+  ★GENERAL TAKEAWAY: before ANY click-sequence, verify frontmost app via screenshot's menu-bar app-name(not just "window exists") — background floating utility windows(Activity Monitor, etc) can silently steal focus mid-sequence even after an initial correct-focus click.
+
+STEPS:
+1. from search-results(RECIPE_product_search.txt), click product title(`AXLink`, long product-name text) → navigates to `/dp/<ASIN>/...` product-detail page.
+2. product-detail a11y key elements(session example, Logitech M185 mouse):
+   - variant selectors: 크기(size)/스타일(style)/색상(color) — `AXButton`-style toggle groups, click to change SKU(not tested changing variant this round, structure noted only).
+   - buy-box(right panel): `AXButton "장바구니에 추가" @(1612,702)[204x30]`, `AXButton "지금 구매" @(1612,742)[204x30]`(buy-now, NOT tested — out of scope, would likely require login for checkout).
+3. click add-to-cart button → SUCCESS(guest-mode, no login-wall hit for THIS step) → auto-navigates to `/cart/smart-wagon?newItems=<item-id>,1&ref_=sw_refresh`.
+4. cart-confirmation page verify: green-checkmark `"장바구니에 추가"` header text present, item-count/subtotal shown(session: 1개 품목, KRW20,471 소계), checkout button `"체크아웃 진행(1개 품목)"` visible(★NOT clicked — out of scope, would require login).
+5. header cart-link updates: `AXLink "장바구니의 <N>개 품목"`(was static "0개 품목" placeholder before real interaction — real count only populates after a genuine add-to-cart, page-reload/re-nav shows accurate count).
+
+VERIFY:
+- URL contains `/cart/` post-click = add-to-cart succeeded(cheap check before a11y-scan).
+- header cart-link text shows non-zero count = confirms.
+- screenshot green-checkmark confirmation banner = visual confirm.
+
+LIMIT/OPEN:
+- checkout flow NOT attempted(explicit scope boundary — "체크아웃 진행" button located+labeled but never clicked).
+- variant-selector(size/style/color) switching NOT tested — structure noted, interaction unverified.
+- "지금 구매"(buy-now) button located but NOT clicked(likely triggers login-wall immediately, unconfirmed).
+- add-to-cart from SEARCH-RESULTS page(not detail-page) not tested this round — RECIPE_product_search.txt notes the button exists there too, click-through path unverified from that entry point specifically.

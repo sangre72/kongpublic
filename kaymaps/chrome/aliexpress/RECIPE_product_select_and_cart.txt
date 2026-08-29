@@ -1,0 +1,23 @@
+RECIPE: aliexpress_product_select_and_cart(aliexpress.com, guest-mode/incognito, macOS Chrome)
+REG: a_2890(2026-08-29)
+WHY: shopping-automation groundwork. Add-to-cart CONFIRMED working guest-mode(incognito), no login needed for this step.
+
+STEPS:
+1. from price-sorted search-results(RECIPE_product_search.txt), click product-card `AXLink`(long product-name text, e.g. "로지텍 MX 마스터 2S BLE 무선 마우스...") → navigates to `/item/<id>.html?spm=...` product-detail page.
+2. detail-page loads via SKELETON-PLACEHOLDER first(grey boxes, ~2s) before real content — always wait+re-screenshot before interacting, don't click on skeleton-state coords(they'll be wrong once real content loads).
+3. detail-page key elements(session example, MX Master 2S BLE @₩70,567):
+   - price shown prominently near top(★discount banner "직구 핫딜" style varies per listing/seller, not universal).
+   - color/variant selector below price(single-option in this example, BLACK7223).
+   - `AXButton "장바구니 담기" @(1620,822)[346x45]`(add-to-cart) + `AXButton "바로 구매"`(buy-now, red, NOT tested — same out-of-scope reasoning as Amazon).
+4. click add-to-cart → SUCCESS confirmation appears IN-PAGE(not a redirect like Amazon): `AXStaticText "장바구니에 담겼습니다"`("added to cart") + a right-side cart-preview PANEL populates(green checkmark on item thumbnail, quantity=1, price, "결제하기"(checkout)/"카트로 가기"(go to cart) buttons) — ★DIFFERENT UX PATTERN than Amazon(which navigates to a dedicated /cart/ page; AliExpress shows an inline slide-in panel, stays on product page).
+5. checkout/go-to-cart buttons visible+labeled but NOT clicked(scope boundary — same as Amazon).
+
+VERIFY:
+- `AXStaticText "장바구니에 담겼습니다"` text present post-click = confirms add-to-cart succeeded.
+- cart-preview panel populated(item thumbnail+price+qty) = visual confirm, screenshot-worthy for reporting.
+- header still shows guest-greeting(not account name) throughout = confirms no accidental login occurred during flow.
+
+LIMIT/OPEN:
+- checkout NOT attempted(explicit scope boundary).
+- only 1 product tested(cheapest-sorted result) — variant-switching, multi-item-cart, quantity-change(+/- buttons visible near price) not tested.
+- category-navigation recipe not yet written(time-constrained this round — search+cart was the prioritized deliverable per revised scope).

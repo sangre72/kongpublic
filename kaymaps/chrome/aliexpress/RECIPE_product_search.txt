@@ -1,0 +1,20 @@
+RECIPE: aliexpress_product_search(aliexpress.com, guest-mode, macOS Chrome, incognito-verified)
+REG: a_2890(2026-08-29)
+WHY: shopping-automation groundwork. ★MUST use incognito for genuine guest-mode(regular Chrome window had a pre-existing logged-in session from prior user browsing — not reproducible-clean for automation testing).
+
+GATE: incognito window confirmed genuine guest state("환영합니다!"/"로그인 회원가입" header, NOT account-name) — regular(non-incognito) Chrome window showed "Hi, <name>" + real cart contents from a stale saved session, DO NOT use regular window for guest-mode testing on this site.
+
+STEPS:
+1. open incognito: Chrome menu bar "파일"(File) → "새 시크릿 창"(New Incognito Window)(kongtrol chord cmd+shift+n NOT supported — kongtrol only allows 1-modifier chords, must use menu-click path).
+2. nav to aliexpress.com(same cmd+t→type→return pattern).
+3. search-field a11y label is in ENGLISH despite Korean UI("You can type an item name or keyword to search." — site's a11y labels differ from displayed text, search by this English phrase not the Korean placeholder).
+4. click search-field → `input text "<query>" --yes` → `input key return --yes`.
+5. results-page URL pattern: `ko.aliexpress.com/w/wholesale-<query-with-dashes>.html?spm=a2g0o.home.search.0`.
+6. price-sort: `AXStaticText "가격" @(~1871,389)`(clickable despite AXStaticText type, click toggles asc/desc) → URL updates w/ `&sortType=price_asc`(confirms sort applied, cheap URL-check).
+
+VERIFY:
+- URL contains `/w/wholesale-` = search executed.
+- header shows "환영합니다"/generic greeting(NOT a name) = confirms genuine guest state, re-check this EVERY session(cookies can persist across kongtrol/browser restarts if not truly incognito).
+
+LIMIT/OPEN:
+- category-navigation NOT tested this round(time-constrained, prioritized search+cart-flow per revised task scope).

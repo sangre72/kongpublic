@@ -1,0 +1,24 @@
+RECIPE: amazon_product_search(amazon.com, guest-mode, macOS Chrome)
+REG: a_2890(2026-08-29)
+WHY: shopping-automation groundwork, LEARNING-ONLY per user scope(no login/purchase).
+
+GATE: guest-mode confirmed working — landed on amazon.com homepage w/ zero login-wall, zero CAPTCHA. KR-locale detected(배송처=대한민국), search functions normally as anonymous visitor.
+
+STEPS:
+1. nav: `cmd+t` → type "amazon.com" → `return`(same pattern as RECIPE_chrome_common.txt).
+2. search-field a11y: `AXTextField "Amazon 검색" @(918,156)[1244x38]`(coords=session-specific, re-query always).
+3. click search-field → `input text "<query>" --yes` → `input key return --yes`.
+4. results-page URL pattern: `amazon.com/s?k=<query>&crid=<id>&sprefix=<query>...` — confirms search executed(URL-check = cheap verify before a11y-scan).
+5. results-page a11y structure(session example, "wireless mouse" query):
+   - `AXHeading "1 결과 중 16 ~ 30,000 이상 ..." @(1002,246)` — result-count header, useful for "search succeeded" check.
+   - product cards: each has `AXLink`(title, long text) + `AXButton "장바구니에 추가"`(add-to-cart, ~[289x30] size) — buttons found at y=577/869/1138(vertically stacked, one per product-card row).
+   - sponsored-vs-organic: "후원"(sponsored) label precedes some cards — note if filtering sponsored-only results matters for future tasks.
+
+VERIFY:
+- URL contains `/s?k=` = search executed.
+- `AXHeading` w/ "결과" text present = results rendered(not blocked/redirected).
+- NO login-wall/CAPTCHA encountered on search flow(guest-mode fully functional for browse+search).
+
+LIMIT/OPEN:
+- add-to-cart click-through NOT yet tested from search-results page directly(see RECIPE_product_select_and_cart.txt for the click-through-from-detail-page path tested this session).
+- filter-sidebar(brand/rating/price checkboxes) present but NOT interacted with this round — future recipe if needed.

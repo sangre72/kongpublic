@@ -1,0 +1,20 @@
+RECIPE: amazon_category_navigation(amazon.com, guest-mode, macOS Chrome)
+REG: a_2890(2026-08-29)
+WHY: shopping-automation groundwork, drill-down browse pattern(alt to search).
+
+STEPS:
+1. hamburger menu button: `AXButton "모든 카테고리 메뉴 열기" @(48,206)[65x39]` → click opens LEFT SLIDE-OUT panel(dark overlay on rest of page).
+2. top-level menu structure(session example): sections = "디지털 콘텐츠 및 기기"(Prime Video/Music/Kindle/Appstore), "부서별 쇼핑"(Shopping by Department — 전자/컴퓨터/Alexa 스마트 홈/예술 및 공예 + "모두 보기" expand), "프로그램 및 기능", "도움말 및 설정".
+3. ★STRUCTURAL DISTINCTION(important for click-logic): top-level department entries are `AXButton`(expands SUB-menu in-place, same panel) — e.g. `AXButton "전자" @(183,479)[365x42]`. LEAF subcategory entries are `AXLink`(navigates directly to a category-search-results page) — e.g. `AXLink "컴퓨터 및 액세서리" @(183,467)[365x42]`. Don't assume all entries behave the same — check `AXButton` vs `AXLink` type before deciding click-vs-expect-navigation.
+4. sub-menu back-navigation: `AXButton "주 메뉴(으)로 돌아가기" @(183,205)[365x43]`("back to main menu") — appears at top of any expanded sub-panel.
+5. leaf-category click → navigates to `amazon.com/s?i=<category-id>&bbn=<browse-node>&rh=n%3A...&language=ko&ref=nav_em__nav_desktop_sa_intl_<category-path>` — same `/s?` search-results URL pattern as keyword search(RECIPE_product_search.txt), just pre-filtered by category instead of keyword. Left sidebar's search-scope dropdown(top of page) updates to show the category name(session: "컴퓨터" replacing "모두").
+6. empty-result handling: category-only(no keyword) can return "...에 검색 쿼리에 대한 결과가 없습니다"(no results for this query) if the leaf category+empty-search combo is too narrow — this is NORMAL amazon behavior, not a navigation failure. Page still shows recommendation carousels below the empty-message(real fallback content, not broken state).
+
+VERIFY:
+- URL contains `/s?i=` or `/s?...bbn=` = category-navigation succeeded.
+- search-scope dropdown(near search bar) shows category name instead of "모두" = confirms category-filter applied.
+- "결과가 없습니다" message ≠ error — check for recommendation-carousel fallback content to distinguish real-failure from just-empty-narrow-category.
+
+LIMIT/OPEN:
+- only 1 drill-down path tested this round(전자→컴퓨터 및 액세서리, hit empty-leaf). Other department paths not exhaustively explored.
+- "모두 보기"(see-all, expand-full-department-list) link present but not clicked — deeper category tree beyond visible defaults unexplored.
