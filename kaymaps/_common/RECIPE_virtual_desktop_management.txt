@@ -1,0 +1,25 @@
+RECIPE: virtual_desktop_management(macOS Spaces/Mission Control, cross-app, OS-level skill)
+REG: a_2908(2026-08-29)
+PATH-NOTE: placed in kaymaps/_common/(not chrome/_common/) — Space/Mission-Control mgmt is OS-level, not Chrome-specific. Any app(Telegram/Keynote/etc) can hit this same issue.
+
+GATE: WHY — u_2954 noticed Telegram+Chrome on different Spaces, blocking a2907's split-screen recording setup. Dispatched to learn pure-physical-IO(no System Events/osascript) Space-mgmt as prereq skill.
+
+★HEADLINE FINDING(real-tested, a_2908): the click-hold-drag-titlebar-to-Space gesture was NOT actually needed. `open -a "<App>"` alone brings that app's window to the CURRENTLY ACTIVE Space if the app relaunches/refocuses — apps don't stay pinned to a Space when unfocused+relaunched. Confirmed: launched Chrome fresh via `open -a "Google Chrome"` while on desktop-2 → Chrome appeared on desktop-2(same Space as Telegram, which was also brought forward via `open -a "Telegram"`). Both co-visible together with ZERO drag/System-Events involved.
+→ For "get app X next to app Y for split-screen" goal: just `open -a "X"` then `open -a "Y"` in sequence WHILE on the target Space — both will land there. Simplest fix, no Space-manipulation needed at all in most cases.
+
+TESTED MECHANICS:
+
+1. **Mission Control trigger via kongtrol**: `input chord ctrl up --yes` — ⚠UNRELIABLE. Worked once(showed 4-desktop overview), failed silently the 2nd time(no overview opened, input apparently swallowed by frontmost app instead — Chrome consumed it as normal keystroke). kongtrol's chord-injection into a system-level Mission-Control trigger is NOT deterministic — don't rely on it for reliable Space-overview access. If a screenshot after ctrl+up doesn't show the Space-grid, don't assume it worked — verify visually every time.
+
+2. **Dismiss Mission Control**: `input key esc --yes` — ✅WORKS(when MC actually open).
+
+3. **Drag-window-to-Space(click-hold-drag+ctrl-arrow-while-holding)**: NOT TESTED — turned out unnecessary once §HEADLINE FINDING made it moot(open -a already solved the actual goal). kongtrol's `input drag` primitive is a single click-drag-release(SRC→DST coords), NOT designed for a sustained-hold-across-Space-transition gesture — likely infeasible without a genuinely sustained mouse-down held across an async Space-switch animation, but this is INFERENCE not a direct test. Flag as open/unverified if a future task genuinely needs true cross-Space window drag(not just co-location via relaunch).
+
+4. **Dock-icon "show on all desktops"**: NOT TESTED(also made moot by the headline finding) — remains the documented fallback if a future case needs TRUE persistent multi-Space visibility(not just one-time co-location). Path: right-click Dock icon → 옵션(Options) → 모든 데스크탑에서 보기(Show on all desktops).
+
+VERIFY: screenshot after `open -a` sequence — confirm both target app windows visible in the same screenshot(same Space). `pgrep -x "<AppName>"` to confirm process state if unsure whether relaunch vs refocus happened.
+
+LIMIT/OPEN:
+- True drag-to-Space(moving an ALREADY-positioned window to a specific other Space without relaunching) not real-tested — unknown if achievable via kongtrol's instantaneous-click/single-drag primitives.
+- Dock "show on all desktops" option not real-tested this round.
+- ctrl+up Mission Control trigger reliability issue unresolved — root cause unknown(focus-state-dependent? timing-dependent?), just document as flaky, don't build automation depending on it without a visual-verify step after every use.
