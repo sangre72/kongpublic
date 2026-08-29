@@ -10,6 +10,7 @@ STEPS:
 1. nav: `cmd+t` → type "amazon.com" → `return`(same pattern as RECIPE_chrome_common.txt).
 2. search-field a11y: `AXTextField "Amazon 검색" @(918,156)[1244x38]`(coords=session-specific, re-query always).
 3. click search-field → `input text "<query>" --yes` → `input key return --yes`.
+   ★if field may already contain stale text(re-search on same page), clear it FIRST via `chord cmd a`→`text "<new query>"` — but ONLY after confirming the click actually focused the text field(re-query a11y: field's AXValue/selection state, or just verify via screenshot that a text-cursor/highlight appears INSIDE the search box, not the whole page). Sending `cmd+a` without confirmed field-focus selects the ENTIRE PAGE instead(visible as full-page blue-highlight) — real incident this session(caused by clicking-then-chording without a focus-check in between, especially right after a page transition where the click may have landed before the page settled).
 4. results-page URL pattern: `amazon.com/s?k=<query>&crid=<id>&sprefix=<query>...` — confirms search executed(URL-check = cheap verify before a11y-scan).
 5. results-page a11y structure(session example, "wireless mouse" query):
    - `AXHeading "1 결과 중 16 ~ 30,000 이상 ..." @(1002,246)` — result-count header, useful for "search succeeded" check.

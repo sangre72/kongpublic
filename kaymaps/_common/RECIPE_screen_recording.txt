@@ -29,6 +29,13 @@ LIMIT/OPEN:
 - MODE-B(window-only) and MODE-C(region-only) toolbar flows are documented from UI-observation but not run end-to-end this session(all 3 demo recordings used MODE-A full-screen) — first actual use of B/C should re-verify+update this recipe with any surprises.
 - no confirmed keyboard-shortcut-only stop method tested(icon-click was always used).
 
+## COMPRESS-FOR-TELEGRAM aspect-ratio bug (2026-08-30 추가)
+- BUG: `ffmpeg -vf scale=<W>:-2 -c:v libx264 -crf 20` output plays 1:1(square) in Telegram despite `ffprobe` showing correct `width`/`height`(e.g. 2560x1656) — root cause: `sample_aspect_ratio`/`display_aspect_ratio` show `N/A`(missing SAR/DAR container metadata), some players(incl Telegram's) default to square when absent.
+- FIX: add `setsar=1` to the `-vf` filter chain + explicit `-aspect <W>:<H>` flag:
+  `ffmpeg -y -i <src.mov> -vf "scale=2560:-2,setsar=1" -aspect 2560:1656 -c:v libx264 -crf 20 -preset medium -an <out.mp4>`
+  (compute actual `-aspect` value from the REAL output W:H after scale, not assumed — verify via `ffprobe -show_entries stream=width,height` on the output before sending).
+- VERIFY before send: `ffprobe -show_entries stream=width,height,sample_aspect_ratio,display_aspect_ratio` on the compressed output — SAR/DAR must NOT be `N/A`.
+
 ## 병행작업 출력경로 충돌 방지 (2026-08-23 추가)
 - 오케스트레이터와 워커가 같은 작업(예: 영상 편집)을 병행/중복 수행할 가능성이 있을 때, **처음부터 서로 다른 출력 파일명/경로 사용 원칙** 필수.
 - 사고사례: 오케가 만든 완성 파일(jobs/.../timelapse_X.mp4)과 워커가 진행 중이던 ffmpeg 출력이 동일 경로를 써서 덮어쓰기 충돌 → 미완성 파일(moov atom 없음)을 완성본으로 착각하는 오판이 3차례(ar_2081→2083→2084) 반복됨.
