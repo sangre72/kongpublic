@@ -302,3 +302,15 @@ REF(add): a_2882(qualitymode 56f data point), a_2883(turbo+uni_pc risk-checked+c
 ★**DEFAULT RULE going forward**: use `preset_minimax_h3_fast.json` unless the shot involves meaningful motion(gestures/interactions/page-turns/object-manipulation) — then use `preset_minimax_h3_quality.json`. Edit node5.prompt/length + node6.seed per-job, everything else is the confirmed-good preset — don't modify without re-testing.
 
 REF(add): a_2884(preset save+verify, this section).
+
+## ★★★★★★★★★★★★★★★★★UPDATE(2026-08-29, a_2885): motion-risk guidance REFINED(nuanced, not binary) — broad/slow body motion(walk/gesture) SAFE on fast-preset, fast/localized hand-object motion still risky.
+
+★4-clip Albedo test(preset_minimax_h3_fast, 5s/124f each): 2 original-prompt + 2 explicit-motion-cue-refined-prompt, ALL 4 clean(no smearing), INCLUDING a refined walking scene w/ genuine visible dress/hair/wing motion across the full clip.
+
+★**REFINED motion-risk model**(supersedes a_2822's simpler "any motion=risky" framing): EasyCache-smearing risk correlates with motion TYPE/SPEED/LOCALITY, not just "is there motion":
+  - **SLOW/BROAD body motion**(walking gait, garment sway, hair drift, gentle gestures) = appears SAFE on fast-preset(EasyCache-ON) — a_2885's refined-walk test showed real motion, zero artifacts.
+  - **FAST/LOCALIZED hand-object-interaction motion**(page-turning, precise hand manipulation — a_2822's original finding) = STILL RISKY, unconfirmed-safe on fast-preset — that specific finding stands, not overturned.
+★**PRACTICAL RULE**: default to `preset_minimax_h3_fast.json`(EasyCache-ON) even for shots with walking/gesturing/broad-body-motion — only switch to `preset_minimax_h3_quality.json`(EasyCache-OFF) for shots with fast small-object manipulation(hands+props, page-turns, precise gestures involving an item).
+★Prompt-refinement lesson(mirrors a_2873): explicit motion-detail language(gait/sway/shift cues) meaningfully improves ACTUAL rendered motion vs vague prompts(original "walking" prompt barely moved; refined version showed real gait/sway) — always spell out the specific motion expected, don't rely on a single verb.
+
+REF(add): a_2885(4-clip Albedo test, refined motion-risk model, this section).
