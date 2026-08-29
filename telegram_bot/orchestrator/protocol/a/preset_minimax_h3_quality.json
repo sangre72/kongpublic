@@ -102,7 +102,7 @@
     "class_type": "CreateVideo",
     "inputs": {
       "images": [
-        "7",
+        "40",
         0
       ],
       "fps": 24.0
@@ -117,6 +117,17 @@
       ],
       "filename_prefix": "minimax_h3_video_output",
       "format": "mp4"
+    }
+  },
+  "40": {
+    "class_type": "LayerUtility: PurgeVRAM V2",
+    "inputs": {
+      "anything": [
+        "7",
+        0
+      ],
+      "purge_cache": true,
+      "purge_models": false
     }
   }
 }

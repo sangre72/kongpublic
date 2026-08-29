@@ -314,3 +314,16 @@ REF(add): a_2884(preset save+verify, this section).
 ★Prompt-refinement lesson(mirrors a_2873): explicit motion-detail language(gait/sway/shift cues) meaningfully improves ACTUAL rendered motion vs vague prompts(original "walking" prompt barely moved; refined version showed real gait/sway) — always spell out the specific motion expected, don't rely on a single verb.
 
 REF(add): a_2885(4-clip Albedo test, refined motion-risk model, this section).
+
+## ★★★★★★★★★★★★★★★★★★UPDATE(2026-08-29, a_2886): PurgeVRAM V2 wired into both presets — HONEST FINDING: NOT measurably effective for the known 19GB spike(wrong pipeline stage), harmless to keep.
+
+★Installed `ComfyUI_LayerStyle`(github.com/chflame163/ComfyUI_LayerStyle), wired `LayerUtility: PurgeVRAM V2`(purge_cache=true, purge_models=false — false to avoid a_2881's reload-penalty) spliced between node7(VAEDecode) and node30(CreateVideo) in BOTH `preset_minimax_h3_fast.json` and `preset_minimax_h3_quality.json`.
+
+★**CODE-READ CAVEAT**: `PurgeVRAM`'s `clear_memory()` gates its actual cache-clearing(`torch.cuda.empty_cache()`) on `torch.cuda.is_available()` — ALWAYS FALSE on Apple Silicon. `purge_cache=true` only triggers generic `gc.collect()` here, the CUDA-specific effect never fires on MPS.
+
+★**REAL MEMORY MEASUREMENT**(1s-interval RSS sampling, full run, a_2883's known-good scene): peak=15.48GB occurs during MODEL-LOAD(text-encoder/DiT swap), **~3s into execution — LONG BEFORE PurgeVRAM's insertion point**. The VAEDecode→PurgeVRAM→CreateVideo→SaveVideo window itself measured only 1.03-1.72GB throughout(never memory-heavy, matches a_2801's original VAEDecode-only-0.91GB-peak finding).
+★**VERDICT: mitigation-attempted-but-NOT-measurably-effective for the 19GB spike** — the bottleneck is architecturally earlier in the pipeline(model-load, per a_2817's VRAMState.SHARED root-cause) than where a post-VAEDecode purge node can reach. **DON'T re-attempt a purge-after-decode approach for this specific spike** — it's the wrong pipeline stage by design, not a config/parameter tuning issue.
+★PurgeVRAM V2 LEFT WIRED anyway(harmless, zero negative side-effect, `gc.collect()` is free) — may help marginally in longer multi-job sessions for Python-level object accumulation, just not demonstrated for the known spike here.
+★If the 19GB text-encoder-load spike ever needs a real fix: target is still MODEL-LOAD-stage streaming/precision-reduction(a_2817's conclusion), not a purge-node anywhere in the graph.
+
+REF(add): a_2886(PurgeVRAM wired+honest negative-result, this section).
