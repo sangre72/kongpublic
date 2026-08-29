@@ -1,0 +1,34 @@
+RECIPE: chrome_tab_management(Google Chrome, macOS, cross-site/site-agnostic)
+REG: a_2894(2026-08-29)
+GATE: WHY this recipe exists — a_2893 had a real wrong-tab-click incident(clicked a stale/wrong-content tab while trying to switch back to a search-results tab, wasted several steps recovering). Root cause: acted on assumed tab position instead of verifying the target tab's actual title/URL via a11y first. This recipe documents the VERIFY-BEFORE-ACT pattern as the headline fix, plus all tested tab-mechanics.
+
+★★★HEADLINE LESSON(the actual fix for a_2893's incident): before clicking ANY tab(whether by position-guess or by re-finding a "previous" tab), ALWAYS query `AXWindow` title first(`see --a11y --pid $PID --compact | grep AXWindow` — shows the CURRENT ACTIVE tab's page-title+incognito-marker) to confirm you know what's currently frontmost, then locate the TARGET tab via its `AXRadioButton` label(URL/title text) in the `AXTabGroup`, NOT by remembered/assumed screen position(tab positions shift as tabs open/close, remembered coords go stale).
+
+REAL-TESTED MECHANICS(all confirmed via kongtrol+a11y, not assumed from general Chrome knowledge):
+
+1. **Open new tab**: `input chord cmd t --yes` — ✅WORKS. New tab appears as `AXRadioButton "새 탭"` in the tab-strip, confirmed via a11y before/after.
+
+2. **Open new window**:
+   - regular new window: NOT tested this round(not needed for site-automation tasks so far).
+   - incognito window: menu-path ONLY — Chrome menu "파일"(File) → "새 시크릿 창"(New Incognito Window). `cmd+shift+n` chord NOT supported(kongtrol allows only 1 modifier per chord — confirmed BOTH by direct chord-attempt failure AND by kongtrol's own error message listing supported non-modifier keys). Already documented in `kaymaps/chrome/aliexpress/RECIPE_product_search.txt`, cross-referenced here as the general pattern.
+
+3. **Close tab**: `input chord cmd w --yes` — ✅WORKS. Close-button(`AXButton "닫기"`) count in a11y dump decreased by exactly 1 after cmd+w, confirmed real removal not just visual. ★RISK(not tested this round, flag only): cmd+w on the LAST remaining tab may close the whole window — verify tab-count>1 before using cmd+w if window-survival matters.
+
+4. **Switch tabs — by keyboard(numeric jump)**: `input chord cmd 3 --yes`(cmd+N jumps to tab N) — ✅WORKS. Verified via `AXWindow` title change matching the expected 3rd tab's content.
+
+5. **Switch tabs — by keyboard(cycle)**: `input chord ctrl tab --yes`(cycle forward) — ✅WORKS, confirmed via AXWindow title advancing to the next tab in sequence. `ctrl+shift+tab`(cycle backward) — ❌BLOCKED, kongtrol rejects `shift` as a bare chord-key argument in this position(same 1-modifier-limit root cause as cmd+shift+n) — no backward-cycle chord available, use cmd+N(direct jump) or click-by-title instead.
+
+6. **Switch tabs — by click(★the reliable method, use this over keyboard-jump when tab ORDER/POSITION isn't certain)**: query `AXTabGroup`'s child `AXRadioButton` elements — each tab's FULL URL or page-title is the button's label text(e.g. `AXRadioButton "ko.aliexpress.com/w/wholesale-Logitech-MX-Master.html?..." @(242,60)`). Match by title/URL SUBSTRING before clicking(don't click by remembered coordinate — a11y-verified label-match is the ground truth, tab positions shift).
+
+7. **Identify active/frontmost tab**: `see --a11y --pid $PID --compact | grep AXWindow` — the FIRST(topmost) `AXWindow` result's title = the CURRENTLY ACTIVE tab's page-title, plus reveals "(시크릿 모드)" suffix if it's an incognito window(useful for guest-mode-verification tasks per aliexpress recipe's GATE). ★USE THIS BEFORE EVERY TAB-SWITCH DECISION, not just after.
+
+8. **Navigate within a tab(address bar)**: `input chord cmd l --yes` focuses the address bar(confirmed via typing immediately after and screenshot-verifying text landed in the address-bar autocomplete dropdown, not elsewhere on the page) → `input text "<url>" --yes` → `input key return --yes`(or `input key esc --yes` to cancel without navigating, also confirmed working).
+
+VERIFY(general, applies to all above):
+- After ANY tab-open/close/switch action, re-query `AXWindow`(active-tab-title) AND/OR `AXTabGroup`(full tab-strip) — don't assume success from the command alone(kongtrol doesn't throw errors on logical failures like wrong-tab-focus, only reports the physical input was sent).
+- Tab positions in the strip SHIFT as tabs open/close — never hardcode a tab's screen-coordinate across multiple actions, always re-query.
+
+LIMIT/OPEN:
+- Regular(non-incognito) new-window flow not tested(no current use-case needed it).
+- Tab-drag-to-reorder, tab-pinning, tab-groups(Chrome's native grouping feature) not tested — out of scope for current automation needs.
+- `cmd+shift+tab`(alternate backward-cycle binding some Chrome versions support) not tested — likely blocked by the same shift-chord limitation as ctrl+shift+tab, not confirmed.
