@@ -16,5 +16,8 @@ VERIFY:
 - URL contains `/w/wholesale-` = search executed.
 - header shows "환영합니다"/generic greeting(NOT a name) = confirms genuine guest state, re-check this EVERY session(cookies can persist across kongtrol/browser restarts if not truly incognito).
 
+★★CRITICAL(a_2892, real incident): price_asc sort does NOT filter by product-relevance/tier — it sorts ALL keyword-matched results(incl loose/substring/bundle-title matches) by price. A search for "Logitech MX Anywhere" returned genuine MX-Anywhere-line listings MIXED with completely different product lines(e.g. a "G102 시리즈" bundle-listing that just happened to mention "MX Anywhere 3S" as one SKU among many in its own title) — sort-then-blind-pick-#1(cheapest) picked the OFF-TARGET bundle-listing(₩5,417) instead of a genuine MX Anywhere product(cheapest-genuine was actually ₩18,443, several sort-positions lower).
+  ★MANDATORY: after price-sort, DO NOT blind-trust position #1 — read/verify each candidate's actual TITLE(`AXLink`/`AXHeading` text) against the target product-line before selecting. Only pick past candidates whose title genuinely names the target product(not just contains it as a passing-mention/cross-sell substring).
+
 LIMIT/OPEN:
 - category-navigation NOT tested this round(time-constrained, prioritized search+cart-flow per revised task scope).
