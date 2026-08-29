@@ -1,0 +1,18 @@
+RECIPE: amazon_clear_cart(amazon.com, guest-mode, macOS Chrome)
+REG: a_2902(2026-08-29)
+WHY: multi-item guest-cart cleanup(test-items accumulated across sessions, none real-purchase-intent).
+
+STEPS:
+1. from any Amazon page, click "장바구니로 이동"(go to cart)-link — TWO variants exist: a small header-icon-style link(top-right cart-icon area, may go to `/cart/smart-wagon`=recommendation-upsell page, NOT the real full cart) vs a larger CTA-button-style link(may say "장바구니로 이동" too, but check URL after click — the REAL full cart page URL pattern is `amazon.com/-/ko/cart?ref_=sw_gtc`).
+2. real full-cart page shows each distinct line-item w/ its own `AXButton "삭제 <full-product-title>"`(delete, TWO delete-buttons per item exist at slightly different a11y-coords — e.g. `@(501,839)[32x26]` AND `@(617,840)[21x17]` for the SAME item, likely icon+text-label variants of the same control — either works, use the smaller/consistent one for reliable coord-matching across items).
+3. click delete on each item ONE AT A TIME(page re-renders after each removal, coords SHIFT — always re-query a11y before the next click, don't batch-click stale coords).
+4. after removal, an inline undo-style link appears("<품목명> 장바구니에서 제거됨") — this does NOT need clicking, informational only.
+5. VERIFY empty: subtotal heading shows `"소계(0개 품목): KRW 0"` — this is the definitive empty-cart confirmation.
+
+VERIFY:
+- subtotal text contains "0개 품목" AND "KRW 0" = cart genuinely empty(not just visually sparse).
+- a11y query for "삭제" buttons returns ZERO results = no items remain(cross-check).
+
+LIMIT/OPEN:
+- multi-select/bulk-delete NOT tested(if cart has many items, one-at-a-time deletion works but is O(n) clicks — a "전체 삭제"(delete-all) bulk option was not observed on this cart-size, may exist for larger carts, unconfirmed).
+- "나중을 위해 저장"(save-for-later) is a DIFFERENT action from delete(moves item out of active cart but keeps it saved) — don't confuse the two links, they're adjacent on each item's row.
