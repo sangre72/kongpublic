@@ -1,0 +1,25 @@
+RECIPE: window_resize_tile(macOS native window tiling, cross-app, OS-level skill)
+REG: a_2909(2026-08-29)
+PATH-NOTE: _common(not chrome-specific) — this is macOS's Window-menu tiling feature, any app CAN expose it(Chrome does, Telegram doesn't — app-dependent, see LIMIT).
+
+GATE: WHY — a_2907/2908's titlebar-drag-to-tile attempts via kongtrol FAILED(window never moved). u_2956 explicitly asked to learn the REAL method properly, not work around it again.
+
+★HEADLINE FINDING: macOS exposes native 50/50(or finer) window tiling via the app's own **Window menu**(창/Window in menu bar) → **"이동 및 크기 조절"(Move & Resize)** submenu → **이분면(halves): 왼쪽/오른쪽/상단/하단**, **사분면(quarters): 4 corners**, **정렬(paired-tile): 왼쪽과 오른쪽 etc**. This is CLICK-ONLY(no hold/drag needed) — solves the exact problem a_2908's CGEvent-titlebar-drag couldn't.
+
+REAL-TESTED(Chrome, a_2909):
+1. Query menu bar via a11y(NOT visual screenshot-estimate — screenshots are DOWNSCALED for display, visual-coordinate-guessing from them is unreliable/wrong-scale; a11y returns true logical coords):
+   `$KT see --pid $PID --a11y --compact | grep AXMenuBarItem` → find "창"(Window) item, e.g. `@(469,20)`.
+2. Click it: `input click 469 20 --yes`. Re-query a11y for the now-open menu:
+   `$KT see --pid $PID --a11y --compact | grep AXMenuItem` → find "이동 및 크기 조절"(Move & Resize), coords SHIFT run-to-run(menu width varies with content) — always re-query, never hardcode.
+3. Click it → submenu opens INLINE in the SAME a11y dump(no extra click/wait needed to see it) → exposes "왼쪽"(Left)/"오른쪽"(Right)/"상단"/"하단"/quarters/paired-tile items with exact coords.
+4. Click "왼쪽"(Left, e.g. `@(782,188)`) → ✅WORKS, verified via a11y AXWindow frame before/after: window width EXACTLY HALVED(2004→1003px) and repositioned to left edge(x:1002→502, i.e. shifted left by half-width). Real geometry change, not just visual.
+
+VERIFY METHOD(use this, not visual screenshot judgment): `$KT see --pid $PID --a11y | grep AXWindow` before+after — compare `@(x,y) [WxH]` numbers directly. This is ground-truth; screenshots at reduced display-resolution are misleading for precise coordinate work.
+
+★KEY LESSON(costly mistake this task, worth flagging): manually reading pixel coordinates off a Read-tool-rendered screenshot image and clicking those raw numbers is WRONG — the rendered image is scaled down from the true screen resolution(e.g. 4112px real vs ~2000px as displayed), so eyeballed coords land at roughly HALF the intended position. Multiple failed clicks this task(landed on wrong menu, missed items entirely) traced back to this exact error. **Always prefer `see --a11y` coordinates over visual screenshot-reading when precision matters**(menu items, buttons) — screenshots are for big-picture state-verification only, not for coordinate-sourcing.
+
+LIMIT/OPEN:
+- Telegram(and likely other non-Chrome/Electron-native apps) does NOT expose this Window-menu tiling submenu — checked real-tested(a_2909): Telegram's Window menu only has Toggle-Full-Screen/Contacts/New-Group, no Move&Resize item. This tiling method is APP-DEPENDENT(app must opt into macOS's newer window-menu API), not universal.
+- For apps WITHOUT this menu(Telegram case): no equivalent pure-IO method found yet. Traffic-light/zoom-button clicks aren't exposed via a11y(window chrome, not app content) — would need real screen-pixel-coordinate clicking on the actual button(risky/imprecise) or accept natural window position without forced tiling.
+- True macOS fullscreen(green-button HELD, or Window-menu "Toggle Full Screen") is a DIFFERENT state from maximized/zoomed windowed — confirmed real distinction this task(menu-bar hidden vs visible). Exiting true fullscreen needs a HELD Escape key(banner explicitly states "hold esc") — kongtrol's `input key esc` is a single tap, even `--repeat 5` taps did NOT exit fullscreen. If accidentally in fullscreen, use Window-menu(hover mouse to very top of screen reveals hidden menu bar even in fullscreen) → click fullscreen-toggle menu item instead of relying on Escape.
+- 2-modifier chords(e.g. real macOS fullscreen shortcut ctrl+cmd+f) are UNREACHABLE via kongtrol chord(1-modifier-only limit, same root cause documented elsewhere) — use the equivalent menu-item click instead.

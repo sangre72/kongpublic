@@ -23,3 +23,5 @@ LIMIT/OPEN:
 - True drag-to-Space(moving an ALREADY-positioned window to a specific other Space without relaunching) not real-tested — unknown if achievable via kongtrol's instantaneous-click/single-drag primitives.
 - Dock "show on all desktops" option not real-tested this round.
 - ctrl+up Mission Control trigger reliability issue unresolved — root cause unknown(focus-state-dependent? timing-dependent?), just document as flaky, don't build automation depending on it without a visual-verify step after every use.
+
+★UPDATE(a_2909, 2026-08-29): WINDOW RESIZE/TILE — real working method found, see RECIPE_window_resize_tile.txt(same dir). Cross-ref: `open -a` for Space co-location(this file) + native Window-menu tiling(new file) together solve the full split-screen-recording setup without any drag/hold/System-Events.
