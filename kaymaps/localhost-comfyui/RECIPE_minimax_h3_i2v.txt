@@ -291,3 +291,14 @@ REF(add): a_2881(full-job warm/cold timing distinction, this section).
 ★★MOTION-CAVEAT(NOT re-tested, flag before trusting blindly on motion-heavy shots): a_2883's test scene was STATIC/LOW-MOTION(girl sitting still) — does NOT re-validate a_2822's EasyCache-vs-motion finding(hand/page smearing during ACTIVE motion, e.g. page-turns) with uni_pc specifically. a_2822's EasyCache-motion-damage issue is orthogonal to sampler choice — if turbo-mode(EasyCache-ON) is wanted for a MOTION-HEAVY shot with uni_pc, test that specific combo before trusting it; for motion-heavy shots, the existing a_2822 fix(disable EasyCache entirely) remains the safe default regardless of sampler.
 
 REF(add): a_2882(qualitymode 56f data point), a_2883(turbo+uni_pc risk-checked+clean, 3-way table, this section).
+
+## ★★★★★★★★★★★★★★★★UPDATE(2026-08-29, a_2884): SAVED as named presets — 2 ready-to-use workflow JSONs, sanity-verified. FAST = ★DEFAULT for regular jobs going forward.
+
+★2 preset files saved(pure ComfyUI API-graph JSON, POST directly to `/prompt`), both real-submitted+confirmed-success(zero node_errors) this REF:
+  - **`telegram_bot/orchestrator/protocol/a/preset_minimax_h3_fast.json`**(★DEFAULT) — turbo-lora+EasyCache-ON+4-step+uni_pc+simple. 147.86s/56f(a_2883), 44% faster than old turbo-baseline, quality-clean on static/low-motion.
+  - **`telegram_bot/orchestrator/protocol/a/preset_minimax_h3_quality.json`** — EasyCache-OFF+8-step+uni_pc+simple. 321-471s depending on frame-count/warm-cold(a_2879/2881/2882), safe for motion-heavy/complex scenes(no EasyCache-smearing risk, node23 fully removed from graph).
+  - Sidecar doc: **`telegram_bot/orchestrator/protocol/a/preset_minimax_h3_README.txt`**(usage+caveats+decision-rule, kept OUTSIDE the JSON graphs themselves — a `_preset_meta` key embedded IN the JSON was tried first and broke ComfyUI's `/prompt` API validation("missing_node_type", every top-level key is treated as a graph node) — moved metadata to a separate file instead).
+
+★**DEFAULT RULE going forward**: use `preset_minimax_h3_fast.json` unless the shot involves meaningful motion(gestures/interactions/page-turns/object-manipulation) — then use `preset_minimax_h3_quality.json`. Edit node5.prompt/length + node6.seed per-job, everything else is the confirmed-good preset — don't modify without re-testing.
+
+REF(add): a_2884(preset save+verify, this section).
