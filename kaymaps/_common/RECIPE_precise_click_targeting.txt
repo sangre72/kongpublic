@@ -1,0 +1,45 @@
+RECIPE: precise_click_targeting(macOS, ALL apps/UI-elements, kongtrol)
+REG: 2026-08-30(root-caused via Force Quit dialog close-button, 4+ missed clicks, 6-10s cost each)
+WHY: chronic click-miss pattern across many tasks this session(Force Quit dialog, Amazon buttons, CineBot UI, various) — root cause identified: manual screenshot-pixel-measurement + guessed scale-factor conversion(2.06x, 1.19x, retina-2x, etc — all WRONG, inconsistently applied) instead of using real a11y-reported coordinates directly. This recipe codifies the CORRECT method as MANDATORY DEFAULT for every future click.
+
+★★★MANDATORY RULE(default for ALL clicks, not just this dialog):
+
+1. **ALWAYS query real element position via `see --a11y` immediately before clicking** — never estimate coords from a screenshot by eye, never reuse a coord from a prior turn/task(UI state shifts constantly — scroll, resize, reflow, relaunch all invalidate old coords). If the target app isn't frontmost/auto-detectable, use `--pid <PID>`(get via `pgrep -x <ProcessName>`).
+
+2. **a11y logical coordinates map 1:1 to kongtrol click coordinates at scale=1.0 — NEVER apply manual pixel/DPI/retina conversion math.** kongtrol's own click command takes coords directly in the SAME space `see --a11y` reports(confirmed via kongtrol's own log line `물리(X,Y)→논리(X,Y)` — physical and logical are equal, no scale applied internally for standard clicks). Any manual "screenshot is Nx displayed size, multiply by scale factor" calculation is WRONG for driving clicks — that math is ONLY relevant when reading pixel positions FROM a screenshot image for visual inspection, never for computing where to click.
+
+3. **If `see --a11y --compact` returns no match for a target element, DO NOT immediately fall back to screenshot-pixel-hunting.** Try `see --a11y`(full/non-compact) first — compact mode filters out elements with empty/no labels(e.g. window-chrome traffic-light buttons, icon-only buttons), which can wrongly look like "this element has no a11y coverage" when it actually does. Real incident(2026-08-30): Force Quit dialog's 3 traffic-light buttons were invisible in compact mode(unlabeled `AXButton`) but fully present+coordinate-exact in full mode — 4+ failed pixel-math attempts before discovering this.
+
+4. **If a click misses(verify via explicit before/after state-check — screenshot diff, a11y re-query, or process/window-state check), do NOT nudge coordinates by a guessed pixel offset and retry.** Re-query `see --a11y` FRESH instead — the UI may have shifted(scroll, reflow, focus-change, animation) since the last query, and a offset-guess compounds error rather than fixing it. Nudge-and-retry was the actual failure pattern behind the repeated Force Quit misses(each attempt "corrected" the previous coord with a different invented scale factor, never actually re-grounding in real a11y data).
+
+5. **Verification discipline**: after every click intended to change state(select, open, close, toggle), confirm the state ACTUALLY changed via an independent check(a11y re-query showing the element/dialog gone, process-list check via `pgrep`, visible content change in a fresh screenshot) — do not assume success from the click command completing without error(kongtrol does not throw on a logically-failed click, cf kongtrol-base-reference.md's "no exceptions thrown" section).
+
+EXAMPLE(real, from the incident this rule originated from):
+```
+# WRONG(what was done, repeatedly, causing 4+ misses):
+# 1. screenshot, eyeball pixel position in the rendered/displayed image
+# 2. multiply by some guessed scale factor(2.06x? 1.19x? retina-2x?)
+# 3. click the computed coord
+# 4. if missed, adjust the scale factor guess and retry
+
+# RIGHT(what actually worked, first try):
+LWPID=$(pgrep -x loginwindow | head -1)
+$KT see --a11y --pid $LWPID              # FULL mode, not --compact
+# → AXButton @(534,777) [16x16] · (unlabeled, but real+exact)
+$KT input click 534 777 --yes            # coord used AS-IS, no conversion
+# → verify: re-query a11y, confirm dialog element gone
+```
+
+WHY THIS WORKS: kongtrol's `see --a11y` and `input click` were designed as a matched pair — the coordinate system is internally consistent between them by construction. The failure mode was never a genuine scale mismatch; it was substituting a DIFFERENT coordinate source(human-eyeballed screenshot pixels) that was never meant to feed directly into `input click`.
+
+COST OF VIOLATION: each pixel-math-guess-based click-miss cost ~6-10s(screenshot+analysis+click+verify+realize-it-missed) this session, repeated 4+ times on a single dialog alone before this rule was identified — multiplied across a full session's worth of UI tasks, this is a significant, avoidable time cost.
+
+APPLIES TO: every kongtrol `input click`/`input move`/`input drag` across every app and task in this project — Chrome, CineBot, Amazon, system dialogs, ComfyUI, all of it. Not scoped to any single app or dialog type.
+
+VERIFY(that this rule is being followed):
+- Before any click, the immediately-preceding tool call should be a `see --a11y`(or a re-query if UI state may have changed since the last one) — not a screenshot-only inspection followed directly by a click.
+- Click coordinates in commands should trace back to a specific `AXButton`/`AXLink`/etc coordinate from that a11y query, not an arithmetic expression involving a scale factor.
+
+LIMIT/OPEN:
+- `see --a11y` compact-vs-full mode tradeoff(full mode = more complete but more elements/tokens) — for UI with genuinely many elements, compact-first-then-full-fallback(per rule 3) is the balanced approach, not always-full.
+- Drag operations(`input drag`) start/end points — same 1:1 a11y-coord rule applies, not separately tested this incident but no reason to expect different behavior(same underlying coordinate system).
