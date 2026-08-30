@@ -1,0 +1,40 @@
+RECIPE: force_quit_applications_dialog(macOS system dialog, loginwindow-owned)
+REG: 2026-08-30(real live test, user-commanded, Telegram target)
+WHY: prior belief("system dialogs can't be CGEvent-clicked", cf system-dialog-cgevent-click-limitation memory) was WRONG — proven false via real successful click-through this session. Documenting correct method.
+
+★KEY FINDING: this dialog IS a real macOS window, owned by `loginwindow` process(not a standalone app) — `pgrep -x loginwindow` finds its PID(e.g. 426). ALL prior "can't access" errors were caused by missing `--pid`, NOT a genuine block:
+- `osascript ... System Events` → "권한 부족"(permission denied) — this IS a real System Events restriction(separate from kongtrol), don't rely on osascript for this dialog.
+- `kongtrol see --a11y`(no --pid) → "최전면 앱 자동조회 실패"(frontmost-app auto-detect failed) — NOT a genuine a11y block, just kongtrol's default frontmost-detection doesn't work for loginwindow. Fix: `see --a11y --pid <loginwindow-PID>` works fully.
+
+★★★DEFAULT ACTION vs EXPLICIT-OVERRIDE(critical distinction, must not confuse):
+- **DEFAULT**(when a red/not-responding app shows up in this dialog, no explicit force-quit command from user): select the app row → click **"재개"(Reopen/Resume)** button to attempt RECOVERY, NOT force-quit. This is the safe, non-destructive default — gives the app a chance to recover instead of killing it.
+- **EXPLICIT-OVERRIDE**(ONLY when user explicitly commands force-quit THAT app IN THE MOMENT, e.g. "강제종료 버튼 눌러"/"force quit Telegram now"): select the app row → click **"강제 종료"(Force Quit)** button → handle the 2nd confirm sub-dialog(step 6-7 below). This is the destructive path, gated behind live explicit instruction only(cf STANDING RULE below) — never the default response to seeing this dialog.
+- If unsure which the user wants, ASK before clicking either button — don't assume force-quit is wanted just because the dialog is open.
+
+STEPS:
+1. Trigger dialog: cmd+alt+esc is 2-modifier(unsupported by kongtrol chord) — this session the dialog was ALREADY open when reached(user/other-process triggered it), worker did not open it itself. If dialog needs opening and no 2-mod chord path exists, treat as a real open blocker(don't force via osascript).
+2. Get loginwindow PID: `pgrep -x loginwindow` → e.g. 426.
+3. Query real elements: `kongtrol see --a11y --compact --pid <PID>` → returns full app-list + button coords:
+   - `AXStaticText "<AppName>"` per listed app(memory-size shown alongside).
+   - `AXButton "강제 종료"`(Force Quit) — coords vary by dialog content-height, re-query each time.
+   - `AXButton "재개"`(Resume/Reopen) — DEFAULT action, use this unless explicit force-quit instruction given(see distinction above).
+4. Select target app: click app-list row(coords from step 3's AXStaticText). Verify selection via BEFORE/AFTER a11y re-query or screenshot(row highlight/button-enable-state changes from disabled→enabled once a real selection registers).
+5. Branch per the DEFAULT vs EXPLICIT-OVERRIDE distinction above:
+   - DEFAULT: click "재개"(Reopen) — done, no further steps, no destructive action taken.
+   - EXPLICIT-OVERRIDE ONLY(user commanded force-quit live): click "강제 종료"(Force Quit) button(coords from a11y, not guessed/pixel-measured — a11y coords are exact, no offset-correction needed once --pid is used correctly), then continue to step 6.
+6. (force-quit path only) A SECOND confirmation sub-dialog appears("'<App>'을(를) 강제로 종료하시겠습니까?") — this is a SEPARATE dialog, re-query a11y AGAIN(same --pid loginwindow approach) for its own "강제 종료"/"취소" button coords, don't reuse step-5's coords(different dialog, different position).
+7. (force-quit path only) Click confirm-dialog's "강제 종료" button.
+
+★Window-title-bar traffic-light buttons(red/yellow/green close-minimize-zoom, top-left of the dialog frame itself, NOT the app-list content) are NOT exposed in this a11y dump(only in-content elements are) — if closing the WHOLE dialog(not force-quitting an app) is needed, locate the red close-button via screenshot+pixel-crop measurement(same method as a mis-click incident this session: a screenshot-crop of the exact title-bar region, measure button-center offset from crop origin, convert to absolute coords) — do NOT guess coordinates from a full-screen screenshot directly(caused a real mis-click onto an unrelated Terminal window's own traffic-light this session, confirm target window bounds first via a tight crop before clicking).
+
+VERIFY(real, not assumed):
+- `pgrep -x "<AppName>"` → empty result = process genuinely terminated.
+- Re-query Force Quit dialog's a11y app-list(--pid loginwindow) → target app's AXStaticText entry GONE = independently confirms termination(2 separate verification methods this session, both agreed).
+
+★CORRECTED STANDING RULE(supersedes old "system dialogs cannot be automated via CGEvent" memory — that was WRONG, disproven live):
+System dialog interaction(force-quit, and by extension similar loginwindow/SystemUIServer-owned alerts) IS technically possible via kongtrol — both click-injection AND a11y-read work fine once `--pid <owning-process>` is used correctly. The old belief conflated "my first few attempts failed"(pixel-coord guessing without --pid, genuinely wrong coords) with "this is architecturally blocked"(false conclusion).
+★BUT: this capability must be gated behavior, not technical — a11y+click access to system-level dialogs(force-quit, shutdown/restart, permission prompts) is REAL POWER that could cause real harm(killing wrong process, confirming a destructive system action) if misused. STANDING RULE: only execute system-dialog interaction(click/confirm buttons) when the user EXPLICITLY commands it in-the-moment for that specific dialog/action — never autonomously, never as a side-effect of another task, never "helpfully" auto-dismissing a system alert without being told to. Read-only a11y inspection(see what's in the dialog) is lower-risk and may be done more freely for diagnostic/reporting purposes, but ACTING on it(clicking any button) requires the explicit live command.
+
+LIMIT/OPEN:
+- Opening the dialog(cmd+alt+esc, 2-modifier) still genuinely unreachable via kongtrol chord — only tested the click-through path on an ALREADY-open dialog this session.
+- Other loginwindow/SystemUIServer dialogs(shutdown/restart confirm, permission prompts) not tested — same --pid-based method LIKELY applies(same owning-process pattern) but unconfirmed, verify fresh before assuming.
