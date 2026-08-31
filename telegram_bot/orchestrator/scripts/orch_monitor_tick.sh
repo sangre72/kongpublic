@@ -41,7 +41,7 @@ for f in "$UD"/u_*.txt; do
     #   여기서는 놓친 경우의 재방출(fallback)만, 중복 wake-self 호출 없음.
     if [ $((tick % 6)) -eq 0 ]; then
       echo "NEW_USER_MSG $b"
-      bash "$SCRIPT_DIR/orch_wake_self.sh" "새 텔레그램 요청 재알림(미처리): $b" >/dev/null 2>&1 &
+      bash "$SCRIPT_DIR/orch_wake_self.sh" "re-notify unprocessed u_: $b" >/dev/null 2>&1 &
     fi
     continue
   fi
