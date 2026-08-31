@@ -65,7 +65,7 @@ def _wake_orch_self(seq: int) -> None:
     if not _ORCH_WAKE_SELF_SCRIPT.exists():
         return
     subprocess.run(
-        ["bash", str(_ORCH_WAKE_SELF_SCRIPT), f"새 텔레그램 요청 로컬 수신됨(u_{seq:02d}). 확인하세요."],
+        ["bash", str(_ORCH_WAKE_SELF_SCRIPT), f"new u_{seq:02d} received, check now."],
         capture_output=True,
         timeout=5,
         check=False,
