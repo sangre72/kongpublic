@@ -1,0 +1,46 @@
+RECIPE: worker_session_recovery (Claude Code worker session — stuck/context-limit/model-switch handling)
+GATE: verified(2026-08-31, real incident+fix, screenshot-confirmed each step)
+REG: any worker_1(kongewalker) session, applies to orch↔worker wake-injection mechanism generally
+
+WHY: worker session hit 100% context, a background fork got stuck("Context limit reached · /compact or /clear to continue")
+blocking further progress silently — orch only discovered it via a live screenshot, not via ar_ text alone.
+Also discovered the SAME wake-injection mechanism(orch_wake_worker.sh, Terminal.app "do script") can send
+slash-commands(/model, /clear) directly into the worker's terminal, not just plain messages.
+
+STEPS(diagnosis):
+1. If worker appears stalled(no ar_ progress, pending list not shrinking) for an unusually long time relative to
+   the task's expected duration — take a real screenshot(`screencapture -x`) and Read it, don't just infer from
+   ar_/status text. Terminal UI states(compacting/stuck-fork/context-limit) are often NOT reflected in worker_1's
+   own text output until it's unblocked.
+2. Look for these visual signals: "Compacting conversation... N%", "X% until auto-compact", "Context limit reached
+   · /compact or /clear to continue"(this last one on a background fork specifically blocks that fork, not
+   necessarily the main session).
+
+STEPS(recovery via wake-injection):
+3. Model switch(mid-session, no restart): `bash orch_wake_worker.sh "/model haiku"` — this IS a real, working slash-
+   command injection(verified: successfully switched live session to Haiku 4.5). CAVEAT: orch_wake_worker.sh must
+   skip its auto-appended K7-tag suffix for slash-commands(starts with '/') — the tag corrupts the command argument
+   otherwise("Model 'haiku [K7...]' not found"). Fixed in orch_wake_worker.sh(2026-08-31 u_3159).
+4. Stuck-context recovery: `bash orch_wake_worker.sh "/clear"` — resets the session to a fresh Claude Code welcome
+   screen. VERIFIED WORKING(screenshot-confirmed) for unblocking a context-limit-stuck state.
+   ★SIDE-EFFECT(important): /clear wipes ALL accumulated conversation context, including the worker's role
+   definition(worker_1.txt) and any in-progress task memory. It also RESETS the model back to session default
+   (observed: reverted from Haiku back to "Sonnet 5 with low effort" after /clear).
+5. Immediately after /clear, wake again with explicit re-onboarding instructions: tell the worker to re-read
+   worker_1.txt for its role, then check logs/worker1_status.txt for pending a_ items to resume. Don't assume it
+   remembers anything from before the clear.
+
+LIMIT/OPEN:
+- A background fork stuck at its own context limit is a SEPARATE state from the main session's context — /clear
+  on the main session did not explicitly confirm whether it also unstuck the specific fork(job's own sub-context).
+  If a fork remains stuck after main-session /clear, may need to investigate fork-specific recovery(future work).
+- No evidence yet on whether /model survives across /clear if done in the opposite order(clear then switch) —
+  observed only clear-after-switch(reverts to default), not tested clear-then-model.
+- ★user insight(u_3166, 2026-08-31): switching FROM a large model TO a smaller model(e.g. Sonnet→Haiku) mid-session
+  likely ALWAYS triggers compact-failure — the smaller model's context ceiling is lower than the already-
+  accumulated conversation, so the very act of switching can push it over its own limit immediately. PATTERN:
+  expect /clear to be needed as a near-certain follow-up whenever downgrading model mid-session, not just an
+  occasional fallback. Prefer switching to a smaller model EARLY(fresh/near-empty session) rather than mid-task.
+
+REF: u_3158~3165(2026-08-31), a_2978/2979/2980 chain, screenshots /tmp/model_switch_check*.png, /tmp/after_clear.png,
+/tmp/check_compact_state.png(session-local, not preserved — re-verify pattern if reproducing behavior later).
