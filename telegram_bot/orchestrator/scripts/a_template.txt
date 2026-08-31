@@ -1,0 +1,6 @@
+[CHAT_ID] 8638561503
+[REF] <N>
+[TASK] <one-line-title>
+
+@A K7: <instruction-body-here>
+REPORT: ar_<N> K7-only. wake immediate via worker1_wake_orch.sh on completion.
