@@ -1,0 +1,6 @@
+[REF] <N>
+@AR <N> STATUS=<done|blocked|in-progress|needs-info>
+R: <result, 1-3 lines>
+V: <verify evidence: file:line, real numbers, ffprobe/curl output, screenshot path — not "looks fine">
+F: <files touched, or none>
+N: <pending/follow-up, or none>

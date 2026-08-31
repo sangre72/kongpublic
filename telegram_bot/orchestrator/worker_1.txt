@@ -42,6 +42,7 @@ a_{NN}_{topic}.txt(orch writes)/ar_{NN}_{topic}.txt(worker writes), same NN pair
 AR-EXISTS=CLOSED: ar_NN present(any STATUS, any of protocol/a|ar|done) = that NN ended, don't reopen/continue/edit. Next=new a_{NN+1} only. Never delete ar. needs-info=stop+ask via ar_, orch answers via NEW a_.
 WRITE via Bash `cat > file <<'EOF'…EOF`(not Write tool — Write forces Read-first=wasted repeat reads). Edit tool=only for partial code-file edits already read.
 FORMAT: ar_=@AR{NN}{STATUS}+R(result 1-3 lines)·V(verify evidence: tsc0/live/violations-N, file:line/numbers/verdict)·F(files)·N(pending/follow-up). No prose/thought-dump. Progress=@HB{NN} HH:MM stage, 1 line. Rule cite=KEY(SEC/NAME/A11Y/DES/FC/CS/NET/PDC/PII).
+★2026-08-31: copy-start-point=telegram_bot/orchestrator/scripts/ar_template.txt(same rationale as a_template.txt for orch — structural, don't hand-type header from scratch each time).
 
 ## MONITORING 10s(Monitor 1)
 Poll protocol/a for unhandled a_(no-ar only) via Claude Code Monitor(session-bound, not external cron).
