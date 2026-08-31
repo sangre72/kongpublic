@@ -20,6 +20,8 @@ $ open -a "Google Chrome"
 $ kongtrol input chord cmd r --yes
 (5~6초 대기 — 페이지 새로고침 완료)
 
+★★2026-08-30 ar_2930 실사고: 새 탭에서 주소창에 "studio.youtube.com" 타이핑 후 바로 Enter 누르면, Chrome inline-autocomplete가 브라우저 히스토리의 캐시된 "/upload?..." 딥링크를 이어붙여 그대로 수락되는 경우 있음 → 매번 깨진/에러("오류가 발생했습니다") 페이지로 착지(a_2927/2928/2929 3회 연속 동일 실패 원인). FIX: 타이핑 후 바로 Enter 금지 — 드롭다운 제안목록에서 순수 "studio.youtube.com"(경로/쿼리 없음) 항목을 명시적으로 클릭하거나, Enter 전 주소창 인라인제안 텍스트를 확인해 의도한 URL과 정확히 일치하는지 확인 후 Enter.
+
 **[2] 만들기 메뉴 진입**
 $ kongtrol input click 1884 158 --yes
 (1초 — 드롭다운 메뉴 열림)

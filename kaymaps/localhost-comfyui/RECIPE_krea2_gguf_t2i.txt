@@ -63,3 +63,39 @@ guidance-distilled-models(Krea2-Turbo incl)skip-unconditional-pass-at-cfg≈1.0 
 8-step=official-doc-min(4-step=below-spec): HF-model-card rec-min=8step(4-step=community-LoRA-compensated territory, i.e. raw-4-step=known-degraded-by-design). real-world: 4-step(v1/v3) shows near-zero visual-degradation in practice→keep using 4-step. ★BUT text-hallucination-class-issues=step-count-INDEPENDENT(8-step repro'd identically)→step-bump does NOT fix this, prompt-rewrite=ONLY fix.
 
 REF(add): a_2505~2525(speed+quality bench), ar_2518(consolidated-report), ar_2524(genre-word-trigger root-cause+fix).
+
+---
+
+## ★UPDATE(2026-08-30, fp8→bf16 CLIP encoder fix, a_2935~2938)
+
+★★★CRITICAL BUG(structural, not transient): CLIP text-encoder file `qwen3vl_4b_fp8_scaled.safetensors`
+(fp8-quantized) CRASHES on MPS during CLIP encode with:
+  `RuntimeError: Undefined type Float8_e4m3fn`
+  (comfy_kitchen backend's `dequantize_per_tensor_fp8` fails to dequant fp8 tensors on Apple MPS device)
+- REPRO: 4/4 consistent(ar_2934,ar_2935,ar_2936-post-clean-restart,ar_2937-user-triggered) — server
+  RESTART does NOT fix this(confirmed: killed+respawned ComfyUI fresh, MPS re-verified via
+  /system_stats, error recurred identically). This is a hardware/library incompatibility, not a
+  transient server-state issue.
+- ★FIX: swap `_KREA2_CLIP` constant in `youtube-top/python-server/services/comfyui_flux.py`
+  from `qwen3vl_4b_fp8_scaled.safetensors` → `qwen3vl_4b_bf16.safetensors`(bf16 precision,
+  same Comfy-Org/Qwen3-VL HF repo, `text_encoders/qwen3vl_4b_bf16.safetensors`, 8.9GB vs fp8's 5.2GB).
+  VERIFIED WORKING: ar_2938 confirmed 7/12+ scenes generated cleanly post-swap, ZERO fp8 errors
+  recurred(uvicorn --reload auto-picked-up the code change, no manual server restart needed for
+  the fix itself — only needed for testing whether restart alone would fix the OLD bug, which it didn't).
+- Also confirms wan_2.1_vae.safetensors(this recipe's own §STEPS-2 VAE, NOT the qwen_image_vae.safetensors
+  originally documented above) is the VAE actually in live use by CineBot's Krea2 pipeline as of 2026-08 —
+  recipe's original VAE line is stale/superseded, CineBot's real integration diverged from this recipe's
+  2026-08-26 baseline(uses standard core CLIPLoader+wan-VAE, not the GGUF-fork's own VAE choice).
+
+★SPEED-TUNING(2026-08-30, same session): CineBot's `upscale_from_half` path generates at HALF the
+target resolution then RealESRGAN_x2-upscales+lanczos-resizes to final(768x1360 target →
+was 384x680 gen-res). Measured ~38-40s/image in this environment(slower than this recipe's own
+432x768/4-step=26s benchmark — same ballpark, some gap unexplained, possibly cold-load/context-
+switch overhead in CineBot's longer-running server vs this recipe's isolated bench runs).
+TUNING APPLIED: changed the half-divisor from `/2` to `/2.4`(768x1360 → 320x568 gen-res) in
+comfyui_flux.py's `_build_krea2_workflow()` — smaller diffusion-resolution, same final output size
+via upscale+resize. Not yet re-benchmarked end-to-end post-tune(session paused mid-verification) —
+NEXT SESSION: confirm actual speed gain + visual quality unaffected before treating /2.4 as adopted-default
+(if quality degrades, revert to /2).
+
+REF(add): a_2934~2939(fp8-bug discovery+bf16 fix+speed-tuning attempt, 2026-09-01 batch).

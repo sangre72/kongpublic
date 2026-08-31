@@ -14,6 +14,12 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 TTY_FILE="$REPO_ROOT/logs/.orch_tty_worker1"
 
 BASE_MSG="${1:-check new a_ dispatch.}"
+# ★2026-08-31 u_3128 하드가드: 워커행 메시지=예외없이 압축영문+기호. 한글(가-힣) 섞이면 즉시 실패
+#   (오케 자신이 실수로 한글 넣는 걸 원천차단 — u_3127 사고: K7리마인더 태그만 붙이고 본문은 한글이었음).
+if echo "$BASE_MSG" | LC_ALL=en_US.UTF-8 grep -qE '[가-힣]'; then
+  echo "FAIL: BASE_MSG contains Korean(가-힣) — K7 violation, message NOT sent. msg=$BASE_MSG" >&2
+  exit 1
+fi
 # ★K7 리마인더 자동첨부(u_2802): 워커 깨울 때마다 압축영문+기호(K7 COMPRESSED-COMMS) 준수를
 #   같이 상기시킴 — 반복 위반(K7 위반 재발) 방지, och.txt 1G/embed-feedback-reminder 패턴과 동일 취지.
 MSG="${BASE_MSG} [K7·EN-think·min-out]"

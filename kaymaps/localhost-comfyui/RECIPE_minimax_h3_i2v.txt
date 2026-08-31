@@ -338,3 +338,45 @@ REF(add): a_2886(PurgeVRAM wired+honest negative-result, this section).
 ★If higher-resolution output is genuinely needed later: the only viable paths are(a) post-hoc AI upscaling of a 384x672 generation(separate tool, not MiniMax H3 itself), or (b) a fundamentally different memory-management approach(streaming/tiled generation if MiniMax H3 ever supports it) — not attempted, flagged as future-scope only if this becomes a real requirement.
 
 REF(add): a_2887(hires attempt+swap-thrashing diagnosis), a_2888(interrupt+restart+conclusive finding, this section).
+
+---
+
+## ★★★CRITICAL(2026-08-31, a_2946~2948): 100%-BLACK-FRAME BUG — fp16 VAE on MPS. FIX=--fp32-vae.
+
+★SYMPTOM: MiniMax H3 generation completes with NO node_errors, ffprobe-valid output(correct dims/duration), but every single frame is pure black(RGB 0,0,0). Fully silent failure — no traceback, no warning in server log. Reproduced 6 consecutive times across image-anchored, text-only, EasyCache-on/off, and clean-restart variants(2026-08-31 a_2941/2943x2/2944/2945/2946) — none of those were the actual cause.
+
+★ROOT CAUSE(confirmed via WebSearch + direct fix verification): ComfyUI's own `--help` text warns `--fp16-vae: Run the VAE in fp16, might cause black images` — this is a KNOWN ComfyUI/MPS issue(fp16 VAE decode is numerically unstable on Apple MPS backend, produces degenerate/black output). Server had been started with `--force-fp16`(which forces VAE to fp16 too, not just the diffusion model) — this recipe's own earlier §speed-tuning sections(a_2887/2888 above) used `--force-fp16` as the standard launch flag, which is what silently broke MiniMax's VAEDecode stage.
+
+★FIX(verified working, 2026-08-31 a_2948): launch ComfyUI with `--fp32-vae` INSTEAD of `--force-fp16`:
+```
+venv/bin/python3 main.py --port 8000 --listen 0.0.0.0 \
+  --input-directory ~/Documents/ComfyUI/input \
+  --output-directory ~/Documents/ComfyUI/output \
+  --fp32-vae
+```
+Confirmed via direct test: identical short-22f I2V test that produced 100%-black output under `--force-fp16` produced a correct, visually-verified character image(grey rat-wizard, matching established design) under `--fp32-vae`, no other change.
+
+★DIAGNOSTIC METHOD that isolated this(reusable pattern for future silent-black-output bugs):
+1. Sanity-check unrelated pipeline(e.g. Krea2 T2I) — confirms VAEDecode/SaveImage aren't broadly/systemically broken.
+2. Isolate the suspect pipeline's OWN VAEDecode by routing it to SaveImage directly(bypass CreateVideo/SaveVideo) — determines if the bug is pre-video-encode(diffusion/VAE) or in the video-muxing stage.
+3. Once narrowed to VAE/diffusion stage: check server launch flags for any fp16-forcing options BEFORE suspecting model-file corruption or deeper hypotheses — this is a cheap, high-yield check that should come earlier in the diagnostic order next time(this session checked memory/swap, EasyCache, and image-anchor-wiring first, all dead ends, before finally trying the launch-flag angle).
+
+★DO NOT use `--force-fp16` when generating with MiniMax H3(or any GGUF-quantized-VAE pipeline on this Mac) going forward — use `--fp32-vae` as the standing default launch flag for this recipe.
+
+REF(add): a_2941~2948(2026-08-31, 6-strike black-frame bug hunt, fp32-vae root-cause+fix).
+
+---
+
+## ★UPDATE(2026-08-31, a_2949~2959): 12-scene batch pipeline — operational lessons
+
+Ran fp32-vae-fixed pipeline for a full 12-scene(2026-09-01 fortune batch) MiniMax H3 animated-intro run, all 12 succeeded(zero black-frames post-fix). Operational lessons for future multi-scene batches:
+
+1. **JSON submission**: ALWAYS build the `/prompt` POST payload via `json.dumps()` in python(or equivalent structured serializer), NEVER hand-construct via heredoc/string-concat — a hand-built JSON string caused a `JSONDecodeError` on scene_02's submission this run(character-prompt text containing quotes/special-chars broke naive string embedding). This is a one-line fix but easy to forget when iterating fast.
+
+2. **Per-scene image upload is NOT persistent**: `seg_00_intro.png`(the I2V first-frame anchor) must be `cp`'d into ComfyUI's `input/` directory fresh for EACH scene before submission — it doesn't carry over from a prior scene's upload. Forgetting this for scene_N silently breaks that scene's I2V anchoring.
+
+3. **Duration-boundary detection edge case**: `ffmpeg silencedetect` sometimes reports `silence_start: 0`(spurious, not a real silence region) as its FIRST hit when the source audio has a very brief non-silent lead-in — don't trust the first `silence_start` value blindly. Check for a `silence_start`/`silence_end` PAIR near 0(indicates a real short silence) vs a lone `silence_start: 0` with no matching early `silence_end`(spurious) — use the NEXT real silence_start value as the intro-boundary in that case(scene_12 of this batch hit this exact issue).
+
+4. **★Concurrency/reporting-gap pattern(important, avoid false-stall diagnosis)**: During long generation waits(~10-25min/scene depending on frame count), orch polling the server log/output-dir directly can observe a scene's generation as "complete" BEFORE the worker's own mux+telegram-send follow-through lands in its next report cycle. This happened repeatedly this batch(scenes 01/02, 08, 09, 10, 11) — orch intervened directly(mux+send) in several cases, sometimes producing a DUPLICATE send when the worker's own completion landed around the same time(harmless but confusing, apologized to user once for scene_01/02 double-send). **Before assuming a genuine stall and duplicating work**: check ComfyUI's `/history` or `/queue` state AND the worker's own most-recent action, not just "no new output in N minutes" — a scene mid-mux/mid-poll looks identical to a truly-stuck one from output-directory inspection alone. If intervening, prefer a fresh REF telling the worker "orch already sent scene_N, don't duplicate, continue from N+1" rather than silently re-doing work.
+
+REF(add): a_2949~2960(2026-08-31, 12-scene batch full run, operational lessons above).
