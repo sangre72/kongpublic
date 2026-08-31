@@ -22,7 +22,14 @@ if echo "$BASE_MSG" | LC_ALL=en_US.UTF-8 grep -qE '[가-힣]'; then
 fi
 # ★K7 리마인더 자동첨부(u_2802): 워커 깨울 때마다 압축영문+기호(K7 COMPRESSED-COMMS) 준수를
 #   같이 상기시킴 — 반복 위반(K7 위반 재발) 방지, och.txt 1G/embed-feedback-reminder 패턴과 동일 취지.
-MSG="${BASE_MSG} [K7·EN-think·min-out]"
+# ★2026-08-31 u_3159 fix: slash-commands(e.g. /model haiku) must NOT get the tag appended —
+#   the CLI parses the whole trailing string as the command's argument, corrupting it
+#   ("Model 'haiku [K7...]' not found"). Skip the suffix when BASE_MSG starts with '/'.
+if [[ "$BASE_MSG" == /* ]]; then
+  MSG="$BASE_MSG"
+else
+  MSG="${BASE_MSG} [K7·EN-think·min-out]"
+fi
 WINDOW_HINT="Kong 워커 역할 정의"
 
 TARGET_TTY=""
