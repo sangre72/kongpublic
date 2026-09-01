@@ -1,0 +1,283 @@
+{
+  "textedit_문서동작_button": {
+    "coord": [
+      427,
+      119
+    ],
+    "pid": 33741,
+    "inferred_function": [
+      "unknown(added=7_removed=0_elements)"
+    ],
+    "diff_added_sample": [
+      "AXCheckBox\t잠금 해제\t555\t236",
+      "AXPopUpButton\ttmp\t428\t236",
+      "AXStaticText\t위치:\t300\t236",
+      "AXStaticText\t이름:\t300\t170",
+      "AXStaticText\t태그:\t300\t203"
+    ],
+    "diff_removed_sample": [],
+    "verified": false
+  },
+  "textedit_문서동작_button_v2": {
+    "coord": [
+      427,
+      119
+    ],
+    "pid": 33741,
+    "inferred_function": [
+      "opens-input-form(has-editable-fields)",
+      "opens-form-with-toggle-options",
+      "opens-form-with-dropdown-selector"
+    ],
+    "diff_added_sample": [
+      "AXCheckBox\t잠금 해제\t555\t236",
+      "AXPopUpButton\ttmp\t428\t236",
+      "AXStaticText\t위치:\t300\t236",
+      "AXStaticText\t이름:\t300\t170",
+      "AXStaticText\t태그:\t300\t203"
+    ],
+    "diff_removed_sample": [],
+    "verified": false
+  },
+  "speed_test": {
+    "coord": [
+      427,
+      119
+    ],
+    "pid": 33741,
+    "inferred_function": [
+      "opens-input-form(has-editable-fields)",
+      "opens-form-with-toggle-options",
+      "opens-form-with-dropdown-selector"
+    ],
+    "diff_added_sample": [
+      "AXCheckBox\t잠금 해제\t555\t236",
+      "AXPopUpButton\ttmp\t428\t236",
+      "AXStaticText\t위치:\t300\t236",
+      "AXStaticText\t이름:\t300\t170",
+      "AXStaticText\t태그:\t300\t203"
+    ],
+    "diff_removed_sample": [],
+    "verified": false
+  },
+  "keynote_play": {
+    "coord": [
+      632,
+      228
+    ],
+    "pid": 16127,
+    "inferred_function": [
+      "unknown(added=3_removed=29_elements)"
+    ],
+    "diff_added_sample": [
+      "AXButton\t슬라이드 내비게이터입니다.\t1006\t1280",
+      "AXButton\t키보드 단축키\t1051\t1280",
+      "AXWindow\t무제\t1028\t684"
+    ],
+    "diff_removed_sample": [
+      "AXButton\t공유\t1524\t228",
+      "AXButton\t슬라이드 레이아웃 편집\t1869\t1296",
+      "AXButton\t슬라이드 레이아웃, 제목\t1869\t324",
+      "AXButton\t재생\t632\t228",
+      "AXButton\t주석\t1200\t228"
+    ],
+    "verified": false
+  },
+  "keynote_text": {
+    "coord": [
+      1052,
+      228
+    ],
+    "pid": 16127,
+    "inferred_function": [
+      "opens-menu",
+      "opens-form-with-toggle-options",
+      "opens-form-with-dropdown-selector"
+    ],
+    "diff_added_sample": [
+      "AXButton\t공유\t1524\t228",
+      "AXButton\t슬라이드 레이아웃 편집\t1869\t1296",
+      "AXButton\t슬라이드 레이아웃, 제목\t1869\t324",
+      "AXButton\t재생\t632\t228",
+      "AXButton\t주석\t1200\t228"
+    ],
+    "diff_removed_sample": [
+      "AXWindow\t무제\t1028\t684"
+    ],
+    "verified": false
+  },
+  "keynote_comment": {
+    "coord": [
+      1200,
+      228
+    ],
+    "pid": 16127,
+    "inferred_function": [
+      "opens-menu"
+    ],
+    "diff_added_sample": [
+      "\t포맷\t1869\t681",
+      "AXMenuButton\t편집됨\t1100\t192",
+      "AXStaticText\t무제\t1046\t192",
+      "AXStaticText\t—\t1067\t192",
+      "AXStaticText\t선택한 항목이 없습니다.\t1869\t743"
+    ],
+    "diff_removed_sample": [
+      "AXButton\t슬라이드 레이아웃 편집\t1869\t1296",
+      "AXButton\t슬라이드 레이아웃, 제목\t1869\t324",
+      "AXCheckBox\t본문\t1868\t446",
+      "AXCheckBox\t슬라이드 번호\t1868\t471",
+      "AXCheckBox\t제목\t1868\t421"
+    ],
+    "verified": false
+  },
+  "keynote_share": {
+    "coord": [
+      1524,
+      228
+    ],
+    "pid": 16127,
+    "inferred_function": [
+      "opens-dialog",
+      "opens-input-form(has-editable-fields)",
+      "opens-form-with-dropdown-selector"
+    ],
+    "diff_added_sample": [
+      "AXButton\t저장\t1132\t813",
+      "AXButton\t취소\t1052\t813",
+      "AXDisclosureTriangle\t추가 옵션 보기\t1136\t768",
+      "AXPopUpButton\t위치:\t1017\t768",
+      "AXSheet\t저장\t1003\t754"
+    ],
+    "diff_removed_sample": [],
+    "verified": false
+  },
+  "chrome_back": {
+    "coord": [
+      20,
+      102
+    ],
+    "pid": 14234,
+    "inferred_function": [
+      "removes-element(possible-delete/close-action)"
+    ],
+    "diff_added_sample": [],
+    "diff_removed_sample": [
+      "AXGroup\t1102978988\t1664\t338",
+      "AXGroup\t7월 20, 2023\t1664\t388",
+      "AXGroup\tBeautiful ^^Girl Store\t1664\t313",
+      "AXGroup\tHong Kong,China\t1664\t363",
+      "AXGroup\t스토어 번호:\t1543\t338"
+    ],
+    "verified": false
+  },
+  "chrome_forward": {
+    "coord": [
+      59,
+      102
+    ],
+    "pid": 14234,
+    "inferred_function": [
+      "unknown(added=0_removed=0_elements)"
+    ],
+    "diff_added_sample": [],
+    "diff_removed_sample": [],
+    "verified": false
+  },
+  "chrome_reload": {
+    "coord": [
+      95,
+      102
+    ],
+    "pid": 14234,
+    "inferred_function": [
+      "opens-input-form(has-editable-fields)"
+    ],
+    "diff_added_sample": [
+      "AXRadioButton\t클립 루페가 있는 조명 무게추 돋보기, 2X 돋보기, 바느질 공예 지도 독서용 - AliExpress - 메모리 사용량 - 160MB\t480\t60",
+      "AXTextField\t주소창 및 검색창\t978\t102"
+    ],
+    "diff_removed_sample": [
+      "AXButton\tNext\t1398\t1046",
+      "AXButton\tPrevious\t202\t1046",
+      "AXButton\tYou can click this button to search.\t1410\t160",
+      "AXButton\tYou can register, sign in or view more information about your account.\t1794\t160",
+      "AXButton\tYou can scan the QR code to download the AliExpress app.\t1538\t160"
+    ],
+    "verified": false
+  },
+  "chrome_site_info": {
+    "coord": [
+      138,
+      102
+    ],
+    "pid": 14234,
+    "inferred_function": [
+      "opens-form-with-toggle-options"
+    ],
+    "diff_added_sample": [
+      "AXButton\t권한 재설정\t219\t298",
+      "AXButton\t닫기\t411\t153",
+      "AXButton\t사이트 설정\t280\t401",
+      "AXButton\t이 연결은 안전합니다.\t280\t195",
+      "AXButton\t쿠키 및 사이트 데이터\t280\t361"
+    ],
+    "diff_removed_sample": [
+      "AXGroup\tko.aliexpress.com/item/1005007562185162.html?spm=a2g0o.productlist.main.1.70e1YwJsYwJsZo&algo_pvid=3a5d486f-22a8-45d5-88a4-ac4e35ba55e6&algo_exp_id=3a5d486f-22a8-45d5-88a4-ac4e35ba55e6-0&pdp_ext_f=%7B\"order\"%3A\"170\"%2C\"spu_best_type\"%3A\"price\"%2C\"eval\"%3A\"1\"%2C\"fromPage\"%3A\"search\"%7D&pdp_npi=6%40dis%21KRW%213550%211402%21%21%2116.86%216.66%21%402140ebf317882140660298563e1098%2112000041303347766%21sea%21KR%210%21ABX%211%210%21n_tag%3A-29910%3Bd%3Aaa848bbf%3Bm03_new_user%3A-29895%3BpisId%3A5000000214057961&curPageLogUid=XFXFQH2cdhmI&utparam-url=scene%3Asearch%7Cquery_from%3A%7Cx_object_id%3A1005007562185162%7C_p_origin_prod%3A&_gl=1*r2lrre*_gcl_au*MTgzMDI4MzQ5Ny4xNzg4MjE0MDY5*_ga*MjEyNDYxNjAxOC4xNzg4MjE0MDY5*_ga_VED1YSGNC7*czE3ODgyMTQwNjkkbzEkZzAkdDE3ODgyMTQwNjkkajYwJGwwJGgw - Chrome (시크릿 모드)\t1002\t684",
+      "AXRadioButton\tko.aliexpress.com/item/1005007562185162.html?spm=a2g0o.productlist.main.1.70e1YwJsYwJsZo&algo_pvid=3a5d486f-22a8-45d5-88a4-ac4e35ba55e6&algo_exp_id=3a5d486f-22a8-45d5-88a4-ac4e35ba55e6-0&pdp_ext_f=%7B\"order\"%3A\"170\"%2C\"spu_best_type\"%3A\"price\"%2C\"eval\"%3A\"1\"%2C\"fromPage\"%3A\"search\"%7D&pdp_npi=6%40dis%21KRW%213550%211402%21%21%2116.86%216.66%21%402140ebf317882140660298563e1098%2112000041303347766%21sea%21KR%210%21ABX%211%210%21n_tag%3A-29910%3Bd%3Aaa848bbf%3Bm03_new_user%3A-29895%3BpisId%3A5000000214057961&curPageLogUid=XFXFQH2cdhmI&utparam-url=scene%3Asearch%7Cquery_from%3A%7Cx_object_id%3A1005007562185162%7C_p_origin_prod%3A&_gl=1*r2lrre*_gcl_au*MTgzMDI4MzQ5Ny4xNzg4MjE0MDY5*_ga*MjEyNDYxNjAxOC4xNzg4MjE0MDY5*_ga_VED1YSGNC7*czE3ODgyMTQwNjkkbzEkZzAkdDE3ODgyMTQwNjkkajYwJGwwJGgw\t480\t60",
+      "AXWindow\tko.aliexpress.com/item/1005007562185162.html?spm=a2g0o.productlist.main.1.70e1YwJsYwJsZo&algo_pvid=3a5d486f-22a8-45d5-88a4-ac4e35ba55e6&algo_exp_id=3a5d486f-22a8-45d5-88a4-ac4e35ba55e6-0&pdp_ext_f=%7B\"order\"%3A\"170\"%2C\"spu_best_type\"%3A\"price\"%2C\"eval\"%3A\"1\"%2C\"fromPage\"%3A\"search\"%7D&pdp_npi=6%40dis%21KRW%213550%211402%21%21%2116.86%216.66%21%402140ebf317882140660298563e1098%2112000041303347766%21sea%21KR%210%21ABX%211%210%21n_tag%3A-29910%3Bd%3Aaa848bbf%3Bm03_new_user%3A-29895%3BpisId%3A5000000214057961&curPageLogUid=XFXFQH2cdhmI&utparam-url=scene%3Asearch%7Cquery_from%3A%7Cx_object_id%3A1005007562185162%7C_p_origin_prod%3A&_gl=1*r2lrre*_gcl_au*MTgzMDI4MzQ5Ny4xNzg4MjE0MDY5*_ga*MjEyNDYxNjAxOC4xNzg4MjE0MDY5*_ga_VED1YSGNC7*czE3ODgyMTQwNjkkbzEkZzAkdDE3ODgyMTQwNjkkajYwJGwwJGgw - Chrome (시크릿 모드)\t1002\t684"
+    ],
+    "verified": false
+  },
+  "chrome_cookies": {
+    "coord": [
+      1786,
+      102
+    ],
+    "pid": 14234,
+    "inferred_function": [
+      "opens-form-with-toggle-options"
+    ],
+    "diff_added_sample": [
+      "AXButton\tPrevious\t202\t1046",
+      "AXButton\t닫기\t1814\t150",
+      "AXCheckBox\t서드 파티 쿠키",
+      "AXGroup\t₩1,500\t1305\t1076",
+      "AXGroup\t₩2,353\t295\t1076"
+    ],
+    "diff_removed_sample": [
+      "AXButton\tPrevious\t202\t1044",
+      "AXButton\t권한 재설정\t219\t298",
+      "AXButton\t닫기\t411\t153",
+      "AXButton\t사이트 설정\t280\t401",
+      "AXButton\t이 연결은 안전합니다.\t280\t195"
+    ],
+    "verified": false
+  },
+  "chrome_bookmark": {
+    "coord": [
+      1818,
+      102
+    ],
+    "pid": 14234,
+    "inferred_function": [
+      "opens-input-form(has-editable-fields)",
+      "opens-form-with-dropdown-selector"
+    ],
+    "diff_added_sample": [
+      "AXButton\t삭제\t1718\t305",
+      "AXButton\t완료\t1790\t305",
+      "AXButton\t이 탭의 북마크 수정\t1818\t102",
+      "AXGroup\t북마크 추가됨\t1618\t231",
+      "AXHeading\t북마크 추가됨\t1666\t151"
+    ],
+    "diff_removed_sample": [
+      "AXButton\t현재 탭을 북마크에 추가\t1818\t102",
+      "AXCheckBox\t서드 파티 쿠키",
+      "AXGroup\t서드 파티 쿠키 차단됨\t1682\t230",
+      "AXHeading\t서드 파티 쿠키 차단됨\t1666\t151",
+      "AXStaticText\tko.aliexpress.com\t1666\t173"
+    ],
+    "verified": false
+  }
+}

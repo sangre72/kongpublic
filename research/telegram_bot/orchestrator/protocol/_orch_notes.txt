@@ -1,0 +1,20 @@
+## OCH 운영 규칙 (P1-1C 강화)
+
+★ NEW_USER_MSG 수신 → 
+  ① 즉시 u_ 읽기
+  ② 즉시 텔레그램 회신(ask_telegram.py + INTENT 요약 or ask 버튼)
+  ③ 그 후 a_ 작성·처리
+  ④ 유저는 폰에서 대기 = 응답 최우선
+
+★ ar_ done → 
+  ① 즉시 orch 검증(실측 또는 로직 확인)
+  ② 중간 리포트 텔레그램 발송(무엇 완료·수치·다음)
+  ③ ar_ 아카이브
+
+★ 모니터(M1) 10초 간격 유지
+  - NEW_USER_MSG, WORKER_DONE, NEEDS_INFO, BOT_DOWN 모두 실시간 감지
+  - 이벤트 오면 즉시 처리(텔레그램 회신 우선)
+
+★ seen_u 갱신 필수
+  - orch_monitor_tick.sh 이미 ESEEN에 기록
+  - orch가 처리 시작하면 seen_u에도 추가(중복 방지)

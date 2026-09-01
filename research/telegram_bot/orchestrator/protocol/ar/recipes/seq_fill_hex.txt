@@ -1,0 +1,8 @@
+app Keynote
+click_label 포맷
+wait 400
+click_label 스타일
+wait 400
+click_label 채우기
+wait 400
+# dump color well; type HEX via 색상 panel if open

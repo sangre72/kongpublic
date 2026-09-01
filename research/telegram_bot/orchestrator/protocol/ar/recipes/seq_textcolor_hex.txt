@@ -1,0 +1,7 @@
+app Keynote
+click_label 포맷
+wait 400
+click_label 텍스트
+wait 400
+# open text color well (dump if unlabeled)
+# type HEX

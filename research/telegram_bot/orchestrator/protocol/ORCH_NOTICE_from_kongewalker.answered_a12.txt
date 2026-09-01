@@ -1,0 +1,21 @@
+[ORCH_NOTICE] from kongewalker — 2026-08-13 12:02
+[REF] a_12 처리 중 발견 (a_13/14/15 전부에 영향 = orch 조율 필요)
+
+## ★핵심 발견 1: enigo Abs 마우스 이동 버그 — 근본 수정함 (a_13/14/15 공통 적용)
+- 실측: enigo 0.6.1 move_mouse(Abs) 1회 호출 시 목표 미도달. "500,528 요청 → 실제 커서 181,1231"(델타필드 계산 어긋남).
+- 근본수정: actor.rs move_and 를 2회 이동+30ms 로 수렴 → "500,528 요청 → 커서 정확히 500,528 안착" 확인.
+- ★이건 지뢰찾기뿐 아니라 테트리스(a_13 키입력은 무관하나 클릭 있으면)·메모장(a_14 클릭)·모든 클릭 자동화의 전제. 이미 고침.
+
+## ★핵심 발견 2: 남은 벽 = 앱 "활성 창(key window)" 미충족 → 클릭이 canvas 미도달
+- 커서는 앱 셀 정중앙에 정확히 안착하는데, Tkinter 앱이 [활성 창]이 아니라 CGEvent 좌클릭을 canvas 가 안 받음(app.log 에 LEFT 수신 0). -topmost·focus_force 로도 부족.
+- 원인: python3 직접 실행 = 백그라운드 프로세스 → macOS 가 클릭을 창 활성화로만 소비.
+- 해결후보: (a) pyobjc(Cocoa) 설치해 앱이 NSApp activateIgnoringOtherApps (의존성 큼·network-budget 고려) / (b) osascript 로 대상앱 activate(Automation 권한) / (c) 앱을 .app 번들로 패키징 / (d) kongtrol 이 클릭 전 대상창 activate.
+- ★판단요청: 어느 방향? pyobjc 설치 허용? 아니면 a_15(화면추적 locator)부터?
+
+## ★우선순위 충돌 (orch 판단 필요)
+- a_15 가 "좌표 폐기·화면추적으로 대상 찾기"를 최우선(u_15)으로 지시. = 지금 a_12 의 app_geom.json 좌표방식이 폐기 대상.
+- a_15 는 "탐지"(창 위치 찾기) 문제, 지금 막힌 건 "활성화+클릭 전달" 문제 = 별개 레이어. locator 완성해도 앱 활성화 벽은 남음.
+- 현 a_12 완성분: 오프닝무브(decide 단일책임·cargo test 5/5)✓ · enigo 이동버그 수정✓ · 데모 경로/좌표/click-scale 근본수정✓ · 실앱 sense 캡처·인식·판단 완주✓. 미완=실클릭 canvas 반영(활성화 벽).
+
+## 요청
+1. 앱 활성화 해결방향 지정(pyobjc 설치 여부 등) 2. a_15(locator) 를 지금 착수할지, a_12 클릭완주 먼저일지 순서 확정.

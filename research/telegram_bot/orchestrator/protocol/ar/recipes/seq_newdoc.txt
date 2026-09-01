@@ -1,0 +1,12 @@
+# NEWDOC under current FS. After 신규, dump chooser and set ONE card + ONE 생성 from dump only.
+app Keynote
+click_label 파일
+wait 400
+click_label 신규…
+wait 400
+click_label 신규
+wait 1500
+# Open dialog path:
+# click_label 새로운 문서
+# wait 1500
+# DUMP → click <card_cx> <card_cy> / wait 800 / click <생성_cx> <생성_cy> / wait 1500

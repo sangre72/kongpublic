@@ -1,0 +1,4 @@
+app Keynote
+click_label 도형
+wait 400
+# first basic rect if labeled; else dump palette once

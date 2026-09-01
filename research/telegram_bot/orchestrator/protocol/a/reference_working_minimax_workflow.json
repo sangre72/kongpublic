@@ -1,0 +1,135 @@
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "MiniMax-H3/minimax_h3_fl2va-Q3_K_M.gguf"
+    }
+  },
+  "2": {
+    "class_type": "H3ClipLoaderAny",
+    "inputs": {
+      "clip_name": "MiniMax-H3-encoder-Q4_K_M.gguf",
+      "type": "minimax",
+      "mmproj_name": "MiniMax-H3-encoder-mmproj-F16.gguf"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    }
+  },
+  "20": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "lora_name": "minimax_h3_turbo_4step_v4_fixed.safetensors",
+      "strength_model": 1.0
+    }
+  },
+  "23": {
+    "class_type": "EasyCache",
+    "inputs": {
+      "model": [
+        "20",
+        0
+      ],
+      "reuse_threshold": 0.3,
+      "start_percent": 0.15,
+      "end_percent": 0.95,
+      "verbose": false
+    }
+  },
+  "22": {
+    "class_type": "MiniMaxH3SigmaShift",
+    "inputs": {
+      "model": [
+        "23",
+        0
+      ],
+      "shift_video": 12.0,
+      "shift_audio": 6.0
+    }
+  },
+  "5": {
+    "class_type": "MiniMaxH3ImageToVideo",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ],
+      "prompt": "a chibi wizard rabbit gently waves its glowing wand, sparkles bloom around it, soft warm smile",
+      "width": 384,
+      "height": 672,
+      "length": 22
+    }
+  },
+  "6": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "22",
+        0
+      ],
+      "positive": [
+        "5",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "5",
+        1
+      ],
+      "seed": 42,
+      "steps": 4,
+      "cfg": 1.0,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "denoise": 1.0
+    }
+  },
+  "7": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "6",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    }
+  },
+  "30": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "7",
+        0
+      ],
+      "fps": 24.0
+    }
+  },
+  "31": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "30",
+        0
+      ],
+      "filename_prefix": "minimax_h3_video_output",
+      "format": "mp4"
+    }
+  }
+}

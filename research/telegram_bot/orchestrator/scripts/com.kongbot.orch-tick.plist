@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  com.kongbot.orch-tick — orch 10s tick + .orch_alive heartbeat, session-independent.
+  Grok/Claude Monitor dies with the session; background max_runtime=10h.
+  launchd KeepAlive restarts the loop. Tick logic stays in orch_monitor_tick.sh.
+  Install: bash telegram_bot/orchestrator/scripts/orch_ensure_tick.sh
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.kongbot.orch-tick</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/bumsuklee/miniconda3/bin/python3</string>
+    <string>/Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/orch_monitor_loop.py</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/bumsuklee/git/kong-bot</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>KONG_ORCH_MON1</key>
+    <string>1</string>
+    <key>PATH</key>
+    <string>/Users/bumsuklee/miniconda3/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/bumsuklee/git/kong-bot/logs/orch_tick_daemon.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/bumsuklee/git/kong-bot/logs/orch_tick_daemon.err</string>
+</dict>
+</plist>

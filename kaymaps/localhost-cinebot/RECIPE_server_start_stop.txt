@@ -1,0 +1,62 @@
+RECIPE: server_start_stop (CineBot 4000 + fortune-API 15000)
+GATE: verified 2026-09-01(both started successfully, HTTP 200 confirmed via curl)
+REG: kaymaps/localhost-cinebot/* recipes all assume these 2 servers are up — this is the missing
+  "part" flagged by user(u_3342/3344): every other CineBot recipe(fortune-gen/slide/upload) had a
+  standalone doc, but starting the servers themselves never got one.
+
+WHY: RECIPE_fortune_12_full_flow.txt STEP0(server precondition check) tells you HOW TO CHECK if
+  servers are up, but the actual START command was never documented — this file closes that gap.
+
+LOCATIONS:
+- CineBot(port 4000, Next.js): /Users/bumsuklee/workspace-egov/youtube-top(same repo as fortune-API)
+- fortune-API(port 15000, FastAPI/uvicorn): /Users/bumsuklee/workspace-egov/youtube-top/python-server
+
+START:
+```bash
+# CineBot(4000)
+cd /Users/bumsuklee/workspace-egov/youtube-top
+nohup npm run dev > /tmp/cinebot_4000.log 2>&1 &
+sleep 8
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:4000   # expect 200
+
+# fortune-API(15000)
+cd /Users/bumsuklee/workspace-egov/youtube-top/python-server
+nohup uv run python run_server.py > /tmp/fortune_server_15000.log 2>&1 &
+sleep 5
+curl -s http://localhost:15000/health --max-time 5               # expect 200/healthy JSON
+```
+
+STOP:
+```bash
+# find+kill by port
+lsof -ti :4000 | xargs kill 2>/dev/null
+lsof -ti :15000 | xargs kill 2>/dev/null
+```
+
+STATUS-CHECK(no side effects, safe to run anytime):
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:4000 --max-time 3
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:15000/health --max-time 3
+```
+
+VERIFY:
+- Both curl checks return 200(not 000/connection-refused).
+- CineBot(4000) log(/tmp/cinebot_4000.log) shows "Ready" or no fatal errors within ~10s of start.
+- fortune-API(15000) log(/tmp/fortune_server_15000.log) shows uvicorn startup banner, no traceback.
+
+LIMIT/OPEN:
+- `npm run dev`(Next.js dev mode) chosen over `npm run start`(prod) — matches how it's been run
+  historically in this project(no build step observed in prior sessions), but if a `.next` prod
+  build exists and dev-mode has known issues, `npm run build && npm run start` may be more stable —
+  not yet compared.
+- No systemd/launchd persistence — these are plain background `nohup` processes, will die if the
+  Mac sleeps/reboots. If persistent 24/7 uptime is needed, consider a launchd plist(cf
+  kongtrol-base-reference.md's discussion of launchd daemons for other always-on processes in this repo).
+- Telegram button "운세 서버 시작/중지"(job_list.py, u_3339-3341) currently has NO backing
+  implementation — it just creates a plain u_ text request. To make the button actually work,
+  wire job_id="fortune_server_toggle" in kong_orchestrator.py's job-callback handler to run the
+  START/STOP commands above directly(similar to how WAKE_WORKER_BUTTON calls orch_wake_worker.sh),
+  checking current status first to decide toggle direction. Not yet implemented as of 2026-09-01.
+
+REF: u_3339~3346(2026-09-01), RECIPE_fortune_12_full_flow.txt STEP0(precondition check that
+  assumes these are already running).

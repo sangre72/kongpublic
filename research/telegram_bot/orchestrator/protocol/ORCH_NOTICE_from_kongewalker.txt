@@ -1,0 +1,10 @@
+[TIMESTAMP]2026-08-21T17:49:00Z
+[WORKER]kongewalker
+[LEVEL]BLOCKING
+
+a_2006 blocked: localhost:4000(CineBot/youtube-top) + localhost:15000 둘다 ERR_CONNECTION_REFUSED.
+프로세스 자체 미존재(ps 확인). hang 아닌 완전다운.
+재시작=youtube-top 프로젝트 소유(kong-bot 밖), 명시승인 없이 재기동 금지(레시피 CON).
+
+Need: 사용자가 youtube-top 서버 재기동 OR 재기동 승인.
+

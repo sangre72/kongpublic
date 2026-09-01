@@ -1,0 +1,6 @@
+.env
+protocol/u/*.txt
+protocol/a/*.txt
+protocol/done/*.txt
+*.log
+__pycache__/

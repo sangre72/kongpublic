@@ -1,0 +1,51 @@
+RECIPE: naver_qr_login_decode (VERIFIED — GATE_POLICY, ar_62/ar_63/ar_64, promoted from archive 2026-09-01 u_3321)
+REG: nid.naver.com QR login wall(any Naver site: shopping/mail/etc redirecting to login)
+WHY: worker's phone-camera cannot scan a QR shown on its own screen — the naive
+  "screenshot the QR, send photo, user scans with phone" flow(docs/appkb/login-handoff.md
+  Naver row) is fine for the USER's own phone scanning a photo sent to them, but if the
+  goal is faster/more-reliable handoff, DECODING the QR payload directly and sending the
+  raw URL as text is strictly better(user can just tap the link, no camera-alignment
+  needed) — this was already discovered+used successfully(a_63/ar_63, 2026-08-xx) but
+  never promoted out of archived a_/ar_ history into a real recipe. Re-discovered 2026-09-01
+  when the same problem recurred on a shopping-search task(a_2990) and had to be found by
+  grepping old archives instead of looking here first.
+
+STEPS:
+1. Detect QR wall: URL contains `nid.naver.com`/`nidlogin`/`mode=qrcode`, a11y shows
+   "QR 코드를 촬영하고 로그인 하세요" + AXImage "QR Code" + confirm-number + countdown timer
+   (per docs/appkb/login-handoff.md Naver row — cross-ref, don't duplicate wall-detection detail).
+2. Screenshot the QR region large enough for clean decode: `screencapture -R<x>,<y>,<w>,<h>` or
+   full-page if QR bounding box unclear from a11y.
+3. Decode the QR payload from THIS screenshot(not a stale/previous one — QR expires ~45s-3min,
+   always decode the CURRENT shot):
+   - `zbarimg <path>` if installed, OR
+   - Python: `pip show pyzbar opencv-python` first(verify-first, network-budget rule) →
+     `from pyzbar.pyzbar import decode; from PIL import Image; print(decode(Image.open(path)))`
+   - Print the RAW decoded payload string. Never invent/guess a URL if decode fails — report
+     failure honestly instead(cf ar_63 BAN list: "no fake URL").
+4. Send via telegram TEXT message(not just photo): payload URL + confirm-number + remaining
+   time, e.g. "네이버 QR 주소 (확인숫자 NN · 남은시간 MM:SS)\n<payload>\n폰에서 이 링크를 여세요.
+   네이버앱이 뜨면 확인숫자를 선택하세요." Also send the QR photo itself as backup(some payloads
+   may not open cleanly as a raw link on all phones — photo is the fallback).
+5. Report ar_ with [STATUS]=needs-info, STOP. Do not continue the original task until user
+   confirms login completed on their phone(same-inbox/goal-screen check per login-handoff.md
+   rule 4).
+6. If QR expires before user acts(timer hits 0): refresh/re-click "QR 코드 로그인" to get a new
+   one, re-decode THIS new shot, resend — don't reuse/redescribe the expired payload.
+
+VERIFY:
+- Decoded payload is a real URL string(not empty, not a guess) extracted from the CURRENT screenshot.
+- Telegram text message sent with URL + confirm-number + remaining-time, photo sent as backup.
+- No password/OTP/secret ever typed or included in any message(login-handoff.md rule 1/2, absolute).
+
+LIMIT/OPEN:
+- Decode tooling(zbarimg/pyzbar) not yet verified installed on this machine as of 2026-09-01 —
+  first real use of this recipe should verify-install-first per network-budget rule, then update
+  this LIMIT line to VERIFIED once confirmed working end-to-end.
+- Other login-handoff.md sites(Google/Facebook/X/Apple) use phone-app-approval, not QR-decode —
+  this recipe is Naver-specific; don't generalize the decode approach to those without re-verifying
+  they even present a decodable QR(most don't, per login-handoff.md's site table).
+
+REF: archived a_62/a_63/a_64/ar_62/ar_63/ar_64(2026-08-xx, original discovery), a_2990(2026-09-01,
+re-triggered same problem — this recipe file created specifically so it's found via kaymaps lookup
+next time, not lost in archive/), docs/appkb/login-handoff.md(broader multi-site login-wall handling).

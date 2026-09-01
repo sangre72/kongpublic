@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  com.kongbot.worker1-watch2 — M2. 15s poll. On M1 dead: launchctl kickstart tick.
+  Does not nohup/pkill a second tick loop (oscillation lesson).
+  Install: bash telegram_bot/orchestrator/scripts/worker1_ensure_tick.sh
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.kongbot.worker1-watch2</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/worker1_watch2_loop.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/bumsuklee/git/kong-bot</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>KONG_WORKER_MON2</key>
+    <string>1</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/bumsuklee/git/kong-bot/logs/worker1_watch2_daemon.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/bumsuklee/git/kong-bot/logs/worker1_watch2_daemon.err</string>
+</dict>
+</plist>

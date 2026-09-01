@@ -1,0 +1,7 @@
+# reusable Keynote SAVE. If 다른 이름으로 저장 sheet → STOP (name not this job).
+app Keynote
+click_label 파일
+wait 400
+click_label 저장
+wait 800
+# if save-as sheet appears: do not invent name — caller must STOP

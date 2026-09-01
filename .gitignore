@@ -113,3 +113,13 @@ Thumbs.db
 *.bak
 *.bak-*
 telegram_bot/orchestrator/protocol/archive/
+*.pt
+*.mp4
+*.wav
+*.gif
+jobs/**/audio/
+jobs/**/clips/
+telegram_bot/orchestrator/protocol/screenshots/
+*.png
+*.jpg
+*.jpeg
