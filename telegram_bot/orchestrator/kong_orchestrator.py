@@ -27,6 +27,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from . import job_list as jl
 from . import protocol_store as ps
 from . import worker as wk
 from .telegram_io import TelegramIO
@@ -361,6 +362,9 @@ def _process_update(tg: TelegramIO, upd: dict, allowed_ids: set[int]) -> None:
             if data.startswith("ask|"):
                 # 오케 → 유저 버튼 질문의 답. u_ 로 남겨 오케가 읽는다.
                 _handle_ask_callback(tg, cq)
+            elif data.startswith("job|"):
+                # u_3280/3281: 잡리스트 버튼 클릭
+                _handle_job_callback(tg, cq)
             else:
                 # a_198: 씬 선별 콜백
                 _handle_scene_selection_callback(tg, cq)
@@ -444,6 +448,50 @@ def _handle_ask_callback(tg: TelegramIO, cq: dict) -> None:
         print(f"[경고] 버튼답 u_ 기록 실패: {e}")
 
 
+def _handle_job_callback(tg: TelegramIO, cq: dict) -> None:
+    """잡리스트 버튼 클릭 처리(u_3280/3281).
+
+    callback_data: "job|{job_id}" 또는 "job|noop"(진행중 표시용, 클릭해도 아무일 안 함).
+    - job 시작 = u_ 요청으로 기록(정상 자동배정 경로 태워 워커가 처리) + 상태파일 running 마킹.
+    - 완료(idle 복귀)는 봇/오케 쪽에서 ar_ done 감지 시 job_list.mark_idle() 호출 필요(별도 배선, TODO).
+    """
+    data = cq.get("data") or ""
+    msg = cq.get("message") or {}
+    chat_id = (msg.get("chat") or {}).get("id")
+    message_id = msg.get("message_id")
+    username = (cq.get("from") or {}).get("username", "")
+
+    job_id = data.split("|", 1)[1] if "|" in data else ""
+
+    if job_id == "noop" or job_id not in jl.JOBS:
+        try:
+            tg.answer_callback_query(cq.get("id"), text="⏳ 이미 진행중입니다")
+        except Exception:  # noqa: BLE001
+            pass
+        return
+
+    label = jl.JOBS[job_id]
+    try:
+        tg.answer_callback_query(cq.get("id"), text=f"▶ {label} 시작")
+    except Exception:  # noqa: BLE001
+        pass
+
+    jl.mark_running(job_id)
+    if chat_id and message_id:
+        try:
+            tg.edit_message_reply_markup(chat_id, message_id, inline_keyboard=jl.build_keyboard())
+        except Exception:  # noqa: BLE001
+            pass
+
+    try:
+        seq = ps.next_seq()
+        req = f"[잡리스트] {label} 실행 요청 (job_id={job_id})"
+        ps.write_user_request(chat_id, username or "job-button", req, seq)
+        print(f"[콜백→u_{seq:02d}] 잡시작 {job_id}({label})")
+    except Exception as e:  # noqa: BLE001
+        print(f"[경고] 잡시작 u_ 기록 실패: {e}")
+
+
 def _handle_scene_selection_callback(tg: TelegramIO, cq: dict) -> None:
     """a_198: 씬 선별 인라인 버튼 클릭을 처리한다.
 
@@ -520,6 +568,16 @@ def handle_message(tg: TelegramIO, chat_id: int, username: str, text: str) -> No
         )
         return
 
+    # u_3289: 하단버튼 2단메뉴 — "잡목록" 클릭시 하위메뉴로 전환, "◀ 뒤로"로 복귀.
+    # 이 둘은 u_ 로 기록하지 않는다(순수 UI 네비게이션, 워커 작업 아님).
+    stripped = text.strip()
+    if stripped == jl.JOB_LIST_BUTTON:
+        tg.send_message_persistent_kb(chat_id, "작업을 선택하세요:", jl.build_job_submenu_rows())
+        return
+    if stripped == "◀ 뒤로":
+        tg.send_message_persistent_kb(chat_id, "메인 메뉴로 돌아왔습니다.", jl.build_persistent_keyboard_rows())
+        return
+
     # 직전에 캡션 없이 사진만 온 경우 → 이 텍스트를 그 SEQ 에 이어붙인다(같은 요청으로 묶음).
     pending_seq = _PENDING_IMAGE_SEQ.pop(chat_id, None)
     if pending_seq is not None:
@@ -548,9 +606,12 @@ def handle_message(tg: TelegramIO, chat_id: int, username: str, text: str) -> No
     # 봇은 유저 원문을 u_*.txt 에 저장한다(무손실). 워커 배정(a_ 생성 + spawn)은
     # 봇 5초 루프의 dispatch_new_requests() 가 담당한다(맥락 발판 a_ 경유).
     ps.write_user_request(chat_id, username, text, seq)
-    tg.send_message(
+    # u_3287/3288: iOS에서 인라인+고정키보드 혼용시 하단버튼이 사라지는 현상 확인됨 —
+    # 매 답변마다 잡목록 고정키보드를 다시 첨부해 재노출(re-attach)한다.
+    tg.send_message_persistent_kb(
         chat_id,
         f"✅ 접수했습니다 (#{seq:02d}). 곧 워커에 배정해 진행하겠습니다.",
+        jl.build_persistent_keyboard_rows(),
     )
     print(f"[수신→u_{seq:02d}] 저장 완료 — 다음 루프에서 자동배정")
     # ★로컬 u_ 파일 수신 즉시 오케 세션을 깨움(M1 10s 폴링 지연 없이) — u_2801.
