@@ -577,6 +577,20 @@ def handle_message(tg: TelegramIO, chat_id: int, username: str, text: str) -> No
     if stripped == "◀ 뒤로":
         tg.send_message_persistent_kb(chat_id, "메인 메뉴로 돌아왔습니다.", jl.build_persistent_keyboard_rows())
         return
+    if stripped == jl.WAKE_WORKER_BUTTON:
+        # u_3294: 워커 정지/응답없음 상황에서 orch_wake_worker.sh 즉시실행(u_ 경유 없이 직접).
+        wake_script = _REPO_ROOT / "telegram_bot" / "orchestrator" / "scripts" / "orch_wake_worker.sh"
+        try:
+            result = subprocess.run(
+                ["bash", str(wake_script), "wake check requested via telegram button."],
+                capture_output=True, text=True, timeout=10, cwd=str(_REPO_ROOT),
+            )
+            ok = result.returncode == 0 and result.stdout.strip().startswith("SUCCESS")
+            reply = "✅ 워커 깨우기 신호 전송됨" if ok else f"⚠ 실패: {result.stdout.strip() or result.stderr.strip()}"
+        except Exception as e:  # noqa: BLE001
+            reply = f"⚠ 워커 깨우기 실행 오류: {e}"
+        tg.send_message_persistent_kb(chat_id, reply, jl.build_persistent_keyboard_rows())
+        return
 
     # 직전에 캡션 없이 사진만 온 경우 → 이 텍스트를 그 SEQ 에 이어붙인다(같은 요청으로 묶음).
     pending_seq = _PENDING_IMAGE_SEQ.pop(chat_id, None)

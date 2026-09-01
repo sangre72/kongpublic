@@ -64,11 +64,13 @@ def build_keyboard() -> list[list[dict[str, Any]]]:
 
 
 JOB_LIST_BUTTON = "잡목록"
+WAKE_WORKER_BUTTON = "워커 깨우기"
 
 def build_persistent_keyboard_rows() -> list[list[str]]:
-    """u_3289: 메인 하단버튼 = [리포트][git commit,push][잡목록] 3개만. 개별 job버튼은
-    '잡목록' 눌렀을때만 노출(build_job_submenu_rows 참조) — 2단 메뉴 구조."""
-    return [["리포트"], ["git commit, push"], [JOB_LIST_BUTTON]]
+    """u_3289: 메인 하단버튼 = [리포트][git commit,push][잡목록][워커깨우기] 4개.
+    개별 job버튼은 '잡목록' 눌렀을때만 노출(build_job_submenu_rows 참조) — 2단 메뉴 구조.
+    '워커 깨우기'(u_3294)는 job이 아니라 즉시-실행 유틸리티라 잡목록과 분리, 메인에 상주."""
+    return [["리포트"], ["git commit, push"], [JOB_LIST_BUTTON], [WAKE_WORKER_BUTTON]]
 
 
 def build_job_submenu_rows() -> list[list[str]]:
