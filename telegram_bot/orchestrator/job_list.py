@@ -52,41 +52,30 @@ def mark_idle(job_id: str) -> None:
     _save_state(state)
 
 
-def build_keyboard() -> list[list[dict[str, Any]]]:
-    """job 목록을 inline_keyboard 형태로 변환. 실행중인 job = 라벨에 ⏳ 표시+콜백 비활성(빈 data 대신 noop)."""
+JOB_LIST_BUTTON = "잡목록"
+WAKE_WORKER_BUTTON = "워커 깨우기"
+
+# u_3296/3297: ReplyKeyboardMarkup(하단고정)이 iOS에서 입력창 탭만으로 접히는 표준동작을
+# is_persistent로도 못 막는 것 확인(리서치+실사용 재현) — 인라인버튼 방식으로 전환.
+# 콜백데이터: "menu|report" | "menu|git" | "menu|joblist" | "menu|wake" | "job|{job_id}" | "job|back"
+
+def build_main_inline_keyboard() -> list[list[dict[str, Any]]]:
+    """메인 인라인메뉴 = [리포트][git commit,push][잡목록][워커깨우기] 4개."""
+    return [
+        [{"text": "리포트", "callback_data": "menu|report"}],
+        [{"text": "git commit, push", "callback_data": "menu|git"}],
+        [{"text": JOB_LIST_BUTTON, "callback_data": "menu|joblist"}],
+        [{"text": WAKE_WORKER_BUTTON, "callback_data": "menu|wake"}],
+    ]
+
+
+def build_job_submenu_inline_keyboard() -> list[list[dict[str, Any]]]:
+    """'잡목록' 클릭시 노출할 인라인 하위메뉴(개별 job 4개 + 뒤로가기)."""
     rows: list[list[dict[str, Any]]] = []
     for job_id, label in JOBS.items():
         if is_running(job_id):
             rows.append([{"text": f"⏳ {label}(진행중)", "callback_data": "job|noop"}])
         else:
             rows.append([{"text": label, "callback_data": f"job|{job_id}"}])
+    rows.append([{"text": "◀ 뒤로", "callback_data": "job|back"}])
     return rows
-
-
-JOB_LIST_BUTTON = "잡목록"
-WAKE_WORKER_BUTTON = "워커 깨우기"
-
-def build_persistent_keyboard_rows() -> list[list[str]]:
-    """u_3289: 메인 하단버튼 = [리포트][git commit,push][잡목록][워커깨우기] 4개.
-    개별 job버튼은 '잡목록' 눌렀을때만 노출(build_job_submenu_rows 참조) — 2단 메뉴 구조.
-    '워커 깨우기'(u_3294)는 job이 아니라 즉시-실행 유틸리티라 잡목록과 분리, 메인에 상주."""
-    return [["리포트"], ["git commit, push"], [JOB_LIST_BUTTON], [WAKE_WORKER_BUTTON]]
-
-
-def build_job_submenu_rows() -> list[list[str]]:
-    """'잡목록' 버튼 클릭시 노출할 하위 메뉴(개별 job 4개 + 뒤로가기)."""
-    rows: list[list[str]] = []
-    for job_id, label in JOBS.items():
-        text = f"⏳ {label}(진행중)" if is_running(job_id) else label
-        rows.append([text])
-    rows.append(["◀ 뒤로"])
-    return rows
-
-
-def match_button_label(text: str) -> str | None:
-    """평문 메시지가 잡버튼 라벨과 일치하면 job_id 반환(아니면 None). 진행중 표시(⏳...) 도 매칭."""
-    stripped = text.strip()
-    for job_id, label in JOBS.items():
-        if stripped == label or stripped == f"⏳ {label}(진행중)":
-            return job_id
-    return None
