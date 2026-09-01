@@ -1,0 +1,41 @@
+RECIPE: naver_product_search_and_cart
+REG: a_2981 shopping-cart batch, Site 1 (Naver Shopping)
+WHY: Naver Shopping workflow for product search, coupon claim, and cart-add (no purchase)
+
+GATE: ✅ Verified (에버크린 고양이모래 19kg, ₩39,900 → cart)
+
+STEPS:
+1. Navigate to shopping.naver.com (address bar click at 920,102)
+2. Handle popup: click close area (~801,624) or click search field
+3. Find search input: "검색어 입력" TextFiled at 696,198
+4. Click search field, type product name (e.g. "에버크린 고양이모래"), press Enter
+5. Wait 2-3s for results. Results show product cards with price/rating
+6. Find product link via a11y: Product cards appear as AXLink elements with full description
+   - Coordinates roughly y=600-700 for first row products
+   - Click product link to open detail page
+7. On product detail page:
+   - Scroll to find "쿠폰 받기" (Coupon button) — typically upper-right ~1591,315
+   - COUPON JUDGMENT: Click if visible (10% Lotte Card coupon common)
+   - Coupon popup "최대할인가 적용 쿠폰" appears, click purple button (668,540)
+8. Scroll down to find quantity and action buttons:
+   - Quantity +/- at ~1093,1032 / 1166,1032
+   - "선물하기" (Gift) button at ~1203,1175
+   - "구매하기" (Buy Now) button at ~1498,1175
+   - "장바구니" (Add to Cart) button at ~1547,1229 ← Click this
+9. Success: Page shows "장바구니에 담았어요" (Added to cart)
+10. View cart: Click "장바구니" link (top right ~1530,127) to see cart summary
+
+VERIFY:
+- Product detail page shows name + price + rating
+- Cart section at bottom shows: product name, qty (1), final price
+- Status: "장바구니에 담았어요" appears after click
+
+LIMIT/OPEN:
+- Popup handling: Naver has various popups (coupon, best-seller suggestions) — click close or bypass by clicking main content
+- Search delay: 2-3s minimum for results to load
+- Incognito required: Use private/incognito window (user security requirement)
+
+JUDGMENT PATTERNS (per a_2981 learning goal):
+- Coupon availability: Always check for "쿠폰 받기" button before cart-add — Naver frequently offers 5-10% discount coupons
+- Cart-add: Use "장바구니" (Add to Cart) not "구매하기" (Buy Now) — no purchase allowed
+- Scroll method: Use arrow keys (down) for reliable scrolling, not mouse wheel

@@ -1,0 +1,42 @@
+RECIPE: shopping_comparison_axes (product-comparison judgment framework — category-agnostic)
+GATE: verified(2026-08-31, user-derived, real incident: ar_2981 initial cart-add skipped comparison)
+REG: any shopping-site task(kaymaps/chrome/<shopping-domain>/) — Naver Shopping, AliExpress, Amazon, etc.
+
+WHY: ar_2981(everclean cat-litter) initially picked the FIRST search result + applied a coupon, with zero
+comparison against alternatives. User caught this and asked: comparison-criteria differ per product type(일반
+소모품 vs 여행 vs 가전 vs 렌탈 vs 주방용품 vs 피부용품 vs 음식 vs 식물 vs 고기 vs 생선...) — an unbounded list of
+sub-categories, too many to enumerate as a static per-category rule table. Solution: judge by AXIS, not category.
+
+METHOD — pick applicable axis/axes per product, then apply that axis's criteria(a product can match >1 axis):
+
+AXIS 1: 안전성/품질-인증 축(식품·화장품·유아용품·건강기능식품 등)
+  criteria: 정부/공인 인증마크 존재여부, 원산지, 유통기한/제조일자, 성분/알레르기 표기 명확성.
+
+AXIS 2: 성능/스펙 축(가전·공구·전자기기 등)
+  criteria: 스펙표 비교(정량수치), A/S기간+centers, 에너지효율등급, 실사용 장문리뷰(단순 별점 아님).
+
+AXIS 3: 신선도 축(고기·생선·식물·과일/채소 등)
+  criteria: 원산지, 입고일/도축일, 냉장·냉동 유통여부, 판매자 회전율(리뷰 최신성으로 간접판단).
+
+AXIS 4: 서비스-지속성 축(렌탈·구독·정기배송 등)
+  criteria: 약정기간, 중도해지 위약금, 월 실부담금(표면가 아닌 총액), 해지절차 난이도.
+
+AXIS 5: 경험/정책 축(여행상품·숙박·티켓 등)
+  criteria: 취소/환불정책(무료취소 기한), 포함항목(조식·픽업 등 숨은비용 여부), 후기 최신성+실제방문 인증여부.
+
+AXIS 6: 일반소모품 축(위 5축에 해당 안 되는 대부분의 생필품)
+  criteria: 단가(원/단위, 용량대비 가격), 배송속도, 평점+리뷰수, 판매자 신뢰도(공식몰/스토어등급).
+
+DECISION FLOW:
+1. 상품명/카테고리 보고 해당하는 축 1개 이상 식별(예: 유아용 로션 = AXIS1+AXIS6 둘다).
+2. 그 축의 criteria로 최소 3개 후보 비교(가능하면 5개).
+3. 축이 여러개 겹치면 안전성/품질(AXIS1) > 서비스지속성(AXIS4) > 나머지 순으로 우선순위(생명/건강/장기비용 영향이 큰 순).
+4. 최종 선택 근거를 ar_/레시피에 축+criteria 언급하며 1줄로 기록(예: "AXIS6 기준 단가+배송속도 비교, 3개중 최적").
+
+LIMIT/OPEN:
+- 축 분류 자체가 애매한 상품(예: "선물세트" = 여러 카테고리 혼합) 발생 가능 — 이 경우 해당 축들 모두 부분적용,
+  애매하면 AXIS6(일반) 기본값으로 처리 후 필요시 사용자에게 짚어줄 것.
+- 아직 실전 검증은 AXIS6(고양이모래 재비교)만 진행중, 나머지 축은 이론설계 단계 — 실제 적용사례 생기면 각 축
+  섹션에 REF 추가해 verified로 승격.
+
+REF: u_3193~3196(2026-08-31), ar_2981(everclean 재비교 케이스), a_2981/a_2982 체인.

@@ -87,6 +87,32 @@ class TelegramIO:
             params["reply_markup"] = json.dumps({"inline_keyboard": inline_keyboard})
         return self._call("sendMessage", params)
 
+    def send_message_persistent_kb(
+        self,
+        chat_id: int,
+        text: str,
+        keyboard_rows: list[list[str]],
+        parse_mode: str | None = None,
+    ) -> dict[str, Any]:
+        """항상 노출되는 하단 고정 키보드(ReplyKeyboardMarkup)를 붙인 sendMessage.
+
+        inline_keyboard(메시지별 임시버튼)와 달리, 이건 채팅창 하단에 계속 남아있음(u_3276/3277).
+        keyboard_rows 예: [["리포트"], ["git commit, push"]] — 버튼 누르면 그 텍스트가 그대로 입력됨.
+        """
+        params: dict[str, Any] = {
+            "chat_id": chat_id,
+            "text": (text[:4000] or " "),
+            "parse_mode": parse_mode,
+            "reply_markup": json.dumps(
+                {
+                    "keyboard": [[{"text": label} for label in row] for row in keyboard_rows],
+                    "resize_keyboard": True,
+                    "is_persistent": True,
+                }
+            ),
+        }
+        return self._call("sendMessage", params)
+
     def send_photo(
         self,
         chat_id: int,

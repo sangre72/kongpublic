@@ -1,0 +1,48 @@
+RECIPE: purpose_driven_task_loop (base working methodology — what/how/why-first, dynamic re-prioritized task list)
+GATE: verified(2026-08-31, user-derived core methodology, u_3198)
+REG: ALL worker tasks(not shopping-specific) — this is the base execution loop, other recipes plug into it.
+
+WHY: user identified that task-dispatch was too literal/mechanical(execute step N, forget purpose). Real work
+needs: understand WHAT/HOW/WHY behind an instruction first, then break into a dynamic task list, execute with
+repetition-where-needed and research-where-needed, and CONTINUOUSLY fold new findings back into re-prioritized
+next steps — not a static one-shot checklist.
+
+METHOD:
+1. PURPOSE-EXTRACT: before acting, restate to self(or in ar_/log) what/how/why of the instruction —
+   not just the literal verb. e.g. "add cat-litter to cart" 의 진짜 목적=최적가치 구매판단 학습, not just click.
+2. TASK-LIST-BUILD: decompose into concrete sub-tasks, each tagged by type:
+   - REPEAT-type: same action across multiple targets(e.g. 3 shopping sites) → apply consistent method each time.
+   - RESEARCH-type: unknown/unverified info needed before acting(e.g. new site's UI, unfamiliar product category)
+     → research first(recipe lookup, WebSearch if authorized, or a11y exploration), THEN act.
+   - ACT-type: direct execution once purpose+method are clear.
+3. EXECUTE-ONE: work one task at a time, don't parallel-guess.
+4. FOLD-BACK: after each task, ask "did this reveal something new?"(new constraint, new pitfall, a better method,
+   an axis/criteria not previously known — cf RECIPE_shopping_comparison_axes.txt for a concrete instance of this
+   pattern already applied). If yes → ADD it to the task list, RE-PRIORITIZE(don't just append at the end blindly —
+   judge if it should jump ahead of pending items), continue.
+5. LOOP until task list empty or blocked. Report status incrementally if long-running(not just at the very end).
+
+CONCRETE EXAMPLE(shopping-batch case, u_3187→3198):
+- WHAT/WHY extracted: "장바구니 담기"의 진짜목적=최적가치 판단 학습(단순 클릭연습 아님).
+- Initial task-list: [site1-search-and-cart, site2-search-and-cart, site3-search-and-cart, telegram-send x3]
+- Execution revealed gap(no comparison) → FOLD-BACK added: [comparison-criteria-per-candidate] as new sub-task,
+  inserted BEFORE cart-finalize step for all 3 sites(re-prioritized ahead of "send via telegram").
+- Further fold-back(user pushed further): comparison-criteria itself needs to vary per axis(안전성/성능/신선도
+  /서비스지속성/경험정책/일반소모품) → spawned RECIPE_shopping_comparison_axes.txt as a NEW standing recipe,
+  not just a one-off fix — this is the loop working correctly(research-type sub-task → durable artifact).
+
+OPERATIONAL NOTE(2026-08-31, u_3198): prior task-dispatch(a_2981/2982, literal step-list) discarded per user
+request — this recipe supersedes literal step-dispatch as the default execution mode for open-ended/exploratory
+tasks. Still use plain scoped a_ instructions for well-understood, purely mechanical tasks(e.g. known video-upload
+flow) — this loop is for tasks where purpose/method isn't fully known upfront.
+
+BROWSER-NOTE: external web-service interaction(shopping etc) = private/incognito browser window(user directive,
+u_3191) — applies whenever this loop touches an external commerce/account-bearing site.
+
+LIMIT/OPEN:
+- No hard stop-condition defined for infinite fold-back loops(if every task reveals a new task forever) — use
+  judgment: if fold-back items are shrinking in scope/impact, converging toward done; if not, flag to user.
+- First real application in-flight(shopping-batch) was itself stopped mid-course by user(u_3197) before reaching
+  a full loop-to-completion cycle — this recipe is freshly authored, not yet verified end-to-end on one full task.
+
+REF: u_3187~3198(2026-08-31), a_2981/a_2982(superseded), RECIPE_shopping_comparison_axes.txt(fold-back product).
