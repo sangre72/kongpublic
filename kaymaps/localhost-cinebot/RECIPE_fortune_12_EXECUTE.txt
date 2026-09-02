@@ -1,0 +1,56 @@
+RECIPE: fortune_12_EXECUTE (deterministic run-script — user u_3370/3371: "매 스텝 깊게 판단 금지")
+REG: derived from RECIPE_fortune_12_full_flow.txt (verified_runs=1, a_953~970). This = lean EXECUTE view.
+WHY: full_flow 문서는 함정설명+판단트리거 28개라 워커가 매스텝 deliberation. 실제론 날짜만 바뀌는 DAY-PARAMETERIZED 루틴 → 아래처럼 **판단 없이 순서대로 실행**, 진짜 판단은 §JUDGE 3곳에서만.
+PRINCIPLE(K8, memory plan-first-not-per-step-analysis): 계획먼저→기준1회→연속실행. 각 스텝 재분석 금지. §JUDGE 조건 발생시에만 지정 대처.
+FULL-DETAIL/근거: RECIPE_fortune_12_full_flow.txt (함정 배경·실증출처는 그쪽 참조, 여기선 실행만).
+
+PARAM: DATE=<그날 YYYY-MM-DD> (유일한 일일 변수). 아래 <DATE> 치환.
+
+===== PRE (1회, 판단 없이) =====
+P0. 서버 up 확인(전부 응답해야 진행):
+    curl -s -o /dev/null -w "%{http_code}" http://localhost:4000   → 200 (CineBot)
+    curl -s "http://localhost:15000/fortune/progress?date=<DATE>&lang=ko"  → JSON (youtube-top uvicorn, 운세텍스트)
+    ★★슬라이드 생성 백엔드도 필수(2026-09-01 ar_2995 실패교훈 — 이거 빠지면 §10 '전체 슬라이드 생성'이 '영상 생성 오류'로 12씬 전부 실패):
+    curl -s -o /dev/null -w "%{http_code}" http://localhost:8188   → 200 (ComfyUI 이미지생성, 포트 8000/8188 drift 가능 — ps로 확인)
+    curl -s -o /dev/null -w "%{http_code}" http://localhost:15100   → (zodiac)
+    curl -s -o /dev/null -w "%{http_code}" http://localhost:18081   → (Qwen MLX)
+    (하나라도 000/무응답 → §JUDGE-4로. ComfyUI 기동: `~/ComfyUI-src/venv/bin/python3 main.py` ★bare python 금지=gguf 없음.)
+P1. Chrome foreground: `open -a "Google Chrome" && sleep 2`. (§JUDGE-1 조건 아니면 추가확인 불필요.)
+
+===== RUN (순서대로, 판단 없이 실행) =====
+1. 새로고침 버튼(~95,102) click.
+2. "포춘" 라디오(~1150,646) click.
+3. 날짜 세팅 → <DATE>: AXIncrementor(연/월/일) click + up/down. 값검증 1회만 zoom-crop(screencapture -R<x>,<y-17>,300,40 + Read). ★검증은 이 1곳만, 스텝마다 반복 금지.
+4. 나레이터 드롭다운(~775,867, a11y로 1회 좌표확인) click → "괜찮은 음성- 여성 1" click.
+5. ZODIAC 체크박스 = 기본 활성(초록점). 조작 불필요, 확인도 skip(기본값 신뢰).
+6. "운세 생성" click.
+7. 진행관찰 = API만(UI 판단 금지): `curl http://localhost:15000/fortune/progress?date=<DATE>&lang=ko` 5초간격.
+   → completed.length==12 && pending==[] && failed==[] 되면 §8로. (hang 나오면 §JUDGE-2.)
+8. 완료확인 = a11y 문자매칭 1회(스크린샷 육안 금지):
+   `kongtrol see --a11y --pid <PID> --compact | grep -E "쥐띠|소띠|호랑이띠|토끼띠|용띠|뱀띠|말띠|양띠|원숭이띠|닭띠|개띠|돼지띠"` → 12개 매칭이면 확정.
+   ★"⚠ zodiac Qwen(18081) 기동실패" 배너 = 오탐, 무시(12개 매칭이 기준).
+9. "전체 시나리오로"(~1572,196, a11y 1회 재확인) click → 시나리오탭 전환+대본 12항목 채워짐 확인(1회).
+10. "전체 슬라이드 생성" click. ★2026-09-01 ar_2995 실측: 이 버튼은 씬목록 패널이되 **페이지 하단 스크롤 후** 노출됨(맨위 아님 — full_flow 옛설명과 상충). 방법: `see --a11y --compact | grep "전체 슬라이드 생성"` 안 잡히면 아래로 스크롤(down repeat)하며 재grep, 나오면 그 좌표 click. 상단부터 찾다 시간낭비 금지.
+11. 슬라이드 생성 진행 = Monitor 폴링(수동 sleep 반복 금지). a11y "슬라이드 생성 중 (N/12)" 카운트. 1장 3~4분, 전체 40~50분.
+12. 완료판정 3중(이 1곳만 판단, 단일신호 불신): (a)"영상 12/12" 초록배지 (b)버튼="전체 슬라이드 재생성"으로 변경 (c)씬1/2 실제 썸네일 렌더(빈배경 아님). 3개 다 = 완료. (씬별 "미생성" static text는 stale 오탐, 무시.)
+
+===== §JUDGE (판단은 여기 3곳에서만, 조건→지정대처. 새 분석 금지) =====
+JUDGE-1 [Chrome 포커스 손실]:
+  조건 = `see --a11y --compact`가 요소 ~10개(메뉴바만) OR `input key`만 "사용자가 작업을 거부했습니다"(click은 됨).
+  → 오판금지: 권한문제 아님=포커스손실. 대처: `open -a "Google Chrome" && sleep 2` (또는 Dock Chrome click) → 재시도. needs-info 금지.
+JUDGE-2 [15000 서버 hang]:
+  조건 = progress curl이 HTTP 000(connection refused) 반복.
+  → 대처: 기다린다(20~80초 자연회복, 대부분 통함). 5초간격 재확인. UI stale은 정상. ★재시작 금지(5분+ 지속시에만 needs-info로 승인요청).
+JUDGE-3 [완료판정]:
+  조건 = §7 batch 종료 or §12 슬라이드 완료 판단시.
+  → 대처: §8(12띠 grep) / §12(3중확인)만 근거. 배너·단일 static text 근거 판단 금지.
+JUDGE-4 [슬라이드 생성 백엔드 다운] (2026-09-01 ar_2995 신설):
+  조건 = §10 후 "영상 생성 오류" 다이얼로그 OR 12씬 전부 0초 리셋 OR P0에서 8188/15100/18081 000.
+  → 원인 = ComfyUI/zodiac/Qwen 이미지백엔드 다운(대부분 ComfyUI 8188). 대처: 무한재시도 금지. 백엔드 curl로 확인 → 다운이면 ComfyUI 기동(`~/ComfyUI-src/venv/bin/python3 main.py`, venv필수) 후 §10 재시도. 기동방법 불명/권한필요면 needs-info로 승인요청.
+
+===== VERIFY(종료조건) =====
+- API: completed==12 && failed==0 && pending==0.
+- 시나리오탭 대본 12항목([쥐띠]...[돼지띠]) 존재.
+- 슬라이드: "영상 12/12" 배지 + 버튼텍스트 원복 + 썸네일 3중.
+
+NOTE: 이후 "병합+설명 생성"(초록버튼) 단계는 미검증영역(full_flow LIMIT 참조) — 별도 지시시 진행.

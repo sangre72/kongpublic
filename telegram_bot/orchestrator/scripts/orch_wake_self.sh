@@ -14,8 +14,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 TTY_FILE="$REPO_ROOT/logs/.orch_tty_orch"
 
 BASE_MSG="${1:-new u_ received, check now.}"
-# ★K7 리마인더 자동첨부(u_2802/2803): 오케 깨울 때도 압축영문+기호(터미널 narration) 준수 상기.
-MSG="${BASE_MSG} [K7·EN-think·min-out, telegram-reply=full-KR]"
+# ★K7 리마인더 자동첨부(u_2802/2803/3xxx): 오케 깨울 때 압축영문+기호 사고 + 워커통신(a_)도 EN+기호 명시.
+MSG="${BASE_MSG} [K7: think=EN+sym, a_/worker-comm=EN+sym, term-out=min, telegram-reply=full-KR]"
 
 TARGET_TTY=""
 if [ -f "$TTY_FILE" ]; then

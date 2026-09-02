@@ -503,29 +503,31 @@ def _build_prompt(a_path: Path, resume: bool = False) -> str:
     a_rel = ps.rel_from_repo(a_path)
     seq_m = re.match(r"a_(\d+)_", a_path.name)
     seq = seq_m.group(1) if seq_m else ""
-    # 재개(och §11): 이전에 needs-info 로 물었고 오케가 [ANSWER] 를 붙여 다시 띄운 경우.
+    # resume(och §11): prior needs-info stop, orch appended [ANSWER], re-spawned.
     resume_note = ""
     if resume or ps.has_pending_answer(a_path):
         resume_note = (
-            "★재개(needs-info 왕복): 이전에 네가 오케에게 물어(needs-info) 멈췄고,\n"
-            f"   오케의 답이 지시서 {a_rel} 끝의 [ANSWER]/'## 오케 답변' 에 붙어 있다.\n"
-            "   처음부터가 아니라 그 답을 반영해 **이어서** 처리하라.\n\n"
+            f"★RESUME(needs-info roundtrip): prior=you asked orch(needs-info)+stopped; "
+            f"orch answer @ end of {a_rel} [ANSWER]/'## 오케 답변'. "
+            "continue FROM that answer, not from scratch.\n\n"
         )
     return (
-        f"너는 이 프로젝트({_REPO_ROOT})의 자동 워커다.\n\n"
+        f"you=auto-worker of proj({_REPO_ROOT}).\n\n"
+        "★THINK=EN+symbol/K7 only. NO korean-reasoning(KR think=+30% token+latency). "
+        "terminal-out=MIN(no step-narration/no instr-restate/no ack-preamble). "
+        "a_/ar_ body=compressed-EN+symbol. EXCEPTION(KR allowed)=ONLY ar_ '## 결과' user-summary. "
+        "reasoning/narration=EN always. cf och.txt §1J/§31 K7.\n\n"
         f"{resume_note}"
-        f"1) 지시서를 읽어라: {a_rel}\n"
-        "   (헤더 [CHAT_ID]·[PARENT](유저 원문 u_)·[REF_IMAGE] 확인. '## 유저 원문'이 실제 요청이다.)\n"
-        "2) 지시서의 '## 지시' 대로 이 프로젝트 코드 컨텍스트로 정제·처리하라.\n"
-        "   .claude/rules 와 telegram_bot/orchestrator/och.txt(§4·§7)를 준수한다.\n"
-        "3) 결과를 지시서와 같은 폴더에 응답 파일로 남겨라:\n"
-        f"   telegram_bot/orchestrator/protocol/a/ar_{seq}_auto.txt\n"
-        "   - 첫 줄: [STATUS] done  (실패 시 error|blocked)\n"
-        "   - '## 결과' 섹션에 유저에게 보낼 한국어 요약을 써라(1500자 이내).\n"
-        "   - 장시간 작업이면 먼저 [STATUS] in-progress 로 만들고, 끝나면 done 으로 바꿔라.\n"
-        "   - ★막혀서 결정이 필요하면 유저에게 직결 금지 — [STATUS] needs-info + [QUESTION] 으로\n"
-        "     오케에게 물어라(och.txt §11). 오케가 답을 이 지시서에 [ANSWER] 로 붙여 재개시킨다.\n"
-        "4) 완료 후 종료하라. 봇이 ar_ 의 종결 STATUS 를 감지해 유저에게 회신한다.\n"
+        f"1) read instr: {a_rel} "
+        "(hdr [CHAT_ID]·[PARENT](user-orig u_)·[REF_IMAGE]. '## 유저 원문'=real request.)\n"
+        "2) exec '## 지시' in this proj code-context. obey .claude/rules + och.txt(§4·§7).\n"
+        f"3) write reply file same dir: telegram_bot/orchestrator/protocol/a/ar_{seq}_auto.txt\n"
+        "   - line1: [STATUS] done  (fail→ error|blocked)\n"
+        "   - '## 결과' = KR user-summary(≤1500 chars). ★this section=KR(user-facing), rest=EN.\n"
+        "   - long task→ [STATUS] in-progress first, →done when finished.\n"
+        "   - ★blocked/decision-needed→ NO direct-to-user. [STATUS] needs-info + [QUESTION] "
+        "to orch(och §11); orch appends [ANSWER] to resume you.\n"
+        "4) exit when done. bot detects ar_ terminal STATUS→ replies user.\n"
     )
 
 
