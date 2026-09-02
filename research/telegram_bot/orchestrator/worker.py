@@ -78,6 +78,9 @@ def _auto_dispatch_enabled() -> bool:
 # 이 "마지막 생존신호(=ar_ mtime) 이후 경과"로 판정해 살아있는 동안은 타임아웃이 리셋된다.
 # → 실제로 '멈춘'(신호 끊긴) 워커만 정리한다. .env 의 ORCH_WORKER_TIMEOUT_SEC 로 조정.
 WORKER_TIMEOUT = int(os.environ.get("ORCH_WORKER_TIMEOUT_SEC", "600"))
+# 워커 모델(속도↑): 기본 haiku — 빠르고 저렴, 압축영문+레시피 순서실행 등 대부분 워커작업엔 충분.
+# 판단·코딩 무거운 작업만 .env 의 ORCH_WORKER_MODEL=sonnet/opus 로 승격. "" = claude 기본모델 사용.
+WORKER_MODEL = os.environ.get("ORCH_WORKER_MODEL", "haiku").strip()
 # SIGTERM 후 SIGKILL 까지 유예(초) — 그레이스풀 종료 기회.
 _TERM_GRACE_SEC = float(os.environ.get("ORCH_WORKER_TERM_GRACE_SEC", "5"))
 
@@ -589,7 +592,10 @@ def spawn_for_task(a_path: Path, resume: bool = False) -> tuple[bool, str]:
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     log_path = _LOG_DIR / f"worker_{a_path.stem}_{ts}.log"
 
-    cmd = [cbin, "-p", "--dangerously-skip-permissions", prompt]
+    cmd = [cbin, "-p", "--dangerously-skip-permissions"]
+    if WORKER_MODEL:
+        cmd += ["--model", WORKER_MODEL]
+    cmd.append(prompt)
     try:
         logf = open(log_path, "w", encoding="utf-8")  # noqa: SIM115
         proc = subprocess.Popen(
