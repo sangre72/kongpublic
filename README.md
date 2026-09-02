@@ -66,6 +66,16 @@ The core principle is **"never fabricate the deliverable via script."** Whether 
 3. **Accumulated learning**: once a manipulation (click coordinates, menu path, color-selection formula, etc.) is verified, it's saved as a recipe and reused without re-deriving it from scratch.
 4. **Remote collaboration**: issue instructions and watch progress from anywhere via Telegram.
 
+## Recent capabilities (2026-09)
+
+- **Symbolic comm protocol (COMM#0)**: orch⇄worker exchange uses compressed symbol/formula notation, not prose — Korean is reserved for the user-facing Telegram reply only. Cuts token/latency overhead on every round-trip.
+- **Payload-in-wake**: dispatches carry the actual instruction/result inside the wake injection (worker executes without opening a file); `a_/ar_` files remain as durable trace for next-session resume.
+- **Jobs registry** (`kaymaps/_jobs_registry.json`): recurring jobs are data (keywords → recipe, path-formula, exec steps/deps, model). A registry-covered request dispatches reflexively with no deliberation; the base contract stays thin while conventions grow as data.
+- **GOAL-ONLY-THINK + perf-tuning**: worker thinks only what the goal needs (no re-deliberation on known steps). Navigation via a11y-lookup + immediate click (never hardcoded coords — coords shift with window/zoom, so live lookup is mandatory). Measured: ~15s/step → ~2s/step, bottleneck = page-render.
+- **Immediate stop** (`orch_stop_worker.sh`): ESC hard-interrupt cuts the worker's in-flight turn on the spot (normal wake queues behind the turn).
+- **Experience bank** (separate repo `kong-agent-experience-bank-`): domain knowledge (purchase/airfare/…) accumulated as verified `EXP_*` entries under `<country>/<lang>/<site>/<domain>/`. Domain tasks consult it before deciding (e.g. cheapest = effective-payment, not sticker price) and write back after.
+- **Verify-by-failure-mode**: CLI/exit-code ops trust the exit code (no re-verify); GUI ops (silent-fail possible) verify exactly once.
+
 ## Architecture
 
 ```
@@ -158,12 +168,19 @@ The failure mode on the "do not use" side isn't just wrong answers — it fabric
 kongtrol/               Rust-based pure-IO tool (screen perception + mouse/keyboard CLI)
 telegram_bot/            Telegram bot + orchestrator/worker protocol
   orchestrator/
-    protocol/{u,a,ar,done}   user instructions · task specs · result reports
+    protocol/{u,a,ar,archive,refs}  user instructions · task specs · result reports · image attachments
+    och.txt              orchestrator rules (COMM#0, GATE, principles)
+    worker_1.txt         worker rules (RULE#0 goal-only-think)
+    scripts/             wake-inject (orch_wake_self/worker), orch_stop_worker(ESC), monitor
 kaymaps/                  Verified per-app manipulation recipes (accumulated learning)
   _common/                App-agnostic general principles/lessons
-  krita/, keynote/        Per-app coordinates, formulas, procedures
+  _jobs_registry.json     recurring jobs as data (keyword→recipe/path/exec)
+  krita/, keynote/, localhost-cinebot/, chrome/, system/   per-app recipes
+jobs/                     task outputs (video/image/edits, per job dir)
 docs/                     ADRs, app knowledge base, research notes
 ```
+
+Related repo: **`kong-agent-experience-bank-`** — cross-domain verified experience (purchase, airfare, …) as shareable `EXP_*` entries, organized `<country>/<lang>/<site>/<domain>/`.
 
 ## License
 
