@@ -16,7 +16,7 @@ TTY_FILE="$REPO_ROOT/logs/.orch_tty_orch"
 BASE_MSG="${1:-new u_ received, check now.}"
 # ★K7 리마인더 자동첨부(u_2802/2803/3xxx): 오케 깨울 때 압축영문+기호 사고 + 워커통신(a_)도 EN+기호 명시.
 # u_3444: symbolic-opcode form(수식기호사고). think∈{sym,formula}; ¬KR-think; ¬prose. tg=KR.
-MSG="${BASE_MSG} [think=∑sym/formula ¬prose ¬KR; a_,wkr-msg=sym; out=min; tg-reply=KR; job∈registry→exec(no-delib)]"
+MSG="${BASE_MSG} [think=∑sym/formula ¬prose ¬KR; a_,wkr-msg=sym; out=min; tg-reply=KR; job∈registry→exec(no-delib); wrap-up=short ¬recap(shorter=faster-turn)]"
 
 TARGET_TTY=""
 if [ -f "$TTY_FILE" ]; then
