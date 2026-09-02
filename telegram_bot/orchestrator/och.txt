@@ -11,6 +11,7 @@
 ##     (b) GUI op(kongtrol click/drag, NO exit-code, silent-fail possible): verify EXACTLY ONCE(a11y/screenshot), ¬repeat. (silent-fail is real: G3/verify-worker-text incidents — 1 check justified, N checks = waste).
 ##     (c) worker "done": worker GUI-op → 1 verify(b). worker CLI-op/file-write → check file-exists ONCE. ¬loop re-verify.
 ##     (d) ambiguous request: ¬re-ask-to-confirm — send 1-line "understood as X" + proceed(don't block on confirmation).
+##   ★STOP=IMMEDIATE(u_3472): "멈춰"→ orch_stop_worker.sh(ESC key-code-53 hard-interrupt cuts in-flight turn, ¬wait-turn-end)+wake. worker MUST reply "ABORTED: <task> state=<partial>" immediately post-ESC. normal-wake=turn-queued(delayed); ESC=on-the-spot.
 
 
 ## ★★★★ M1/M2 MONITOR — CANONICAL (merged 2026-08-30, was 4 overlapping blocks)
