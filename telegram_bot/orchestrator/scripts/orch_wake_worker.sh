@@ -5,13 +5,27 @@
 # ★2026-08-30 u_re-fix pt.2: title-phrase matching(구 "Kong 워커 역할 정의") 은 Claude Code가
 #   세션 시작 프롬프트에서 자동생성하는 문구라 새 세션마다 바뀔 수 있어 fragile. tty 기반 우선:
 #   logs/.orch_tty_worker1(session_register_tty.sh 로 등록) 있으면 그 tty로 창 특정, 없으면 문구매칭 폴백.
-# usage: bash orch_wake_worker.sh ["msg"]  (default="check new a_ dispatch.")
+# usage: bash orch_wake_worker.sh [--model <m>] ["msg"]  (default="check new a_ dispatch.")
+#   --model <m>: 지시 주입 전에 워커 세션 모델을 /model <m> 로 먼저 바꾼다(속도조절 — u_3xxx).
+#     예) bash orch_wake_worker.sh --model haiku "check new a_ dispatch."  (가벼운 작업=haiku)
+#         bash orch_wake_worker.sh --model opus  "..."                     (판단·코딩=opus)
+#     m 값 = claude 세션이 받는 값 그대로(haiku|sonnet|opus). /model 적용 delay 후 지시 주입.
 # ★K7(u_2803): internal-comm injection = compressed-EN, never KR-literal — caller must pass EN msg too.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 TTY_FILE="$REPO_ROOT/logs/.orch_tty_worker1"
+
+# --model <m> 파싱(있으면). 나머지 인자는 그대로 메시지로.
+SET_MODEL=""
+if [[ "${1:-}" == "--model" ]]; then
+  SET_MODEL="${2:-}"
+  if [[ -z "$SET_MODEL" ]]; then
+    echo "FAIL: --model needs a value (haiku|sonnet|opus)" >&2; exit 1
+  fi
+  shift 2
+fi
 
 BASE_MSG="${1:-check new a_ dispatch.}"
 # ★2026-08-31 u_3128 하드가드: 워커행 메시지=예외없이 압축영문+기호. 한글(가-힣) 섞이면 즉시 실패
@@ -35,6 +49,28 @@ WINDOW_HINT="Kong 워커 역할 정의"
 TARGET_TTY=""
 if [ -f "$TTY_FILE" ]; then
   TARGET_TTY="$(tr -d '[:space:]' < "$TTY_FILE")"
+fi
+
+# ★--model 먼저 주입(있으면): /model <m> 를 워커 창에 넣어 세션 모델 전환 후, 아래에서 실제 지시 주입.
+#   슬래시명령이라 K7 태그 미부착(위 로직과 동일 취지). 적용 delay 후 지시가 새 모델로 처리되게 한다.
+if [[ -n "$SET_MODEL" ]]; then
+  osascript <<EOF >/dev/null 2>&1 || true
+tell application "Terminal"
+  set targetTty to "$TARGET_TTY"
+  if targetTty is not "" then
+    repeat with w in windows
+      if (tty of w) is targetTty then
+        do script "/model $SET_MODEL" in w
+        delay 0.3
+        do script (return & "") in w
+        exit repeat
+      end if
+    end repeat
+  end if
+end tell
+EOF
+  # 모델 전환 UI 적용 대기(전환 직후 바로 지시 넣으면 구모델로 처리될 수 있음).
+  sleep 2
 fi
 
 # ★2026-08-28 u_2803/2804 fix: `do script "text" in w` on a Claude-Code TUI can QUEUE
