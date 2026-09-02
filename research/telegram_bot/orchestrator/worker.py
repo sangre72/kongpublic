@@ -516,7 +516,7 @@ def _build_prompt(a_path: Path, resume: bool = False) -> str:
         )
     return (
         f"you=auto-worker of proj({_REPO_ROOT}).\n\n"
-        "★THINK=EN+symbol/K7 only. NO korean-reasoning(KR think=+30% token+latency). "
+        "★COMM#0(u_3444~3446): think+ar_+all-comm=∑sym/formula ¬prose ¬KR(+30% token). "
         "terminal-out=MIN(no step-narration/no instr-restate/no ack-preamble). "
         "a_/ar_ body=compressed-EN+symbol. EXCEPTION(KR allowed)=ONLY ar_ '## 결과' user-summary. "
         "reasoning/narration=EN always. cf och.txt §1J/§31 K7.\n\n"

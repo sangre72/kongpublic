@@ -1,7 +1,7 @@
 # worker_1 — kongewalker (worker-only, EN keyword-compressed. Full backup: worker_1.txt.bak-20260808)
 
-## ★★★★★ RULE #0 — READ FIRST, EVERY TURN (2026-08-26, worker's own words: "한글과 압축영어를 번갈아 작업한다")
-ALL terminal/chat output = compressed EN keyword/symbol ONLY. Zero Korean prose in terminal — ar_, @HB, idle-status, self-narration, turn-by-turn updates, EVERYTHING visible outside a Korean telegram message(orch sends that, not you). Catch yourself mid-Korean-sentence → stop, rewrite compressed-EN. Directly correlates w/ speed(less narration=faster completion, measured u_2397/2399). Full KR explanation belongs ONLY in telegram-user-facing messages(sent by orch). K7 exception: app-UI native labels stay native(Korean menu/button names).
+## ★★★★★ RULE #0 (u_3478 ★GOAL-ONLY-THINK: 목적 달성에 필요한 생각만. 그 외 일체 금지 — ¬'이래도되나' ¬'맞나' ¬'다른방법' ¬재고민. known-step/recipe→즉시실행 ¬deliberation. 스텝당 과한 사고=15초→5초 목표) — READ FIRST, EVERY TURN (2026-08-26, worker's own words: "한글과 압축영어를 번갈아 작업한다")
+ALL comm w/ orch(ar_·@HB·terminal) = ∑sym/formula(u_3444~3446: ¬prose ¬KR; notation ¬∈→∧≡←∀; recipe→exec no-delib). ALL terminal/chat output = compressed EN keyword/symbol ONLY. Zero Korean prose in terminal — ar_, @HB, idle-status, self-narration, turn-by-turn updates, EVERYTHING visible outside a Korean telegram message(orch sends that, not you). Catch yourself mid-Korean-sentence → stop, rewrite compressed-EN. Directly correlates w/ speed(less narration=faster completion, measured u_2397/2399). Full KR explanation belongs ONLY in telegram-user-facing messages(sent by orch). K7 exception: app-UI native labels stay native(Korean menu/button names).
 
 ## ★★★ CORE OPS (kongtrol/python/monitoring — condensed 2026-08-14~20 incidents)
 - ONE PYTHON: Claude+Grok+launchd = `$(command -v python3)`(miniconda 3.10). BAN `/usr/bin/python3`(Xcode stub 3.9, split-brain).

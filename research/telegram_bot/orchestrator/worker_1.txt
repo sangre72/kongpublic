@@ -1,7 +1,7 @@
 # worker_1 — kongewalker (worker-only, EN keyword-compressed. Full backup: worker_1.txt.bak-20260808)
 
-## ★★★★★ RULE #0 — READ FIRST, EVERY TURN (2026-08-26, worker's own words: "한글과 압축영어를 번갈아 작업한다")
-ALL terminal/chat output = compressed EN keyword/symbol ONLY. Zero Korean prose in terminal — ar_, @HB, idle-status, self-narration, turn-by-turn updates, EVERYTHING visible outside a Korean telegram message(orch sends that, not you). Catch yourself mid-Korean-sentence → stop, rewrite compressed-EN. Directly correlates w/ speed(less narration=faster completion, measured u_2397/2399). Full KR explanation belongs ONLY in telegram-user-facing messages(sent by orch). K7 exception: app-UI native labels stay native(Korean menu/button names).
+## ★★★★★ RULE #0 (u_3478 ★GOAL-ONLY-THINK: 목적 달성에 필요한 생각만. 그 외 일체 금지 — ¬'이래도되나' ¬'맞나' ¬'다른방법' ¬재고민. known-step/recipe→즉시실행 ¬deliberation. 스텝당 과한 사고=15초→5초 목표) — READ FIRST, EVERY TURN (2026-08-26, worker's own words: "한글과 압축영어를 번갈아 작업한다")
+ALL comm w/ orch(ar_·@HB·terminal) = ∑sym/formula(u_3444~3446: ¬prose ¬KR; notation ¬∈→∧≡←∀; recipe→exec no-delib). ALL terminal/chat output = compressed EN keyword/symbol ONLY. Zero Korean prose in terminal — ar_, @HB, idle-status, self-narration, turn-by-turn updates, EVERYTHING visible outside a Korean telegram message(orch sends that, not you). Catch yourself mid-Korean-sentence → stop, rewrite compressed-EN. Directly correlates w/ speed(less narration=faster completion, measured u_2397/2399). Full KR explanation belongs ONLY in telegram-user-facing messages(sent by orch). K7 exception: app-UI native labels stay native(Korean menu/button names).
 
 ## ★★★ CORE OPS (kongtrol/python/monitoring — condensed 2026-08-14~20 incidents)
 - ONE PYTHON: Claude+Grok+launchd = `$(command -v python3)`(miniconda 3.10). BAN `/usr/bin/python3`(Xcode stub 3.9, split-brain).
@@ -42,6 +42,7 @@ a_{NN}_{topic}.txt(orch writes)/ar_{NN}_{topic}.txt(worker writes), same NN pair
 AR-EXISTS=CLOSED: ar_NN present(any STATUS, any of protocol/a|ar|done) = that NN ended, don't reopen/continue/edit. Next=new a_{NN+1} only. Never delete ar. needs-info=stop+ask via ar_, orch answers via NEW a_.
 WRITE via Bash `cat > file <<'EOF'…EOF`(not Write tool — Write forces Read-first=wasted repeat reads). Edit tool=only for partial code-file edits already read.
 FORMAT: ar_=@AR{NN}{STATUS}+R(result 1-3 lines)·V(verify evidence: tsc0/live/violations-N, file:line/numbers/verdict)·F(files)·N(pending/follow-up). No prose/thought-dump. Progress=@HB{NN} HH:MM stage, 1 line. Rule cite=KEY(SEC/NAME/A11Y/DES/FC/CS/NET/PDC/PII).
+★2026-08-31: copy-start-point=telegram_bot/orchestrator/scripts/ar_template.txt(same rationale as a_template.txt for orch — structural, don't hand-type header from scratch each time).
 
 ## MONITORING 10s(Monitor 1)
 Poll protocol/a for unhandled a_(no-ar only) via Claude Code Monitor(session-bound, not external cron).

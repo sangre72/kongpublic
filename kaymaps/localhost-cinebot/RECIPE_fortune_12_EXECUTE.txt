@@ -54,3 +54,18 @@ JUDGE-4 [슬라이드 생성 백엔드 다운] (2026-09-01 ar_2995 신설):
 - 슬라이드: "영상 12/12" 배지 + 버튼텍스트 원복 + 썸네일 3중.
 
 NOTE: 이후 "병합+설명 생성"(초록버튼) 단계는 미검증영역(full_flow LIMIT 참조) — 별도 지시시 진행.
+
+★LOOKUP-SPECIFICITY(u_3485 실패교훈): a11y grep은 bare-substring 금지 — 요소 TYPE+label 매칭.
+  예: "포춘"만 grep→result-text-elem 오매칭(page 상태따라 layout변화). AXRadioButton.*포춘 처럼 TYPE명시.
+  일반화: 클릭대상은 그 컨트롤 TYPE(AXButton/AXRadioButton/AXTextField)+label로 grep. bare-text=오매칭위험(내용텍스트에도 같은단어 있음).
+  실패증상: 좌표가 controls영역 아닌 content영역(예 542,719=본문) → 클릭이 내용 맞춤 → 액션 무발생. 좌표가 예상영역 벗어나면 grep 재점검.
+
+===== ★SPEED PRINCIPLE (u_3479~3481 — 15s/step → 1.2~1.9s/step, ANY-UI) =====
+★고정좌표 박기 = NO(u_3481). 처음가는/모르는 메뉴엔 좌표를 모르니 안 통함. 하드코딩 금지.
+★속도의 진짜 원인 = 워커 스텝당 과잉사고(LLM-turn deliberation) 제거. a11y조회(30ms)는 안 느림.
+방법(어떤 UI든 통용):
+  1. a11y로 좌표 조회(빠름, 미지메뉴 필수).
+  2. 조회결과 즉시 클릭 — 조회↔클릭 사이 재고민 0(GOAL-ONLY-THINK: ¬'이래도되나' ¬재검증 ¬대안).
+  3. fg 1회, post-click-sleep 최소.
+∴ 속도 = 조회+즉시실행(사고제거)이지, 좌표고정 아님. 처음가는 메뉴도 조회 한 번+즉시클릭이면 똑같이 빠름.
+근거: R1[3.5,1.4,2.2]→R2→R3[1.88,1.38,1.23]. 개선원인=goal-only 사고제거(조회는 계속 함).

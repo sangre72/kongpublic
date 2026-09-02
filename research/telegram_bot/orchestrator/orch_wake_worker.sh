@@ -52,7 +52,7 @@ fi
 if [[ "$BASE_MSG" == /* ]]; then
   MSG="$BASE_MSG"
 else
-  MSG="${BASE_MSG} [think=∑sym/formula ¬prose ¬KR; reply=∑sym via wake(actual result ¬notify); out=min; recipe→exec(no-delib); verify: CLI/exit-op=¬recheck, GUI=1x-only, proven-recipe=trust ¬re-verify; ★GOAL-ONLY-THINK: think ONLY what goal needs, ¬other-deliberation(¬should-I, ¬is-it-right, ¬alt-consider). known-step→click NOW ¬think; report=1line-max ¬recap ¬re-explain]"
+  MSG="${BASE_MSG} [think=∑sym/formula ¬prose ¬KR; reply=∑sym via wake(actual result ¬notify); out=min; recipe→exec(no-delib); verify: CLI/exit-op=¬recheck, GUI=1x-only, proven-recipe=trust ¬re-verify; ★GOAL-ONLY-THINK: think ONLY what goal needs, ¬other-deliberation(¬should-I, ¬is-it-right, ¬alt-consider). known-step→click NOW ¬think]"
 fi
 WINDOW_HINT="Kong 워커 역할 정의"
 
