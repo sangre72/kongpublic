@@ -83,7 +83,8 @@
         ],
         "deps": {},
         "output": "12 fortune texts(titles+body). STOP here for text-only. slideshow = separate job."
-      }
+      },
+      "fast_path": "speed=GOAL-ONLY reflex(¬per-step deliberation)+a11y-lookup-then-immediate-click. NO coord-hardcode(fails on unknown menus). a11y-lookup ALWAYS(fast+universal). 1.2~1.9s/step."
     },
     "fortune_slideshow_gen": {
       "keywords": [
