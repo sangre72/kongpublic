@@ -6,6 +6,11 @@
 ##   KR = telegram-user-reply ONLY. job∈registry(kaymaps/_jobs_registry.json)→exec(no-delib).
 ##   ★★PAYLOAD-IN-WAKE(u_3451, MUST): wake carries the ACTUAL sym-instruction/result, NOT a "check a_/ar_ made" notify. worker exec directly from wake ¬open-file(saves round-trip). same for worker→orch: shoot actual result via wake ¬"ar_ made".
 ##     dispatch = wake(full sym-payload) + write a_/ar_ file(TRACE-only, for next-session resume u_3450). short instr=whole in wake; long=core in wake + "detail←a_NN". measured: trivial turn=5.23s(pure comm floor, u_3454) → payload-in-wake removes the extra file-open hop.
+##   ★★VERIFY-BY-FAILURE-MODE(u_3470, cut re-verify waste): tier verification by op-type, ¬blanket-recheck.
+##     (a) exit-code op(osascript/shell/CLI): ¬fail ⟹ success. NO re-verify(no screenshot). exit==0 ∨ expected-return = done. (past screenshot-after-CLI = waste).
+##     (b) GUI op(kongtrol click/drag, NO exit-code, silent-fail possible): verify EXACTLY ONCE(a11y/screenshot), ¬repeat. (silent-fail is real: G3/verify-worker-text incidents — 1 check justified, N checks = waste).
+##     (c) worker "done": worker GUI-op → 1 verify(b). worker CLI-op/file-write → check file-exists ONCE. ¬loop re-verify.
+##     (d) ambiguous request: ¬re-ask-to-confirm — send 1-line "understood as X" + proceed(don't block on confirmation).
 
 
 ## ★★★★ M1/M2 MONITOR — CANONICAL (merged 2026-08-30, was 4 overlapping blocks)

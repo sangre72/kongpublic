@@ -52,7 +52,7 @@ fi
 if [[ "$BASE_MSG" == /* ]]; then
   MSG="$BASE_MSG"
 else
-  MSG="${BASE_MSG} [think=∑sym/formula ¬prose ¬KR; reply=∑sym via wake(¬\"ar_ made\", shoot actual result); out=min; recipe→exec(no-delib)]"
+  MSG="${BASE_MSG} [think=∑sym/formula ¬prose ¬KR; reply=∑sym via wake(¬ar_-made-notify, shoot actual result); out=min; recipe→exec(no-delib)]"
 fi
 WINDOW_HINT="Kong 워커 역할 정의"
 

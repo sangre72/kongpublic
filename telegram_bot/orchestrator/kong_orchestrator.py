@@ -61,12 +61,22 @@ _orch_alert_sent_at: float = 0.0
 _ORCH_WAKE_SELF_SCRIPT = _REPO_ROOT / "telegram_bot" / "orchestrator" / "scripts" / "orch_wake_self.sh"
 
 
-def _wake_orch_self(seq: int) -> None:
-    """u_ 저장 직후(로컬 수신 시점) 오케 세션을 즉시 깨운다. 실패해도 무해(M1 폴링이 fallback)."""
+def _wake_orch_self(seq: int, text: str = "") -> None:
+    """u_ 저장 직후(로컬 수신 시점) 오케 세션을 즉시 깨운다. 실패해도 무해(M1 폴링이 fallback).
+
+    ★u_3467: '요청서 왔다' 알림이 아니라 실제 요청내용을 wake에 통째 실어보냄 →
+    오케가 파일 안 열고 즉시 처리(payload-in-wake, COMM#0). text=유저원문.
+    osascript 깨짐 방지: 따옴표·개행 sanitize.
+    """
     if not _ORCH_WAKE_SELF_SCRIPT.exists():
         return
+    # sanitize for osascript do-script(quote/newline break)
+    safe = (text or "").replace('"', "'").replace("\n", " ").replace("\\", "").strip()
+    if len(safe) > 500:
+        safe = safe[:500] + "…"
+    msg = f"u_{seq:02d}: {safe}" if safe else f"new u_{seq:02d} received, check now."
     subprocess.run(
-        ["bash", str(_ORCH_WAKE_SELF_SCRIPT), f"new u_{seq:02d} received, check now."],
+        ["bash", str(_ORCH_WAKE_SELF_SCRIPT), msg],
         capture_output=True,
         timeout=5,
         check=False,
@@ -677,7 +687,7 @@ def handle_message(tg: TelegramIO, chat_id: int, username: str, text: str) -> No
     print(f"[수신→u_{seq:02d}] 저장 완료 — 다음 루프에서 자동배정")
     # ★로컬 u_ 파일 수신 즉시 오케 세션을 깨움(M1 10s 폴링 지연 없이) — u_2801.
     try:
-        _wake_orch_self(seq)
+        _wake_orch_self(seq, text)
     except Exception:  # noqa: BLE001
         pass  # 깨우기 실패해도 u_ 자체는 이미 저장됨(M1 폴링이 fallback)
 

@@ -1,0 +1,37 @@
+RECIPE: calendar_event (macOS Calendar.app event create) — verified 2026-09-02 a_2999
+GATE: verified(1 run, event "가평 캠핑장 방문"@9/10 created+screenshot-confirmed purple pill)
+REG: app=Calendar.app(macOS native). view=월(month).
+WHY: 날짜 cell 클릭방식보다 "빠른 이벤트"(+btn) NL-parse가 결정적(date+title 1-shot).
+PARAM: DATE=YYYY-MM-DD, TITLE=str. NL="YYYY년 M월 D일 <TITLE>"
+CLICK-PROTOCOL: fg(open -a "Calendar";s1.5) ∧ coord←a11y-only ∧ --yes ∧ verify←a11y
+
+STEPS(∑):
+1. open -a "Calendar" ; sleep 1.5
+2. click +btn @(339,204) [빠른 이벤트/quick-add]. a11y re-verify coord each run.
+3. type NL string: "YYYY년 M월 D일 <TITLE>" into quick-field @(339,372). Calendar auto-parses date+title.
+4. enter (create) → enter (commit). ★2× enter.
+5. verify: a11y count==1 for TITLE ∧ visual pill on DATE cell(month view).
+
+★PITFALL: esc = DISCARD(event lost). NEVER esc to close — close via enter-commit only.
+VERIFY: a11y TITLE-match + screenshot month-view shows pill on target date.
+LIMIT: date-cell coord varies by month layout(9/10=738,432 this run) — quick-add NL avoids cell-click entirely, prefer NL method.
+
+===== DELETE (verified 2026-09-02 a_2999-followup) =====
+D-STEPS(∑):
+D0. open -a "Calendar"; s2. month view.
+D1. locate pill: a11y grep "<TITLE>" → AXStaticText @(X,Y) [해당 날짜 cell]. pre-count=grep -c "<TITLE>"(expect 1).
+D2. click pill @(X,Y) --yes; s1 → select(single-click, popover 안 봄).
+D3. input key delete --yes; s1 → 삭제(all-day=확인다이얼로그 無, 즉삭).
+D4. verify: grep -c "<TITLE>"==0 + rescan + screenshot(해당 cell empty ∧ 타 이벤트 intact). view-refresh 아닌 실삭제 구분.
+COORD(실측 a_2999): pill "가평 캠핑장 방문"@9/10=(738,432). delete-key=선택후 즉삭.
+NOTE: 반복이벤트면 delete시 "이 이벤트만/모든" 다이얼로그 뜰 수 있음(all-day 단발=無). 다이얼로그 뜨면 a11y로 버튼 재확인 후 선택.
+
+===== ★CLI METHOD (osascript, verified 2026-09-02 u_3464 — 0.33s vs GUI ~11s, 30x faster) =====
+★NOTE principle-tension: this uses osascript app-scripting(¬pure-IO). [[pure-io-no-system-events]] bans osascript app auto-control. USE ONLY when user explicitly opts for CLI-speed(u_3464); default=GUI(kongtrol) per principle. flag to user each time.
+CAL-NAMES: osascript -e 'tell application "Calendar" to get name of every calendar' → pick(예: "집"/"직장").
+ADD(∑):
+  osascript: tell application "Calendar" → tell calendar "<CAL>" → set d to date "<YYYY년 M월 D일 요일 오전 12:00:00>" → make new event with properties {summary:"<TITLE>", start date:d, end date:d, allday event:true}
+DEL(∑):
+  osascript: tell calendar "<CAL>" → set evs to (every event whose summary is "<TITLE>") → repeat: delete e
+VERIFY: open -a Calendar + screenshot pill on date cell.
+PITFALL: wrong cal-name → -1728 err + ~64s TCC hang. get real names first. date-string locale=ko("2026년 9월 10일 목요일 오전 12:00:00").

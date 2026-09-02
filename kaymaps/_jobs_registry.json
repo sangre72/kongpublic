@@ -7,13 +7,31 @@
   },
   "jobs": {
     "yt_fortune_upload": {
-      "keywords": ["유튜브 업로드", "yt upload", "운세 업로드", "쇼츠 업로드"],
+      "keywords": [
+        "유튜브 업로드",
+        "yt upload",
+        "운세 업로드",
+        "쇼츠 업로드"
+      ],
       "recipe": "kaymaps/chrome/youtube/RECIPE_scheduled_upload_VERIFIED.txt",
       "target_default": "next_unpublished_fortune_date",
       "src_path_formula": "/Users/bumsuklee/workspace-egov/youtube-top/python-server/projects/{gen_date}_{target_date}_12간지_오늘의_운세_ko/",
       "files": "scene_01.mp4 .. scene_12.mp4",
       "count": 12,
-      "zodiac_order": ["쥐🐭","소🐮","호랑이🐯","토끼🐰","용🐲","뱀🐍","말🐴","양🐑","원숭이🐒","닭🐔","개🐕","돼지🐷"],
+      "zodiac_order": [
+        "쥐🐭",
+        "소🐮",
+        "호랑이🐯",
+        "토끼🐰",
+        "용🐲",
+        "뱀🐍",
+        "말🐴",
+        "양🐑",
+        "원숭이🐒",
+        "닭🐔",
+        "개🐕",
+        "돼지🐷"
+      ],
       "title_source": "localhost:4000 CineBot fortune 완성화면(collect 12 first)",
       "title_format": "YYYY년 M월 D일 <띠> <emoji> <문구>",
       "verify_tab": "Shorts(NOT 동영상 tab — shorts show only in Shorts tab)",
@@ -21,48 +39,120 @@
       "notes": "dir prefix = {gen_date=YYYYMMDD}_{target_date=YYYY-MM-DD}; use target_date. drag file-row from Finder only(no browser-open mp4, no file-picker button).",
       "exec": {
         "mode": "seq",
-        "steps": ["collect_12_titles", "per_scene[1..12]: drag_file -> input_title -> set_playlist -> publish -> next"],
-        "deps": {"per_scene.input_title": ["collect_12_titles"]},
+        "steps": [
+          "collect_12_titles",
+          "per_scene[1..12]: drag_file -> input_title -> set_playlist -> publish -> next"
+        ],
+        "deps": {
+          "per_scene.input_title": [
+            "collect_12_titles"
+          ]
+        },
         "parallelizable": "title-collection(CineBot) || file-drag(Finder) can overlap since file needs no title; but each scene's publish is seq. critical=publish order none, so scenes could parallel IF UI allowed(it doesn't - single upload modal), so effectively seq."
       }
     },
     "fortune_text_gen": {
-      "keywords": ["운세 생성", "운세 텍스트", "운세 만들", "포춘 생성", "fortune text"],
+      "keywords": [
+        "운세 생성",
+        "운세 텍스트",
+        "운세 만들",
+        "포춘 생성",
+        "fortune text"
+      ],
       "recipe": "kaymaps/localhost-cinebot/RECIPE_fortune_12_EXECUTE.txt",
       "sub_of": "fortune pipeline phase 1 of 2(u_3438). this = TEXT only.",
       "target_default": "requested_date",
       "app": "localhost:4000 CineBot 포춘 tab",
       "force_new_button": "새로고침(refresh) = force new; 운세 생성 = cache-first(shows 캐시 badge)",
-      "backends_needed": ["4000 CineBot", "15000 fortune-API", "15100 zodiac", "18081 Qwen(text refine)"],
+      "backends_needed": [
+        "4000 CineBot",
+        "15000 fortune-API",
+        "15100 zodiac",
+        "18081 Qwen(text refine)"
+      ],
       "worker_model": "opus",
       "notes": "15000/15100/18081 flaky -> hang(10 of 12 partial). wait natural-recovery(recipe §JUDGE). result= 12 zodiac YouTube titles + per-띠 종합운/애정운 text.",
       "exec": {
         "mode": "seq",
-        "steps": ["set_date", "set_options(narrator/lang/ZODIAC)", "click generate-fortune OR refresh(force-new)", "poll progress completed==12", "confirm 12 zodiac a11y"],
+        "steps": [
+          "set_date",
+          "set_options(narrator/lang/ZODIAC)",
+          "click generate-fortune OR refresh(force-new)",
+          "poll progress completed==12",
+          "confirm 12 zodiac a11y"
+        ],
         "deps": {},
         "output": "12 fortune texts(titles+body). STOP here for text-only. slideshow = separate job."
       }
     },
     "fortune_slideshow_gen": {
-      "keywords": ["전체 슬라이드", "슬라이드 생성", "슬라이드 영상", "slideshow", "슬라이드 만들"],
+      "keywords": [
+        "전체 슬라이드",
+        "슬라이드 생성",
+        "슬라이드 영상",
+        "slideshow",
+        "슬라이드 만들"
+      ],
       "recipe": "kaymaps/localhost-cinebot/RECIPE_fortune_12_EXECUTE.txt",
       "sub_of": "fortune pipeline phase 2 of 2(u_3438). PREREQ: fortune_text_gen done(12 texts exist).",
       "target_default": "same date as text just generated",
       "image_model": "Krea 2 Turbo (Flux deleted by user, MUST use Krea2). 'Flux Kontext' UI label is STATIC, not real active model.",
-      "backends_needed": ["4000 CineBot", "8000 ComfyUI"],
+      "backends_needed": [
+        "4000 CineBot",
+        "8000 ComfyUI"
+      ],
       "worker_model": "opus",
-      "duration": "1 slide=3-4min, 12=40-50min(backend image gen)",
+      "duration": "MEASURED(9/4): 77min total, avg 6m25s/scene(prev est 40-50min was low). 1 slide render 3-4min gen but full=6m25s incl overhead.",
       "notes": "two distinct acts(u_3438): (A) all-scenario button -> creates scenario project(12 scene slots). (B) scenario-screen all-slide-generate button -> renders actual slide videos. output -> projects/{...}/slideshow/scene_NN/.",
       "exec": {
         "mode": "seq",
-        "steps": ["A: click all-scenario -> scenario tab(12 scene slots created)", "B: click all-slide-generate(scene-list panel top)", "Monitor-poll a11y N/12", "confirm 12/12(badge+button-revert+thumbnail)"],
-        "deps": {"B_all_slide_generate": ["A_all_scenario"], "*": ["fortune_text_gen"]},
+        "steps": [
+          "A: click all-scenario -> scenario tab(12 scene slots created)",
+          "B: click all-slide-generate(scene-list panel top)",
+          "Monitor-poll a11y N/12",
+          "confirm 12/12(badge+button-revert+thumbnail)"
+        ],
+        "deps": {
+          "B_all_slide_generate": [
+            "A_all_scenario"
+          ],
+          "*": [
+            "fortune_text_gen"
+          ]
+        },
         "parallelizable": "12 slide images render concurrently on ComfyUI backend queue - backend-managed; orch just polls N/12(no per-slide deliberation)."
+      }
+    },
+    "calendar_event": {
+      "keywords": [
+        "일정 등록",
+        "캘린더",
+        "일정 추가",
+        "calendar event",
+        "일정 잡"
+      ],
+      "recipe": "kaymaps/system/RECIPE_calendar_event.txt",
+      "app": "Calendar.app (macOS native)",
+      "worker_model": "opus",
+      "method": "빠른 이벤트 NL-parse(1-shot): +btn→field→'YYYY년 M월 D일 <title>'→enter(create)→enter(commit)",
+      "coords": "+btn(339,204) 빠른field(339,372) date-cell varies",
+      "pitfall": "esc=discard→must close via enter-commit ¬esc",
+      "exec": {
+        "mode": "single",
+        "steps": [
+          "open Calendar",
+          "+ event",
+          "NL-input date+title",
+          "enter x2 commit",
+          "verify a11y+pill"
+        ],
+        "deps": {}
       }
     }
   },
   "state": {
     "last_published_fortune_date": "2026-09-03",
-    "active_job": "fortune_generate 2026-09-04 slideshow(full) in-progress via a_2998"
+    "active_job": "none(9/4 slideshow DONE 12/12, 77min)",
+    "last_slideshow_gen": "2026-09-04 done"
   }
 }

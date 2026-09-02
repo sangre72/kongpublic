@@ -27,6 +27,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from . import job_list as jl
 from . import protocol_store as ps
 from . import worker as wk
 from .telegram_io import TelegramIO
@@ -60,12 +61,22 @@ _orch_alert_sent_at: float = 0.0
 _ORCH_WAKE_SELF_SCRIPT = _REPO_ROOT / "telegram_bot" / "orchestrator" / "scripts" / "orch_wake_self.sh"
 
 
-def _wake_orch_self(seq: int) -> None:
-    """u_ 저장 직후(로컬 수신 시점) 오케 세션을 즉시 깨운다. 실패해도 무해(M1 폴링이 fallback)."""
+def _wake_orch_self(seq: int, text: str = "") -> None:
+    """u_ 저장 직후(로컬 수신 시점) 오케 세션을 즉시 깨운다. 실패해도 무해(M1 폴링이 fallback).
+
+    ★u_3467: '요청서 왔다' 알림이 아니라 실제 요청내용을 wake에 통째 실어보냄 →
+    오케가 파일 안 열고 즉시 처리(payload-in-wake, COMM#0). text=유저원문.
+    osascript 깨짐 방지: 따옴표·개행 sanitize.
+    """
     if not _ORCH_WAKE_SELF_SCRIPT.exists():
         return
+    # sanitize for osascript do-script(quote/newline break)
+    safe = (text or "").replace('"', "'").replace("\n", " ").replace("\\", "").strip()
+    if len(safe) > 500:
+        safe = safe[:500] + "…"
+    msg = f"u_{seq:02d}: {safe}" if safe else f"new u_{seq:02d} received, check now."
     subprocess.run(
-        ["bash", str(_ORCH_WAKE_SELF_SCRIPT), f"새 텔레그램 요청 로컬 수신됨(u_{seq:02d}). 확인하세요."],
+        ["bash", str(_ORCH_WAKE_SELF_SCRIPT), msg],
         capture_output=True,
         timeout=5,
         check=False,
@@ -361,6 +372,12 @@ def _process_update(tg: TelegramIO, upd: dict, allowed_ids: set[int]) -> None:
             if data.startswith("ask|"):
                 # 오케 → 유저 버튼 질문의 답. u_ 로 남겨 오케가 읽는다.
                 _handle_ask_callback(tg, cq)
+            elif data.startswith("menu|"):
+                # u_3296/3297: 메인메뉴(리포트/git/잡목록/워커깨우기) 인라인버튼
+                _handle_main_menu_callback(tg, cq)
+            elif data.startswith("job|"):
+                # u_3280/3281: 잡리스트 버튼 클릭
+                _handle_job_callback(tg, cq)
             else:
                 # a_198: 씬 선별 콜백
                 _handle_scene_selection_callback(tg, cq)
@@ -442,6 +459,118 @@ def _handle_ask_callback(tg: TelegramIO, cq: dict) -> None:
         print(f"[콜백→u_{seq:02d}] 버튼답 {key}={value} (오케전용, 자동배정 제외)")
     except Exception as e:  # noqa: BLE001
         print(f"[경고] 버튼답 u_ 기록 실패: {e}")
+
+
+def _handle_main_menu_callback(tg: TelegramIO, cq: dict) -> None:
+    """메인 인라인메뉴(리포트/git/잡목록/워커깨우기) 클릭 처리(u_3296/3297 — ReplyKeyboardMarkup을
+    인라인버튼으로 전환, iOS에서 하단고정키보드가 입력창 탭만으로 접히는 표준동작을 못 피해서)."""
+    data = cq.get("data") or ""
+    msg = cq.get("message") or {}
+    chat_id = (msg.get("chat") or {}).get("id")
+    message_id = msg.get("message_id")
+    username = (cq.get("from") or {}).get("username", "")
+
+    action = data.split("|", 1)[1] if "|" in data else ""
+
+    if action == "joblist":
+        try:
+            tg.answer_callback_query(cq.get("id"))
+        except Exception:  # noqa: BLE001
+            pass
+        if chat_id and message_id:
+            try:
+                tg.edit_message_reply_markup(chat_id, message_id, inline_keyboard=jl.build_job_submenu_inline_keyboard())
+            except Exception:  # noqa: BLE001
+                pass
+        return
+
+    if action == "wake":
+        wake_script = _REPO_ROOT / "telegram_bot" / "orchestrator" / "scripts" / "orch_wake_worker.sh"
+        try:
+            result = subprocess.run(
+                ["bash", str(wake_script), "wake check requested via telegram button."],
+                capture_output=True, text=True, timeout=10, cwd=str(_REPO_ROOT),
+            )
+            ok = result.returncode == 0 and result.stdout.strip().startswith("SUCCESS")
+            toast = "✅ 워커 깨우기 신호 전송됨" if ok else "⚠ 실패(로그 확인 필요)"
+        except Exception as e:  # noqa: BLE001
+            toast = f"⚠ 오류: {e}"
+        try:
+            tg.answer_callback_query(cq.get("id"), text=toast)
+        except Exception:  # noqa: BLE001
+            pass
+        return
+
+    # report / git = 평문 u_ 로 기록해서 기존 자동배정 경로 그대로 사용
+    label_map = {"report": "리포트", "git": "git commit, push"}
+    label = label_map.get(action)
+    try:
+        tg.answer_callback_query(cq.get("id"), text=f"▶ {label or action}")
+    except Exception:  # noqa: BLE001
+        pass
+    if label:
+        try:
+            seq = ps.next_seq()
+            ps.write_user_request(chat_id, username or "menu-button", label, seq)
+            print(f"[콜백→u_{seq:02d}] 메인메뉴 {action}({label})")
+        except Exception as e:  # noqa: BLE001
+            print(f"[경고] 메인메뉴 u_ 기록 실패: {e}")
+
+
+def _handle_job_callback(tg: TelegramIO, cq: dict) -> None:
+    """잡리스트 버튼 클릭 처리(u_3280/3281).
+
+    callback_data: "job|{job_id}" | "job|noop"(진행중 표시, 무시) | "job|back"(메인메뉴 복귀).
+    - job 시작 = u_ 요청으로 기록(정상 자동배정 경로 태워 워커가 처리) + 상태파일 running 마킹.
+    - 완료(idle 복귀)는 봇/오케 쪽에서 ar_ done 감지 시 job_list.mark_idle() 호출 필요(별도 배선, TODO).
+    """
+    data = cq.get("data") or ""
+    msg = cq.get("message") or {}
+    chat_id = (msg.get("chat") or {}).get("id")
+    message_id = msg.get("message_id")
+    username = (cq.get("from") or {}).get("username", "")
+
+    job_id = data.split("|", 1)[1] if "|" in data else ""
+
+    if job_id == "back":
+        try:
+            tg.answer_callback_query(cq.get("id"))
+        except Exception:  # noqa: BLE001
+            pass
+        if chat_id and message_id:
+            try:
+                tg.edit_message_reply_markup(chat_id, message_id, inline_keyboard=jl.build_main_inline_keyboard())
+            except Exception:  # noqa: BLE001
+                pass
+        return
+
+    if job_id == "noop" or job_id not in jl.JOBS:
+        try:
+            tg.answer_callback_query(cq.get("id"), text="⏳ 이미 진행중입니다")
+        except Exception:  # noqa: BLE001
+            pass
+        return
+
+    label = jl.JOBS[job_id]
+    try:
+        tg.answer_callback_query(cq.get("id"), text=f"▶ {label} 시작")
+    except Exception:  # noqa: BLE001
+        pass
+
+    jl.mark_running(job_id)
+    if chat_id and message_id:
+        try:
+            tg.edit_message_reply_markup(chat_id, message_id, inline_keyboard=jl.build_job_submenu_inline_keyboard())
+        except Exception:  # noqa: BLE001
+            pass
+
+    try:
+        seq = ps.next_seq()
+        req = f"[잡리스트] {label} 실행 요청 (job_id={job_id})"
+        ps.write_user_request(chat_id, username or "job-button", req, seq)
+        print(f"[콜백→u_{seq:02d}] 잡시작 {job_id}({label})")
+    except Exception as e:  # noqa: BLE001
+        print(f"[경고] 잡시작 u_ 기록 실패: {e}")
 
 
 def _handle_scene_selection_callback(tg: TelegramIO, cq: dict) -> None:
@@ -548,14 +677,17 @@ def handle_message(tg: TelegramIO, chat_id: int, username: str, text: str) -> No
     # 봇은 유저 원문을 u_*.txt 에 저장한다(무손실). 워커 배정(a_ 생성 + spawn)은
     # 봇 5초 루프의 dispatch_new_requests() 가 담당한다(맥락 발판 a_ 경유).
     ps.write_user_request(chat_id, username, text, seq)
-    tg.send_message(
+    # u_3296/3297: iOS에서 ReplyKeyboardMarkup(하단고정)이 입력창 탭만으로 접히는 표준동작을
+    # is_persistent로도 못 막음(리서치+실사용 재현 확인) — 인라인버튼으로 전환.
+    tg.send_message_kb(
         chat_id,
         f"✅ 접수했습니다 (#{seq:02d}). 곧 워커에 배정해 진행하겠습니다.",
+        jl.build_main_inline_keyboard(),
     )
     print(f"[수신→u_{seq:02d}] 저장 완료 — 다음 루프에서 자동배정")
     # ★로컬 u_ 파일 수신 즉시 오케 세션을 깨움(M1 10s 폴링 지연 없이) — u_2801.
     try:
-        _wake_orch_self(seq)
+        _wake_orch_self(seq, text)
     except Exception:  # noqa: BLE001
         pass  # 깨우기 실패해도 u_ 자체는 이미 저장됨(M1 폴링이 fallback)
 
