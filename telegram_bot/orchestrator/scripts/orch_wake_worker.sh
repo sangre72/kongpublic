@@ -36,7 +36,7 @@ done
 BASE_MSG="${1:-check new a_ dispatch.}"
 # --ui: 클릭 프로토콜 리마인더 append(u_3402~3404 좌표규정). a11y좌표 1:1·foreground·--yes·verify.
 if [[ "$UI_MODE" == "1" ]]; then
-  BASE_MSG="${BASE_MSG} [CLICK-PROTOCOL(MUST, RECIPE_coordinate_targeting_standard): a11y@(X,Y)==click X Y 1:1 no-scale; per click= foreground(open -a app;sleep1.5)+a11y-coord-only(no screenshot-px/stale)+--yes+verify-a11y-after]"
+  BASE_MSG="${BASE_MSG} [CLICK: a11y@(X,Y)≡click(X,Y) ×1.0; ∀click: fg(open -a;s1.5)∧coord←a11y-only∧--yes∧verify←a11y; ¬px-from-screenshot ¬stale]"
 fi
 # ★2026-08-31 u_3128 하드가드: 워커행 메시지=예외없이 압축영문+기호. 한글(가-힣) 섞이면 즉시 실패
 #   (오케 자신이 실수로 한글 넣는 걸 원천차단 — u_3127 사고: K7리마인더 태그만 붙이고 본문은 한글이었음).
@@ -52,7 +52,7 @@ fi
 if [[ "$BASE_MSG" == /* ]]; then
   MSG="$BASE_MSG"
 else
-  MSG="${BASE_MSG} [K7·EN-think·min-out]"
+  MSG="${BASE_MSG} [think=∑sym/formula ¬prose ¬KR; reply=∑sym via wake(¬\"ar_ made\", shoot actual result); out=min; recipe→exec(no-delib)]"
 fi
 WINDOW_HINT="Kong 워커 역할 정의"
 
@@ -79,8 +79,7 @@ tell application "Terminal"
   end if
 end tell
 EOF
-  # 모델 전환 UI 적용 대기(전환 직후 바로 지시 넣으면 구모델로 처리될 수 있음).
-  sleep 2
+  sleep 1  # model-switch apply(2→1 u_3450 speed-trim; 0.3 submit-delays kept for do-script correctness)
 fi
 
 # ★2026-08-28 u_2803/2804 fix: `do script "text" in w` on a Claude-Code TUI can QUEUE
