@@ -3,7 +3,8 @@
     "purpose": "Job conventions registry (u_3430~3436). Base contract(och §1M) references this; conventions grow HERE as data, contract stays thin. orch reads on demand for instant target-resolution(no open search).",
     "how": "task-request -> match job by keyword -> read its convention -> resolve target via path_formula + state pointer -> dispatch recipe. No deliberation for registry-covered jobs.",
     "exec_model": "u_3437: a job = 1 step, OR sequential steps, OR parallel(when no critical dependency). each job has 'exec': {mode: single|seq|parallel, steps:[...], deps:{stepX:[prereq...]}}. mode=seq -> run steps in order(each waits prev). mode=parallel -> run concurrently EXCEPT where deps require order. single -> one action. orch/worker read exec to know order without deliberating.",
-    "updated": "2026-09-02"
+    "updated": "2026-09-02",
+    "experience_bank": "/Users/bumsuklee/git/kong-agent-experience-bank-/<country>/<lang>/<site>/<domain>/ (+ _common/<domain>/). country=primary axis. consult BEFORE + write EXP after. e.g. 네이버구매→KR/ko/naver-shopping/purchase."
   },
   "jobs": {
     "yt_fortune_upload": {
