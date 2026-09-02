@@ -1,0 +1,29 @@
+RECIPE: coordinate_targeting_standard (좌표 정확도 근본해결 — user u_3402/3403 2026-09-02)
+REG: all kongtrol click/drag on any app. macOS Retina.
+WHY: 워커가 클릭좌표 반복 실패(공유창 못닫음 등). 유저 "배율·해상도·좌표 뭐가 우선인지 계산해 정확히 잡아라". orch 실측으로 근본원인=좌표계 아니라 클릭 프로토콜임을 실증.
+
+★CORE FACT (orch 실측 2026-09-02, click 1222,459 직접성공):
+- kongtrol click 로그: "물리(X,Y)→논리(X,Y)" = **1:1, 변환 없음**.
+- a11y가 보고하는 @(X,Y) = kongtrol click X Y 와 **동일 논리좌표계**. 스케일/×2 변환 절대 금지.
+- 즉 계산 불필요: a11y 좌표를 click에 **그대로** 넣으면 정확히 맞음.
+
+★측정값(이 머신): 물리해상도 3456×2234 Retina / screencapture png=4112×2658(백킹픽셀) / a11y 논리 xmax≈1984.
+  → screencapture png의 픽셀좌표 ≠ 논리좌표(스케일 다름). **스샷에서 잰 좌표를 click에 쓰면 틀림**.
+
+## MANDATORY CLICK PROTOCOL (매 클릭, 실패시 이거부터 점검)
+1. FOREGROUND first: `open -a "<App>" && sleep 1.5`. 백그라운드 클릭=조용히 무시(no-op, 에러없음).
+2. COORD from a11y ONLY: `kongtrol see --pid <PID> --a11y | grep "<label>"` → @(X,Y) 그대로 사용. 스샷픽셀/눈대중/이전좌표 금지.
+3. `--yes` ALWAYS: click/key/text/drag 전부 --yes 필수. 없으면 UserDeclined(에러 안뜸, 조용히 거부).
+4. VERIFY after: 클릭 후 a11y 재조회로 상태변화 확인(창닫힘·값변경). 안 변했으면 1~3 재점검, 재클릭.
+5. FRESH per step: 화면 바뀔때마다 좌표 재조회. stale 재사용 금지(스크롤·모달로 좌표 이동).
+
+## 실패 증상→원인 (진단표)
+| 증상 | 원인 | 조치 |
+|------|------|------|
+| 클릭 no-op(창 그대로) | 앱 백그라운드 | §1 foreground |
+| 클릭 거부(UserDeclined exit2) | --yes 누락 | §3 |
+| 엉뚱한 곳 클릭 | 스샷픽셀좌표 사용 or stale | §2 a11y 논리좌표 |
+| 여러번 눌러도 안됨 | 위 복합 | §1→§3→§2 순 점검, 안되면 orch 직접 클릭 |
+
+VERIFY: 클릭 후 a11y로 상태변화 실측(배너/텍스트 신뢰금지, cf plan-first 원칙).
+LIMIT: 머신/해상도 바뀌면 CORE FACT의 1:1은 유지되나 측정값(png px)은 재측정.

@@ -17,17 +17,27 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 TTY_FILE="$REPO_ROOT/logs/.orch_tty_worker1"
 
-# --model <m> 파싱(있으면). 나머지 인자는 그대로 메시지로.
+# 옵션 파싱: --model <m> / --ui (순서 무관, 반복 허용). 나머지 인자=메시지.
+# --ui(u_3404): UI(마우스클릭) 작업 wake → MANDATORY CLICK PROTOCOL 리마인더 자동주입(디폴트 강제).
 SET_MODEL=""
-if [[ "${1:-}" == "--model" ]]; then
-  SET_MODEL="${2:-}"
-  if [[ -z "$SET_MODEL" ]]; then
-    echo "FAIL: --model needs a value (haiku|sonnet|opus)" >&2; exit 1
-  fi
-  shift 2
-fi
+UI_MODE=0
+while true; do
+  case "${1:-}" in
+    --model)
+      SET_MODEL="${2:-}"
+      if [[ -z "$SET_MODEL" ]]; then echo "FAIL: --model needs value (haiku|sonnet|opus)" >&2; exit 1; fi
+      shift 2 ;;
+    --ui)
+      UI_MODE=1; shift ;;
+    *) break ;;
+  esac
+done
 
 BASE_MSG="${1:-check new a_ dispatch.}"
+# --ui: 클릭 프로토콜 리마인더 append(u_3402~3404 좌표규정). a11y좌표 1:1·foreground·--yes·verify.
+if [[ "$UI_MODE" == "1" ]]; then
+  BASE_MSG="${BASE_MSG} [CLICK-PROTOCOL(MUST, RECIPE_coordinate_targeting_standard): a11y@(X,Y)==click X Y 1:1 no-scale; per click= foreground(open -a app;sleep1.5)+a11y-coord-only(no screenshot-px/stale)+--yes+verify-a11y-after]"
+fi
 # ★2026-08-31 u_3128 하드가드: 워커행 메시지=예외없이 압축영문+기호. 한글(가-힣) 섞이면 즉시 실패
 #   (오케 자신이 실수로 한글 넣는 걸 원천차단 — u_3127 사고: K7리마인더 태그만 붙이고 본문은 한글이었음).
 if echo "$BASE_MSG" | LC_ALL=en_US.UTF-8 grep -qE '[가-힣]'; then

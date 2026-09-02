@@ -101,8 +101,20 @@ $KT input drag 1318 274 1002 777 --yes --human   # Finder → Chrome dropzone
 
 ## Coordinate System
 
+> ★★★ MANDATORY MOUSE RULE (u_3402~3404 2026-09-02 확립·절대준수). 근본해결 상세: kaymaps/_common/RECIPE_coordinate_targeting_standard.txt. UI작업 wake 시 디폴트 주입(orch_wake_worker.sh --ui).
+
+**CORE FACT (orch 실측, click 1222,459 직접성공):** kongtrol click 로그 = "물리(X,Y)→논리(X,Y)" = **1:1, 변환 없음**. a11y `@(X,Y)` == `kongtrol click X Y` (동일 논리좌표계). ★×2·배율계산·스케일변환 금지(하면 오히려 틀림) — a11y 좌표 그대로 click.
+- "배율·해상도·포인터 뭐가 우선인지 계산"(u_3403)의 답 = **계산 안 함, a11y 논리좌표 직결**.
+- screencapture png 픽셀(예 4112×2658)은 논리좌표와 다름 → **스샷에서 잰 좌표를 click에 쓰면 틀림**. 좌표=a11y에서만, 스샷=육안검증만.
+
+**MANDATORY CLICK PROTOCOL (모든 클릭·UI작업 무조건):**
+1. **FOREGROUND**: `open -a "<App>" && sleep 1.5` (백그라운드 클릭 = 조용히 no-op).
+2. **COORD from a11y ONLY** (스샷픽셀·눈대중·stale 좌표 금지).
+3. **`--yes` ALWAYS** (없으면 UserDeclined, 에러 안 뜸).
+4. **VERIFY after**: 클릭 후 a11y 재조회로 상태변화 확인 → 안 변했으면 1~3 재점검·재클릭.
+5. **FRESH per step**: 화면 바뀌면 좌표 재조회.
+
 - **Logical coords** used by kongtrol (not display pixels)
-- On retina (2× scale): logical ≈ pixel/2
 - **Always use logical coords** in `see --a11y` output directly (no conversion)
 - kongtrol auto-translates to physical input
 
