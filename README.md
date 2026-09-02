@@ -75,6 +75,7 @@ The core principle is **"never fabricate the deliverable via script."** Whether 
 - **Immediate stop** (`orch_stop_worker.sh`): ESC hard-interrupt cuts the worker's in-flight turn on the spot (normal wake queues behind the turn).
 - **Experience bank** (separate repo `kong-agent-experience-bank-`): domain knowledge (purchase/airfare/…) accumulated as verified `EXP_*` entries under `<country>/<lang>/<site>/<domain>/`. Domain tasks consult it before deciding (e.g. cheapest = effective-payment, not sticker price) and write back after.
 - **Verify-by-failure-mode**: CLI/exit-code ops trust the exit code (no re-verify); GUI ops (silent-fail possible) verify exactly once.
+- **Icon-recognition model (research)** (`research/src/icon_learning/`): a ResNet18 CNN trained to classify 100 generic UI icon classes (add/delete/edit/close/…), ~90.6% test accuracy, ~1.4ms/inference. Intended as a fast fallback for icon-only controls where text/a11y labels are absent. Currently research-stage — trained + evaluated, not yet wired into the live loop (default control-finding stays a11y-lookup, which is universal and needs no per-icon model).
 
 ## Architecture
 
