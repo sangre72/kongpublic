@@ -1,0 +1,6 @@
+# kong-kkokko — wakeword + STT voice dispatcher (local-only, no cloud STT)
+# whisper models are read from ~/.cache/whisper (base/small/medium/large-v3 already cached).
+openai-whisper>=20250625
+sounddevice>=0.4.6
+numpy>=1.24
+# ffmpeg (system) required by whisper — verify `which ffmpeg` (already present at /usr/local/bin/ffmpeg).
