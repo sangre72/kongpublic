@@ -14,7 +14,7 @@ telegram_bot/
     worker.py           claude -p 워커 spawn
     protocol/{u,a,ar,archive}/  u_/a_/ar_ 파일 저장소(cf §3)
     scripts/            운영 스크립트(start_orchestrator.sh·worker1_*.sh 등)
-  rules/                .claude/rules/ 미러(8-copy, cf §5 — 항상 동기화)
+  rules/                .claude/rules/ 미러(전체-copy, cf §5 — 항상 동기화, 파일개수=.claude/rules/ 와 항상 일치)
   guides/                운영 가이드 문서
 kongtrol/
   src/{main.rs,sys.rs,process.rs,service.rs,input.rs}  물리 IO CLI(Rust)
@@ -41,8 +41,8 @@ docs/appkb/               앱 첫실행/온보딩 화면 카탈로그(first-run-
 - No formal split-registry doc exists for this repo(sky's was Next.js-app-scale) — if a file crosses 800, flag in the relevant ar_/handoff note instead, propose split, don't force unless asked.
 
 ## 5. ★ Two rule-dir sync (`~.claude/rules/` ⟷ `telegram_bot/rules/`, MUST — cf worker_1.txt L43)
-- This project has an **8-file mirror**: `.claude/rules/*.md` and `telegram_bot/rules/*.md` must stay content-equivalent (both loaded per different contexts — session vs worker). On any edit to one, **update the other in the same task**, don't leave them drifting.
-- Before any rules-touching task: `diff .claude/rules/<f>.md telegram_bot/rules/<f>.md` to check current sync state first(no assuming they match).
+- This project has a **full-mirror**(count grows as rules are added, was miscounted "8-file" — fixed 2026-09-03 after a real 8-vs-10 drift found: kongtrol-base-reference.md+recipe-lookup-guideline.md were missing from telegram_bot/rules/): `.claude/rules/*.md` and `telegram_bot/rules/*.md` must stay content-equivalent (both loaded per different contexts — session vs worker). On any edit to one, **update the other in the same task**, don't leave them drifting.
+- Before any rules-touching task: `diff <(ls .claude/rules/*.md|xargs -n1 basename) <(ls telegram_bot/rules/*.md|xargs -n1 basename)` to check file-SET parity first(not just per-file content diff — a missing/extra FILE is the more common drift), then per-file diff for content.
 
 ## 6. Recipe-first for kongtrol UI automation (cross-ref recipe-lookup-guideline.md — don't duplicate)
 - Any new app/screen kongtrol interacts with = check `kaymaps/<app>/RECIPE_*.txt` first, follow exact STEPS(no invented coords/keys). New/undocumented UI element = max 2 attempts(different methods) then escalate, never loop-retry same method (cf pre-development-checklist.md-adjacent gate in worker_1.txt §NEW-UI-ELEMENT GATE).

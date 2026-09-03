@@ -102,9 +102,51 @@ def _current_worker_model() -> str:
 
 
 # 재시도(a_3564): 일시 과부하(429/529)로 워커가 error 종료하면 short-backoff 후 1회 재시도.
-#   ¬auto-fallback(user "폴백 필요없어") — 모델 전환은 텔레그램 버튼으로 수동.
 WORKER_OVERLOAD_RETRIES = int(os.environ.get("ORCH_WORKER_OVERLOAD_RETRIES", "1"))
 _OVERLOAD_BACKOFF_SEC = float(os.environ.get("ORCH_WORKER_OVERLOAD_BACKOFF", "5"))
+
+# ★a_3572: 재시도 소진 후에도 과부하 지속이면 다음 모델 tier 로 자동 escalate(같은모델 재시도→틀림).
+#   체인은 .env 로 override 가능(ORCH_WORKER_ESCALATION=haiku,sonnet,opus). opus 에서 멈춤(wrap 없음).
+WORKER_ESCALATION = [
+    m.strip() for m in os.environ.get("ORCH_WORKER_ESCALATION", "haiku,sonnet,opus").split(",") if m.strip()
+]
+
+
+def _next_escalation_model(current: str) -> str | None:
+    """current 모델의 다음 상위 tier 반환. 체인에 없거나 최상위면 None(더 올릴 곳 없음)."""
+    try:
+        i = WORKER_ESCALATION.index(current)
+    except ValueError:
+        # current 가 체인에 없으면(예: 빈값=기본모델) 체인 첫 tier 로 진입.
+        return WORKER_ESCALATION[0] if WORKER_ESCALATION else None
+    return WORKER_ESCALATION[i + 1] if i + 1 < len(WORKER_ESCALATION) else None
+
+
+def _upsert_worker_model_env(value: str) -> bool:
+    """.env 의 ORCH_WORKER_MODEL 라인을 upsert(a_3564 버튼과 동일 메커니즘, 다음 spawn 이 fresh 읽음).
+    다른 라인·시크릿은 보존(read-modify-write). 성공 True."""
+    key = "ORCH_WORKER_MODEL"
+    try:
+        try:
+            lines = _MODEL_ENV_PATH.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            lines = []
+        out, found = [], False
+        for ln in lines:
+            if ln.strip().startswith(f"{key}="):
+                out.append(f"{key}={value}")
+                found = True
+            else:
+                out.append(ln)
+        if not found:
+            out.append(f"{key}={value}")
+        _MODEL_ENV_PATH.write_text("\n".join(out) + "\n", encoding="utf-8")
+        # 현재 프로세스 env 가 이 키를 갖고 있으면(파일보다 우선) 그것도 갱신해야 반영됨.
+        if os.environ.get(key) is not None:
+            os.environ[key] = value
+        return True
+    except OSError:
+        return False
 # SIGTERM 후 SIGKILL 까지 유예(초) — 그레이스풀 종료 기회.
 _TERM_GRACE_SEC = float(os.environ.get("ORCH_WORKER_TERM_GRACE_SEC", "5"))
 
@@ -416,14 +458,27 @@ def _prune_running() -> int:
             if job.proc.poll() is not None:
                 # 이미 종료 — 명시적 reap 으로 <defunct> 제거.
                 _reap(job)
-                # 과부하(429/529)로 죽었고 재시도 여유 있으면 short-backoff 후 1회 재spawn(a_3564).
-                #   ¬auto-fallback(모델전환=버튼 수동) — 같은 모델로 재시도만.
-                if job.retries < WORKER_OVERLOAD_RETRIES and _looks_overloaded(job):
-                    time.sleep(_OVERLOAD_BACKOFF_SEC)
-                    ok, _ = spawn_for_task(job.a_path, _retry_carry=job.retries + 1)
-                    if ok:
-                        # 새 job 이 _running 에 추가됨 — 이번 루프에선 alive 로 안 넣고 넘긴다.
-                        continue
+                # 과부하(429/529)로 죽었을 때 회복 시도(a_3564 재시도 + a_3572 모델 escalate).
+                if _looks_overloaded(job):
+                    if job.retries < WORKER_OVERLOAD_RETRIES:
+                        # (1) 재시도 여유 있음 → same-model short-backoff 재spawn(a_3564).
+                        time.sleep(_OVERLOAD_BACKOFF_SEC)
+                        ok, _ = spawn_for_task(job.a_path, _retry_carry=job.retries + 1)
+                        if ok:
+                            continue
+                    else:
+                        # (2) 재시도 소진 후에도 과부하 → 다음 tier 로 auto-escalate(a_3572).
+                        cur = _current_worker_model()
+                        nxt = _next_escalation_model(cur)
+                        if nxt is not None and _upsert_worker_model_env(nxt):
+                            print(f"[과부하-escalate] {job.a_path.stem}: {cur or '기본'}→{nxt} (재시도소진).")
+                            time.sleep(_OVERLOAD_BACKOFF_SEC)
+                            # 새 tier 로 재spawn — retry_carry=0 으로 새 tier 에도 same-model 재시도 여유 부여.
+                            ok, _ = spawn_for_task(job.a_path, _retry_carry=0)
+                            if ok:
+                                continue
+                        else:
+                            print(f"[과부하-escalate] {job.a_path.stem}: 최상위 tier({cur}) 도달 — 더 올릴 곳 없음.")
                 continue
             elapsed = _elapsed_since_signal(job)
             if elapsed > WORKER_TIMEOUT:

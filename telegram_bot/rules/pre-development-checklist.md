@@ -1,62 +1,67 @@
-# Dev start·done checklist (MUST — derived from full audit)
+# Dev start·done checklist (MUST — derived from 2026-08-01 full audit)
 
-> After initial core features(auth·data processing·I/O) impl, **multi-perspective full audit** derived gate, applied to all feature dev.
-> Kept **together with** existing rules(security·naming·modularization etc) — this doc = their summary gate.
-> Security detail: [security-guideline.md](./security-guideline.md), network saving: [network-budget.md](./network-budget.md).
+★SCOPE-GATE(2026-09-03 generalized): this checklist(login/account/board/API/DB/deploy-pipeline gates) applies ONLY to a web-app feature with that surface — kong-bot has NONE(no Next.js/Prisma/deploy-pipeline, cf code-structure.md §7, och.txt "No Next.js/deploy pipeline in this repo"). Reference/reuse-template for a future full-stack-web project; not an active gate today. `docs/planning/standards/audit-2026-08-01-findings.md` referenced below is a pattern-reference path template, not a file that exists in this repo.
 
-## ★ Absolute top axes (done conditions)
+> After login·account·board impl, **7-perspective full audit** derived gate, applied to all future feature dev.
+> Kept **together with** existing rules(security·naming·design·accessibility·modularization·feature-consistency) — this doc = their summary gate.
+
+## ★ Absolute top-2 axes (done conditions)
 1. **Security** — no done without below security items passing.
-2. **Naming consistency** — new identifier/field name = no done without following project naming convention.
+2. **MOIS(행안부) naming standard** — no done without new-column Deny risk 0, unregistered-word exception filed.
+
+## ★ Base references (all worker tasks)
+3. **Recipe lookup** — consult `recipe-lookup-guideline.md` BEFORE start (app name or URL → `kaymaps/` dir)
+4. **kongtrol reference** — consult `kongtrol-base-reference.md` for CLI commands (never invent, verify binary exists)
 
 ---
 
 ## A. Before start (design) — write first
-- [ ] **Create field/input list** written, **Update = same list + attachment parity** designed (feature-consistency).
-- [ ] **Permission/role×feature table**(role × feature) draft.
-- [ ] **New field/identifier** → project naming-convention mapping → fix type/length.
-- [ ] **mock if needed**: only in designated mock location. **No direct mock import in core modules**(via injection).
-- [ ] **Module boundary**: external exposure via public interface(barrel/`__init__` etc) only. No circular-ref violation.
+- [ ] **Create field list** written, **Update = same list + attachment parity** designed (feature-consistency).
+- [ ] **Permission×feature table**(GUEST/CLIENT/CAREGIVER/ADMIN × feature) draft.
+- [ ] **New column** → MOIS standard-word mapping → if none, prep exception(TERM-EXC-00xx) → fix domain type/length.
+- [ ] **mock if needed**: only in global `src/mocks/` or that feature's `app/<feature>/_mocks/`(page-having feature)·`features/<pure-module>/mocks/`(page-less module). **No direct mock import in component/lib**(inject via props/DAL).
+- [ ] **Module placement**(code-structure §4): page-having feature = `app/<feature>/`(_lib·_components·_actions cohesion). Page-less pure logic only → `features/<module>/`(index.ts barrel). No circular-ref·server-only violation.
 
 ## B. During impl — Security (top)
-- [ ] **Don't trust input(입력 신뢰 금지)**: server·worker entry point schema validate + sanitize. Caller-side validation alone not trusted.
-- [ ] **XSS/injection**: text = default escape(no markup render). Rich HTML = sanitize 2-layer(store sanitize + render re-sanitize). Raw HTML only after sanitize. Command·shell call = arg array/param binding(no string compose).
-- [ ] **Authz**: UI hide ≠ authz. Mutation handler: role·**ownership re-verify**. No entry-point(middleware/proxy)-only authz(CVE-2025-29927 class).
-- [ ] **No response exposure**: don't put internal identifier·email·password·internal mapping key in response. Public identifier only.
-- [ ] **File upload/input file**: ext+MIME allowlist, block exec/script/SVG/HTML, stored filename server-random, private file auth-serving, block path traversal.
-- [ ] **Secrets**: env·server-only. No signing·auth w/ fallback constant(fail if unset). No public-channel exposure·no commit.
-- [ ] **Rate-limit**: sensitive paths(auth·state-change·retry). ※ in-memory stub = **shared store(Redis etc) required before multi-instance**.
+- [ ] **Don't trust input(입력 신뢰 금지)**: server(Server Action/Route) zod validate + sanitize. Client validation alone not trusted.
+- [ ] **XSS**: text = React escape(no HTML render). Editor HTML = sanitize 2-layer(store sanitize-html + render dompurify). `dangerouslySetInnerHTML` only after sanitize. **Don't block XSS via zod refine**(sanitize defends).
+- [ ] **Authz**: UI hide ≠ authz. Server Action·REST·DAL mutation: `viewer` role·**ownership re-verify**(no redirect, return result). No middleware-only authz(CVE-2025-29927).
+- [ ] **No response exposure**: don't put USER_NO·email·PASSWORD·TKN_ID(internal mapping) in response. Public identifier only.
+- [ ] **File upload**: ext+MIME allowlist, block exec/script/SVG/HTML, stored filename server-random, PRIVATE auth-serving.
+- [ ] **Secrets**: env·server-only. No signing w/ fallback constant(fail if prod unset). No `NEXT_PUBLIC_*`·no commit.
+- [ ] **Rate-limit**: sensitive paths(login·pw-change·refresh). ※ current rateLimitStub = in-memory — **Redis required before multi-instance**.
 
-## C. During impl — API/data (when applicable)
-- [ ] Interface standard: query/create/update/delete ops with consistent convention. (HTTP API → GET/POST/PATCH/DELETE.)
-- [ ] Response format unified: success/error envelope consistent. validation error detail = `{issues:[{path,message}]}` unified.
-- [ ] Paging: page/size convention, size cap. Bulk query = store-side search(no memory filter). Sort param convention.
-- [ ] Error: try/except, no stack·internal-raw exposure, status·branch judged by **structured error code**(no natural-language string matching).
-- [ ] Schema/interface doc register — 0 miss on endpoint/handler add.
-- [ ] Store: audit-columns·NOT NULL·DEFAULT·constraint·FK·index·**soft-delete flag + query-time filter**·high-freq-update = version optimistic lock. Polymorphic ref = orphan-cleanup plan.
+## C. During impl — API/data
+- [ ] Method standard: query GET · create POST · update PATCH · delete DELETE.
+- [ ] envelope: success `{data,meta:{requestId}}` / error `{error:{code,message,details,requestId}}`. validation details = `{issues:[{path,message}]}` unified.
+- [ ] Paging: page/size camelCase, size max 100. Bulk query = DB search(no memory filter). Sort `?sort=-regDt`.
+- [ ] Error: try/catch, no stack·DAL-raw exposure, status judged by **structured error code**(no Korean regex).
+- [ ] OpenAPI(openapi.ts) register — 0 miss on route add.
+- [ ] DB: 4 audit-columns·NOT NULL·DEFAULT·CHECK·FK onDelete·index·**soft-delete DEL_YN + query WHERE DEL_YN='N'**·high-freq-update = VER optimistic lock(UPDATE WHERE VER=old). Polymorphic ref = orphan-cleanup plan.
 
-## D. During impl — UI/accessibility (when UI/dashboard exists)
-- [ ] Design tokens only(no hardcoded color), verify light/dark.
+## D. During impl — front/design/accessibility (public front = thorough)
+- [ ] Design tokens only(no hardcoded color), verify both light/dark. Use next/image.
 - [ ] Semantic markup·heading hierarchy·keyboard op·focus-visible·contrast AA.
-- [ ] Form: label + aria-invalid + aria-describedby(error), required mark + sr-only "(필수)".
-- [ ] Image alt, icon aria-label/aria-hidden, toggle aria-pressed, state-change aria-live.
+- [ ] Form: label htmlFor + **aria-invalid + aria-describedby**(error), required = `*`+sr-only "(필수)".
+- [ ] Image alt, icon aria-label/aria-hidden, toggle aria-pressed, toast/count aria-live.
 - [ ] Status badge = color+text together. empty/skeleton/error state UI.
-- [ ] List/view pattern(view-switch·search-filter-sort·paging·URL-sync) reuse.
+- [ ] DataView pattern(view-switch·search-filter-sort·paging·URL-sync) reuse.
 
 ## E. Before done — verify gate (no done without passing)
-- [ ] **Parity one-line check**: every field·attachment made on create — **viewable·changeable in update path?** No → no done.
-- [ ] **Security scenario**: self allow / other deny / admin(per policy) / unauth deny. XSS·injection payload neutralized.
-- [ ] **Naming**: input key·schema key·field name = project convention. New word registered in convention.
-- [ ] **Static-analysis·type-check 0 error** + change-related tests(+ UI = accessibility violation 0). Related tests+core-regression instead of full re-run(network saving).
-- [ ] **End-to-end completeness**: backend op has matching call? / UI/output shows real data? / data passed between steps?
-- [ ] **Permission/role×feature table** final left in result.
+- [ ] **Parity one-line check**: every field·attachment made on create — **viewable·changeable in edit screen?** No → no done.
+- [ ] **Security scenario**: self allow / other deny / ADMIN(per policy) / unauth 401. XSS payload neutralized.
+- [ ] **Naming**: form id/name·zod key·DTO field = standard camelCase. New word exception filed. Meta-validation Deny 0.
+- [ ] **tsc 0** + change-related Playwright(+ public front = axe violation 0). Related spec+core-regression instead of full e2e re-run(network saving).
+- [ ] **E2E completeness**: API exists → front call exists? / UI shows real data? / data passed on tab-switch?
+- [ ] **Permission×feature table** final left in result.
 
-## F. Before deploy/operation (P0 — else prod breaks)
-- [ ] Inject stable identifier as fixed env across deploys(prevent session·state break on redeploy/scale-out).
-- [ ] Config boot-validation(process exit if required secret·connection-info unset).
-- [ ] Healthcheck(liveness·readiness) + graceful shutdown(SIGTERM→drain→connection cleanup).
-- [ ] Containerize(non-root) + persistent storage real impl(prevent local-disk loss).
-- [ ] Migration automation(idempotent runner), backup(point-in-time recovery).
-- [ ] **Access-audit log**(sensitive-info query record) load.
-- [ ] CSP hardening(remove `unsafe-eval`→nonce→enforce), rate-limit shared store, custom error page, fixed timezone.
+## F. Before deploy (P0 — else prod breaks/unlawful)
+- [ ] `SERVER_BOOT_ID` fixed env injection(prevent all-logout·scale-out session-break per deploy).
+- [ ] env zod boot-validation(process exit if AUTH_SECRET·DATABASE_URL unset).
+- [ ] Healthcheck `/api/health`(liveness)·`/api/ready`(DB check) + graceful shutdown(SIGTERM→drain→$disconnect).
+- [ ] Dockerfile(standalone·non-root) + Azure Blob real impl(prevent local-disk loss).
+- [ ] DB migration automation(prisma migrate deploy or idempotent SQL runner), backup(PITR).
+- [ ] **ACCESS_LOG access-audit**(sensitive health-info query record — 개인정보보호법 duty) load.
+- [ ] CSP remove `unsafe-eval`→nonce→enforce, rateLimit Redis, custom 404/500, TZ=Asia/Seoul.
 
-Rationale: user "as guide for future dev find·check issues, security·naming = top level". Multi-perspective full audit.
+Rationale: user "as guide for future dev find·check issues, security·MOIS naming = top level". 2026-08-01 7-perspective full audit.

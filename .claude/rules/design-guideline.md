@@ -2,7 +2,7 @@
 
 > **All design = stylish, beautiful color.** No plain default mockup. **High-quality visual = part of pass bar.**
 
-Applies: `~/git/sky` all UI work (web/ 및 이후).
+★SCOPE-GATE(2026-09-03 generalized for reuse across any project): applies ONLY when the current repo has a web/UI surface — kong-bot currently has NONE(cf code-structure.md §7). Content kept as reusable design pattern-library for whichever project next needs it.
 
 ## Tone & mood
 - **신뢰·케어(bright·warm)** — 돌봄·요양 안심 온기. no cold gray-only, warm neutral + vivid accent.

@@ -2,7 +2,7 @@
 
 > 돌봄·요양 플랫폼 주 사용자 = 고령자·장애인·저시력. a11y = build in from start, all UI (KWCAG 2.2 / WCAG 2.2 AA).
 
-Applies: `~/git/sky` all UI work. With design-guideline.
+★SCOPE-GATE(2026-09-03 generalized for reuse across any project): applies ONLY when the current repo has a web/UI surface(React/Next.js/HTML front-end) — kong-bot currently has NONE(bot+CLI+recipe-automation repo, cf code-structure.md §7). Content kept as reusable a11y pattern-library for whichever project next needs it. With design-guideline.
 
 ## 적용 강도 차등
 - **Public front(이용자 영역) = strict(AA full)**: 랜딩·가입·신청·검색·예약·FAQ·약관·이용자 포털. 12 reqs all strict + axe 0.

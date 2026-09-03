@@ -1,7 +1,8 @@
 # Dev start·done checklist (MUST — derived from 2026-08-01 full audit)
 
+★SCOPE-GATE(2026-09-03 generalized): this checklist(login/account/board/API/DB/deploy-pipeline gates) applies ONLY to a web-app feature with that surface — kong-bot has NONE(no Next.js/Prisma/deploy-pipeline, cf code-structure.md §7, och.txt "No Next.js/deploy pipeline in this repo"). Reference/reuse-template for a future full-stack-web project; not an active gate today. `docs/planning/standards/audit-2026-08-01-findings.md` referenced below is a pattern-reference path template, not a file that exists in this repo.
+
 > After login·account·board impl, **7-perspective full audit** derived gate, applied to all future feature dev.
-> Detailed findings: [`docs/planning/standards/audit-2026-08-01-findings.md`](../../docs/planning/standards/audit-2026-08-01-findings.md).
 > Kept **together with** existing rules(security·naming·design·accessibility·modularization·feature-consistency) — this doc = their summary gate.
 
 ## ★ Absolute top-2 axes (done conditions)

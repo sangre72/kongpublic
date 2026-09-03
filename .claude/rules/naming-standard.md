@@ -1,5 +1,7 @@
 # Data naming standard (based on MOIS 공통표준용어 — user 2026-08-01)
 
+★SCOPE-GATE(2026-09-03 generalized): applies ONLY to a web-app/DB screen-field surface using Korean-public-sector(MOIS) naming convention — kong-bot has NONE(no React/form/DB-screen surface, cf code-structure.md §7). Reference/reuse-template for a future project needing government-standard field-naming; not an active gate today.
+
 > All data fields **displayed/input on screen**: column names follow **MOIS(행안부) 공통표준용어/표준단어**, apply consistently to React vars·form `id`/`name`. All screen-displayed data = target.
 
 ## Principles

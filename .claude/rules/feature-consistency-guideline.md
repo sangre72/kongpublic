@@ -1,9 +1,6 @@
 # Feature Consistency · Per-Role Feature Matrix (MUST)
 
-> Always applies as dev base guideline. With security(`.claude/rules/security-guideline.md`)·standard(행안부 naming) = **done condition**.
-> Detail table·domain matrix: [`docs/planning/standards/feature-consistency.md`](../../docs/planning/standards/feature-consistency.md)
-
-Applies to all feature work in `~/git/sky`(screen·Server Action·REST·DAL).
+★SCOPE-GATE(2026-09-03 generalized for reuse across any project): applies ONLY when the current repo has a web-app feature-surface(screen/Server-Action/REST/DAL/RBAC-roles) — kong-bot currently has NONE(single-operator bot+CLI repo, no roles/tenant, cf code-structure.md §7 — explicitly contradicts this file's role-matrix assumption today). Content kept as reusable pattern-library for whichever project next needs multi-role feature-parity discipline. `docs/planning/standards/feature-consistency.md` referenced below is a pattern-reference path template, not a file that exists in this repo.
 
 ---
 
