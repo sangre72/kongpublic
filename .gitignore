@@ -123,3 +123,4 @@ telegram_bot/orchestrator/protocol/screenshots/
 *.png
 *.jpg
 *.jpeg
+.melo_venv/

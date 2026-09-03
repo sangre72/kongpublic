@@ -54,19 +54,71 @@ def mark_idle(job_id: str) -> None:
 
 JOB_LIST_BUTTON = "잡목록"
 WAKE_WORKER_BUTTON = "워커 깨우기"
+# a_3561 + a_3563 PART-A: "컴팩트(/compact)" wake 버튼.
+#   ★callback-prefix = `ask|`(och.txt §K7 mandatory; `ans|`=misroute-bug). key="compact".
+#   인라인버튼 + 하단고정 ReplyKeyboard 라벨 두 경로 모두 지원.
+#   ★각 버튼(라벨)은 독립 발화 가능(a_3563 PART-A): worker-only / orch-only / both 3종 값.
+#   ask|compact|orch  | ask|compact|worker | ask|compact|both
+COMPACT_ORCH_BUTTON = "컴팩트(orch)"
+COMPACT_WORKER_BUTTON = "컴팩트(worker)"
+COMPACT_BOTH_BUTTON = "컴팩트(둘다)"
+# 하단 고정버튼 라벨 → compact target 매핑(handle_message intercept 용).
+COMPACT_LABELS: dict[str, str] = {
+    COMPACT_ORCH_BUTTON: "orch",
+    COMPACT_WORKER_BUTTON: "worker",
+    COMPACT_BOTH_BUTTON: "both",
+}
+
+# a_3564: 워커 spawn 모델 수동전환 셀렉터(haiku/sonnet/opus). §K7 ask| prefix.
+#   ask|model|{haiku|sonnet|opus} → .env ORCH_WORKER_MODEL upsert → 다음 spawn 이 라이브 반영.
+WORKER_MODEL_OPTIONS: tuple[str, ...] = ("haiku", "sonnet", "opus")
 
 # u_3296/3297: ReplyKeyboardMarkup(하단고정)이 iOS에서 입력창 탭만으로 접히는 표준동작을
 # is_persistent로도 못 막는 것 확인(리서치+실사용 재현) — 인라인버튼 방식으로 전환.
 # 콜백데이터: "menu|report" | "menu|git" | "menu|joblist" | "menu|wake" | "job|{job_id}" | "job|back"
+#   + a_3561/3563: "ask|compact|{orch|worker|both}"  + a_3564: "ask|model|{haiku|sonnet|opus}" (§K7 ask| prefix).
 
 def build_main_inline_keyboard() -> list[list[dict[str, Any]]]:
-    """메인 인라인메뉴 = [리포트][git commit,push][잡목록][워커깨우기] 4개."""
+    """메인 인라인메뉴 = [리포트][git][잡목록][워커깨우기] + 컴팩트 3종 + 모델전환 3종."""
     return [
         [{"text": "리포트", "callback_data": "menu|report"}],
         [{"text": "git commit, push", "callback_data": "menu|git"}],
         [{"text": JOB_LIST_BUTTON, "callback_data": "menu|joblist"}],
         [{"text": WAKE_WORKER_BUTTON, "callback_data": "menu|wake"}],
+        [
+            {"text": COMPACT_WORKER_BUTTON, "callback_data": "ask|compact|worker"},
+            {"text": COMPACT_ORCH_BUTTON, "callback_data": "ask|compact|orch"},
+            {"text": COMPACT_BOTH_BUTTON, "callback_data": "ask|compact|both"},
+        ],
+        [
+            {"text": f"모델:{m}", "callback_data": f"ask|model|{m}"}
+            for m in WORKER_MODEL_OPTIONS
+        ],
     ]
+
+
+def build_control_inline_row() -> list[list[dict[str, Any]]]:
+    """a_3566: 컴팩트 3종 + 모델전환 3종만 담은 인라인 행 — 모든 status/report 메시지에 부착.
+    build_main_inline_keyboard() 의 컴팩트·모델 행만 재사용(중복정의 금지)."""
+    return [
+        [
+            {"text": COMPACT_WORKER_BUTTON, "callback_data": "ask|compact|worker"},
+            {"text": COMPACT_ORCH_BUTTON, "callback_data": "ask|compact|orch"},
+            {"text": COMPACT_BOTH_BUTTON, "callback_data": "ask|compact|both"},
+        ],
+        [
+            {"text": f"모델:{m}", "callback_data": f"ask|model|{m}"}
+            for m in WORKER_MODEL_OPTIONS
+        ],
+    ]
+
+
+def build_persistent_keyboard_rows() -> list[list[str]]:
+    """하단 고정 ReplyKeyboard 행 — a_3561/3563: 컴팩트 3종 고정버튼(각 독립 발화).
+
+    라벨 텍스트를 누르면 그 텍스트가 그대로 메시지로 전송됨 → handle_message 가 가로채 액션 실행.
+    """
+    return [[COMPACT_WORKER_BUTTON, COMPACT_ORCH_BUTTON, COMPACT_BOTH_BUTTON]]
 
 
 def build_job_submenu_inline_keyboard() -> list[list[dict[str, Any]]]:

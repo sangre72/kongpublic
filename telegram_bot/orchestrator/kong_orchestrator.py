@@ -120,6 +120,40 @@ def _load_env() -> None:
     _load_env_file(_HERE / ".env")              # orchestrator 전용 — fallback
 
 
+# ---------- 유저 통지 공통 헬퍼 (a_3566: 버튼 항상 노출) ----------
+
+# 하단 고정 ReplyKeyboard 는 채팅당 1회만 보내면 client-side 로 계속 남는다(sticky).
+#   → 프로세스 최초 outbound 때 persistent-kbd 로 보내고, 이후는 인라인만 부착(스팸 방지).
+_persistent_kb_sent: set[int] = set()
+
+
+def _send_status(tg: TelegramIO, chat_id: int, text: str, parse_mode: str | None = None) -> None:
+    """유저-대면 status/report/needs-info/boot 통지 공통 발신.
+
+    (1) 이 chat 에 하단 고정 ReplyKeyboard 아직 안 보냈으면 지금 1회 부착(/start 불요).
+    (2) 항상 컴팩트+모델 인라인 행 부착(메시지별, 인라인은 sticky 아님).
+    예외는 삼켜 봇 루프를 막지 않는다.
+    """
+    try:
+        if chat_id not in _persistent_kb_sent:
+            tg.send_message_persistent_kb(
+                chat_id, text, jl.build_persistent_keyboard_rows(), parse_mode=parse_mode
+            )
+            _persistent_kb_sent.add(chat_id)
+            # 같은 메시지에 reply-kbd + inline 을 동시에 못 붙이므로, 인라인 행은 별도 짧은 메시지로.
+            tg.send_message_kb(chat_id, "⌨️", jl.build_control_inline_row())
+        else:
+            tg.send_message_kb(
+                chat_id, text, jl.build_control_inline_row(), parse_mode=parse_mode
+            )
+    except Exception as e:  # noqa: BLE001
+        print(f"[경고] status 통지 실패(chat {chat_id}): {e}")
+        try:
+            tg.send_message(chat_id, text, parse_mode=parse_mode)
+        except Exception:  # noqa: BLE001
+            pass
+
+
 # ---------- 자동 워커 배정 ----------
 
 def _dispatch_feedback(tg: TelegramIO, u_path: Path, a_path: Path, spawn_msg: str) -> None:
@@ -132,7 +166,8 @@ def _dispatch_feedback(tg: TelegramIO, u_path: Path, a_path: Path, spawn_msg: st
         return
     title = ps.read_field(a_path, "TITLE") or a_path.stem
     try:
-        tg.send_message(
+        _send_status(
+            tg,
             int(chat_raw),
             f"🛠 작업을 배정했습니다 ({a_path.stem}).\n요청: {title}\n워커가 처리 중입니다 — 완료되면 알려드릴게요.",
         )
@@ -211,7 +246,7 @@ def check_orch_alive(tg: TelegramIO, allowed_ids: set[int]) -> None:
         )
         for cid in targets:
             try:
-                tg.send_message(cid, msg)
+                _send_status(tg, cid, msg)
             except Exception as e:  # noqa: BLE001
                 print(f"[경고] 오케 사망 경보 발신 실패(chat {cid}): {e}")
         _orch_alert_sent_at = now
@@ -248,7 +283,7 @@ def check_reply_delay(tg: TelegramIO, allowed_ids: set[int]) -> None:
             )
             for cid in targets:
                 try:
-                    tg.send_message(cid, msg)
+                    _send_status(tg, cid, msg)
                 except Exception as e:  # noqa: BLE001
                     print(f"[경고] 응답지연 경보 발신 실패(chat {cid}): {e}")
             _reply_delay_alerted = True
@@ -259,7 +294,7 @@ def check_reply_delay(tg: TelegramIO, allowed_ids: set[int]) -> None:
             msg = "✅ 정상 복구됐습니다. 밀린 요청을 처리했습니다."
             for cid in targets:
                 try:
-                    tg.send_message(cid, msg)
+                    _send_status(tg, cid, msg)
                 except Exception as e:  # noqa: BLE001
                     print(f"[경고] 응답지연 정상화 발신 실패(chat {cid}): {e}")
             _reply_delay_alerted = False
@@ -428,6 +463,29 @@ def _handle_ask_callback(tg: TelegramIO, cq: dict) -> None:
     key = parts[1] if len(parts) > 1 else ""
     value = parts[2] if len(parts) > 2 else ""
 
+    # a_3561 + a_3563 PART-A: ask|compact|{orch|worker|both} = 세션 컴팩트 wake 액션버튼.
+    #   §K7상 ask| prefix 유지하되, 이건 유저→오케 질문답(u_기록)이 아니라 즉시 액션이므로
+    #   여기서 직접 스크립트 발화 + 토스트 후 종료(u_ 기록·버튼제거 경로 타지 않음).
+    if key == "compact":
+        target = value if value in ("orch", "worker", "both") else "both"
+        toast = _fire_compact(target)
+        try:
+            tg.answer_callback_query(cq.get("id"), text=toast)
+        except Exception:  # noqa: BLE001
+            pass
+        print(f"[콜백] 컴팩트({target}) → {toast}")
+        return
+
+    # a_3564: ask|model|{haiku|sonnet|opus} = 워커 spawn 모델 수동전환. .env upsert(즉시 액션, ¬u_기록).
+    if key == "model":
+        toast = _set_worker_model(value)
+        try:
+            tg.answer_callback_query(cq.get("id"), text=toast)
+        except Exception:  # noqa: BLE001
+            pass
+        print(f"[콜백] 모델전환({value}) → {toast}")
+        return
+
     # 선택한 버튼 라벨 찾기(있으면 사람이 읽기 좋게)
     label = value
     for row in (msg.get("reply_markup") or {}).get("inline_keyboard", []):
@@ -459,6 +517,77 @@ def _handle_ask_callback(tg: TelegramIO, cq: dict) -> None:
         print(f"[콜백→u_{seq:02d}] 버튼답 {key}={value} (오케전용, 자동배정 제외)")
     except Exception as e:  # noqa: BLE001
         print(f"[경고] 버튼답 u_ 기록 실패: {e}")
+
+
+def _fire_compact(target: str) -> str:
+    """세션 터미널에 /compact 를 주입(a_3561 + a_3563 PART-A).
+
+    target ∈ {"orch","worker","both"} — 각 버튼이 독립적으로 orch-only/worker-only/양쪽 발화 가능.
+    - wake 스크립트는 인자 문자열을 Terminal 'do script' 로 주입. /compact = 슬래시명령이라
+      두 스크립트의 슬래시가드(BASE_MSG==/* → K7접미사 skip)로 그대로 주입된다.
+    - 보안: 고정 상수(/compact)만 arg-array 로 전달 — 유저입력 문자열 조합/interpolation 없음.
+      target 값은 아래 화이트리스트로만 매핑(임의 문자열이 shell/스크립트 인자로 흐르지 않음).
+    반환: 토스트 문자열(성공여부 요약).
+    """
+    scripts_dir = _REPO_ROOT / "telegram_bot" / "orchestrator" / "scripts"
+    self_script = scripts_dir / "orch_wake_self.sh"
+    worker_script = scripts_dir / "orch_wake_worker.sh"
+
+    def _run(script) -> bool:
+        try:
+            r = subprocess.run(
+                ["bash", str(script), "/compact"],
+                capture_output=True, text=True, timeout=15, cwd=str(_REPO_ROOT),
+            )
+            return r.returncode == 0 and r.stdout.strip().startswith("SUCCESS")
+        except Exception:  # noqa: BLE001
+            return False
+
+    if target == "orch":
+        return "✅ orch 컴팩트 전송됨" if _run(self_script) else "⚠ orch 컴팩트 실패"
+    if target == "worker":
+        return "✅ worker 컴팩트 전송됨" if _run(worker_script) else "⚠ worker 컴팩트 실패"
+    # both
+    orch_ok = _run(self_script)
+    wkr_ok = _run(worker_script)
+    if orch_ok and wkr_ok:
+        return "✅ orch+worker 컴팩트 전송됨"
+    return f"⚠ 부분/실패 (orch={'ok' if orch_ok else 'x'}, worker={'ok' if wkr_ok else 'x'})"
+
+
+def _set_worker_model(value: str) -> str:
+    """.env 의 ORCH_WORKER_MODEL 라인을 upsert(a_3564). 다음 spawn_for_task 가 fresh 로 읽어 반영.
+
+    - value 는 반드시 화이트리스트(job_list.WORKER_MODEL_OPTIONS)에서만 — 임의 유저텍스트 .env 기입 금지.
+    - read-modify-write: 기존 모든 라인 보존(다른 ORCH_*·토큰 시크릿 유출/훼손 없음). 있으면 교체, 없으면 append.
+    반환: 토스트 문자열.
+    """
+    if value not in jl.WORKER_MODEL_OPTIONS:
+        return f"⚠ 허용되지 않은 모델값: {value}"
+    env_path = _REPO_ROOT / "telegram_bot" / "orchestrator" / ".env"
+    key = "ORCH_WORKER_MODEL"
+    try:
+        lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
+        new_line = f"{key}={value}"
+        replaced = False
+        out: list[str] = []
+        for ln in lines:
+            # 주석·빈줄은 그대로. 'ORCH_WORKER_MODEL=' 로 시작하는 라인만 교체.
+            if ln.lstrip().startswith(f"{key}="):
+                out.append(new_line)
+                replaced = True
+            else:
+                out.append(ln)
+        if not replaced:
+            out.append(new_line)
+        env_path.write_text("\n".join(out) + "\n", encoding="utf-8")
+    except Exception as e:  # noqa: BLE001
+        return f"⚠ .env 기록 실패: {e}"
+    caveat = ""
+    # orch 프로세스 자체가 ORCH_WORKER_MODEL 을 env 로 갖고 있으면 파일보다 우선(shadow) → 그때만 재기동 필요.
+    if os.environ.get(key):
+        caveat = " (※orch env가 파일을 가림 — 즉시반영엔 orch 재기동 필요)"
+    return f"✅ 워커모델={value} 저장됨. 다음 spawn 반영{caveat}"
 
 
 def _handle_main_menu_callback(tg: TelegramIO, cq: dict) -> None:
@@ -500,6 +629,7 @@ def _handle_main_menu_callback(tg: TelegramIO, cq: dict) -> None:
         except Exception:  # noqa: BLE001
             pass
         return
+
 
     # report / git = 평문 u_ 로 기록해서 기존 자동배정 경로 그대로 사용
     label_map = {"report": "리포트", "git": "git commit, push"}
@@ -641,12 +771,23 @@ def handle_message(tg: TelegramIO, chat_id: int, username: str, text: str) -> No
     print(f"[수신] chat={chat_id} @{username}: {text[:60]}")
 
     if text.strip() in ("/start", "/help"):
-        tg.send_message(
+        # a_3561/a_3566: 하단 고정 ReplyKeyboard + 컴팩트·모델 인라인 함께 노출.
+        _send_status(
+            tg,
             chat_id,
             "안녕하세요! CineBot 오케스트레이터입니다.\n"
             "요청을 워커에게 전달하고 결과를 알려드립니다. "
             "무엇을 도와드릴까요?",
         )
+        return
+
+    # a_3561 + a_3563 PART-A: 하단 고정버튼(컴팩트 worker/orch/둘다) 라벨을 누르면 그 텍스트가
+    #   메시지로 옴 → 여기서 가로채 해당 target 으로 /compact 주입. 각 버튼 독립 발화. u_ 미기록.
+    _compact_target = jl.COMPACT_LABELS.get(text.strip())
+    if _compact_target is not None:
+        toast = _fire_compact(_compact_target)
+        tg.send_message(chat_id, toast)
+        print(f"[고정버튼] 컴팩트({_compact_target}) → {toast}")
         return
 
     # 직전에 캡션 없이 사진만 온 경우 → 이 텍스트를 그 SEQ 에 이어붙인다(같은 요청으로 묶음).
@@ -679,6 +820,15 @@ def handle_message(tg: TelegramIO, chat_id: int, username: str, text: str) -> No
     ps.write_user_request(chat_id, username, text, seq)
     # u_3296/3297: iOS에서 ReplyKeyboardMarkup(하단고정)이 입력창 탭만으로 접히는 표준동작을
     # is_persistent로도 못 막음(리서치+실사용 재현 확인) — 인라인버튼으로 전환.
+    # a_3566: 이 chat 첫 outbound 면 하단 고정 ReplyKeyboard 를 /start 없이 자동 1회 부착.
+    if chat_id not in _persistent_kb_sent:
+        try:
+            tg.send_message_persistent_kb(
+                chat_id, "⌨️ 컴팩트/모델 버튼을 하단에 고정했어요.", jl.build_persistent_keyboard_rows()
+            )
+            _persistent_kb_sent.add(chat_id)
+        except Exception as e:  # noqa: BLE001
+            print(f"[경고] 고정키보드 초기부착 실패(chat {chat_id}): {e}")
     tg.send_message_kb(
         chat_id,
         f"✅ 접수했습니다 (#{seq:02d}). 곧 워커에 배정해 진행하겠습니다.",
@@ -810,9 +960,9 @@ def relay_worker_responses(tg: TelegramIO) -> None:
         if chat_id_raw.isdigit():
             chat_id = int(chat_id_raw)
             if status == "done":
-                tg.send_message(chat_id, f"🎬 {summary}")
+                _send_status(tg, chat_id, f"🎬 {summary}")
             else:  # error | blocked | failed
-                tg.send_message(chat_id, f"⚠️ {summary}")
+                _send_status(tg, chat_id, f"⚠️ {summary}")
             print(f"[회신] {ar_path.name} → chat {chat_id} ({status})")
         else:
             # 회신 대상 불명이어도 종결건은 아카이브(큐 정체 방지). 진행 중은 위에서 이미 제외.

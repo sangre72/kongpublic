@@ -80,7 +80,31 @@ def _auto_dispatch_enabled() -> bool:
 WORKER_TIMEOUT = int(os.environ.get("ORCH_WORKER_TIMEOUT_SEC", "600"))
 # 워커 모델(속도↑): 기본 haiku — 빠르고 저렴, 압축영문+레시피 순서실행 등 대부분 워커작업엔 충분.
 # 판단·코딩 무거운 작업만 .env 의 ORCH_WORKER_MODEL=sonnet/opus 로 승격. "" = claude 기본모델 사용.
-WORKER_MODEL = os.environ.get("ORCH_WORKER_MODEL", "haiku").strip()
+# ★ 모듈 import 시점에 캐시하지 않는다 — 텔레그램 model-switch 버튼(a_3564)이 .env 를
+#   갱신하면 재기동 없이 다음 spawn 부터 반영되어야 하므로, spawn 시점에 fresh 로 읽는다.
+_MODEL_ENV_PATH = _REPO_ROOT / "telegram_bot" / "orchestrator" / ".env"
+
+
+def _current_worker_model() -> str:
+    """spawn 시점의 워커 모델을 fresh 로 결정. 우선순위: 프로세스 env → .env 파일 → 기본 haiku.
+    텔레그램 model-switch 버튼이 .env 의 ORCH_WORKER_MODEL 을 덮어쓰면 즉시 반영."""
+    v = os.environ.get("ORCH_WORKER_MODEL")
+    if v is not None:
+        return v.strip()
+    try:
+        for line in _MODEL_ENV_PATH.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("ORCH_WORKER_MODEL="):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return "haiku"
+
+
+# 재시도(a_3564): 일시 과부하(429/529)로 워커가 error 종료하면 short-backoff 후 1회 재시도.
+#   ¬auto-fallback(user "폴백 필요없어") — 모델 전환은 텔레그램 버튼으로 수동.
+WORKER_OVERLOAD_RETRIES = int(os.environ.get("ORCH_WORKER_OVERLOAD_RETRIES", "1"))
+_OVERLOAD_BACKOFF_SEC = float(os.environ.get("ORCH_WORKER_OVERLOAD_BACKOFF", "5"))
 # SIGTERM 후 SIGKILL 까지 유예(초) — 그레이스풀 종료 기회.
 _TERM_GRACE_SEC = float(os.environ.get("ORCH_WORKER_TERM_GRACE_SEC", "5"))
 
@@ -245,9 +269,32 @@ class _Job:
     proc: subprocess.Popen
     a_path: Path
     started_at: float = field(default_factory=time.monotonic)
+    log_path: Path | None = None
+    retries: int = 0  # 과부하 재시도 소진 횟수(a_3564)
 
 
 _running: list[_Job] = []
+
+# 과부하 시그니처(claude -p 로그 tail 에서 탐지) — 429/529/overloaded.
+_OVERLOAD_RE = re.compile(r"(overloaded_error|\boverloaded\b|status[ _]?(429|529)|\b(429|529)\b)", re.I)
+
+
+def _log_tail(path: Path | None, nbytes: int = 4096) -> str:
+    if path is None:
+        return ""
+    try:
+        data = path.read_bytes()
+        return data[-nbytes:].decode("utf-8", "replace")
+    except OSError:
+        return ""
+
+
+def _looks_overloaded(job: _Job) -> bool:
+    """워커가 provider 과부하(429/529/overloaded)로 죽었는지 로그 tail 로 판정."""
+    rc = job.proc.returncode
+    if rc is None or rc == 0:
+        return False
+    return bool(_OVERLOAD_RE.search(_log_tail(job.log_path)))
 
 
 def _ar_path_for(a_path: Path) -> Path | None:
@@ -369,6 +416,14 @@ def _prune_running() -> int:
             if job.proc.poll() is not None:
                 # 이미 종료 — 명시적 reap 으로 <defunct> 제거.
                 _reap(job)
+                # 과부하(429/529)로 죽었고 재시도 여유 있으면 short-backoff 후 1회 재spawn(a_3564).
+                #   ¬auto-fallback(모델전환=버튼 수동) — 같은 모델로 재시도만.
+                if job.retries < WORKER_OVERLOAD_RETRIES and _looks_overloaded(job):
+                    time.sleep(_OVERLOAD_BACKOFF_SEC)
+                    ok, _ = spawn_for_task(job.a_path, _retry_carry=job.retries + 1)
+                    if ok:
+                        # 새 job 이 _running 에 추가됨 — 이번 루프에선 alive 로 안 넣고 넘긴다.
+                        continue
                 continue
             elapsed = _elapsed_since_signal(job)
             if elapsed > WORKER_TIMEOUT:
@@ -576,7 +631,7 @@ def answer_and_resume(a_path: Path, answer: str, source: str = "오케") -> tupl
     return spawn_for_task(a_path, resume=True)
 
 
-def spawn_for_task(a_path: Path, resume: bool = False) -> tuple[bool, str]:
+def spawn_for_task(a_path: Path, resume: bool = False, _retry_carry: int = 0) -> tuple[bool, str]:
     """a_ 지시서를 처리할 claude -p 워커를 detached spawn.
 
     반환: (성공, 메시지). 예외를 던지지 않고 (False, 사유) 로 반환(봇 루프 보호).
@@ -593,8 +648,9 @@ def spawn_for_task(a_path: Path, resume: bool = False) -> tuple[bool, str]:
     log_path = _LOG_DIR / f"worker_{a_path.stem}_{ts}.log"
 
     cmd = [cbin, "-p", "--dangerously-skip-permissions"]
-    if WORKER_MODEL:
-        cmd += ["--model", WORKER_MODEL]
+    wmodel = _current_worker_model()  # fresh per-spawn (텔레그램 버튼 반영)
+    if wmodel:
+        cmd += ["--model", wmodel]
     cmd.append(prompt)
     try:
         logf = open(log_path, "w", encoding="utf-8")  # noqa: SIM115
@@ -609,7 +665,7 @@ def spawn_for_task(a_path: Path, resume: bool = False) -> tuple[bool, str]:
     except Exception as e:  # noqa: BLE001
         return (False, f"spawn-error: {e}")
 
-    _running.append(_Job(proc=proc, a_path=a_path))
+    _running.append(_Job(proc=proc, a_path=a_path, log_path=log_path, retries=_retry_carry))
     return (True, f"pid={proc.pid} log={ps.rel_from_repo(log_path)}")
 
 

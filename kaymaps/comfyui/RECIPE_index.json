@@ -1,0 +1,25 @@
+{
+  "app": "ComfyUI",
+  "target": "/Users/bumsuklee/ComfyUI-src (LIVE :8000)",
+  "recipes": [
+    {
+      "file": "RECIPE_audio_nodes.txt",
+      "domain": "audio-gen",
+      "engines": [
+        "MeloTTS-Korean (isolated .melo_venv, native KR, VITS+BERT) [ACTIVE TTS]",
+        "ACE-Step (core-native ComfyUI node, music)"
+      ],
+      "verified": "2026-09-03",
+      "gate": "MeloTTS re-synth PASS (RAT KR 52.87s), ACE PASS (9.94s)",
+      "assets": {
+        "tts_model": "MeloTTS-Korean (HF cache, in .melo_venv) — active KR TTS",
+        "ace_model": "models/checkpoints/ace_step_v1_3.5b.safetensors (7.7GB)",
+        "ff7_libs": ".ff7env/lib (KEEP: ACE SaveAudioMP3 torchaudio->torchcodec needs ffmpeg7 on :8000 restart)",
+        "ace_workflow": "ace_t2a_smoke.json",
+        "melo_venv": ".melo_venv (isolated, melotts 0.1.2 + MeloTTS-Korean + kykim/bert-kor-base)"
+      },
+      "critical": "MeloTTS native KR (no uroman/chunking). ACE unchanged. :8000 restart must export DYLD .ff7env/lib.",
+      "history": "F5-TTS REMOVED 2026-09-03 (EN/ZH only). MMS-TTS-KOR REMOVED 2026-09-03 ar_3560 (user request; chinese-tail issue) -> MeloTTS-Korean is sole active KR TTS."
+    }
+  ]
+}

@@ -16,7 +16,13 @@ TTY_FILE="$REPO_ROOT/logs/.orch_tty_orch"
 BASE_MSG="${1:-new u_ received, check now.}"
 # ★K7 리마인더 자동첨부(u_2802/2803/3xxx): 오케 깨울 때 압축영문+기호 사고 + 워커통신(a_)도 EN+기호 명시.
 # u_3444: symbolic-opcode form(수식기호사고). think∈{sym,formula}; ¬KR-think; ¬prose. tg=KR.
-MSG="${BASE_MSG} [think=∑sym/formula ¬prose ¬KR; a_,wkr-msg=sym; out=min; tg-reply=KR; job∈registry→exec(no-delib); wrap-up=short ¬recap(shorter=faster-turn)]"
+# ★a_3561: BASE_MSG 가 슬래시명령(/compact 등)이면 K7 접미사 붙이지 않고 그대로 주입(접미사가 붙으면
+#   "/compact [think...]" 가 되어 슬래시명령 인식이 깨짐 — orch_wake_worker.sh 의 동일 가드와 일치).
+if [[ "$BASE_MSG" == /* ]]; then
+  MSG="$BASE_MSG"
+else
+  MSG="${BASE_MSG} [think=∑sym/formula ¬prose ¬KR; a_,wkr-msg=sym; out=min; tg-reply=KR; job∈registry→exec(no-delib); wrap-up=short ¬recap(shorter=faster-turn)]"
+fi
 
 TARGET_TTY=""
 if [ -f "$TTY_FILE" ]; then

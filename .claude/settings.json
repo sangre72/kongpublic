@@ -16,6 +16,9 @@
       "Bash(bash telegram_bot/orchestrator/scripts/worker1_watch2.sh*)",
       "Bash(bash telegram_bot/orchestrator/scripts/worker1_ensure_tick.sh*)",
       "Bash(bash telegram_bot/orchestrator/scripts/worker1_session_p0.sh*)",
+      "Bash(bash telegram_bot/orchestrator/scripts/orch_session_p0.sh*)",
+      "Bash(bash telegram_bot/orchestrator/scripts/session_bootstrap.sh*)",
+      "Bash(bash telegram_bot/orchestrator/scripts/session_register_tty.sh*)",
       "Bash(KONG_WORKER_MON1=1 *)",
       "Bash(KONG_WORKER_MON2=1 *)",
       "Bash(python3 telegram_bot/orchestrator/scripts/worker1_monitor_loop.py*)"
@@ -28,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash telegram_bot/orchestrator/scripts/worker1_session_p0.sh",
+            "command": "bash telegram_bot/orchestrator/scripts/session_bootstrap.sh",
             "timeout": 20
           }
         ]

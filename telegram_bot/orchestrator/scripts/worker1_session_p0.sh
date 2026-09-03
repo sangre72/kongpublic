@@ -6,6 +6,9 @@ SELF="${BASH_SOURCE[0]:-$0}"
 SCRIPT_DIR="$(cd "$(dirname "$SELF")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 cd "$ROOT" || exit 1
+# ★AUTO-TTY-REGISTER(u_2026-09-03): SessionStart 훅에서 이 워커 세션 tty를 자동 등록 →
+#   껐다 켤 때 수동 session_register_tty.sh 불필요(orch↔worker wake가 tty로 창 매칭).
+bash "$SCRIPT_DIR/session_register_tty.sh" worker1 2>&1 || echo "WARN: tty auto-register failed(fallback=title-phrase match)"
 bash "$SCRIPT_DIR/worker1_ensure_tick.sh" || true
 ST=logs/worker1_status.txt
 age=999

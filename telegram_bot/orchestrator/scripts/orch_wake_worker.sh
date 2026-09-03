@@ -21,6 +21,7 @@ TTY_FILE="$REPO_ROOT/logs/.orch_tty_worker1"
 # --ui(u_3404): UI(마우스클릭) 작업 wake → MANDATORY CLICK PROTOCOL 리마인더 자동주입(디폴트 강제).
 SET_MODEL=""
 UI_MODE=0
+RECIPE=""
 while true; do
   case "${1:-}" in
     --model)
@@ -29,11 +30,21 @@ while true; do
       shift 2 ;;
     --ui)
       UI_MODE=1; shift ;;
+    --recipe)
+      RECIPE="${2:-}"
+      if [[ -z "$RECIPE" ]]; then echo "FAIL: --recipe needs a recipe path/name" >&2; exit 1; fi
+      shift 2 ;;
     *) break ;;
   esac
 done
 
 BASE_MSG="${1:-check new a_ dispatch.}"
+# --recipe(u_3518): job에 검증된 레시피가 있으면 orch가 그 이름을 워커에 전달 + 레시피/규칙 이탈금지
+#   강제조항을 압축영문/기호로 함께 주입(워커 독단 삽질 방지 — ar_3509 콘티버튼 오클릭·심링크 사고).
+#   RECIPE⊢EXECUTE-ONLY: 레시피 STEP만 실행, §JUDGE 지정지점 외 자율판단 금지, 백엔드/소스/모델 임의수정 금지.
+if [[ -n "$RECIPE" ]]; then
+  BASE_MSG="${BASE_MSG} [RECIPE=${RECIPE} ⊢EXECUTE-ONLY: follow STEPs verbatim; ¬deviate ¬invent-step; judge ONLY @§JUDGE-points(else ¬decide); ¬touch(backend|source|model|symlink) unless recipe-STEP says so; missing-precond→needs-info(¬self-fix); button/coord←a11y-exact-label-match(¬similar-label); verify-per-recipe-VERIFY]"
+fi
 # --ui: 클릭 프로토콜 리마인더 append(u_3402~3404 좌표규정). a11y좌표 1:1·foreground·--yes·verify.
 if [[ "$UI_MODE" == "1" ]]; then
   BASE_MSG="${BASE_MSG} [CLICK: a11y@(X,Y)≡click(X,Y) ×1.0; ∀click: fg(open -a;s1.5)∧coord←a11y-only∧--yes∧verify←a11y; ¬px-from-screenshot ¬stale]"

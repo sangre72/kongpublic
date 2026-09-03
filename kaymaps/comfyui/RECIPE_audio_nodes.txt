@@ -1,0 +1,70 @@
+RECIPE: audio_nodes (MeloTTS-Korean voice + ACE-Step music)
+GATE: VERIFIED 2026-09-03 ar_3552(MeloTTS re-synth PASS) / ar_3542(ACE PASS)
+REG: ComfyUI=/Users/bumsuklee/ComfyUI-src (LIVE :8000). venv=/Users/bumsuklee/ComfyUI-src/venv/bin/python3 (py3.10). mac Metal.
+WHY: TTS(Korean narration) + music-gen for CineBot audio. TTS=MeloTTS-Korean(isolated .melo_venv, native KR). ACE=core-native ComfyUI node.
+HISTORY: F5-TTS REMOVED 2026-09-03(ar_3549) — EN/ZH only, no KR finetune. MMS-TTS-KOR REMOVED 2026-09-03(ar_3560) — user request(chinese-tail issue u_3553); model files deleted from HF cache(hf_home/hub/models--facebook--mms-tts-kor, 139M). MeloTTS-Korean = sole active KR TTS. MMS section below kept as HISTORICAL REF only(model no longer installed).
+
+===== [REMOVED 2026-09-03 ar_3560] TTS: MMS-TTS-KOR (facebook/mms-tts-kor, VITS, standalone) — HISTORICAL REF ONLY, model deleted from cache =====
+INSTALL(one-time, done):
+  - deps: venv/bin/python3 -m pip install transformers torch soundfile uroman
+  - model: facebook/mms-tts-kor (~145MB, MIT, VITS) auto-dl to HF cache first-run.
+  - ★★uroman REQUIRED: MMS-kor tokenizer(vocab=25, roman-only) → raw hangul=0 tokens(silent fail). uroman romanizes 한글→latin, tokenizer auto-applies WHEN uroman installed. WITHOUT uroman: input_ids.shape=[1,0], np.concatenate crashes(no audio).
+SYNTH(CLI, verified):
+  script pattern(jobs/.../ script):
+    from transformers import VitsModel, AutoTokenizer; import torch, numpy as np, soundfile as sf, re
+    tok=AutoTokenizer.from_pretrained("facebook/mms-tts-kor"); model=VitsModel.from_pretrained("facebook/mms-tts-kor").eval()
+    sr=model.config.sampling_rate  # 16000
+    # ★split sentences, MERGE fragments <8char into next(VITS short-seq → narrow() RuntimeError crash)
+    raw=[s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+    sents=[]; buf=""
+    for s in raw:
+        buf=(buf+" "+s).strip() if buf else s
+        if len(buf)>=8: sents.append(buf); buf=""
+    if buf: sents.append(buf)
+    # synth each, skip token-seq<2, concat w/ 250ms gap
+    chunks=[]
+    with torch.no_grad():
+      for s in sents:
+        ins=tok(s,return_tensors="pt")
+        if ins['input_ids'].shape[1]<2: continue
+        chunks += [model(**ins).waveform[0].cpu().numpy(), np.zeros(int(sr*0.25))]
+    sf.write(out, np.concatenate(chunks), sr)
+  → wav 16kHz. VERIFY: ffprobe dur>0, ffmpeg volumedetect mean_volume>-30dB(non-silent). (verified RAT 330ch KR → 53.35s, -14.4dB.)
+KNOWN-FAIL:
+  - raw hangul w/o uroman → [1,0] tokens → no audio. INSTALL uroman.
+  - VITS fragment(<8char e.g. "종합운.") → narrow() length-negative crash. MERGE-fragments fix above.
+  - CHINESE-TAIL(u_3553, ar_3554): user reported chinese-ish sound at END of RAT wav. DIAGNOSED: text PROVABLY clean(0 non-hangul/emoji/CJK-han in full 330ch, uroman all-latin) — NOT text/emoji artifact. root=synthesis-side: (a) trailing np.zeros gap AFTER final chunk=abrupt-silence discontinuity, (b) MMS massively-multiling VITS bleeds non-KR phonemes on tail. FIX: (1)sanitize=keep-only[hangul+space+.,!?~+digit] drop-else; (2)orphan-tail(<8char leftover)=attach-to-PREV-sentence(¬new short chunk); (3)trim per-chunk silence(abs>0.01); (4)NO gap after last chunk(gap only between). verify tail-text pure-hangul(proxy)+user audible-confirm. → rat_0905_mms_fixed.wav 47.66s.
+  - device=cpu fine(VITS light). no MPS-segfault issue(unlike old F5).
+FORTUNE TEXT-SRC(shared): curl localhost:15000/fortune/{DATE}?lang=ko (★route=/fortune/{date}, NOT /fortune/progress which always returns null/active=false). fortunes[].zodiac/overall/love/... . rat=zodiac=='쥐'.
+SEND: telegram sendAudio, token/chat←telegram_bot/orchestrator/.env(TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS%%,*). ¬hardcode.
+
+===== TTS-ALT: MeloTTS-Korean (myshell-ai, VITS+BERT, ISOLATED VENV — compare vs MMS, u_3551 opt-A) =====
+INSTALL(one-time, done): ★ISOLATED venv(dep-clash w/ ComfyUI transformers5.x → separate):
+  - python3 -m venv /Users/bumsuklee/git/kong-bot/.melo_venv
+  - .melo_venv/bin/pip install git+https://github.com/myshell-ai/MeloTTS.git (pip name=melotts 0.1.2) + unidic-lite
+  - .melo_venv/bin/python -m unidic download (KR uses python-mecab-ko, dict via unidic)
+  - KR model(myshell-ai/MeloTTS-Korean) + BERT(kykim/bert-kor-base) auto-dl first-run(HF cache).
+SYNTH(CLI): from melo.api import TTS; m=TTS(language='KR', device='cpu'); sid=list(m.hps.data.spk2id.values())[0]; m.tts_to_file(text, sid, out, speed=1.0)
+  → wav 44.1kHz. native KR, NO uroman(handles hangul natively), NO manual chunking(melo splits internally). verified RAT 330ch→52.87s, -17.2dB.
+KNOWN-FAIL:
+  - melo/text/japanese.py module-load does `_TAGGER=MeCab.Tagger()` → crashes if MeCab dict absent(AttributeError NoneType.Tagger) EVEN for KR-only use(japanese.py imported unconditionally by cleaner.py). FIX: patch japanese.py `_TAGGER = MeCab.Tagger() if MeCab is not None else None` (KR path doesn't use it). [applied]
+  - mecab-python3 vs python-mecab-ko conflict on case-insensitive FS(mac) — use python-mecab-ko(KR), keep MeCab(JP) optional.
+  - heavier than MMS(BERT+VITS, ~13s gen) but higher-quality prosody; single fixed speaker.
+
+===== MUSIC: ACE-Step (CORE-NATIVE, unchanged) =====
+NODES(core, comfy_extras/nodes_ace.py): CheckpointLoaderSimple + TextEncodeAceStepAudio + EmptyAceStepLatentAudio + VAEDecodeAudio + SaveAudioMP3 + ModelSamplingSD3 + ConditioningZeroOut + KSampler.
+MODEL: ace_step_v1_3.5b.safetensors (7.7GB all-in-one, self-contained) → models/checkpoints/. src=huggingface.co/Comfy-Org/ACE-Step_ComfyUI_repackaged/resolve/main/all_in_one/ace_step_v1_3.5b.safetensors
+SMOKE(API /prompt, bypasses canvas): workflow=kaymaps/comfyui/ace_t2a_smoke.json. POST localhost:8000/prompt {"prompt":<json>}. poll GET /history/<id>→status success. → output/audio/*.mp3, ffprobe dur>0. (verified calm-piano 9.94s.)
+Multilang lyrics: romanize + [ko]/[ja] tag prefix(core has no auto multilang).
+
+===== ★.ff7env (torchcodec/torchaudio ffmpeg7 libs) — KEEP =====
+path=/Users/bumsuklee/ComfyUI-src/.ff7env/lib (conda ffmpeg7.1, libavutil.59+libavcodec.61).
+WHY keep(¬F5-only): ACE SaveAudioMP3 uses comfy_extras/nodes_audio.py→torchaudio→torchcodec, which needs ffmpeg4-7(sys has only ff8). If :8000 restarts, ACE audio-save could break w/o ff7. → orch redeploy/start :8000 SHOULD export DYLD_FALLBACK_LIBRARY_PATH=/Users/bumsuklee/ComfyUI-src/.ff7env/lib. MMS-TTS uses soundfile(¬torchcodec)=no ff7 need, but ACE keeps it.
+
+VERIFY(done-cond):
+  - MMS: wav ffprobe dur>0 + non-silent(mean>-30dB). ★worker can't audibly judge KR-quality → user must confirm.
+  - ACE: POST node_errors={} + /history status=success + mp3 dur>0.
+
+LIMIT/OPEN:
+  - MMS-TTS-KOR = single fixed speaker(no voice-clone, unlike old F5). native KR pronunciation is the tradeoff-win.
+  - KR-audio-quality unverifiable by worker(no listen) — flag for user audible confirm each delivery.
