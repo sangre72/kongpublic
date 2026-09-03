@@ -1,4 +1,4 @@
-# Network budget rules (필수 준수 — rewritten 2026-08-27 a_2740, was Playwright/npm-specific sky doc)
+# Network budget rules (MUST — rewritten 2026-08-27 a_2740, was Playwright/npm-specific sky doc)
 
 > Network only when needed. Same underlying concern as sky's origin incident(repeated reinstall = wasted GB) — re-scoped to this repo's actual heavy operations.
 
@@ -19,6 +19,6 @@ Applies: kong-bot repo all work(esp. worker automation, model/video pipelines).
 
 ## Verify lightweight
 - Before any install/download/rebuild/re-encode: one quick existence-check command(`ls`/`pip show`/`test -x`/`ffprobe`) costs near-zero, always run it first.
-- Long video-gen pipelines(CineBot 12-scene batch etc): reuse cached backend results where the recipe already notes cache-first behavior(e.g. RECIPE_fortune_12_full_flow.txt's "캐시 우선 사용" tooltip) rather than forcing full regen.
+- Long video-gen pipelines(CineBot 12-scene batch etc): reuse cached backend results where the recipe already notes cache-first behavior(e.g. RECIPE_fortune_12_full_flow.txt's "cache-first" tooltip) rather than forcing full-regen.
 
 Basis: user 2026-08-27(u_2740) — prior version's Playwright/npm/tsc references don't exist in this repo(no Next.js/Playwright here); real heavy-network risks here are pip/brew/cargo reinstall, kongtrol rebuild, video re-encode, and multi-GB model downloads.

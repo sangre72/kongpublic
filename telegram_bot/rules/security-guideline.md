@@ -21,7 +21,7 @@ Applies: kong-bot repo(`telegram_bot/`, `kongtrol/`, orchestrator scripts, worke
 ## 3. kongtrol permission-popup boundary (K3)
 - kongtrol executes **real OS-level input**(CGEvent click/key/text) — this is a privileged capability. Never let telegram-message content directly drive kongtrol `input text`/`input key` without the worker reading+understanding it first(no blind pass-through of untrusted text into keyboard-injection).
 - OS permission dialogs(Accessibility·Screen Recording·Automation) = handle per kongtrol-base-reference.md/first-run-screens.md convention only. Never attempt to bypass/suppress a permission prompt programmatically — that boundary is intentional (user-consent gate for input-injection capability).
-- Gatekeeper "열기" for trusted-source app launches = auto-handle per [[gatekeeper-open-confirm-recipe]](cf recipe-lookup-guideline.md), not a security bypass — distinct from OS *permission* dialogs above.
+- Gatekeeper "Open"-confirm for trusted-source app-launches = auto-handle per [[gatekeeper-open-confirm-recipe]](cf recipe-lookup-guideline.md), ¬security-bypass — distinct from OS *permission* dialogs above.
 
 ## 4. No-exec-untrusted-content
 - Downloaded/generated files(video·image·model weights) from external sources = don't `exec`/`source`/`eval` as code. Media files stay media; only run vetted scripts from this repo or explicitly-approved installers.

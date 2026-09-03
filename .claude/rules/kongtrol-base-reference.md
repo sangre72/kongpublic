@@ -58,20 +58,20 @@ $KT input click <X> <Y> --yes          # click at logical coord (X,Y)
 
 #### 2b. Key (single keys)
 ```bash
-$KT input key <key-name> --yes         # key press (★--yes 필수, DANGEROUS 등급 — 없으면 "사용자가 작업을 거부했습니다" exit=2)
-# ★2026-08-23 실증(ar_2053): 지원 키 이름은 left/right/up/down/space/enter/esc/tab/backspace/delete/단일문자만.
-#   pagedown/pageup/return 은 "지원 안 하는 키 이름" 오류(--help 출력과 실제 불일치 — --help 재확인 권장).
-#   스크롤은 `down` 화살표키를 여러 번 반복(--repeat 옵션 활용)으로 대체.
+$KT input key <key-name> --yes         # key press (★--yes MUST, DANGEROUS-tier — absent→"user declined action" exit=2)
+# ★2026-08-23 verified(ar_2053): supported key-names = left/right/up/down/space/enter/esc/tab/backspace/delete/single-char-ONLY.
+#   pagedown/pageup/return = "unsupported key-name" error(--help output ≠ actual — re-verify --help recommended).
+#   scroll = `down` arrow-key repeated(via --repeat option) substitute.
 # Examples:
 $KT input key esc --yes                # close dialog
-$KT input key down --repeat 10 --yes   # scroll down (pagedown 대체)
-$KT input key enter --yes              # confirm (return 대신 enter)
+$KT input key down --repeat 10 --yes   # scroll down (pagedown substitute)
+$KT input key enter --yes              # confirm (enter, ¬return)
 ```
-★2026-08-23 실증(ar_2053): `input key`는 click과 마찬가지로 `--yes` 없으면 항상 UserDeclined(exit=2) — Chrome 포커스 손실이 아니라 단순 플래그 누락이었음. click은 되는데 key만 거부되는 비대칭 증상을 보면 먼저 `--yes` 누락부터 의심할 것(포커스 손실 진단보다 우선 체크).
+★2026-08-23 verified(ar_2053): `input key` — same as click, absent `--yes` ALWAYS→UserDeclined(exit=2) — ¬Chrome-focus-loss, simply missing-flag. IF click-works-but-key-declined(asymmetric symptom) → suspect missing `--yes` FIRST(before focus-loss diagnosis).
 
 #### 2c. Chord (modifier + key, 1 modifier only)
 ```bash
-$KT input chord <mod> <key> --yes      # modifier + key (★--yes 필수, DANGEROUS 등급)
+$KT input chord <mod> <key> --yes      # modifier + key (★--yes MUST, DANGEROUS-tier)
 # Modifiers: cmd, shift, ctrl, alt (only 1 per chord)
 # Examples:
 $KT input chord cmd a --yes            # Cmd+A (select all)
@@ -82,7 +82,7 @@ $KT input chord shift tab --yes        # Shift+Tab (reverse tab)
 
 #### 2d. Text (direct typing)
 ```bash
-$KT input text "<string>" --yes         # type text directly (★--yes 필수, DANGEROUS 등급)
+$KT input text "<string>" --yes         # type text directly (★--yes MUST, DANGEROUS-tier)
 # Examples:
 $KT input text "hello world" --yes
 $KT input text "2026-08-24" --yes
@@ -92,7 +92,7 @@ $KT input text "2026-08-24" --yes
 #### 2e. Drag (cross-app drag-drop)
 ```bash
 $KT input drag <SRC_X> <SRC_Y> <DST_X> <DST_Y> --yes [--human]
-# --yes = DANGEROUS 명령 필수(없으면 거부), --human = human-speed interpolation (reliability boost)
+# --yes = DANGEROUS-command MUST(absent→refused), --human = human-speed interpolation (reliability boost)
 # Examples:
 $KT input drag 1318 274 1002 777 --yes --human   # Finder → Chrome dropzone
 ```
@@ -101,18 +101,18 @@ $KT input drag 1318 274 1002 777 --yes --human   # Finder → Chrome dropzone
 
 ## Coordinate System
 
-> ★★★ MANDATORY MOUSE RULE (u_3402~3404 2026-09-02 확립·절대준수). 근본해결 상세: kaymaps/_common/RECIPE_coordinate_targeting_standard.txt. UI작업 wake 시 디폴트 주입(orch_wake_worker.sh --ui).
+> ★★★ MANDATORY MOUSE RULE(u_3402~3404 2026-09-02 established·absolute). Root-fix detail: kaymaps/_common/RECIPE_coordinate_targeting_standard.txt. UI-task wake = default-injected(orch_wake_worker.sh --ui).
 
-**CORE FACT (orch 실측, click 1222,459 직접성공):** kongtrol click 로그 = "물리(X,Y)→논리(X,Y)" = **1:1, 변환 없음**. a11y `@(X,Y)` == `kongtrol click X Y` (동일 논리좌표계). ★×2·배율계산·스케일변환 금지(하면 오히려 틀림) — a11y 좌표 그대로 click.
-- "배율·해상도·포인터 뭐가 우선인지 계산"(u_3403)의 답 = **계산 안 함, a11y 논리좌표 직결**.
-- screencapture png 픽셀(예 4112×2658)은 논리좌표와 다름 → **스샷에서 잰 좌표를 click에 쓰면 틀림**. 좌표=a11y에서만, 스샷=육안검증만.
+**CORE FACT(orch-measured, click 1222,459 direct-success):** kongtrol click-log = "physical(X,Y)→logical(X,Y)" = **1:1, ¬conversion**. a11y `@(X,Y)` == `kongtrol click X Y`(SAME logical-coord-system). ★×2·scale-calc·transform = FORBIDDEN(makes-it-wrong) — click a11y-coord AS-IS.
+- "which-takes-priority: scale·resolution·pointer, calc?"(u_3403) answer = **¬calc, a11y-logical-coord DIRECT**.
+- screencapture-png pixels(e.g. 4112×2658) ≠ logical-coords → **measuring coord from screenshot→click = WRONG**. coord=a11y-ONLY, screenshot=visual-verify-ONLY.
 
-**MANDATORY CLICK PROTOCOL (모든 클릭·UI작업 무조건):**
-1. **FOREGROUND**: `open -a "<App>" && sleep 1.5` (백그라운드 클릭 = 조용히 no-op).
-2. **COORD from a11y ONLY** (스샷픽셀·눈대중·stale 좌표 금지).
-3. **`--yes` ALWAYS** (없으면 UserDeclined, 에러 안 뜸).
-4. **VERIFY after**: 클릭 후 a11y 재조회로 상태변화 확인 → 안 변했으면 1~3 재점검·재클릭.
-5. **FRESH per step**: 화면 바뀌면 좌표 재조회.
+**MANDATORY CLICK PROTOCOL(∀ click·UI-task, unconditional):**
+1. **FOREGROUND**: `open -a "<App>" && sleep 1.5`(background-click = silent no-op).
+2. **COORD from a11y ONLY**(screenshot-pixel·eyeball·stale-coord = FORBIDDEN).
+3. **`--yes` ALWAYS**(absent→UserDeclined, no visible-error).
+4. **VERIFY after**: post-click a11y-requery for state-change → unchanged→re-check 1~3·re-click.
+5. **FRESH per step**: screen-changed→re-query-coord.
 
 - **Logical coords** used by kongtrol (not display pixels)
 - **Always use logical coords** in `see --a11y` output directly (no conversion)

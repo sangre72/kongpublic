@@ -23,7 +23,7 @@
 - [ ] **Module placement**(code-structure §4): page-having feature = `app/<feature>/`(_lib·_components·_actions cohesion). Page-less pure logic only → `features/<module>/`(index.ts barrel). No circular-ref·server-only violation.
 
 ## B. During impl — Security (top)
-- [ ] **Don't trust input(입력 신뢰 금지)**: server(Server Action/Route) zod validate + sanitize. Client validation alone not trusted.
+- [ ] **¬trust-input**: server(Server-Action/Route) zod-validate + sanitize. client-validation-alone ¬trusted.
 - [ ] **XSS**: text = React escape(no HTML render). Editor HTML = sanitize 2-layer(store sanitize-html + render dompurify). `dangerouslySetInnerHTML` only after sanitize. **Don't block XSS via zod refine**(sanitize defends).
 - [ ] **Authz**: UI hide ≠ authz. Server Action·REST·DAL mutation: `viewer` role·**ownership re-verify**(no redirect, return result). No middleware-only authz(CVE-2025-29927).
 - [ ] **No response exposure**: don't put USER_NO·email·PASSWORD·TKN_ID(internal mapping) in response. Public identifier only.
@@ -42,7 +42,7 @@
 ## D. During impl — front/design/accessibility (public front = thorough)
 - [ ] Design tokens only(no hardcoded color), verify both light/dark. Use next/image.
 - [ ] Semantic markup·heading hierarchy·keyboard op·focus-visible·contrast AA.
-- [ ] Form: label htmlFor + **aria-invalid + aria-describedby**(error), required = `*`+sr-only "(필수)".
+- [ ] Form: label htmlFor + **aria-invalid + aria-describedby**(error), required = `*`+sr-only "(required)".
 - [ ] Image alt, icon aria-label/aria-hidden, toggle aria-pressed, toast/count aria-live.
 - [ ] Status badge = color+text together. empty/skeleton/error state UI.
 - [ ] DataView pattern(view-switch·search-filter-sort·paging·URL-sync) reuse.
@@ -61,7 +61,7 @@
 - [ ] Healthcheck `/api/health`(liveness)·`/api/ready`(DB check) + graceful shutdown(SIGTERM→drain→$disconnect).
 - [ ] Dockerfile(standalone·non-root) + Azure Blob real impl(prevent local-disk loss).
 - [ ] DB migration automation(prisma migrate deploy or idempotent SQL runner), backup(PITR).
-- [ ] **ACCESS_LOG access-audit**(sensitive health-info query record — 개인정보보호법 duty) load.
+- [ ] **ACCESS_LOG access-audit**(sensitive health-info query record — 개인정보보호법(privacy-law) duty) load.
 - [ ] CSP remove `unsafe-eval`→nonce→enforce, rateLimit Redis, custom 404/500, TZ=Asia/Seoul.
 
 Rationale: user "as guide for future dev find·check issues, security·MOIS naming = top level". 2026-08-01 7-perspective full audit.

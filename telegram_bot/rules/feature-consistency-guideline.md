@@ -58,34 +58,34 @@ Leave a **role × feature** table in new/extended feature instruction or PR/ar r
 
 ### 3-1. Table template (copy & fill)
 ```markdown
-### 권한별 기능 일람 — <도메인명>
+### Per-role feature matrix — <domain-name>
 
-| 기능 ID | 기능 | GUEST | CLIENT | CAREGIVER | ADMIN | 비고(소유권·등급) |
+| feature-ID | feature | GUEST | CLIENT | CAREGIVER | ADMIN | note(ownership·grade) |
 |---------|------|:-----:|:------:|:---------:|:-----:|-------------------|
-| X-LIST  | 목록 조회 | △ | ✓ | ✓ | ✓ | … |
-| X-READ  | 상세 | △ | ✓ | ✓ | ✓ | 비밀글: 작성자+ADMIN |
-| X-CREATE| 작성 | ✗ | ✓ | △ | ✓ | NOTICE=ADMIN only |
-| X-UPDATE| 수정 | ✗ | 본인 | 본인 | ✓ | 첨부 포함 |
-| X-DELETE| 삭제(소프트) | ✗ | 본인 | 본인 | ✓ | DEL_YN |
-| X-ATTACH| 첨부 추가/삭제 | ✗ | 본인 | 본인 | ✓ | Create와 동일 상한 |
+| X-LIST  | list-view | △ | ✓ | ✓ | ✓ | … |
+| X-READ  | detail | △ | ✓ | ✓ | ✓ | secret-post: author+ADMIN |
+| X-CREATE| create | ✗ | ✓ | △ | ✓ | NOTICE=ADMIN only |
+| X-UPDATE| update | ✗ | self | self | ✓ | incl-attachment |
+| X-DELETE| delete(soft) | ✗ | self | self | ✓ | DEL_YN |
+| X-ATTACH| attach add/del | ✗ | self | self | ✓ | same-cap-as-Create |
 ```
-- ✓=allow, ✗=deny, △=conditional/partial, 본인=ownership required.
-- **ADMIN** = ✓ if policy allows managing all resources. Branch scope(`ADMIN_BRANCH`) noted in 비고.
-- UI hide & server deny must be **same result**(no button + server 403/error).
+- ✓=allow, ✗=deny, △=conditional/partial, self=ownership-required.
+- **ADMIN** = ✓ if policy allows managing-all-resources. branch-scope(`ADMIN_BRANCH`) noted in note-col.
+- UI-hide & server-deny MUST be **same-result**(¬button + server 403/error).
 
 ### 3-2. Role codes (fixed)
 
-| role | 포털 | 비고 |
+| role | portal | note |
 |------|------|------|
 | `ADMIN` | `/admin` | grade: ADMIN_SUPER / ADMIN_OPS / ADMIN_BRANCH |
 | `CAREGIVER` | `/caregiver` | grade: CG_* |
 | `CLIENT` | `/client` | grade: CL_* |
-| (비로그인) | 공개 라우트 | GUEST — 목록·공지 읽기 등 |
+| (unauthenticated) | public-route | GUEST — list·notice-read etc |
 
-Detail grades → part1·this doc's standard domain table. On implement, grade branching **only what's explicitly in the table**.
+Detail-grades → part1·this-doc's standard domain-table. On-implement, grade-branching **only-what's-explicitly-in-table**.
 
 ### 3-3. Feature ID naming
-`{도메인약어}-{동사}` — e.g. `BBS-CREATE`, `BBS-ATTACH-DEL`, `RSV-ACCEPT`, `ADM-BOARD-PIN`.
+`{domain-abbrev}-{verb}` — e.g. `BBS-CREATE`, `BBS-ATTACH-DEL`, `RSV-ACCEPT`, `ADM-BOARD-PIN`.
 
 ---
 
