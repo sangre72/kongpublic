@@ -1,0 +1,77 @@
+/* kong-ali-helper v0.1 — 전용 prefix(kah-) 로 AliExpress 클래스와 충돌 회피 */
+.kah-badge {
+  position: fixed;
+  z-index: 2147483000;
+  width: 230px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(28,28,30,0.95);
+  color: #f2f2f7;
+  font-size: 12px; line-height: 1.5;
+  font-family: -apple-system, system-ui, sans-serif;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  border: 1px solid #3a3a3c;
+}
+#kah-badge { top: 90px; right: 16px; }
+#kah-coupon { top: 320px; right: 16px; width: 340px; }
+.kah-head { font-size: 11px; color: #aeaeb2; margin-bottom: 4px; }
+.kah-main { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.kah-score { font-size: 13px; font-weight: 500; opacity: .85; }
+.kah-detail { margin-top: 6px; font-size: 11px; color: #d1d1d6; }
+.kah-foot { margin-top: 6px; font-size: 10px; color: #8e8e93; }
+.kah-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.kah-green { border-color: #34c759; } .kah-green .kah-dot { background: #34c759; } .kah-green .kah-main { color: #34c759; }
+.kah-yellow { border-color: #ff9f0a; } .kah-yellow .kah-dot { background: #ff9f0a; } .kah-yellow .kah-main { color: #ff9f0a; }
+.kah-red { border-color: #ff453a; } .kah-red .kah-dot { background: #ff453a; } .kah-red .kah-main { color: #ff453a; }
+
+/* a_3721/a_3723: 쿠폰 카드형 목록(design-guideline: radius/shadow/spacing/semantic-color/typo) */
+.kah-cnt { display:inline-block; min-width:18px; padding:0 6px; border-radius:9px; background:#0a84ff; color:#fff; font-size:11px; font-weight:700; text-align:center; }
+.kah-clist { margin-top:8px; display:flex; flex-direction:column; gap:8px; max-height:340px; overflow-y:auto; }
+.kah-ccard {
+  display:flex; align-items:center; gap:8px; width:100%; padding:8px; cursor:pointer; text-align:left;
+  background:#2c2c2e; border:1px solid #3a3a3c; border-radius:10px; transition:background .12s,border-color .12s;
+}
+.kah-ccard:hover { background:#3a3a3c; border-color:#0a84ff; }
+.kah-cthumb { width:38px; height:38px; border-radius:8px; object-fit:cover; flex:0 0 38px; background:#1c1c1e; }
+.kah-cthumb-x { display:flex; align-items:center; justify-content:center; font-size:18px; }
+.kah-cinfo { flex:1 1 auto; min-width:0; }
+.kah-cprod { font-size:12px; font-weight:600; color:#f2f2f7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kah-cmeta { font-size:10px; color:#8e8e93; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kah-cdisc { flex:0 0 auto; font-size:11px; font-weight:700; padding:3px 7px; border-radius:6px; white-space:nowrap; }
+.kah-dc-pct { background:rgba(255,159,10,.18); color:#ff9f0a; }   /* %할인 = amber */
+.kah-dc-amt { background:rgba(52,199,89,.18); color:#34c759; }    /* 금액할인 = green */
+.kah-dc-na  { background:rgba(142,142,147,.18); color:#aeaeb2; }  /* 값 미노출 */
+
+/* a_3726/a_3728: 계정쿠폰 출처배지 + 설명줄 + 넓힌 패널 */
+.kah-cact { font-size:10px; color:#0a84ff; margin-top:2px; }
+.kah-src { display:inline-block; font-size:9px; font-weight:700; padding:1px 5px; border-radius:5px; margin-right:5px; vertical-align:middle; }
+.kah-src-acct { background:rgba(191,90,242,.2); color:#bf5af2; }   /* 계정쿠폰 = purple */
+.kah-src-cart { background:rgba(10,132,255,.2); color:#0a84ff; }   /* 장바구니 = blue */
+.kah-cprod { white-space:normal; line-height:1.35; }
+
+/* a_3731: 결제 프로모션코드 도우미 */
+#kah-promo { top: 90px; right: 16px; width: 300px; }
+.kah-promo-in { width: 100%; margin-top: 8px; padding: 7px 9px; border-radius: 7px; border: 1px solid #48484a; background: #1c1c1e; color: #f2f2f7; font-size: 13px; box-sizing: border-box; }
+.kah-promo-go { width: 100%; margin-top: 6px; }
+.kah-promo-msg { margin-top: 6px; font-size: 11px; color: #ff9f0a; }
+
+/* a_3750: 랜딩 배송현황 카드(dismissible, X close). design-guideline: radius/shadow/spacing/semantic-color. */
+#kah-ship { top: 90px; right: 16px; width: 340px; position: fixed; }
+.kah-ship { border-color: #0a84ff; }              /* 배송=info-blue accent */
+.kah-ship .kah-head { font-size: 12px; color: #f2f2f7; font-weight: 600; margin-bottom: 6px; }
+.kah-ship-x {
+  position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; padding: 0;
+  border: none; border-radius: 6px; background: #3a3a3c; color: #d1d1d6;
+  font-size: 12px; line-height: 22px; text-align: center; cursor: pointer; transition: background .12s;
+}
+.kah-ship-x:hover { background: #ff453a; color: #fff; }   /* 닫기 hover=danger */
+.kah-ship .kah-clist { margin-top: 6px; max-height: 300px; }
+.kah-ship .kah-ccard { cursor: default; }
+.kah-ship .kah-ccard:hover { background: #2c2c2e; border-color: #3a3a3c; }
+.kah-ship-st {                                     /* 상태 배지=색+텍스트(¬색만, a11y) */
+  display: inline-block; padding: 1px 6px; border-radius: 5px;
+  background: rgba(10,132,255,.2); color: #0a84ff; font-weight: 700; font-size: 10px;
+}
+/* a_3755: 저자극 후원 링크(카드 footer) */
+.kah-donate { float: right; color: #ff9f0a; text-decoration: none; font-weight: 600; }
+.kah-donate:hover { text-decoration: underline; }

@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "AliKong",
+  "version": "0.5.1",
+  "description": "AliExpress 가격안전 신호등 배지 + 쿠폰 자동적용 + 랜딩 배송현황 카드(하루 1회). AliKong 쇼핑 도우미.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.aliexpress.com/",
+        "https://*.aliexpress.com/gcp/*",
+        "https://*.aliexpress.com/home*",
+        "https://*.aliexpress.com/index*",
+        "https://*.aliexpress.com/item/*",
+        "https://*.aliexpress.com/*/item/*",
+        "https://*.aliexpress.com/p/*",
+        "https://*.aliexpress.com/*cart*",
+        "https://*.aliexpress.com/*order*",
+        "https://*.aliexpress.com/*trade*",
+        "https://*.aliexpress.com/*confirm*",
+        "https://*.aliexpress.com/*checkout*",
+        "https://*.aliexpress.com/ssr/*",
+        "https://*.aliexpress.com/*coupon-center*",
+        "https://*.aliexpress.com/*calp*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "helper.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "storage"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "AliKong",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
+}

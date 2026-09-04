@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Kong Upbit Price Helper",
+  "version": "0.3.0",
+  "description": "Upbit 주문폼에 현재가 대비 ±% 빠른-가격 버튼과 가격 잠금 토글을 추가합니다 (v0.1 price-helper).",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://upbit.com/exchange*",
+        "https://www.upbit.com/exchange*",
+        "https://*.upbit.com/exchange*"
+      ],
+      "js": [
+        "content.js",
+        "signal.js",
+        "execute.js"
+      ],
+      "css": [
+        "helper.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "https://api.upbit.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

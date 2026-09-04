@@ -49,3 +49,5 @@ LIMIT/OPEN:
 REF: archived a_62/a_63/a_64/ar_62/ar_63/ar_64(2026-08-xx, original discovery), a_2990(2026-09-01,
 re-triggered same problem — this recipe file created specifically so it's found via kaymaps lookup
 next time, not lost in archive/), docs/appkb/login-handoff.md(broader multi-site login-wall handling).
+
+## DECODE-TOOL UPDATE (2026-09-04, ar_3626): cv2.QRCodeDetector VERIFIED working (pyzbar/zbarimg NOT installed; opencv-python 5.0.0 present). Use: `import cv2; ok,infos,_,_=cv2.QRCodeDetector().detectAndDecodeMulti(cv2.imread(path))`. Applies to upbit QR too(same method).

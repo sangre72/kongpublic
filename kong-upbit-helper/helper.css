@@ -1,0 +1,116 @@
+/* kong-upbit-helper v0.1 — 주입 UI 스타일. Upbit 자체 클래스(css-XXXX)와 충돌 피하려 전용 prefix. */
+.kuh-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 4px 0 2px;
+}
+.kuh-btn {
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 6px;
+  border: 1px solid #d0d3d9;
+  border-radius: 4px;
+  background: #f7f8fa;
+  color: #1f2933;
+  cursor: pointer;
+  user-select: none;
+  transition: background .12s, border-color .12s;
+}
+.kuh-btn:hover { background: #eaf2ff; border-color: #0a84ff; }
+.kuh-btn.kuh-up { color: #c84a31; }      /* 상승(매수측 red 관례 KR) */
+.kuh-btn.kuh-down { color: #1263e0; }    /* 하락 blue */
+.kuh-lock {
+  font-size: 12px;
+  padding: 3px 7px;
+  border: 1px solid #d0d3d9;
+  border-radius: 4px;
+  background: #f7f8fa;
+  cursor: pointer;
+  user-select: none;
+}
+.kuh-lock.kuh-locked {
+  background: #fff3cd;
+  border-color: #e0a800;
+  color: #7a5a00;
+}
+.kuh-locked-input {
+  outline: 2px solid #e0a800 !important;
+  outline-offset: -2px;
+}
+.kuh-ref {
+  font-size: 11px;
+  padding: 3px 7px;
+  border: 1px solid #0a84ff;
+  border-radius: 4px;
+  background: #eaf2ff;
+  color: #0a5ed7;
+  cursor: pointer;
+  user-select: none;
+}
+.kuh-ref.kuh-ref-unavail {
+  border-color: #c0392b;
+  background: #fdecea;
+  color: #c0392b;
+}
+
+/* --- signal overlay (a_3640) --- */
+.kuh-signal {
+  position: fixed;
+  top: 120px;
+  right: 16px;
+  z-index: 2147483000;
+  width: 220px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(28,28,30,0.94);
+  color: #f2f2f7;
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  border: 1px solid #3a3a3c;
+  font-family: -apple-system, system-ui, sans-serif;
+}
+.kuh-sig-head { font-size: 11px; color: #aeaeb2; margin-bottom: 4px; }
+.kuh-sig-main { font-size: 20px; font-weight: 700; }
+.kuh-sig-score { font-size: 13px; font-weight: 500; opacity: 0.85; }
+.kuh-sig-detail { margin-top: 6px; font-size: 11px; color: #d1d1d6; }
+.kuh-sig-foot { margin-top: 6px; font-size: 10px; color: #8e8e93; }
+.kuh-sig-range { color: #ff9f0a; font-size: 10px; }
+.kuh-sig-buy { border-color: #c84a31; } .kuh-sig-buy .kuh-sig-main { color: #ff453a; }
+.kuh-sig-sell { border-color: #0a84ff; } .kuh-sig-sell .kuh-sig-main { color: #0a84ff; }
+.kuh-sig-wait .kuh-sig-main { color: #aeaeb2; }
+
+/* a_3645: 차트 컨테이너 안 우상단에 얹기(absolute, resize-safe) */
+.kuh-signal-onchart {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: 200px;
+}
+
+/* --- auto-execute UI (a_3649, real-money) --- */
+.kuh-exec { margin-top: 8px; display: flex; gap: 4px; align-items: center; }
+.kuh-exec-amt {
+  width: 78px; font-size: 12px; padding: 4px 6px; border-radius: 5px;
+  border: 1px solid #48484a; background: #1c1c1e; color: #f2f2f7; text-align: right;
+}
+.kuh-exec-btn {
+  flex: 1; font-size: 13px; font-weight: 700; padding: 5px 8px; border-radius: 5px;
+  border: none; cursor: pointer; color: #fff;
+}
+.kuh-exec-buy { background: #c84a31; } .kuh-exec-buy:hover { background: #e05b40; }
+.kuh-exec-sell { background: #0a84ff; } .kuh-exec-sell:hover { background: #3a9bff; }
+.kuh-exec-btn:disabled { background: #48484a; color: #8e8e93; cursor: not-allowed; }
+.kuh-delist-note { margin-top: 6px; font-size: 11px; color: #ff9f0a; }
+
+/* a_3677: amplitude-based recommended-sell */
+.kuh-reco { margin-top: 8px; padding-top: 8px; border-top: 1px solid #3a3a3c; }
+.kuh-reco-head { font-size: 11px; color: #aeaeb2; margin-bottom: 3px; }
+.kuh-reco-calc { font-size: 10px; color: #c7c7cc; line-height: 1.5; }
+.kuh-reco-target { font-size: 14px; font-weight: 700; color: #0a84ff; margin: 4px 0; }
+.kuh-reco-na { font-size: 11px; color: #ff9f0a; }
+.kuh-reco .kuh-exec-btn { width: 100%; margin-top: 4px; }
