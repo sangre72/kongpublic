@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            width: 700px;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: bold;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .service-options {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        .service-option {
+            display: none;
+        }
+        .service-option.active {
+            display: block;
+        }
+        .language-list {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .language-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .language-item:last-child {
+            border-bottom: none;
+        }
+        .language-item input[type="checkbox"] {
+            margin: 0;
+        }
+        .language-item label {
+            margin: 0;
+            font-weight: normal;
+        }
+        button {
+            background: #6B4EFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #5740CC;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-group">
+        <label for="translationService" data-i18n="service_selection">번역 서비스 선택</label>
+        <select id="translationService">
+            <option value="claude">Claude API</option>
+            <option value="chatgpt">ChatGPT API</option>
+            <option value="grok">Grok API</option>
+            <option value="deepl-free">DeepL API (free)</option>
+            <option value="deepl-pro">DeepL API (pro)</option>
+        </select>
+        <div class="service-options">
+            <!-- Claude API 옵션 -->
+            <div id="claude-options" class="service-option active">
+                <label for="claudeApiKey" data-i18n="api_key">API 키</label>
+                <input type="text" id="claudeApiKey" placeholder="sk-ant-api03-...">
+            </div>
+            <!-- ChatGPT API 옵션 -->
+            <div id="chatgpt-options" class="service-option">
+                <label for="chatgptApiKey" data-i18n="api_key">API 키</label>
+                <input type="text" id="chatgptApiKey" placeholder="sk-...">
+            </div>
+            <!-- Grok API 옵션 -->
+            <div id="grok-options" class="service-option">
+                <label for="grokApiKey" data-i18n="api_key">API 키</label>
+                <input type="text" id="grokApiKey" placeholder="xai-bJ...">
+            </div>
+            <!-- DeepL 무료 옵션 -->
+            <div id="deepl-free-options" class="service-option">
+                <label for="deeplFreeApiKey" data-i18n="api_key_free">DeepL API Key (무료)</label>
+                <input type="text" id="deeplFreeApiKey" placeholder="free API key">
+            </div>
+            <!-- DeepL 유료 옵션 -->
+            <div id="deepl-pro-options" class="service-option">
+                <label for="deeplProApiKey" data-i18n="api_key_pro">DeepL API Key (유료)</label>
+                <input type="text" id="deeplProApiKey" placeholder="Pro API key">
+            </div>
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="userLanguage" data-i18n="interface_language">인터페이스 언어 (Interface Language)</label>
+        <select id="userLanguage">
+            <option value="ar">اَلْعَرَبِيَّةُ (Arabic)</option>
+            <option value="zh-CN">简体中文 (Chinese Simplified)</option>
+            <option value="zh-TW">繁體中文 (Chinese Traditional)</option>
+            <option value="hr">Hrvatski (Croatian)</option>
+            <option value="cs">Čeština (Czech)</option>
+            <option value="da">Dansk (Danish)</option>
+            <option value="nl">Nederlands (Dutch)</option>
+            <option value="en">English (English)</option>
+            <option value="fi">Suomi (Finnish)</option>
+            <option value="fr">Français (French)</option>
+            <option value="de">Deutsch (German)</option>
+            <option value="el">Ελληνικά (Greek)</option>
+            <option value="he">עִברִית (Hebrew)</option>
+            <option value="hu">Magyar (Hungarian)</option>
+            <option value="is">Íslenska (Icelandic)</option>
+            <option value="it">Italiano (Italian)</option>
+            <option value="ja">日本語 (Japanese)</option>
+            <option value="ko">한국어 (Korean)</option>
+            <option value="lt">Lietuvių (Lithuanian)</option>
+            <option value="no">Norsk (Norwegian)</option>
+            <option value="pl">Polski (Polish)</option>
+            <option value="pt">Português (Portuguese)</option>
+            <option value="ru">Русский (Russian)</option>
+            <option value="ro">Română (Romanian)</option>
+            <option value="sl">Slovenščina (Slovenian)</option>
+            <option value="es">Español (Spanish)</option>
+            <option value="sv">Svenska (Swedish)</option>
+            <option value="th">ภาษาไทย (Thai)</option>
+            <option value="tr">Türkçe (Turkish)</option>
+        </select>
+        <p style="margin-top: 8px; font-size: 12px; color: #666;" data-i18n="interface_language_desc">
+            선택한 언어로 확장 프로그램의 메뉴와 메시지가 표시됩니다.
+        </p>
+    </div>
+    <div class="form-group">
+        <label data-i18n="preferred_languages">선호하는 언어 (하나의 언어만 선택할 수 있습니다)</label>
+        <div class="language-list">
+            <div class="language-item">
+                <input type="radio" id="ar" name="preferredLanguage" value="Arabic">
+                <label for="ar">اَلْعَرَبِيَّةُ (Arabic)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="zh-CN" name="preferredLanguage" value="Chinese-Simplified">
+                <label for="zh-CN">简体中文 (Chinese Simplified)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="zh-TW" name="preferredLanguage" value="Chinese-Traditional">
+                <label for="zh-TW">繁體中文 (Chinese Traditional)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="hr" name="preferredLanguage" value="Croatian">
+                <label for="hr">Hrvatski (Croatian)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="cs" name="preferredLanguage" value="Czech">
+                <label for="cs">Čeština (Czech)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="da" name="preferredLanguage" value="Danish">
+                <label for="da">Dansk (Danish)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="nl" name="preferredLanguage" value="Dutch">
+                <label for="nl">Nederlands (Dutch)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="en" name="preferredLanguage" value="English">
+                <label for="en">English (English)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="fi" name="preferredLanguage" value="Finnish">
+                <label for="fi">Suomi (Finnish)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="fr" name="preferredLanguage" value="French">
+                <label for="fr">Français (French)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="de" name="preferredLanguage" value="German">
+                <label for="de">Deutsch (German)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="el" name="preferredLanguage" value="Greek">
+                <label for="el">Ελληνικά (Greek)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="he" name="preferredLanguage" value="Hebrew">
+                <label for="he">עִברִית (Hebrew)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="hu" name="preferredLanguage" value="Hungarian">
+                <label for="hu">Magyar (Hungarian)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="is" name="preferredLanguage" value="Icelandic">
+                <label for="is">Íslenska (Icelandic)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="it" name="preferredLanguage" value="Italian">
+                <label for="it">Italiano (Italian)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="ja" name="preferredLanguage" value="Japanese">
+                <label for="ja">日本語 (Japanese)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="ko" name="preferredLanguage" value="Korean">
+                <label for="ko">한국어 (Korean)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="lt" name="preferredLanguage" value="Lithuanian">
+                <label for="lt">Lietuvių (Lithuanian)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="no" name="preferredLanguage" value="Norwegian">
+                <label for="no">Norsk (Norwegian)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="pl" name="preferredLanguage" value="Polish">
+                <label for="pl">Polski (Polish)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="pt" name="preferredLanguage" value="Portuguese">
+                <label for="pt">Português (Portuguese)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="ru" name="preferredLanguage" value="Russian">
+                <label for="ru">Русский (Russian)</label>
+            </div>  
+            <div class="language-item">
+                <input type="radio" id="ro" name="preferredLanguage" value="Romanian">
+                <label for="ro">Română (Romanian)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="sl" name="preferredLanguage" value="Slovenian">
+                <label for="sl">Slovenščina (Slovenian)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="es" name="preferredLanguage" value="Spanish">
+                <label for="es">Español (Spanish)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="sv" name="preferredLanguage" value="Swedish">
+                <label for="sv">Svenska (Swedish)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="th" name="preferredLanguage" value="Thai">
+                <label for="th">ภาษาไทย (Thai)</label>
+            </div>
+            <div class="language-item">
+                <input type="radio" id="tr" name="preferredLanguage" value="Turkish">
+                <label for="tr">Türkçe (Turkish)</label>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- API 가입 가이드 -->
+
+    <div class="form-group" style="margin-top: 30px; border: 1px solid #eee; padding: 15px; border-radius: 4px;">
+        <h3 style="margin-top: 0; color: #333;" data-i18n="api_guide_title">API 가입 가이드</h3>
+        <div class="api-guide-tabs">
+            <div class="tab-header" style="display: flex; border-bottom: 1px solid #ddd; margin-bottom: 15px;">
+                <button class="tab-button active" data-tab="claude" style="flex: 1; background: none; border: none; padding: 10px; cursor: pointer; border-bottom: 2px solid #6B4EFF; font-weight: bold; color: #6B4EFF;">Claude API</button>
+                <button class="tab-button" data-tab="chatgpt" style="flex: 1; background: none; border: none; padding: 10px; cursor: pointer; color: #666;">ChatGPT API</button>
+                <button class="tab-button" data-tab="grok" style="flex: 1; background: none; border: none; padding: 10px; cursor: pointer; color: #666;">Grok API</button>
+                <button class="tab-button" data-tab="deepl" style="flex: 1; background: none; border: none; padding: 10px; cursor: pointer; color: #666;">DeepL API</button>
+            </div>
+            <div class="tab-content">
+                <!-- Claude API 가이드 -->
+                <div class="tab-pane active" id="claude-guide">
+                    <h4 data-i18n="claude_api_guide_title">Claude API 가입 및 키 발급 방법</h4>
+                    <ol style="padding-left: 20px; line-height: 1.6;">
+                        <li data-i18n="claude_guide_step1">Anthropic 웹사이트(<a href="https://www.anthropic.com/api" target="_blank">https://www.anthropic.com/api</a>)에 접속합니다.</li>
+                        <li data-i18n="claude_guide_step2">오른쪽 상단의 "Sign up" 버튼을 클릭합니다.</li>
+                        <li data-i18n="claude_guide_step3">이메일과 비밀번호를 입력하여 계정을 생성합니다.</li>
+                        <li data-i18n="claude_guide_step4">로그인 후 "API Keys" 탭으로 이동합니다.</li>
+                        <li data-i18n="claude_guide_step5">"Create API Key" 버튼을 클릭합니다.</li>
+                        <li data-i18n="claude_guide_step6">키 이름을 입력하고 생성합니다.</li>
+                        <li data-i18n="claude_guide_step7">발급받은 API 키를 복사하여 위의 Claude API 키 입력란에 붙여넣습니다.</li>
+                    </ol>
+                    <p style="margin-top: 10px; color: #666; font-size: 13px;">
+                        <span data-i18n="claude_guide_note1">※ Claude API는 신용카드 등록이 필요하며, 사용량에 따라 요금이 청구됩니다.</span><br>
+                        <span data-i18n="claude_guide_note2">※ API 키는 <code>sk-ant-api03-...</code> 형식으로 시작합니다.</span>
+                    </p>
+                </div>
+                <!-- ChatGPT API 가이드 -->
+                <div class="tab-pane" id="chatgpt-guide" style="display: none;">
+                    <h4 data-i18n="chatgpt_api_guide_title">ChatGPT API 가입 및 키 발급 방법</h4>
+                    <ol style="padding-left: 20px; line-height: 1.6;">
+                        <li data-i18n="chatgpt_guide_step1">OpenAI 웹사이트(<a href="https://platform.openai.com/signup" target="_blank">https://platform.openai.com/signup</a>)에 접속합니다.</li>
+                        <li data-i18n="chatgpt_guide_step2">"Sign up" 버튼을 클릭하여 계정을 생성합니다.</li>
+                        <li data-i18n="chatgpt_guide_step3">이메일 인증을 완료합니다.</li>
+                        <li data-i18n="chatgpt_guide_step4">로그인 후 오른쪽 상단의 프로필 아이콘 우측의 Dashboard 클릭하고 좌측 메뉴의 "API keys"를 선택합니다.</li>
+                        <li data-i18n="chatgpt_guide_step5">"Create new secret key" 버튼을 클릭합니다.</li>
+                        <li data-i18n="chatgpt_guide_step6">키 이름을 입력하고 생성합니다.</li>
+                        <li data-i18n="chatgpt_guide_step7">발급받은 API 키를 복사하여 위의 ChatGPT API 키 입력란에 붙여넣습니다.</li>
+                    </ol>
+                    <p style="margin-top: 10px; color: #666; font-size: 13px;">
+                        <span data-i18n="chatgpt_guide_note1">※ OpenAI API는 신용카드 등록이 필요하며, 사용량에 따라 요금이 청구됩니다.</span><br>
+                        <span data-i18n="chatgpt_guide_note2">※ API 키는 <code>sk-...</code> 형식으로 시작합니다.</span>
+                    </p>
+                </div>
+                <!-- Grok API 가이드 -->
+                <div class="tab-pane" id="grok-guide" style="display: none;">
+                    <h4 data-i18n="grok_api_guide_title">Grok API 가입 및 키 발급 방법</h4>
+                    <ol style="padding-left: 20px; line-height: 1.6;">
+                        <li data-i18n="grok_guide_step1">X.AI 웹사이트(<a href="https://x.ai" target="_blank">https://x.ai</a>)에 접속합니다.</li>
+                        <li data-i18n="grok_guide_step2">계정으로 로그인합니다.</li>
+                        <li data-i18n="grok_guide_step3">상단 API 메뉴를 클릭합니다.</li>
+                        <li data-i18n="grok_guide_step4">"Start building now" 버튼을 클릭합니다.</li>
+                        <li data-i18n="grok_guide_step5">좌측에 API Keys 메뉴를 클릭합니다.</li>
+                        <li data-i18n="grok_guide_step6">API 키를 발급받습니다.</li>
+                        <li data-i18n="grok_guide_step7">발급받은 API 키를 복사하여 위의 Grok API 키 입력란에 붙여넣습니다.</li>
+                    </ol>
+                    <p style="margin-top: 10px; color: #666; font-size: 13px;">
+                        <span data-i18n="grok_guide_note1">※ API 키는 <code>xai-...</code> 형식으로 시작합니다.</span>
+                    </p>
+                </div>
+                <!-- DeepL API 가이드 -->
+                <div class="tab-pane" id="deepl-guide" style="display: none;">
+                    <h4 data-i18n="deepl_api_guide_title">DeepL API 가입 및 키 발급 방법</h4>
+                    <ol style="padding-left: 20px; line-height: 1.6;">
+                        <li data-i18n="deepl_guide_step1">DeepL API 웹사이트(<a href="https://www.deepl.com/pro-api" target="_blank">https://www.deepl.com/pro-api</a>)에 접속합니다.</li>
+                        <li data-i18n="deepl_guide_step2">"Sign up for free" 버튼을 클릭합니다.</li>
+                        <li data-i18n="deepl_guide_step3">이메일 주소와 비밀번호를 입력하여 계정을 생성합니다.</li>
+                        <li data-i18n="deepl_guide_step4">계정 활성화를 위해 이메일 인증을 완료합니다.</li>
+                        <li data-i18n="deepl_guide_step5">로그인 후 https://www.deepl.com/ko/your-account/subscription 계정 페이지로 이동합니다. </li>
+                        <li data-i18n="deepl_guide_step6">API keys 메뉴로 이동합니다(https://www.deepl.com/ko/your-account/keys)</li>
+                        <li data-i18n="deepl_guide_step7">무료 버전의 API 키는 위의 DeepL API Key (무료) 입력란에 붙여넣습니다.</li>
+                        <li data-i18n="deepl_guide_step8">유료 버전의 API 키는 위의 DeepL API Key (유료) 입력란에 붙여넣습니다.</li>
+                    </ol>
+                    <p style="margin-top: 10px; color: #666; font-size: 13px;">
+                        <span data-i18n="deepl_guide_note1">※ DeepL API 무료 버전은 월 50만 자까지 번역 가능합니다.</span><br>
+                        <span data-i18n="deepl_guide_note2">※ 유료 버전으로 업그레이드하면 더 많은 텍스트를 번역할 수 있습니다.</span><br>
+                        <span data-i18n="deepl_guide_note3">※ 저는 유료 버전으로 업그레이드하면 무료 버전의 API 는 사용 할 수 없었습니다. 참고하세요.</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- DeepL API 도움말 -->
+    <div class="form-group" style="margin-top: 30px; border: 1px solid #eee; padding: 15px; border-radius: 4px;">
+        <h3 style="margin-top: 0; color: #333;" data-i18n="deepl_api_help_title">DeepL API 사용 시 주의사항</h3>
+        <p style="font-size: 14px;">
+            <strong data-i18n="deepl_api_help_free">무료 API 키 https://api-free.deepl.com 엔드포인트를 사용해야 합니다.</strong> <br>
+            <strong data-i18n="deepl_api_help_pro">유료 API 키 https://api.deepl.com 엔드포인트를 사용해야 합니다.</strong>
+        <p style="font-size: 14px;" data-i18n="deepl_api_help_error">
+            무료 API 키를 사용하면서 "Wrong endpoint. Use https://api.deepl.com" 오류가 발생한다면:
+        </p>
+        <p style="font-size: 14px;">
+            <span data-i18n="deepl_api_help_check1">1. <strong>DeepL API (무료)</strong> 옵션을 선택했는지 확인하세요.</span><br>
+            <span data-i18n="deepl_api_help_check2">2. 실제로 무료 API 키를 사용하고 있는지 확인하세요.</span>
+        </p>
+    </div>
+    <!-- 디버그 모드 -->
+    <div class="form-group">
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <input type="checkbox" id="mouseWheelEnabled" style="margin-right: 10px;">
+            <label for="mouseWheelEnabled" style="margin: 0;" data-i18n="mouse_wheel_enabled">마우스 우클릭 휠 활성화</label>
+        </div>
+        <p style="margin-top: 0; font-size: 12px; color: #666;" data-i18n="mouse_wheel_enabled_desc">
+            마우스 우클릭을 누른 상태에서 휠을 위/아래로 움직여 기능을 활성화/비활성화할 수 있습니다.
+        </p>
+    </div>
+
+    <div class="form-group">
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <input type="checkbox" id="debugMode" style="margin-right: 10px;">
+            <label for="debugMode" style="margin: 0;" data-i18n="debug_mode">디버그 모드 활성화 (문제 해결용)</label>
+        </div>
+        <p style="margin-top: 0; font-size: 12px; color: #666;" data-i18n="debug_mode_desc">
+            디버그 모드를 활성화하면 오류 메시지 및 API 통신 정보가 브라우저 콘솔에 표시됩니다.
+        </p>
+    </div>    
+    <div class="option-item">
+        <label>
+            <input type="checkbox" id="translationEnabled">
+            번역 기능 활성화
+        </label>
+    </div>
+    <button id="save" data-i18n="save">저장</button>
+    <div id="status" class="status"></div>
+    <script type="module" src="locales.js"></script>
+    <script src="options.js"></script>
+    <script src="options-utils.js"></script>
+</body>
+</html> 

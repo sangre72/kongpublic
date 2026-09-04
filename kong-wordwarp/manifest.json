@@ -1,0 +1,53 @@
+{
+    "manifest_version": 3,
+    "name": "WordWarp",
+    "version": "0.1",
+    "description": "선택한 텍스트를 실시간으로 번역하는 확장 프로그램",
+    "permissions": ["activeTab", "storage"],
+    "host_permissions": [
+        "https://api.anthropic.com/*",
+        "https://api-free.deepl.com/*",
+        "https://api.deepl.com/*",
+        "https://api.openai.com/*",
+        "https://api.x.ai/*"
+    ],
+    "action": {
+        "default_title": "설정",
+        "default_icon": {
+            "16": "icons/icon16.png",
+            "48": "icons/icon48.png",
+            "128": "icons/icon128.png"
+        }
+    },
+    "options_ui": {
+        "page": "options.html",
+        "open_in_tab": true
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": [
+                "services/filePanel.js", 
+                "services/translationService.js", 
+                "services/subtitleService.js", 
+                "content.js"
+            ],
+            "run_at": "document_end"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "options-utils.js",
+                "locales.js"
+            ],
+            "matches": ["<all_urls>"]
+        }
+    ],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'"
+    }
+}
