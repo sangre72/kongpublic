@@ -3,6 +3,8 @@ REG: http://127.0.0.1:8188 (ComfyUI 웹UI), macOS Apple Silicon(M3 Max 등, MPS 
 WHY: LTX-2.3(22B)은 이 로컬환경(48GB메모리)에 부적합함이 판명됨(체크포인트가 MODEL+VAE+오디오VAE+CLIP 4중역할이라 GGUF 부분전환 불가, RECIPE_wire_connect.txt/STRATEGY 참고) — Wan2.2(14B급, GGUF양자화 보유)로 전환해 최종 성공.
 
 ★★★핵심 결정: --cpu 플래그 절대 쓰지 말 것. macOS Apple Silicon은 반드시 MPS(GPU)로 구동.
+
+★★★MODEL-AGNOSTIC 양자화 규칙(2026-09-05 a_3803/3804, MiniMax nvfp4크래시 사례에서 확인): fp8/nvfp4/awq/mixed-fp4 계열 양자화는 어떤 모델이든 MPS에서 `Undefined type Float8_e4m3fn` 크래시(comfy_kitchen quant커널=cuda/triton전용, MPS백엔드 없음). MPS에서 안전한건 GGUF 또는 bf16뿐 — 새 i2v/영상모델 도입시 항상 양자화포맷부터 확인(GGUF/bf16만 채택, fp8/nvfp4/awq 발견시 그 배포본은 스킵하고 GGUF버전 찾을것).
 - CPU모드: GGUF 8.6GB 모델 로드 단계에서 18분+ hang 재현(a_2288), 메모리 스왑 26GB+ 포화로 OOM 위험 극대(여유메모리 68MB까지 떨어짐).
 - MPS모드: 같은 로드 단계를 수초~수십초 내 통과, 전체 diffusion 2스텝(HighNoise+LowNoise)이 각 7~13분, 총 39분16초 만에 완주. 프로세스 RSS도 3GB대로 낮게 유지(모델이 GPU 통합메모리 쪽에 올라감).
 - 구동커맨드: `~/Documents/ComfyUI/.venv/bin/python3 main.py --base-directory ~/Documents/ComfyUI` (★--cpu 제거, 로그에 `[INFO] Device: mps` 확인 필수).

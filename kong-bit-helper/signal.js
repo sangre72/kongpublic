@@ -1,4 +1,4 @@
-/* kong-upbit-helper — buy/sell signal chart-overlay (a_3640, display-only).
+/* kong-bit-helper — buy/sell signal chart-overlay (a_3640, display-only).
  *
  * 방법론(fork-verified 실무문헌 재사용, ¬재설계):
  *  - confluence = RSI + MACD + Volume 가중(단일지표 금지 — 각 ~50-55%, 조합 ~73-77% backtest).
@@ -262,5 +262,5 @@
     if (!document.getElementById("kuh-signal") && currentMarket()) tick();
   }).observe(document.body, { childList: true, subtree: true });
 
-  console.log("[kong-upbit-helper] signal overlay loaded");
+  console.log("[kong-bit-helper] signal overlay loaded");
 })();

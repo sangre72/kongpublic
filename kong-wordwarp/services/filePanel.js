@@ -8,6 +8,13 @@ window.FilePanel = class {
     }
 
     init() {
+        // ★a_3772 fix: document.body 미준비 시점에 init 되면 createFileButton의
+        //   document.body.appendChild가 "Cannot read properties of undefined" throw("오류" 배지 원인).
+        //   body 준비될 때까지 대기 후 초기화.
+        if (!document.body) {
+            document.addEventListener('DOMContentLoaded', () => this.init(), { once: true });
+            return;
+        }
         this.addStyles();
         this.createFileButton();
         this.createSidePanel();

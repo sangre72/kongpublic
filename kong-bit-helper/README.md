@@ -1,4 +1,4 @@
-# Kong Upbit Price Helper (v0.1)
+# KongBit Helper (v0.1)
 
 Chrome MV3 extension — adds **±% quick-price buttons** and a **price-lock toggle** to Upbit's
 매수가격/매도가격 (buy/sell limit-price) inputs on `upbit.com/exchange`.

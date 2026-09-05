@@ -13,8 +13,10 @@ window.SubtitleService = class {
 
     init() {
         this.setupEventListeners();
-        this.loadPreferredLanguage();
-        
+        // ★a_3772 fix: this.loadPreferredLanguage()는 SubtitleService에 없는 메서드(TranslationService것 복붙오류)
+        //   → 초기화 시 TypeError로 자막서비스 초기화 실패("오류" 배지 원인). 제거. 실제 대상언어는
+        //   자막 번역 흐름에서 getPreferredLanguages()로 로드됨(line ~196).
+
         // 옵션 화면의 번역 기능 활성화 상태 가져오기
         this.loadTranslationEnabledState();
 

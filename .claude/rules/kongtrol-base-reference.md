@@ -106,6 +106,7 @@ $KT input drag 1318 274 1002 777 --yes --human   # Finder → Chrome dropzone
 **CORE FACT(orch-measured, click 1222,459 direct-success):** kongtrol click-log = "physical(X,Y)→logical(X,Y)" = **1:1, ¬conversion**. a11y `@(X,Y)` == `kongtrol click X Y`(SAME logical-coord-system). ★×2·scale-calc·transform = FORBIDDEN(makes-it-wrong) — click a11y-coord AS-IS.
 - "which-takes-priority: scale·resolution·pointer, calc?"(u_3403) answer = **¬calc, a11y-logical-coord DIRECT**.
 - screencapture-png pixels(e.g. 4112×2658) ≠ logical-coords → **measuring coord from screenshot→click = WRONG**. coord=a11y-ONLY, screenshot=visual-verify-ONLY.
+- ★REPEATED-VIOLATION(2026-09-05 u_3969, multiple prior same-day incidents): despite this rule being documented, worker repeatedly falls back to screenshot-then-eyeball for web-UI elements(popups/dialogs especially) instead of `kongtrol see --a11y | grep <label-text>`. This is a compliance gap, not a documentation gap — before EVERY click on a web-page element, default reflex = a11y text-search first, screenshot only as a last-resort fallback when a11y genuinely returns no match.
 
 **MANDATORY CLICK PROTOCOL(∀ click·UI-task, unconditional):**
 1. **FOREGROUND**: `open -a "<App>" && sleep 1.5`(background-click = silent no-op).

@@ -1,4 +1,4 @@
-/* kong-upbit-helper v0.1 — 주입 UI 스타일. Upbit 자체 클래스(css-XXXX)와 충돌 피하려 전용 prefix. */
+/* kong-bit-helper v0.1 — 주입 UI 스타일. Upbit 자체 클래스(css-XXXX)와 충돌 피하려 전용 prefix. */
 .kuh-bar {
   display: flex;
   align-items: center;

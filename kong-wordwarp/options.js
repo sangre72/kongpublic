@@ -287,4 +287,16 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 설정 불러오기
     restoreOptions();
+
+    // a_3776: Chrome 내장 번역 지원 여부 표시
+    const cbStatus = document.getElementById('cb-status');
+    if (cbStatus) {
+        if (typeof self !== 'undefined' && 'Translator' in self) {
+            cbStatus.textContent = '✅ 이 브라우저에서 사용 가능';
+            cbStatus.style.color = '#2e7d32';
+        } else {
+            cbStatus.textContent = '⚠️ 이 브라우저에서는 미지원 (Chrome 138+ 데스크톱 필요)';
+            cbStatus.style.color = '#c62828';
+        }
+    }
 });

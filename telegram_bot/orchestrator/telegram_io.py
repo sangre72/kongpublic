@@ -188,6 +188,32 @@ class TelegramIO:
             raise RuntimeError(f"Telegram sendVideo 실패: {payload}")
         return payload["result"]
 
+    def send_audio_file(
+        self,
+        chat_id: int,
+        file_path,
+        caption: str | None = None,
+    ) -> dict[str, Any]:
+        """로컬 오디오 파일을 멀티파트로 업로드하는 sendAudio(TTS wav 등)."""
+        from pathlib import Path as _P
+
+        p = _P(file_path)
+        fields: dict[str, str] = {"chat_id": str(chat_id)}
+        if caption:
+            fields["caption"] = caption[:1024]
+        body, content_type = self._encode_multipart(
+            fields, [("audio", p.name, p.read_bytes())]
+        )
+        req = urllib.request.Request(
+            f"{self.base}/sendAudio", data=body,
+            headers={"Content-Type": content_type},
+        )
+        with urllib.request.urlopen(req, timeout=self.timeout + 60) as resp:
+            payload = json.loads(resp.read().decode())
+        if not payload.get("ok"):
+            raise RuntimeError(f"Telegram sendAudio 실패: {payload}")
+        return payload["result"]
+
     def answer_callback_query(
         self, callback_query_id: str, text: str | None = None
     ) -> dict[str, Any]:

@@ -1,4 +1,4 @@
-/* kong-upbit-helper v0.1 — content script.
+/* kong-bit-helper v0.1 — content script.
  *
  * ar_3607/ar_3608 근거:
  *  - 매수가격/매도가격 = React controlled-input(free-decimal). 값 주입 = native-setter + input/change 이벤트 필수.
@@ -11,14 +11,40 @@
 (() => {
   "use strict";
 
-  const PCTS = [
-    { label: "-2%", d: -0.02, cls: "kuh-down" },
-    { label: "-1%", d: -0.01, cls: "kuh-down" },
-    { label: "-0.5%", d: -0.005, cls: "kuh-down" },
-    { label: "+0.5%", d: 0.005, cls: "kuh-up" },
-    { label: "+1%", d: 0.01, cls: "kuh-up" },
-    { label: "+2%", d: 0.02, cls: "kuh-up" },
-  ];
+  // a_3789: %-preset 즐겨찾기 — buy/sell 각각 사용자 커스텀값을 chrome.storage.local 영속.
+  //   기존 고정 PCTS = 기본값(첫 사용자·미저장시 폴백, 기존 동작 유지). 우클릭으로 개별 버튼 % 편집.
+  const DEFAULT_PCTS = [-2, -1, -0.5, 0.5, 1, 2]; // 퍼센트 숫자(부호포함). buy/sell 공통 기본.
+  // side별 현재 프리셋(퍼센트 숫자 배열). 로드 전엔 기본값.
+  const _presets = { buy: DEFAULT_PCTS.slice(), sell: DEFAULT_PCTS.slice() };
+
+  // 퍼센트 숫자 배열 → 버튼 스펙(label/d/cls)로 변환.
+  function pctSpecs(side) {
+    const arr = (_presets[side] && _presets[side].length ? _presets[side] : DEFAULT_PCTS);
+    return arr.map((n) => ({
+      label: (n > 0 ? "+" : "") + n + "%",
+      d: n / 100,
+      cls: n < 0 ? "kuh-down" : "kuh-up",
+    }));
+  }
+
+  // storage에서 프리셋 로드(없으면 기본 유지). 로드 완료시 재주입.
+  function loadPresets(cb) {
+    try {
+      chrome.storage?.local.get(["kbh_presets_buy", "kbh_presets_sell"], (r) => {
+        if (r && Array.isArray(r.kbh_presets_buy) && r.kbh_presets_buy.length) _presets.buy = r.kbh_presets_buy;
+        if (r && Array.isArray(r.kbh_presets_sell) && r.kbh_presets_sell.length) _presets.sell = r.kbh_presets_sell;
+        cb && cb();
+      });
+    } catch (e) { cb && cb(); }
+  }
+
+  // 프리셋 저장(side별). 저장 후 재주입은 storage.onChanged가 처리.
+  function savePresets(side) {
+    try {
+      const key = side === "sell" ? "kbh_presets_sell" : "kbh_presets_buy";
+      chrome.storage?.local.set({ [key]: _presets[side] });
+    } catch (e) {}
+  }
 
   const nativeSetter = Object.getOwnPropertyDescriptor(
     window.HTMLInputElement.prototype, "value"
@@ -88,41 +114,61 @@
     //   전략: (1) '매수평균가' 헤더 요소 찾기(설정문구 제외) → 그 헤더의 화면 X좌표 = 컬럼 위치.
     //         (2) 현재코인 심볼을 가진 row(헤더와 다른 Y, 같은 표 컨테이너)의 셀들 중,
     //             헤더 X 와 가장 가까운 셀의 숫자 = 그 코인의 매수평균가.
+    // a_3793 fix: 헤더는 텍스트-정확일치면 되고 childless 강제 불필요(래퍼요소도 허용).
     const headers = [...document.querySelectorAll("*")].filter((e) => {
       const t = (e.textContent || "").trim();
-      return (t === "매수평균가" || t === "평균매수가") && e.children.length === 0;
+      if (t !== "매수평균가" && t !== "평균매수가") return false;
+      // 자식 중에 같은 텍스트를 그대로 가진 게 있으면(즉 상위 래퍼면) 스킵 — 가장 안쪽 요소만.
+      return ![...e.children].some((c) => (c.textContent || "").trim() === t);
     });
-    // 문서 전체의 말단 숫자요소 캐시(geometry 매칭용).
-    const allLeaves = [...document.querySelectorAll("*")].filter((e) => e.children.length === 0);
-    const numLeaves = allLeaves
-      .map((e) => ({ el: e, v: parseNum(e.textContent), r: e.getBoundingClientRect() }))
-      .filter((o) => o.v > 0 && o.r.width > 0);
+    // ★a_3793 fix3(devtools 실측 근거): 매수평균가 셀 = TD>EM 구조로 텍스트 "455.5 KRW"(숫자+단위 분리자식)
+    //   → childless-leaf 필터로는 "455.5" 단독노드가 안 잡혔음(rowNums에 부재 확인).
+    //   해결: "숫자 셀"을 childless 강제 없이, 텍스트가 [숫자(+KRW/콤마/소수)]로만 구성된 작은 요소로 판정.
+    const NUM_CELL_RE = /^[\s]*[0-9][0-9,]*(\.[0-9]+)?\s*(KRW)?\s*$/;
+    const numLeaves = [...document.querySelectorAll("td, em, span, div, p, b, strong")]
+      .map((e) => ({ el: e, v: parseNum(e.textContent), r: e.getBoundingClientRect(), t: (e.textContent || "").trim() }))
+      .filter((o) => o.v > 0 && o.r.width > 0 && o.r.width < 260 && NUM_CELL_RE.test(o.t));
 
+    // ★a_3793 핵심수정: 코인심볼 요소 탐색시 childless 강제 제거.
+    //   Upbit 보유행의 심볼은 [아이콘+텍스트] 래퍼(children>0)라 구버전 childless 필터가 전부 놓쳤음.
+    //   → 텍스트에 coin이 정확 토큰으로 포함된 "가장 안쪽" 요소(자식이 같은 coin을 안 가진)만 후보.
+    const coinRe = new RegExp("(^|[^A-Z0-9])" + coin + "([^A-Z0-9]|$)");
+    const coinCandidates = [...document.querySelectorAll("*")].filter((e) => {
+      const t = (e.textContent || "").trim();
+      if (!coinRe.test(t)) return false;
+      // 자식 중 같은 coin을 포함한 게 있으면 상위래퍼 → 스킵(가장 안쪽만).
+      return ![...e.children].some((c) => coinRe.test((c.textContent || "").trim()));
+    });
+
+    // a_3793 fix2: 코인심볼이 차트헤더 등 표 밖에도 존재 → first-match-return시 엉뚱한 행 잡음("8" 오독).
+    //   해결: 모든 (헤더×코인후보) 조합의 avg-컬럼 매칭 중 dx(컬럼정렬)가 가장 정확한 것을 선택.
+    let bestV = null, bestScore = Infinity;
     for (const hd of headers) {
       const hr = hd.getBoundingClientRect();
       if (hr.width === 0) continue;
       const colX = hr.left + hr.width / 2;
-      // 현재 코인 심볼을 가진 말단요소들(문서 전체 — 사이드바 div-grid 가 헤더와 sibling 일 수 있음).
-      //   헤더보다 X 가 왼쪽(코인명이 avg컬럼 왼쪽) + 헤더보다 아래(row 는 헤더 아래) 인 것만 후보.
-      const coinEls = allLeaves.filter((e) => {
-        if ((e.textContent || "").trim() !== coin) return false;
+      const coinEls = coinCandidates.filter((e) => {
         const r = e.getBoundingClientRect();
-        return r.width > 0 && r.top > hr.top - 5 && (r.left + r.width / 2) < colX;
+        // 반드시 헤더보다 아래(보유행) + 코인명이 avg컬럼 왼쪽.
+        return r.width > 0 && r.top > hr.bottom - 2 && (r.left + r.width / 2) < colX;
       });
       for (const ce of coinEls) {
         const cr = ce.getBoundingClientRect();
         const rowY = cr.top + cr.height / 2;
-        // 같은 행(Y 근접) + 헤더 X 에 가장 가까운 숫자셀.
         let best = null, bestDx = Infinity;
         for (const o of numLeaves) {
           if (Math.abs((o.r.top + o.r.height / 2) - rowY) > 26) continue; // 같은 행
           const dx = Math.abs((o.r.left + o.r.width / 2) - colX);
           if (dx < bestDx) { bestDx = dx; best = o; }
         }
-        if (best && bestDx < 90) return best.v;
+        // 컬럼정렬 정확도(dx)로 최선후보 갱신. 헤더 바로아래 첫 행 우선(top 가까운).
+        if (best && bestDx < 60) {
+          const score = bestDx + (cr.top - hr.bottom) * 0.05; // dx 우선, 동률이면 위쪽 행.
+          if (score < bestScore) { bestScore = score; bestV = best.v; }
+        }
       }
     }
-    return null; // ★못 찾으면 null — 절대 시세로 대체하지 않는다(a_3636 correctness).
+    return bestV; // ★못 찾으면 null — 절대 시세로 대체하지 않는다(a_3636 correctness).
   }
 
   // 라벨텍스트로 가격 input 을 찾는다(css-hash 비사용). 라벨워드가 조상 텍스트에 있는 decimal input.
@@ -170,14 +216,15 @@
     bar.className = "kuh-bar";
     bar.dataset.kuh = "1";
 
-    // 기준모드 상태(sell 만 노출). 'market'=현재가 대비, 'avg'=매수평균가 대비. 기본=market(기존유지).
+    // 기준모드 상태(a_3790: buy·sell 양쪽 노출). 'market'=현재가 대비, 'avg'=매수평균가 대비. 기본=market(기존유지).
     const refState = { mode: "market" };
 
     // ★a_3636 correctness: avg 모드는 절대 시세로 silent-대체하지 않는다.
     //   avg 모드 → getAvgBuyPrice() 만(null 이면 {ref:null,reason:'avg-unavail'} → no-op+badge).
     //   market 모드 → getMarketPrice().  두 소스가 섞이지 않도록 mode 로 완전 분기.
+    // a_3790: buy 측도 avg 기준 지원(동일 안전-폴백). side 게이트 제거.
     function refPrice() {
-      if (side === "sell" && refState.mode === "avg") {
+      if (refState.mode === "avg") {
         const a = getAvgBuyPrice();
         return { ref: a && a > 0 ? a : null, mode: "avg" };
       }
@@ -189,14 +236,33 @@
       const el = bar.querySelector(".kuh-ref");
       if (!el) return;
       el.classList.toggle("kuh-ref-unavail", on);
-      if (on) el.title = "매수평균가를 읽지 못했습니다 — 우측 '보유' 탭을 한 번 열어 값이 보이게 한 뒤 다시 시도하세요(시세로 대체하지 않음).";
+      if (on) el.title = "내 평균단가를 읽지 못했습니다(미보유·미로그인이거나 '보유' 탭 미확인) — 우측 '보유' 탭을 한 번 열어 값이 보이게 한 뒤 다시 시도하세요. 첫 매수라면 '현재가' 기준을 사용하세요(시세로 임의대체하지 않음).";
     }
 
-    for (const p of PCTS) {
+    const specs = pctSpecs(side);
+    specs.forEach((p, idx) => {
       const b = document.createElement("span");
       b.className = "kuh-btn " + p.cls;
       b.textContent = p.label;
-      b.title = `${side === "sell" && refState.mode === "avg" ? "매수평균가" : "현재가"} ${p.label} (틱 정렬)`;
+      b.title = `${refState.mode === "avg" ? "내 평균단가" : "현재가"} 기준 ${p.label} (틱 정렬) · 우클릭=% 편집`;
+      // a_3789: 우클릭 → 이 버튼 % 값 편집(영속 저장).
+      b.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const cur = _presets[side][idx];
+        const raw = window.prompt(`${side === "sell" ? "매도" : "매수"} 버튼 % 값 (부호포함, 예: +3 또는 -5)`, String(cur));
+        if (raw == null) return;
+        const v = Number(String(raw).replace(/[^0-9.\-]/g, ""));
+        if (!isFinite(v) || v === 0) return;
+        _presets[side][idx] = v;
+        savePresets(side);
+        // a_3789: onChanged 의존 않고 즉시 재주입(확실한 버튼 갱신). storage는 영속용.
+        try {
+          document.querySelectorAll('[data-kuh="1"]').forEach((bb) => bb.remove());
+          document.querySelectorAll('input[data-kuh-bound]').forEach((i) => { delete i.dataset.kuhBound; delete i.dataset.kuhBarId; });
+          injectAll();
+        } catch (err) {}
+      });
       b.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -215,15 +281,18 @@
         setInputValue(input, target);
       });
       bar.appendChild(b);
-    }
+    });
 
-    // sell-side 기준 토글(a_3615): [현재가|매수가] 클릭 전환.
-    if (side === "sell") {
+    // 기준 토글(a_3615 sell → a_3790 buy·sell 양쪽): [현재가|매수가] 클릭 전환. 동일 안전-폴백.
+    {
       const ref = document.createElement("span");
       ref.className = "kuh-ref";
       const render = () => {
-        ref.textContent = (refState.mode === "market" ? "기준:현재가" : "기준:매수가");
-        ref.title = "기준가 전환(현재가 ↔ 매수평균가). 매수평균가는 로그인+보유 시에만 사용가능.";
+        // a_3791: "매수가"는 매수체결가로 오인 소지 → "평균단가"로 명확화. side별 tooltip으로 용도 설명.
+        ref.textContent = (refState.mode === "market" ? "기준:현재가" : "기준:평균단가");
+        ref.title = side === "buy"
+          ? "기준가 전환(현재가 ↔ 내 평균단가). '평균단가' 기준은 이미 보유중인 코인에 추가매수(물타기)할 때, 내 평균매수단가 대비 몇 %로 살지 계산합니다. 미보유·미로그인이면 사용불가(빨간표시)이며 가격을 임의로 만들지 않습니다 — 첫 매수라면 '현재가' 기준을 쓰세요."
+          : "기준가 전환(현재가 ↔ 내 평균단가). '평균단가' 기준은 보유 포지션을 내 평균매수단가 대비 몇 %에 매도할지 계산합니다. 미보유·미로그인이면 사용불가(빨간표시).";
       };
       render();
       ref.addEventListener("click", (e) => {
@@ -234,7 +303,7 @@
         // avg 로 바꿨는데 값 없으면 즉시 미가용 표식(안내).
         if (refState.mode === "avg" && getAvgBuyPrice() == null) {
           ref.classList.add("kuh-ref-unavail");
-          ref.title = "매수평균가를 페이지에서 찾지 못함(로그인+보유 필요). 현재가 기준으로 사용하세요.";
+          ref.title = "내 평균단가를 찾지 못함(로그인+해당코인 보유 필요). 첫 매수라면 '현재가' 기준을 사용하세요.";
         }
         render();
       });
@@ -298,13 +367,31 @@
     }, 300);
   }
 
-  injectAll();
+  // a_3789: 저장된 프리셋 먼저 로드 후 주입(첫 주입부터 커스텀값 반영). 로드 실패시에도 기본값으로 주입.
+  loadPresets(() => { try { injectAll(); } catch (e) {} });
+  injectAll(); // 즉시 1회(로드 콜백 지연 대비, 기본값). 로드 완료시 재주입으로 갱신.
   const mo = new MutationObserver(() => {
     // 우리 자신의 주입으로 인한 mutation 은 무시(data-kuh 만 추가된 경우).
     scheduleInject();
   });
   mo.observe(document.body, { childList: true, subtree: true });
 
+  // a_3789: 프리셋 변경(우클릭 편집 저장) 실시간 반영 — 버튼 재생성 위해 강제 재주입.
+  try {
+    chrome.storage?.onChanged.addListener((ch, area) => {
+      if (area !== "local") return;
+      if (ch.kbh_presets_buy) _presets.buy = Array.isArray(ch.kbh_presets_buy.newValue) && ch.kbh_presets_buy.newValue.length ? ch.kbh_presets_buy.newValue : DEFAULT_PCTS.slice();
+      if (ch.kbh_presets_sell) _presets.sell = Array.isArray(ch.kbh_presets_sell.newValue) && ch.kbh_presets_sell.newValue.length ? ch.kbh_presets_sell.newValue : DEFAULT_PCTS.slice();
+      if (ch.kbh_presets_buy || ch.kbh_presets_sell) {
+        // 기존 바 제거 후 재주입(버튼 라벨/값 갱신).
+        document.querySelectorAll('[data-kuh="1"]').forEach((b) => b.remove());
+        document.querySelectorAll('[data-kuh-bound]')?.forEach?.(() => {});
+        document.querySelectorAll('input').forEach((i) => { delete i.dataset.kuhBound; delete i.dataset.kuhBarId; });
+        injectAll();
+      }
+    });
+  } catch (e) {}
+
   window.__kuh_loaded = "0.1.0";
-  console.log("[kong-upbit-helper] v0.1 loaded");
+  console.log("[kong-bit-helper] v0.1 loaded");
 })();

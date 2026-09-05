@@ -90,6 +90,7 @@
     <div class="form-group">
         <label for="translationService" data-i18n="service_selection">번역 서비스 선택</label>
         <select id="translationService">
+            <option value="chrome-builtin">🆓 Chrome 내장 번역 (무료·오프라인·키 불필요)</option>
             <option value="claude">Claude API</option>
             <option value="chatgpt">ChatGPT API</option>
             <option value="grok">Grok API</option>
@@ -97,6 +98,14 @@
             <option value="deepl-pro">DeepL API (pro)</option>
         </select>
         <div class="service-options">
+            <!-- a_3776: Chrome 내장 온디바이스 번역 옵션(API 키 불필요) -->
+            <div id="chrome-builtin-options" class="service-option">
+                <p style="font-size:13px;line-height:1.5;color:#555;margin:6px 0;">
+                    Chrome 브라우저 내장 AI로 <b>기기 내에서</b> 번역합니다. API 키·서버 불필요, 무료.<br>
+                    <span id="cb-status" style="font-weight:600;">지원 여부 확인 중…</span><br>
+                    <span style="color:#888;font-size:12px;">요구사항: 데스크톱 Chrome 138+, 최초 사용 시 모델 자동 다운로드(디스크 여유 필요). 미지원 시 다른 서비스를 선택하세요.</span>
+                </p>
+            </div>
             <!-- Claude API 옵션 -->
             <div id="claude-options" class="service-option active">
                 <label for="claudeApiKey" data-i18n="api_key">API 키</label>
@@ -411,6 +420,9 @@
     </div>
     <button id="save" data-i18n="save">저장</button>
     <div id="status" class="status"></div>
+    <!-- a_3773: 저자극 후원 링크(AliKong/KongTube 동일 패턴) -->
+    <a id="ww-donate" href="https://buymeacoffee.com/panichill" target="_blank" rel="noopener noreferrer"
+       style="display:inline-block;margin-top:16px;padding:8px 14px;background:#ffdd00;color:#1c1c1e;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;">☕ 개발자에게 커피 한 잔</a>
     <script type="module" src="locales.js"></script>
     <script src="options.js"></script>
     <script src="options-utils.js"></script>

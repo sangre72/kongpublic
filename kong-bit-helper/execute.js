@@ -1,4 +1,4 @@
-/* kong-upbit-helper — signal-triggered auto-execute (a_3649). ★REAL MONEY — highest caution.
+/* kong-bit-helper — signal-triggered auto-execute (a_3649). ★REAL MONEY — highest caution.
  *
  * SPEC(user u_3646~3648):
  *  - BUY-signal → "즉시매수" 버튼 + KRW 금액입력(기본 5,100, configurable) → 클릭 = 금액세팅 +
@@ -360,5 +360,5 @@
 
   // 배지 갱신 주기에 맞춰 exec-UI 동기화.
   setInterval(attachToBadge, 2000);
-  console.log("[kong-upbit-helper] execute module loaded (armed=" + (window.KUH_ARM_SUBMIT === true) + ")");
+  console.log("[kong-bit-helper] execute module loaded (armed=" + (window.KUH_ARM_SUBMIT === true) + ")");
 })();

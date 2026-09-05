@@ -159,7 +159,7 @@ window.TranslationService = class {
         let middleButtonDown = false;
 
         document.addEventListener('mousedown', (event) => {
-            if (event.button === 1) { // 오른쪽 버튼
+            if (event.button === 1) { // 중간(휠) 버튼
                 middleButtonDown = true;
             } else {
                 middleButtonDown = false;
@@ -204,9 +204,9 @@ window.TranslationService = class {
         });
 
         document.addEventListener('mouseup', (event) => {
-            if (event.button === 1) { // 왼쪽 버튼
-                leftButtonDown = false;
-            } 
+            if (event.button === 1) { // 중간(휠) 버튼
+                middleButtonDown = false;
+            }
         });
 
         // Ctrl+Shift+X 단축키로 번역 기능 토글
@@ -670,6 +670,8 @@ Text: ${text}`;
                     });
                 } else if (response && response.error === 'API_KEY_NOT_SET') {
                     this.showApiKeyError();
+                } else if (response && this._isChromeBuiltinError(response.error)) {
+                    this.showChromeBuiltinError(response.error);
                 } else {
                     alert('Translation failed. Please check your settings: ' + (response ? response.error : 'No response'));
                 }
@@ -892,8 +894,9 @@ Text: ${text}`;
 
     // 클립보드 복사 함수
     copyToClipboard(text, button, type) {
+        // a_3774: originalText를 상위 스코프에 선언(기존엔 then 내부 const라 catch 경로에서 ReferenceError)
+        const originalText = button.textContent;
         navigator.clipboard.writeText(text).then(() => {
-            const originalText = button.textContent;
             button.textContent = `${type} 복사됨!`;
             button.style.background = '#e8f5e9';
             button.style.borderColor = '#81c784';
@@ -1455,6 +1458,8 @@ Text: ${textToTranslate}`;
                 
                 if (response.translatedText === 'API_KEY_NOT_SET') {
                     this.showApiKeyError();
+                } else if (this._isChromeBuiltinError(response.error)) {
+                    this.showChromeBuiltinError(response.error);
                 } else if (response.translatedText) {
                     this.insertInlineTranslation(range, textToTranslate, response.translatedText, existingSummary);
                 }
@@ -1755,8 +1760,103 @@ Text to summarize: ${textToSummarize}`;
         }
     }
 
+    // ===== a_3776: Chrome 내장 온디바이스 Translator API 어댑터(무료·오프라인·서버불필요) =====
+    // MV3 서비스워커엔 window/Translator 없음 → 반드시 content-script(여기)에서 실행.
+    static chromeBuiltinSupported() {
+        return typeof self !== 'undefined' && 'Translator' in self;
+    }
+
+    // 소스 언어 추정: 대상이 ko면 en 소스로, ko가 아니면 ko 소스로 가정.
+    // LanguageDetector 있으면 정밀 감지 사용.
+    async _detectSourceLang(text, targetLang) {
+        try {
+            if ('LanguageDetector' in self) {
+                const d = await LanguageDetector.create();
+                const [top] = await d.detect(text);
+                if (top && top.detectedLanguage && top.detectedLanguage !== 'und') {
+                    return top.detectedLanguage.split('-')[0];
+                }
+            }
+        } catch (e) { /* fall through to heuristic */ }
+        // 휴리스틱: 한글 포함 여부
+        const hasKo = /[가-힣]/.test(text);
+        if (targetLang === 'ko') return hasKo ? 'ko' : 'en';
+        return hasKo ? 'ko' : 'en';
+    }
+
+    // 실제 번역 수행. 성공 시 {success:true, translatedText}, 실패 시 {error}.
+    async translateViaChromeBuiltin(text, targetLang, onDownload) {
+        if (!window.TranslationService.chromeBuiltinSupported()) {
+            return { error: 'CHROME_BUILTIN_UNAVAILABLE' };
+        }
+        try {
+            let source = await this._detectSourceLang(text, targetLang);
+            if (source === targetLang) {
+                // 동일언어면 반대 기본쌍으로 보정(ko↔en)
+                source = targetLang === 'ko' ? 'en' : 'ko';
+            }
+            const avail = await Translator.availability({ sourceLanguage: source, targetLanguage: targetLang });
+            if (avail === 'unavailable') {
+                return { error: 'CHROME_BUILTIN_PAIR_UNAVAILABLE', pair: `${source}->${targetLang}` };
+            }
+            const translator = await Translator.create({
+                sourceLanguage: source,
+                targetLanguage: targetLang,
+                monitor(m) {
+                    m.addEventListener('downloadprogress', (e) => {
+                        if (onDownload) onDownload(Math.round(e.loaded * 100));
+                    });
+                }
+            });
+            const translatedText = await translator.translate(text);
+            return { success: true, translatedText, translation: translatedText };
+        } catch (e) {
+            return { error: 'CHROME_BUILTIN_ERROR', message: e.message };
+        }
+    }
+
     // 안전한 메시지 전송을 위한 헬퍼 함수
     safeSendMessage(message, callback) {
+        // a_3776: chrome-builtin 번역 서비스 선택 시 백그라운드 대신 content-script에서 직접 처리.
+        if (message && message.action === 'translate') {
+            chrome.storage.sync.get({ translationService: 'deepl-free' }, (cfg) => {
+                const useBuiltin = cfg.translationService === 'chrome-builtin';
+                if (useBuiltin) {
+                    if (!window.TranslationService.chromeBuiltinSupported()) {
+                        if (callback) callback({ error: 'CHROME_BUILTIN_UNAVAILABLE' });
+                        return;
+                    }
+                    this.translateViaChromeBuiltin(message.text, message.targetLang)
+                        .then((r) => { if (callback) callback(r); });
+                    return;
+                }
+                this._sendRuntimeMessage(message, callback);
+            });
+            return;
+        }
+        this._sendRuntimeMessage(message, callback);
+    }
+
+    _isChromeBuiltinError(err) {
+        return err === 'CHROME_BUILTIN_UNAVAILABLE'
+            || err === 'CHROME_BUILTIN_PAIR_UNAVAILABLE'
+            || err === 'CHROME_BUILTIN_ERROR';
+    }
+
+    // a_3776: Chrome 내장 번역 실패 시 명확한 안내(무음 실패 금지)
+    showChromeBuiltinError(err) {
+        let msg;
+        if (err === 'CHROME_BUILTIN_UNAVAILABLE') {
+            msg = 'Chrome 내장 번역을 사용할 수 없습니다.\n데스크톱 Chrome 138 이상이 필요합니다. 설정에서 다른 번역 서비스(DeepL/Claude 등)를 선택하세요.';
+        } else if (err === 'CHROME_BUILTIN_PAIR_UNAVAILABLE') {
+            msg = '이 언어쌍은 Chrome 내장 번역에서 지원되지 않습니다.\n다른 번역 서비스를 선택하세요.';
+        } else {
+            msg = 'Chrome 내장 번역 중 오류가 발생했습니다.\n최초 사용 시 온디바이스 모델 다운로드에 시간이 걸릴 수 있습니다. 잠시 후 다시 시도하거나 다른 서비스를 선택하세요.';
+        }
+        alert(msg);
+    }
+
+    _sendRuntimeMessage(message, callback) {
         try {
             if (!chrome.runtime) {
                 console.error(chrome.i18n.getMessage('runtime_not_initialized') || 'Chrome 런타임이 초기화되지 않았습니다.');

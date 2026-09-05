@@ -69,9 +69,9 @@ async function translateWithDeepL(tabId, text, options = {}, sendResponse) {
                 // 특정 오류에 대한 사용자 친화적인 메시지
                 if (response.status === 403) {
                     if (errorText.includes('Wrong endpoint')) {
-                        errorMessage = "${chrome.i18n.getMessage('deepl_free_api_key_warning')}";
+                        errorMessage = `${chrome.i18n.getMessage('deepl_free_api_key_warning')}`;
                     } else {
-                        errorMessage = "${chrome.i18n.getMessage('deepl_free_api_key_error')}";
+                        errorMessage = `${chrome.i18n.getMessage('deepl_free_api_key_error')}`;
                     }
                 } else if (response.status === 456) {
                     errorMessage = '월간 번역 한도를 초과했습니다.';
