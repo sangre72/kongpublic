@@ -1,0 +1,14 @@
+/* kong-yt-upload-helper — in-page 진행 배지(kyt- prefix, studio.youtube.com 클래스와 충돌 회피) */
+#kyt-badge {
+  position: fixed; z-index: 2147483000; top: 90px; right: 16px; width: 300px;
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(28,28,30,0.96); color: #f2f2f7;
+  font-size: 12px; line-height: 1.5;
+  font-family: -apple-system, system-ui, sans-serif;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35); border: 1px solid #ff453a;
+}
+.kyt-head { font-size: 12px; font-weight: 600; color: #f2f2f7; margin-bottom: 4px; }
+.kyt-cnt { display: inline-block; min-width: 18px; padding: 0 6px; border-radius: 9px; background: #0a84ff; color: #fff; font-size: 11px; font-weight: 700; text-align: center; }
+.kyt-loc { display: inline-block; padding: 0 5px; border-radius: 5px; background: #3a3a3c; color: #aeaeb2; font-size: 9px; font-weight: 700; vertical-align: middle; }
+.kyt-detail { font-size: 11px; color: #d1d1d6; margin-top: 4px; }
+.kyt-foot { margin-top: 6px; font-size: 10px; color: #8e8e93; }

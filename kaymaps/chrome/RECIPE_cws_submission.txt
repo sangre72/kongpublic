@@ -1,0 +1,64 @@
+RECIPE: cws_submission (Chrome Web Store 확장 제출 — AliKong a_3753 + KongTube a_3763 실증)
+GATE: verified_runs=2 (AliKong v0.5 SUBMITTED, KongTube v0.2 SUBMITTED). 2회 동일작업 → recipe 추출(recipe-lookup-guideline).
+REG: chrome.google.com/webstore/devconsole (CWS 개발자 대시보드). 확장 배포용.
+WHY: 2회 반복 + 2회 모두 동일 privacy-checkbox 오체크 사고(a_3765). checklist recipe로 재발방지.
+
+★★★ 핵심교훈(2회 사고 근본): privacy탭 "사용자 데이터 사용" 체크박스 = 기본/실수로 오체크됨 → 매니페스트 실권한과 1:1 대조 필수(§4-CHECKLIST). KongTube "인증정보" 오체크가 제출후 발견됨(a_3763fix).
+
+===== PRE(1회) =====
+P0. dev-account 로그인 확인: devconsole 접속 → "다시 로그인/본인인증" 나오면 ★Google 로그인+2FA=HUMAN-ONLY(자동화 금지, security-guideline). halt+report, 무한재시도 금지(§BLOCKER-1).
+P1. backends(icon-gen용): curl localhost:4000(CineBot) + localhost:8000(ComfyUI) = 200. ¬재시작(network-budget, 이미 up면 skip).
+
+===== STEP =====
+1. ICON-GEN(Krea2 Turbo, ComfyUI 8000, ¬Flux):
+   - payload: UnetLoaderGGUF(Krea2/Krea-2-Turbo-Q3_K_M.gguf) + CLIPLoader(qwen3vl_4b_bf16.safetensors, type="krea2" ★fp8=MPS crash라 bf16) + VAELoader(wan_2.1_vae.safetensors) + KSampler(steps=8 cfg=1.0 euler simple) + 1024².
+   - ★프롬프트: 순수 시각묘사만(고릴라 마스코트+앱모티프). ★UI/card/text/logo 단어 배제(text-hallucination 트리거→garbled). negative=빈문자열(cfg1.0=distilled, negative inert).
+   - POST localhost:8000/prompt → node_errors={} 확인 → queue 폴링(~130-150s) → history/{prompt_id}로 output png 경로 → ~/ComfyUI-src/output/<prefix>_00001_.png.
+   - Read로 육안검증(garbled 없음). sips -z {16,48,128}로 리사이즈 → icons/icon{16,48,128}.png. 48px 판독확인.
+2. MANIFEST: name(최종명칭)·description(한글 기능설명)·version. +icons{16,48,128}·action.default_icon{동일}. permissions 최소(storage 등). JSON valid 확인.
+3. PACKAGE: zip = runtime파일만(manifest·content.js·helper.css·popup.*·icons/16·48·128). ★제외: README·screenshots·source_1024·test·zip자신. 명명: <name>_v<ver>.zip. node --check + json valid.
+
+===== DASHBOARD(로그인됨) =====
+4. NEW-ITEM: devconsole/ → "새 항목 추가"@1484,307(crop-verify) → 업로드 dialog → "파일 선택"@778,752 → NSOpenPanel picker.
+   - picker 위치드롭다운@830,276로 프로젝트dir 이동, icons 등 하위폴더=disclosure▸@262,<row>로 inline 확장. zip/파일 선택 → 열기@1407,1084.
+   - ★드래그로 zip 드롭 시도 X(Finder창이 dialog 가림 → 파일선택 버튼→picker가 안정). 업로드 "처리 중..." → 항목생성(초안).
+5. LISTING("스토어 등록정보" 탭):
+   - 설명* textarea@829,558~582: 기능·특징 설명(≥25자).
+   - 카테고리* combo: 앱성격(쇼핑=AliKong, 도구=KongTube). 옵션 스크롤+a11y좌표 클릭(옵션은 a11y 미노출多→스샷+계산좌표).
+   - 언어* combo: 한국어(ㅎ=목록끝, 스크롤 후 a11y 잡히면 클릭@661,~1110).
+   - 스토어 아이콘*@793,~989: 클릭→picker→icons/icon128.png→열기. "이미지 삭제 스토어 아이콘" 뜨면 성공.
+   - 캡처화면*@823,~1301: ★1280x800 or 640x400 필수(다른크기=거부). Playwright로 브랜딩 스샷 생성(브랜드색bg+로고+태그라인). picker→열기. "이미지 삭제 스크린샷 1" 성공.
+   - 임시저장@1255,224.
+6. PRIVACY("개인정보 보호" 탭)@118,~446(스토어등록정보 아래 nav링크):
+   - 전용 목적 설명*@829,459: 단일목적(이 확장이 하는 한 가지).
+   - storage 사용 근거*@829,~721: "로컬 저장, 외부전송 없음".
+   - 호스트 권한 사용 근거*@829,~833: "이 사이트서만 동작, 다른사이트 접근안함".
+   - 원격 코드? = "아니요, 사용안함"@509,<row>(번들만, 외부JS/eval 없으면).
+   - ★★★§4-CHECKLIST(2회 사고지점, 필수 1:1 대조):
+     "사용자 데이터 사용" 데이터타입 8종(개인식별/건강/금융/★인증정보/커뮤니케이션/위치/웹기록/사용자활동/웹사이트콘텐츠)
+     = 매니페스트 실제수집과 대조. ★기본/pre-checked 신뢰 금지 — 한 개씩 확인. 대부분 확장=전부 UNCHECKED여야 함(로컬only·수집없음).
+     ★스샷으로 각 체크박스 상태 실측(a11y는 checked-state 불명확). 오체크 발견시 클릭 uncheck + crop-verify 빈박스.
+   - 준수인증 체크박스 3개(제3자판매안함/목적외사용안함/신용도용안함) = 체크(정상준수시).
+   - ★개인정보처리방침 URL*@661,~1082: 데이터수집/특정권한시 필수. hosting 없으면 ★Claude Artifact 게시본 URL 사용가능(claude.ai/code/artifact/<id>).
+   - 임시저장.
+7. ★VERIFY 제출가능: "제출할 수 없는 이유"@1122,224 클릭 → 남은 블로커 확인. 없으면 "제출하여 검토받기"@1389,224 = BLUE/활성화(crop-verify).
+
+===== ★§MANDATORY PRE-SUBMIT GATE =====
+★ final "제출하여 검토받기" 클릭 = 공개행위(비가역-ish) → ALWAYS STOP, orch/user go-ahead 대기. 임의 제출 금지.
+GO 수신시: 제출@1389,224 → confirm dialog "제출하시겠습니까?" → 제출confirm@991,857 → "제출함" → 상태=검토 대기 중. 자동게시 체크박스=미체크(검토후 수동, 안전). 확인 dismiss.
+
+===== §BLOCKER =====
+BLOCKER-1[Google 로그인/2FA 만료]: devconsole "본인인증 필요" → HUMAN-ONLY(자격증명·2FA). halt+report, 자동 로그인시도 금지.
+BLOCKER-2[개인정보처리방침 URL 없음]: host권한+데이터선언 조합시 Google이 요구. AliKong=불요였으나 KongTube=요구(권한조합차이). user URL 제공 or Claude Artifact 게시 필요. 임의생성 금지.
+BLOCKER-3[검토중 수정불가]: 제출후 오류발견시 "검토 중인 항목은 수정 또는 게시하지 못합니다". → ⋮메뉴@1507,224 "리뷰 취소"→초안복귀→수정→재제출(withdraw+resubmit). in-place 편집=리뷰중 차단.
+BLOCKER-4[autocomplete 딥링크 오류페이지]: studio류 URL 타이핑+enter 시 Chrome이 캐시된 /upload? 딥링크 이어붙여 오류페이지. → URL 타이핑 후 input key delete(자동완성 제거) 후 enter, or 명시적 clean-URL. (studio recipe ar_2930과 동일 클래스, devconsole도 주의.)
+
+===== VERIFY(종료조건) =====
+- 항목 생성(초안) + zip 업로드 성공.
+- 등록정보(설명·카테고리·언어·아이콘·1280x800 스샷) 채움.
+- 개인정보탭(전용목적·storage·host 근거·원격코드·★데이터타입 매니페스트 1:1대조·준수인증·정책URL) 완료.
+- "제출하여 검토받기" BLUE/활성화.
+- ★STOP at pre-submit gate, go-ahead 후에만 제출. 제출후 상태=검토 대기 중.
+
+★COORD 주의(u_3485/a_3749 교훈): 위 좌표는 실증값이나 레이아웃 변동(제목2줄wrap 등)으로 드리프트 가능 → 매번 a11y 재조회(AXButton/AXComboBox+label) 우선, 좌표는 참고. 옵션 드롭다운은 a11y 미노출 잦음→스샷+계산.
+REF: a_3753(AliKong), a_3763/3765(KongTube+privacy checkbox 사고), a_3766(recipe추출). RECIPE_scheduled_upload_VERIFIED.txt(picker·autocomplete 교훈 공유).

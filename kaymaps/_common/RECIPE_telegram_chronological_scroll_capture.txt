@@ -1,0 +1,52 @@
+[GATE] VERIFIED 2026-09-05 u_3979 (worker1, a_3808 run — 101 clean captures Gunpo-start→now, zero link-open incidents after wheel-switch)
+[TOPIC] Telegram(desktop) chronological scroll+screenshot capture — read a conversation oldest→newest, one clean window-crop per checkpoint
+[REG] any Telegram-desktop conversation recap/reading task; generalizable to any scrollable-app-window sequential capture
+
+[WHY]
+- a_3808: needed per-checkpoint screenshots of a long chat, chronological(oldest→newest), window-only crop(not desktop), for a caption+ffmpeg recap video.
+- 3 pitfalls hit+solved → this recipe:
+  1. a11y AXWindow bounds were WRONG-SCALE(reported @(1302,491)[1403x903] but real logical = X600 Y39 W1403 H903). `screencapture -R` with a11y-bounds grabbed the wrong region(Terminal). FIX: get real bounds via Quartz CGWindowList, capture by window-ID.
+  2. `kongtrol input key down` = FOCUS-NAVIGATION not scroll — it lands on links/messages and ENTER/SPACE opens them("Open this link?" dialog fired on a youtu.be link). FIX: use real mouse-WHEEL scroll via Quartz CGEventCreateScrollWheelEvent — NO arrow keys, NO clicks on message content.
+  3. scroll direction: wheel dy NEGATIVE = content scrolls toward NEWER(down chronologically). Positive = older.
+
+[PREREQ]
+- Telegram desktop open on target conversation. Bring frontmost: `osascript -e 'tell application "Telegram" to activate'; sleep 1.5`.
+- python3 with pyobjc Quartz (system python has it on this Mac).
+
+[STEPS]
+1. GET WINDOW-ID + real bounds (NOT a11y — a11y bounds mis-scaled here):
+   python3 -c "import Quartz;print([(w['kCGWindowNumber'],w['kCGWindowBounds']) for w in Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionOnScreenOnly|Quartz.kCGWindowListExcludeDesktopElements,Quartz.kCGNullWindowID) if w.get('kCGWindowOwnerName')=='Telegram'])"
+   → note WID (e.g. 20876).
+
+2. POSITION at start-point: user manually scrolls to the exact first message OR you wheel UP (positive dy) to reach it. VERIFY by capturing + reading — confirm the intended first message is visible before proceeding down.
+
+3. CAPTURE current view (clean window-only, no crop-math):
+   screencapture -x -o -l <WID> shot_NN.png
+   (-l <windowID> = capture just that window; -o = no window shadow; -x = no sound)
+
+4. SCROLL DOWN one checkpoint (wheel, NOT arrow key):
+   python3 - <<'PY'
+   import Quartz,time
+   def wheel(dy):
+       e=Quartz.CGEventCreateScrollWheelEvent(None,Quartz.kCGScrollEventUnitLine,1,dy)
+       Quartz.CGEventPost(Quartz.kCGHIDEventTap,e)
+   for _ in range(7): wheel(-5); time.sleep(0.13)   # NEGATIVE=newer/down. ~7×5 lines ≈ one exchange-block
+   PY
+   sleep 0.7   # let render settle before capture
+
+5. LOOP steps 3-4, numbering shot_NN sequentially (rc_01, rc_02, ...), until the latest message is reached.
+
+6. VERIFY END: wheel-down hard (20×) once; if view unchanged = at bottom. Read last capture to confirm the newest message.
+
+[TUNING]
+- 6×wheel(-5) ≈ ~1 message-block/exchange; 7× for denser blocks. Adjust per readability(don't skip messages — overlap slightly is fine, gaps are not).
+- capture EVERY orch/bot reply(not just skim) → small scroll increments, verify no exchange skipped between consecutive shots.
+
+[VERIFY]
+- Read a sample of captures(first/mid/last) — confirm chronological order + no gap between consecutive shot timestamps.
+- Each shot = window-only(title-bar "kong-bot" visible top, no desktop/dock/other-app bleed) → confirms -l WID crop worked.
+
+[LIMIT/OPEN]
+- a11y AXWindow bounds unreliable for screencapture -R on this setup(HiDPI scale mismatch) — ALWAYS use CGWindowList WID + `-l` instead.
+- window-ID changes if Telegram window is closed/reopened — re-query per session(don't hardcode 20876).
+- next: caption-per-shot + ffmpeg assembly(2-3s holds) = separate step, cf RECIPE_demo_video_recording.txt.

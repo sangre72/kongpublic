@@ -1,0 +1,17 @@
+[GATE]base-reference
+[TOPIC]Chrome extension development — common conventions
+
+★MUST(2026-09-05 u_3851): "새로고침"(chrome://extensions reload-button) is NOT reliable for verifying code changes took effect — has repeatedly shown stale-cache behavior(content-script/background-worker not actually re-loaded despite reload-button click, or partial reload leaving old JS in a tab already open before reload).
+CORRECT PROCEDURE after any code change to an unpacked extension:
+1. Remove the extension entirely(chrome://extensions → 삭제/Remove card).
+2. Re-add via "압축해제된 확장 프로그램을 로드합니다"(Load unpacked) → select the extension folder again.
+3. Close and reopen any tab that was open before the reinstall(content-scripts injected before reinstall are stale, won't pick up new code without a fresh page load).
+4. THEN test — never trust a reload-button-only cycle as sufficient verification that a fix took effect.
+
+Applies to: kong-ali-helper, kong-upbit-helper, kong-yt-upload-helper(KongTube), kong-wordwarp, and any future kong-*-helper extension under active development(pre-CWS-submission dev-loop). Once published via CWS(RECIPE_cws_submission.txt), users get updates via normal store-update flow — this reload-vs-reinstall distinction is specifically for local unpacked-dev iteration.
+
+★MUST(2026-09-05 u_3863): repeated PATH-NAVIGATION errors observed across multiple extension tasks(wrong folder picked in Finder/file-picker, e.g. "workflow" instead of "wordwarp" — similar-sounding/spelled dir names or stale muscle-memory from a prior task's path). Before navigating to ANY kong-*-helper folder(Load-unpacked, zip-upload file-picker, source-edit):
+1. State the FULL target path explicitly first(e.g. "/Users/bumsuklee/git/kong-bot/kong-wordwarp") — don't rely on typed partial-name autocomplete or visual scan of a folder list.
+2. Use Finder Cmd+Shift+G(Go to Folder) and type/paste the exact absolute path, not a partial name.
+3. After navigating, verify the path-bar/window-title TEXT matches the intended path character-for-character before doing anything else(select file, drag, etc) — a11y-read the actual displayed path, don't assume from having "just typed it."
+4. If ANY doubt after step 3, stop and re-verify — don't proceed on a guess.

@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="kyt-pop-head">
+    <span class="kyt-pop-logo">🎬</span>
+    <span class="kyt-pop-title">KongTube Upload Helper</span>
+  </div>
+  <div class="kyt-pop-sub" data-i18n="sub"></div>
+
+  <div class="kyt-guide">
+    <div class="kyt-guide-h" data-i18n="guideH"></div>
+    <pre class="kyt-guide-ex">filename,title,playlist,scheduleDate
+scene_01.mp4,My Video Title 1,My Playlist,2026-09-05
+scene_02.mp4,"Title, with comma",My Playlist,2026-09-05</pre>
+    <div class="kyt-guide-note" data-i18n-html="guideNote"></div>
+  </div>
+
+  <div class="kyt-locale-row">
+    <label class="kyt-locale-lbl" for="kyt-locale" data-i18n="localeLbl"></label>
+    <select id="kyt-locale" class="kyt-locale-sel">
+      <option value="auto" data-i18n="localeAuto"></option>
+      <option value="ko">한국어 (ko)</option>
+      <option value="en">English (en)</option>
+      <option value="ja">日本語 (ja)</option>
+      <option value="es">Español (es)</option>
+    </select>
+  </div>
+
+  <button id="kyt-pick" class="kyt-btn kyt-btn-primary" data-i18n="pickBtn"></button>
+  <input id="kyt-file" type="file" accept=".csv,text/csv" style="display:none">
+
+  <div id="kyt-status" class="kyt-status"></div>
+  <div id="kyt-error" class="kyt-error"></div>
+  <div id="kyt-list" class="kyt-list"></div>
+
+  <div class="kyt-pop-foot" data-i18n-html="foot"></div>
+  <a class="kyt-donate" href="https://buymeacoffee.com/panichill" target="_blank" rel="noopener noreferrer" data-i18n="donate"></a>
+  <script src="popup.js"></script>
+</body>
+</html>

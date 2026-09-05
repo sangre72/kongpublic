@@ -1,0 +1,16 @@
+[GATE]base-reference
+[TOPIC]App/extension demo video recording — common conventions
+
+★MUST(2026-09-05 u_3887 — real incident): a first attempt(a_3781) recorded 3 promo demos via full-desktop `screencapture -v` at 4096x2648 with NO window-crop — result was UNUSABLE(menu bar/dock/huge empty margins visible, actual feature-action tiny/unreadable). User caught it immediately on review, orch independently confirmed via ffprobe(resolution=full desktop, not window-size) + frame-extraction(random frame showed no visible action, static idle page).
+
+CORRECT PROCEDURE for any promo/demo recording:
+1. Query the target app/browser WINDOW BOUNDS first(via kongtrol/a11y, don't guess) — record ONLY that window's rect via `screencapture -v -R <x,y,w,h>`, never a bare full-desktop capture.
+2. Zoom/scale the target window/content beforehand so the actual interaction(cursor, click, result) will occupy a significant readable portion of frame — not lost in whitespace.
+3. Keep clips SHORT(15-30s) and cut to the actual demo-worthy moment — no idle setup/waiting time included.
+4. ★MANDATORY self-verify before reporting done: extract a frame from the moment the core action happens(ffmpeg -ss <t> -vframes 1 -update 1 <out.png>) and visually confirm the feature is clearly visible in that frame. Don't report "done" on file-existence alone — file existing ≠ content being usable.
+5. ffprobe resolution as a sanity check: if it matches full-desktop resolution instead of a cropped window size, that's a red flag the crop step was skipped.
+
+Applies to: any AliKong/KongTube/WordWarp/future-kong-*-helper promo-demo recording, and any future app screen-recording made for external(non-debug) audiences.
+
+★MUST(2026-09-05 u_3894 — 2nd incident, same session): worker reused a STALE crop-rect from an earlier recording after the user changed Chrome to fullscreen(window bounds changed) — recorded the wrong region again. NEVER hardcode/reuse a window-bounds rect across separate recording sessions or after ANY window-state change(fullscreen toggle, resize, reposition). Before EVERY recording(not just the first): re-query current window bounds fresh via a11y, and sanity-check the queried size against expectation(e.g. does it match current display resolution if fullscreen was just toggled) BEFORE starting capture — don't assume yesterday's/an-hour-ago's rect still applies.
+★METHOD(2026-09-05 u_3895): use `kongtrol see --a11y` SEARCH/QUERY to find the current window frame directly(grep for the browser/app window element's bounds) — this is faster and more reliable than manually recomputing/guessing coordinates. Same a11y-first principle as everywhere else in this project(cf kongtrol-base-reference.md coordinate section).
