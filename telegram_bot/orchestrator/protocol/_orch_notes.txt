@@ -18,3 +18,4 @@
 ★ seen_u 갱신 필수
   - orch_monitor_tick.sh 이미 ESEEN에 기록
   - orch가 처리 시작하면 seen_u에도 추가(중복 방지)
+[2026-09-09 u_4328] future: ARC-AGI official measurement route (Kaggle ARC Prize submission / semi-private verification) — scope after fun self-measure run done

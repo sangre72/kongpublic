@@ -1,0 +1,30 @@
+{
+  "_scenario": "Full 3D pipeline E2E: a subdivided+smoothed sphere (modeling) is UV-unwrapped, given a glossy blue PBR material (shading), with a 3D title, then a metallic torus orbits it while the camera arcs on a path (animation) — rendered to video.",
+  "output": "output/full_pipeline.mp4",
+  "animation": {"frame_start": 1, "frame_end": 72, "fps": 24},
+  "ops": [
+    {"op": "add", "kind": "sphere", "name": "hub", "location": [0, 0, 0.6], "size": 2.4},
+    {"op": "modify", "target": "hub", "modify": "subdivide", "levels": 2},
+    {"op": "modify", "target": "hub", "modify": "smooth"},
+    {"op": "uv", "target": "hub", "method": "smart"},
+    {"op": "material", "target": "hub", "color": [0.1, 0.5, 0.9], "roughness": 0.25, "metallic": 0.1},
+
+    {"op": "add", "kind": "torus", "name": "ring", "location": [4, 0, 0.6], "size": 1.4},
+    {"op": "uv", "target": "ring", "method": "smart"},
+    {"op": "material", "target": "ring", "color": [0.95, 0.75, 0.2], "metallic": 1.0, "roughness": 0.12},
+
+    {"op": "add", "kind": "plane", "location": [0, 0, -1], "size": 50, "color": [0.45, 0.48, 0.5]},
+    {"op": "text", "name": "title", "body": "KONG-BLENDER", "location": [0, 3.5, 0.05], "rotation": [90, 0, 0], "size": 0.9, "extrude": 0.12, "color": [0.95, 0.35, 0.3]},
+
+    {"op": "light", "location": [5, -4, 10], "energy": 5.0, "light_type": "SUN"},
+    {"op": "camera", "location": [0, -12, 6], "look_at": [0, 0, 0.6]},
+
+    {"op": "motion", "motion": "orbit", "target": "ring", "center": [0, 0, 0.6], "radius": 4, "height": 0, "turns": 1.0},
+    {"op": "camera_path", "points": [
+      {"frame_frac": 0.0, "location": [0, -12, 6], "look_at": [0, 0, 0.6]},
+      {"frame_frac": 0.5, "location": [11, -5, 5], "look_at": [0, 0, 0.6]},
+      {"frame_frac": 1.0, "location": [0, -12, 6], "look_at": [0, 0, 0.6]}
+    ]},
+    {"op": "render", "width": 640, "height": 480}
+  ]
+}

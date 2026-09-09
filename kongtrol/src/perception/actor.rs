@@ -250,7 +250,24 @@ impl EnigoActor {
             .map_err(|_| input_err("mouse down 이벤트 생성 실패"))?;
         ev_down.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, 1);
         ev_down.post(CGEventTapLocation::HID);
-        std::thread::sleep(std::time::Duration::from_millis(40));
+        // ★2026-09-09 cross-app file-drag fix: after mouse-down, dwell + tiny jitter
+        // dragged-events on/near the source so Finder's drag-recognizer crosses its
+        // start-threshold and initiates the NSDraggingSession (populates the file
+        // pasteboard) BEFORE the cursor leaves the source. A 40ms dwell + immediate
+        // large jump was too fast → Finder treated it as a click, no pasteboard →
+        // Chrome HTML5 dropzone never received the file. (RECIPE_scheduled_upload)
+        std::thread::sleep(std::time::Duration::from_millis(220));
+        for k in 1..=6 {
+            let jx = x1 + (k % 2) * 3 + 2; // small moves within a few px of source
+            let jy = y1 + k;
+            let jp = CGPoint::new(jx as f64, jy as f64);
+            let jev = CGEvent::new_mouse_event(src.clone(), CGEventType::LeftMouseDragged, jp, CGMouseButton::Left)
+                .map_err(|_| input_err("mouse jitter 이벤트 생성 실패"))?;
+            jev.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, 1);
+            jev.post(CGEventTapLocation::HID);
+            std::thread::sleep(std::time::Duration::from_millis(45));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(120));
         let sleep_ms = if self.human { 18 } else { 8 };
         for (x, y) in Self::drag_waypoints(x1, y1, x2, y2, self.human) {
             let pt = CGPoint::new(x as f64, y as f64);
@@ -261,6 +278,15 @@ impl EnigoActor {
             std::thread::sleep(std::time::Duration::from_millis(sleep_ms));
         }
         let end = CGPoint::new(x2 as f64, y2 as f64);
+        // dwell at destination so the target app (Chrome) processes dragover and
+        // highlights the dropzone before the drop, then release.
+        {
+            let hov = CGEvent::new_mouse_event(src.clone(), CGEventType::LeftMouseDragged, end, CGMouseButton::Left)
+                .map_err(|_| input_err("mouse hover 이벤트 생성 실패"))?;
+            hov.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, 1);
+            hov.post(CGEventTapLocation::HID);
+            std::thread::sleep(std::time::Duration::from_millis(300));
+        }
         let ev_up = CGEvent::new_mouse_event(src, CGEventType::LeftMouseUp, end, CGMouseButton::Left)
             .map_err(|_| input_err("mouse up 이벤트 생성 실패"))?;
         ev_up.set_integer_value_field(EventField::MOUSE_EVENT_CLICK_STATE, 1);

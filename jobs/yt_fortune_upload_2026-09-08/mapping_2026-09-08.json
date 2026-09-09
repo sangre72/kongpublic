@@ -1,0 +1,20 @@
+{
+  "target_date": "2026-09-08",
+  "mode": "scheduled",
+  "playlist": "오늘의 운세",
+  "recipe": "kaymaps/chrome/youtube/RECIPE_scheduled_upload_VERIFIED.txt",
+  "scenes": {
+    "scene_01": {"zodiac": "쥐", "url": "https://youtube.com/shorts/7zZWDnH_EzU"},
+    "scene_02": {"zodiac": "소", "url": "https://youtube.com/shorts/EtXCQ42RPi4"},
+    "scene_03": {"zodiac": "호랑이", "url": "https://youtube.com/shorts/tUhVWK118U4"},
+    "scene_04": {"zodiac": "토끼", "url": "https://youtube.com/shorts/umFKWVxteks"},
+    "scene_05": {"zodiac": "용", "url": "https://youtube.com/shorts/pdoLwq28wbM"},
+    "scene_06": {"zodiac": "뱀", "url": "https://youtube.com/shorts/8YRar1aYclA"},
+    "scene_07": {"zodiac": "말", "url": "https://youtube.com/shorts/ENv9exi2n7s"},
+    "scene_08": {"zodiac": "양", "url": "https://youtube.com/shorts/i08q7d_bEmQ"},
+    "scene_09": {"zodiac": "원숭이", "url": "https://youtube.com/shorts/9IzRXNaB5n0"},
+    "scene_10": {"zodiac": "닭", "url": "https://youtube.com/shorts/aPWlO3OhxrY"},
+    "scene_11": {"zodiac": "개", "url": "https://youtube.com/shorts/HFbg877YIP8"},
+    "scene_12": {"zodiac": "돼지", "url": "https://youtube.com/shorts/hjx6Fy32zsY"}
+  }
+}

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Repro Draw</title>
+<style>
+  body{margin:0;background:#111;color:#ddd;font:14px system-ui;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px}
+  h2{margin:6px}
+  #wrap{display:flex;gap:20px;align-items:flex-start}
+  canvas{background:#fff;image-rendering:pixelated;border:1px solid #333}
+  #origBox{display:none;flex-direction:column;align-items:center}
+  #status{font:16px ui-monospace;color:#4fd1c5}
+</style></head>
+<body>
+<h2>2D Reproduction — drawing live (region by region)</h2>
+<div id="status">loading…</div>
+<div id="wrap">
+  <div><div>CANVAS (drawing)</div><canvas id="c"></canvas></div>
+  <div id="origBox"><div>ORIGINAL</div><img id="orig" src="./repro_orig.jpg"></div>
+</div>
+<script>
+const S=3; // upscale factor for visibility
+const st=document.getElementById('status');
+fetch('./repro_data.json').then(r=>r.json()).then(async data=>{
+  const {w,h,regions,edges}=data;
+  const c=document.getElementById('c'); c.width=w*S; c.height=h*S;
+  const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height);
+  document.getElementById('orig').width=w*S;
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  // paint regions one by one (big->small)
+  for(let i=0;i<regions.length;i++){
+    const rg=regions[i]; g.fillStyle=`rgb(${rg.color[0]},${rg.color[1]},${rg.color[2]})`;
+    for(const [y,xs,xl] of rg.runs) g.fillRect(xs*S,y*S,xl*S,S);
+    st.textContent=`painting region ${i+1}/${regions.length}  (area ${rg.area}px)`;
+    await sleep(260);
+  }
+  // edge lines on top
+  st.textContent='drawing edge lines…';
+  g.fillStyle='rgba(20,20,20,0.8)';
+  for(let i=0;i<edges.length;i++){ const [x,y]=edges[i]; g.fillRect(x*S,y*S,S,S);
+    if(i%120===0) await sleep(16); }
+  st.textContent='done — revealing original for comparison';
+  await sleep(600);
+  document.getElementById('origBox').style.display='flex';
+  st.textContent='COMPLETE: drawn reproduction (left) vs original (right)';
+  window.__done=true;
+});
+</script></body></html>

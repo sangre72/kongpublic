@@ -1,0 +1,42 @@
+{
+    "manifest_version": 3,
+    "name": "KongPet",
+    "version": "0.1.0",
+    "description": "내 반려동물 사진을 AI 캐릭터 아바타로 만들어 브라우저에 상주시키는 확장 프로그램",
+    "permissions": ["activeTab", "storage"],
+    "host_permissions": [
+        "https://api-gateway.coupang.com/*"
+    ],
+    "action": {
+        "default_title": "KongPet 설정",
+        "default_icon": {
+            "16": "icons/icon16.png",
+            "48": "icons/icon48.png",
+            "128": "icons/icon128.png"
+        }
+    },
+    "options_ui": {
+        "page": "options.html",
+        "open_in_tab": true
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content/pet-widget.js"],
+            "css": ["content/pet-widget.css"],
+            "run_at": "document_idle"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": ["assets/pets/*/*.png", "assets/bg/*.jpg"],
+            "matches": ["<all_urls>"]
+        }
+    ],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'"
+    }
+}

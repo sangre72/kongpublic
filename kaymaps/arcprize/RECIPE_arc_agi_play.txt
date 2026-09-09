@@ -1,0 +1,74 @@
+RECIPE: arc_agi_play (ARC-AGI 공개 퍼즐 실플레이 — 격자읽기+규칙추론+마우스 답작성+제출)
+GATE: verified(v1 task#0520fde7 SOLVED "Correct!" 2026-09-09, real kongtrol mouse, screen-recorded)
+REG: arcprize.org/play?task=<id> (ARC-AGI-1/2 public), three.arcprize.org (ARC-AGI-3 game env)
+AUTHOR: kong worker (u_4322)
+WHY: ARC 격자퍼즐 = train예시로 규칙추론→test 답격자 작성. 순수 GUI(a11y+screenshot혼합).
+
+★CROSS-REF (재사용, 중복금지):
+- 창크기/보기/클릭前 정체성확인: kaymaps/_common/RECIPE_window_and_viewing.txt
+  (PAGE ZOOM으로 태스크 전체 한눈에·격자확대, 매 클릭前 AXWebArea로 탭 정체성확인, 전체스크롤 리뷰後 규칙추론).
+- 클릭/좌표: .claude/rules/kongtrol-base-reference.md + kaymaps/_common/RECIPE_coordinate_targeting_standard.txt
+  (a11y-first click protocol: fg→a11y좌표→--yes→verify. a11y@(X,Y)==click(X,Y) ×1.0, ¬scale).
+- Chrome 네비: 표준 = 주소창 클릭(a11y "주소창 및 검색창")→cmd+a→url text→enter. 인라인자동완성 딥링크 주의(cf youtube RECIPE_scheduled_upload §1).
+- screenshot=시각검증 전용(screencapture -x -R + Read). 좌표는 a11y 우선, canvas요소만 screenshot계산 허용(아래 §GRID).
+
+===== STEP: 사이트 진입 =====
+1. open -a "Google Chrome"; sleep 1.5
+2. 주소창(a11y "주소창 및 검색창" ~648,102) click→cmd+a→text "https://arcprize.org/play?task=<TASKID>"→enter; sleep 5~6
+   - TASKID = 8-hex(예 0520fde7). 무계정 플레이 가능. 없으면 arcprize.org/play (데일리/랜덤).
+   - a11y verify: AXWindow title "ARC-AGI Task #<id>".
+   - DATASET 표기: 페이지 상단 "DATASETS: ARC-AGI-1/2 PUBLIC TRAINING" 로 버전 구분.
+
+===== STEP: 격자 읽기 (★핵심, a11y-vs-screenshot) =====
+★a11y는 격자 셀값을 안 줌(canvas/div-grid) → 셀 색은 SCREENSHOT으로 읽어야 함(이건 규칙위반 아님: a11y가 genuine no-match인 last-resort case).
+- 레이아웃: 좌=EXAMPLES(Ex.N Input→Output 쌍 여러개), 우=TEST(Input + 빈 Output).
+- 읽기법: screencapture -x -R<x,y,w,h> 특정 grid crop → sips -Z 로 확대 → Read. cursor는 먼저 중립지점(빈영역)으로 치워라(hover시 통계 tooltip "Grid Size/Colors Used/Shapes by Color RED:N"가 격자를 가림 — ★PITFALL).
+- 색 매핑: black(bg)/blue/red/green/yellow/gray/magenta/orange/cyan/darkred (팔레트 순서).
+- crop 좌표 잡기: 전체 screencapture 1회 → 각 grid의 대략 rect 파악 → 개별 grid 타이트 crop. grid label("Ex.1 Input (7x3)")로 크기확인.
+
+===== STEP: 규칙 추론 =====
+- train 예시 input→output 대응을 보고 변환규칙 도출. (예 0520fde7: 7x3 input에 gray divider col(idx3)이 좌3x3|우3x3 분할 → output[r][c]=RED iff 좌·우 둘다 blue at (r,c) [logical AND, blue∧blue→red], else black.)
+- test input에 규칙 적용해 답 3x3(또는 해당크기) 산출. 손으로 셀별 계산.
+
+===== STEP: 답 격자 작성 (★도구선택 주의) =====
+1. output 크기설정: "1. Configure your output grid" — 기본 3x3. 다르면 크기 text(a11y ~795,770)+Resize(863,770). "Copy from input"(1107,770)도 있음.
+2. ★★도구: "2. Edit your output grid cells" 3개 라디오:
+   - Edit(a11y ~777,854) = ★단일셀 페인트(이걸 써라).
+   - Fill(~947,854) = ★★FLOOD-FILL(연결된 동색 전체) — ★PITFALL: 빈(전부black)격자에 Fill 1클릭=전체가 칠해짐. 단일셀 의도면 Edit 필수. (실사고: Fill로 (0,0)찍자 9칸 전부 red.)
+   - Select = 영역선택.
+3. 색선택: 팔레트(Edit라디오 아래 ~y898), 순서 black,blue,red,green,yellow,gray,magenta,orange,cyan,darkred.
+   red swatch ~847,898. 선택되면 swatch에 번호badge+밑줄 표시(crop verify).
+4. 셀클릭: output grid 셀좌표=screenshot계산(canvas). 방법: output grid crop→ 3x3 셀 중심 픽셀→ actual=cropOffset+px*scale역산. (task#0520fde7 실측 output cell centers: col x=1099/1177/1254, row y=472/549/627 — window의존, 매번 재계산.)
+   Edit모드로 target 셀 각각 click. crop으로 결과 확인.
+5. ★잘못 칠함 복구: "Clear"(a11y 1211,770) 전체지움 → Edit재선택 → 색재선택 → 재작성.
+
+===== STEP: 제출 =====
+1. "3. See if your output is correct:" 라벨 아래 "Submit solution" 버튼 — 뷰포트 밖이면 page scroll down(click 중립+key down repeat) 후 a11y재조회(실측 스크롤후 @830,747).
+2. click Submit → a11y verify 결과텍스트:
+   - 성공 = "Correct! Try the next puzzle." (@~986,746)
+   - 실패 = "Not quite" / "Try again" 류.
+3. 증거: screencapture -x 로 정답화면 저장(jobs/demo_recordings/).
+
+===== 버전별 차이 (1/2/3) =====
+- ARC-AGI-1: play?task=<id>, DATASET "ARC-AGI-1 PUBLIC TRAINING". 규칙 비교적 단순(단일변환). ✅검증됨.
+- ARC-AGI-2: play?task=<id> 동일 UI, DATASET "ARC-AGI-2". 규칙 더 복잡(다단계·합성). 같은 읽기/작성/제출 플로우.
+- ARC-AGI-3: three.arcprize.org = 인터랙티브 게임env(격자가 아니라 액션기반). 점수=클리어레벨+액션수. UI 다름(별도 탐색 필요).
+
+===== 녹화 (선택, u_4322) =====
+- screencapture -v -V <sec> <out.mov> & (백그라운드, 파일은 stop시 finalize). 플레이 전 시작, verdict후 kill. 경로 jobs/demo_recordings/.
+
+===== PITFALLS =====
+- P1 hover-tooltip이 격자 가림 → 읽기전 cursor 중립이동.
+- P2 Fill=flood(단일셀 아님) → Edit 사용.
+- P3 output cell/palette = canvas라 a11y no-match → screenshot좌표계산 허용(a11y로 안잡히는게 정상).
+- P4 Submit 버튼 뷰포트밖 → scroll후 a11y재조회.
+- P5 격자crop 좌표는 window크기의존 → 매 task 전체스샷 1회로 rect재파악(하드코딩 금지).
+- P6 ★★SCROLL-INSTABILITY(실사고, task#25ff71a9): examples가 많은 task는 editor가 뷰포트 아래로 밀려
+  scroll 필요. 그런데 (a) 클릭이 Terminal등 다른앱으로 새면 scroll이 그쪽에 감(→매 조작前 open -a "Google Chrome" 필수),
+  (b) scroll후 중립클릭(예 300,150)하면 페이지가 top으로 되돌아감 → scroll직후 중립클릭 금지, 같은 프레임에서 바로 조작,
+  (c) screencapture와 sips-scaled 좌표가 프레임간 안맞음 → scroll고정 상태에서 a11y(Edit/Submit/Clear는 a11y로 잡힘)로
+  버튼좌표 얻고, output-cell/palette만 그 순간 crop해서 계산. url이 /play→/tasks로 리버트되면 재입력.
+  ★권장: examples 많은 task는 Chrome 창을 세로로 최대화하거나, zoom-out(cmd+"-")로 editor+palette+grid+submit를
+  한 화면에 넣은 뒤 조작(스크롤 의존 제거). 3x3 output처럼 작은건 grid작아도 OK.
+- P7 palette swatch 간격 좁음 → red(3번째) 오클릭시 magenta(7번째) 나옴. swatch crop 확대해 정확 x 계산, 선택후 badge확인.
+- P8 task에 "Test 1 of 2" = test input 복수 → 각각 답작성+Submit. Next로 다음 test.

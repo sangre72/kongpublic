@@ -1,0 +1,17 @@
+{
+  "_scenario": "Showcase new ops: PBR-metallic torus, subdivided smooth sphere, 3D text title.",
+  "output": "output/ops_showcase.png",
+  "ops": [
+    {"op": "add", "kind": "torus", "name": "ring", "location": [-2.5, 0, 0.5], "size": 3},
+    {"op": "material", "target": "ring", "color": [0.9, 0.75, 0.2], "metallic": 1.0, "roughness": 0.15},
+    {"op": "add", "kind": "sphere", "name": "ball", "location": [2.5, 0, 0.5], "size": 2.2},
+    {"op": "modify", "target": "ball", "modify": "subdivide", "levels": 2},
+    {"op": "modify", "target": "ball", "modify": "smooth"},
+    {"op": "material", "target": "ball", "color": [0.1, 0.5, 0.9], "roughness": 0.35},
+    {"op": "add", "kind": "plane", "location": [0, 0, -1], "size": 40, "color": [0.5, 0.52, 0.5]},
+    {"op": "text", "name": "title", "body": "KONG-BLENDER", "location": [0, 2.2, 0.05], "rotation": [90, 0, 0], "size": 1.1, "extrude": 0.15, "color": [0.95, 0.3, 0.3], "align": "CENTER"},
+    {"op": "light", "location": [5, -4, 9], "energy": 4.0, "light_type": "SUN"},
+    {"op": "camera", "location": [0, -11, 5], "look_at": [0, 0, 0.5]},
+    {"op": "render", "width": 800, "height": 500}
+  ]
+}

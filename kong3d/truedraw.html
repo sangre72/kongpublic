@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>True Draw</title>
+<style>
+ body{margin:0;background:#111;color:#ddd;font:14px system-ui;display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px}
+ #wrap{display:flex;gap:20px}
+ canvas{background:#fff;border:1px solid #333}
+ #origBox{display:none;flex-direction:column;align-items:center}
+ #status{font:16px ui-monospace;color:#4fd1c5}
+</style></head>
+<body>
+<h2>TRUE drawing — vector paths + brush strokes (no pixel copy)</h2>
+<div id="status">loading…</div>
+<div id="wrap">
+ <div><div>DRAWN</div><canvas id="c"></canvas></div>
+ <div id="origBox"><div>ORIGINAL</div><img id="orig" src="./repro_orig.jpg"></div>
+</div>
+<script>
+const S=2.4;
+const st=document.getElementById('status');
+fetch('./truedraw_data.json').then(r=>r.json()).then(async d=>{
+ const {w,h,shapes,strokes}=d;
+ const c=document.getElementById('c'); c.width=w*S; c.height=h*S;
+ const g=c.getContext('2d'); g.fillStyle='#eef'; g.fillRect(0,0,c.width,c.height);
+ document.getElementById('orig').width=w*S;
+ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+ // 1: fill simplified polygons (few control points each = drawn shapes)
+ for(let i=0;i<shapes.length;i++){
+   const s=shapes[i]; g.fillStyle=`rgb(${s.color[0]},${s.color[1]},${s.color[2]})`;
+   g.beginPath();
+   s.poly.forEach((p,j)=>{ const x=p[0]*w*S,y=p[1]*h*S; j?g.lineTo(x,y):g.moveTo(x,y); });
+   g.closePath(); g.fill();
+   // outline the drawn path faintly so control-point polygon is visible
+   g.strokeStyle='rgba(0,0,0,0.15)'; g.lineWidth=1; g.stroke();
+   st.textContent=`drawing shape ${i+1}/${shapes.length} (${s.poly.length} control pts)`;
+   await sleep(320);
+ }
+ // 2: brush strokes for texture, following gradient direction
+ st.textContent='brush-stroke texturing…';
+ g.lineWidth=2.2; g.lineCap='round';
+ for(let i=0;i<strokes.length;i++){
+   const s=strokes[i]; g.strokeStyle=`rgba(${s.color[0]},${s.color[1]},${s.color[2]},0.55)`;
+   g.beginPath(); g.moveTo(s.x0*w*S,s.y0*h*S); g.lineTo(s.x1*w*S,s.y1*h*S); g.stroke();
+   if(i%40===0){ st.textContent=`brush strokes ${i}/${strokes.length}`; await sleep(16); }
+ }
+ st.textContent='done — revealing original';
+ await sleep(500);
+ document.getElementById('origBox').style.display='flex';
+ st.textContent='COMPLETE: hand-drawn (left) vs original (right)';
+ window.__done=true;
+});
+</script></body></html>

@@ -1,0 +1,463 @@
+{
+  "output": "output/model_y.mp4",
+  "ops": [
+    {
+      "op": "world",
+      "color": [
+        0.62,
+        0.7,
+        0.8
+      ],
+      "strength": 0.75
+    },
+    {
+      "op": "profile",
+      "name": "body",
+      "width": 1.62,
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "profile": [
+        [
+          1.98,
+          0.34
+        ],
+        [
+          1.92,
+          0.52
+        ],
+        [
+          1.6,
+          0.6
+        ],
+        [
+          1.1,
+          0.66
+        ],
+        [
+          0.65,
+          0.92
+        ],
+        [
+          0.15,
+          1.14
+        ],
+        [
+          -0.45,
+          1.16
+        ],
+        [
+          -1.05,
+          1.02
+        ],
+        [
+          -1.55,
+          0.78
+        ],
+        [
+          -1.88,
+          0.6
+        ],
+        [
+          -1.98,
+          0.4
+        ],
+        [
+          -1.92,
+          0.24
+        ],
+        [
+          1.92,
+          0.24
+        ]
+      ],
+      "bevel": 0.04,
+      "subdivide": 2,
+      "smooth": true,
+      "color": [
+        0.8,
+        0.82,
+        0.85
+      ],
+      "metallic": 0.4,
+      "roughness": 0.35
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "frontbar",
+      "location": [
+        1.97,
+        0,
+        0.42
+      ],
+      "size": 1,
+      "scale": [
+        0.03,
+        0.72,
+        0.04
+      ]
+    },
+    {
+      "op": "material",
+      "target": "frontbar",
+      "color": [
+        0.9,
+        0.95,
+        1.0
+      ],
+      "emission": [
+        0.85,
+        0.92,
+        1.0
+      ],
+      "emission_strength": 6.0
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "rearbar",
+      "location": [
+        -1.99,
+        0,
+        0.52
+      ],
+      "size": 1,
+      "scale": [
+        0.03,
+        0.76,
+        0.05
+      ]
+    },
+    {
+      "op": "material",
+      "target": "rearbar",
+      "color": [
+        1.0,
+        0.15,
+        0.1
+      ],
+      "emission": [
+        1.0,
+        0.12,
+        0.08
+      ],
+      "emission_strength": 6.0
+    },
+    {
+      "op": "add",
+      "kind": "cylinder",
+      "name": "wFL",
+      "location": [
+        1.15,
+        0.82,
+        0.36
+      ],
+      "size": 0.62,
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        0.32
+      ],
+      "color": [
+        0.03,
+        0.03,
+        0.03
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cylinder",
+      "name": "wFR",
+      "location": [
+        1.15,
+        -0.82,
+        0.36
+      ],
+      "size": 0.62,
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        0.32
+      ],
+      "color": [
+        0.03,
+        0.03,
+        0.03
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cylinder",
+      "name": "wRL",
+      "location": [
+        -1.15,
+        0.82,
+        0.36
+      ],
+      "size": 0.62,
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        0.32
+      ],
+      "color": [
+        0.03,
+        0.03,
+        0.03
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cylinder",
+      "name": "wRR",
+      "location": [
+        -1.15,
+        -0.82,
+        0.36
+      ],
+      "size": 0.62,
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        0.32
+      ],
+      "color": [
+        0.03,
+        0.03,
+        0.03
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "cladF",
+      "location": [
+        1.15,
+        0.78,
+        0.36
+      ],
+      "size": 1,
+      "scale": [
+        0.36,
+        0.06,
+        0.22
+      ],
+      "color": [
+        0.04,
+        0.04,
+        0.04
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "cladR",
+      "location": [
+        -1.15,
+        0.78,
+        0.36
+      ],
+      "size": 1,
+      "scale": [
+        0.36,
+        0.06,
+        0.22
+      ],
+      "color": [
+        0.04,
+        0.04,
+        0.04
+      ]
+    },
+    {
+      "op": "group",
+      "name": "car",
+      "members": [
+        "body",
+        "frontbar",
+        "rearbar",
+        "wFL",
+        "wFR",
+        "wRL",
+        "wRR",
+        "cladF",
+        "cladR"
+      ],
+      "location": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "plane",
+      "name": "road",
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "size": 60,
+      "scale": [
+        1.0,
+        0.3,
+        1.0
+      ]
+    },
+    {
+      "op": "material",
+      "target": "road",
+      "color": [
+        0.11,
+        0.11,
+        0.12
+      ],
+      "roughness": 0.55
+    },
+    {
+      "op": "light",
+      "location": [
+        7,
+        -5,
+        12
+      ],
+      "energy": 4.0,
+      "light_type": "SUN"
+    },
+    {
+      "op": "camera",
+      "location": [
+        5.5,
+        -6.5,
+        2.0
+      ],
+      "look_at": [
+        -0.15,
+        0,
+        0.55
+      ]
+    },
+    {
+      "op": "motion",
+      "motion": "move",
+      "target": "car",
+      "from": [
+        -9,
+        0,
+        0
+      ],
+      "to": [
+        9,
+        0,
+        0
+      ]
+    },
+    {
+      "op": "motion",
+      "motion": "spin",
+      "target": "wFL",
+      "axis": "X",
+      "turns": 4.0
+    },
+    {
+      "op": "motion",
+      "motion": "spin",
+      "target": "wFR",
+      "axis": "X",
+      "turns": 4.0
+    },
+    {
+      "op": "motion",
+      "motion": "spin",
+      "target": "wRL",
+      "axis": "X",
+      "turns": 4.0
+    },
+    {
+      "op": "motion",
+      "motion": "spin",
+      "target": "wRR",
+      "axis": "X",
+      "turns": 4.0
+    },
+    {
+      "op": "camera_path",
+      "points": [
+        {
+          "frame_frac": 0.0,
+          "location": [
+            -4,
+            -7,
+            2.1
+          ],
+          "look_at": [
+            -9,
+            0,
+            0.55
+          ]
+        },
+        {
+          "frame_frac": 0.5,
+          "location": [
+            5,
+            -7,
+            2.1
+          ],
+          "look_at": [
+            0,
+            0,
+            0.55
+          ]
+        },
+        {
+          "frame_frac": 1.0,
+          "location": [
+            14,
+            -7,
+            2.1
+          ],
+          "look_at": [
+            9,
+            0,
+            0.55
+          ]
+        }
+      ]
+    },
+    {
+      "op": "render",
+      "width": 960,
+      "height": 500
+    }
+  ],
+  "_scenario": "A Tesla Model Y-style EV crossover with a CONTINUOUS smooth fastback roofline (single profile-extruded mesh: hood-windshield-roof-fastback-rear as one surface), front light-bar + rear light strip, black wheel-arch cladding, driving forward with wheels spinning, camera side-tracking.",
+  "animation": {
+    "frame_start": 1,
+    "frame_end": 72,
+    "fps": 24
+  }
+}

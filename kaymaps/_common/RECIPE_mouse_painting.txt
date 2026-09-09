@@ -1,0 +1,85 @@
+RECIPE: mouse_painting (kong3d/paint.html driven by kongtrol — faithful cel repro of a photo)
+GATE: verified 2026-09-09 a_4277/a_4285 (worker1, full landscape ref_4264 painted mouse-only, river+treeline)
+REG: kong3d/paint.html @ localhost:8300 ; drivers kong3d/scripts/{cel_plan.py,cel_run.py,river_plan.py}
+WHY: physically PAINT a user photo with the mouse (every mark a real CGEvent), cel/toon style, per-layer verified. Consolidates the whole painting arc's hard-won fixes so no re-fail.
+
+=== PAINT PAGE (paint.html) ===
+TOOLS(all a11y-labeled, kongtrol-drivable): 색상 입력(hex field)+색상 적용(Set) / 브러시 크기(size slider) / 브러시 도구(Brush) / 버킷(Bucket flood tol40 — LEAKS through open outline, enclosed-only) / 사각형(Rect Fill drag-box, inside-only no-leak) / 캔버스 지우기(Clear) / CURSOR readout(canvas x,y — the calibration oracle).
+PERSIST: localStorage KEY = kongpaint_state_<?session= param|default>, saved per op, restored on load. dup tabs w/ diff session id NEVER clobber (root fix for the 7-tab overlay mess). fresh isolated = Cmd+T → localhost:8300/paint.html?session=<ts>&clear=1. ¬fight tab-close(close-x drifts, Cmd+W/addr-nav failed) — isolate via session param, stale tabs harmless.
+CACHE: edited HTML does NOT reload via Cmd+R/Cmd+Shift+R(cached DOM) → navigate ?v=<ts> cache-buster URL. canvas survives across it(localStorage).
+
+=== ★MANDATORY PRE-RUN PROTOCOL (root cause of every "driver stalled" = window-resize coord drift, NOT dead process) ===
+Symptom that misled: "driver dies/count=0/canvas stuck at partial state" — process was ALIVE; window had shrunk so hardcoded canvas-origin+scale mapped every drag OFF-canvas → nothing painted, snapshot = stale earlier state.
+1. PIN WINDOW: `osascript -e 'tell application "Google Chrome" to set bounds of front window to {0,39,1500,954}'` (fixed size so full 1000x740 canvas fits on screen).
+2. CALIBRATE canvas→screen FRESH each session via the page's own cursor readout:
+   - probe = `input drag (X-40) Y X Y` (REAL move so mousemove fires; src==dst drag does NOT update readout), then read canvas x,y from a11y compact (`grep -oE "x-?[0-9]+ y-?[0-9]+"`).
+   - ≥2 probe pts → solve linear map. THIS WINDOW({0,39,1500,954}): sx=144.7+cx*1.117, sy=126.1+cy*1.119. (verify vs a 3rd pt.)
+3. TOOLBAR COORDS @ this bounds: 색상입력(72,172) 색상적용(72,204) slider(72,309) 브러시(72,365) 버킷(72,396) 사각형(72,428) 지우기(72,483). Re-query a11y if bounds differ.
+4. ★SLIDER is NON-LINEAR — MEASURE, don't assume: drag to x, screencap-crop the sizeVal div `screencapture -R0,320,60,22`. THIS WINDOW: value≈8+(x-30)*0.79 → invert x=30+(px-8)*1.266 (size5→x26, size40→x70). (Prior outline pass came out THICK BLACK BLOBS because size landed 22 not 5 — always verify outline-size crop.)
+5. SMOKE-TEST 1 bright stroke mid-canvas + screencapture BEFORE the multi-thousand-stroke run. Confirm it lands where the map predicts.
+
+=== DRIVER PATTERN ===
+★SINGLE PYTHON, no shell pipe. `python generator | while read` BREAKS the pipe when kongtrol calls slow → driver dies mid-run (the original stall). Instead: Python reads plan JSON, applies calibrated map, calls kongtrol via subprocess directly. Launch nohup, poll a DONE sentinel in the log.
+set_color(hex): click(72,172); chord cmd a; text --yes <hex>; click(72,204). set_size(px): drag(72,309, mapped_x,309). brush(): click(72,365).
+CADENCE: 0.03s between fill drags OK; 0.35-0.5s only if mousedowns drop. ★negatives: `input text --yes -- "-2.35"` (bare -2.35 parsed as flag).
+
+=== PLAN (cel_plan.py) ===
+FILLS: resize ref→200x150, classify px into semantic cel palette, emit horizontal RLE runs per label. Palette ref_4264: 0 sky #8fb0d6 / 1 cloud #eef2f6 / 2 tree-dark #2f4230 / 3 tree-mid #4d6b3f / 4 tree-light #7fa04f / 5 bank #7d6a4c / 6 grass #8aa54a. classify: is_blue(B>R+8&B>90&G>90) is_white(lum>175&low-chroma) is_green(G>R+4&G>B+2) split by lum(<70 dark/<115 mid/else light) is_brown(R>G>B&lum<150&¬green).
+WATER(river_plan.py): narrow channels get ABSORBED into greens at 200x150 → separate spatially-gated pass. corridor = perspective wedge (fy 0.58-0.80, fx narrows toward vanishing pt) & low-sat(<45) & mid-lum(70-165) & ¬deep-green. color #96988c. 86 runs for ref_4264.
+LAYER ORDER (back→front): sky → cloud → trees dark→mid→light → bank → grass → water → OUTLINE last(on top).
+OUTLINE = SILHOUETTE not internal ticks: trace sky↔non-sky boundary (bottom sky-pixel per column) = ONE continuous treeline polyline (split on >120px vertical jumps → segments). size 5, #161616. Laplacian-internal-edge chains looked like random dark scribbles — DON'T use for cel.
+
+=== CURVED CHAINED STROKES (toon brushwork, when NOT flat-RLE) ===
+stroke_plan.py: fills as broad DIRECTIONAL sweeps per posterized region, dir follows form (foliage=downward canopy arc, grass=upward, sky=near-flat), each stroke=3pt curved polyline. Outlines=ordered 8-neighbour edge-chains drawn as connected multi-drag polylines (shared endpoints=continuous curve ¬dots). stroke_driver chains 2pt drags through each polyline. NO dot-tiling.
+
+=== VERIFY-PER-LAYER (observation-compensations item7) ===
+paint 1 color zone → screencapture → crop same region → compare ref → fix → next. one report line per layer. NO batching layers blind. Evidence-crop any "fixed" claim at the failing region.
+SUBJECT: user-own / non-IP only (declined One Piece cover a_4262; ref_4264 = user's own landscape photo OK).
+
+LIMIT/OPEN: sparse SFS outlines lack fine detail(branch clusters, cloud shading, reflections) — hi-res upgrade (12-16 colors, dense smooth polyline outline, detail pass) tracked a_4285. pointer-precision fine at size≥5; sub-3 dot work slow.
+
+UPDATE 2026-09-09(a_4294 recorded-repaint + multi-window): 
+- ★ONE-WINDOW rule: paint tab + ref tab MUST be tabs of ONE window. Separate windows → tab-row a11y coords go wrong(paint tab reported y343 not y60) → clicks miss. Collapse: osascript find Kong-Paint window, set index 1, add ref tab to it(make new tab URL file://<ref>), close all other windows. Then tabs sit at y60 (Kong Paint@242, ref@480).
+- VIDEO INTRO: show ref CLEAN first — switch to ref tab, `input chord cmd 0`(fit), record over window rect, hold ~4-5s, THEN `input click 242 60`(paint tab) + drive. (the "nested photo-in-photo" the user saw = a crop-screenshot artifact, NOT the tab; the tab renders a single clean image.)
+- RECORD: `screencapture -v -V <cap> -R<x,y,w,h> out.mov` over window rect(Quartz CGWindowList for rect). ★pkill -f "screencapture -v" sometimes does NOT stop it → it runs to the -V cap(got 1400s file w/ long static tail). Mitigate: set cap ~= expected paint time, and TRIM in post.
+- POST(telegram-size): intro seg 1x + paint seg timelapse, concat: segA=`-t 5 scale=1280`, segB=`-ss 5 setpts=PTS/20 scale=1280`, concat -c copy. result ~75s / ~1.7MB from 485MB/1400s source. crf28 veryfast.
+- SEQUENCING: run intro-hold→tab-switch→driver→stop as ONE bg script with PLAIN sleeps(an `until [ -f vid ]` guard hung 120s because screencapture writes the file only at STOP — don't wait on the vid file).
+
+UPDATE 2026-09-09(a_4294/4296 DRAWING TOOLS + ★TOOL-SELECTION JUDGMENT): paint.html now has vector tools beyond brush — placement: this is a general mouse/GUI painting technique → belongs in THIS _common recipe (job-agnostic), per scope-judgment rule u_4296.
+NEW TOOLS(a11y labels @ pinned window): 브러시 도구(72,365) 버킷(72,396) 사각형 채우기(72,428) 선 도구/Line(72,459) 타원 도구/Ellipse(72,491) 다각형 도구/Polygon(72,522) 다각형 닫기 채우기/Close Poly(72,554) 캔버스 지우기(72,609). (adding tools SHIFTS lower buttons — re-query a11y.)
+TOOL MECHANICS(kongtrol): Rect=drag bbox(inside-only). Line=drag endpoints(straight, size=width). Ellipse=drag bbox(filled ellipse). Polygon=CLICK each vertex(dot+edge drawn live)→click Close-Poly button to close+fill. Brush=drag(organic stroke). Bucket=click(flood, enclosed-only).
+★TOOL-SELECTION JUDGMENT TABLE (choose per layer by its GEOMETRY, like a human artist):
+  | layer/feature            | shape nature            | TOOL      | why |
+  | big flat sky             | large rectangular field | Rect Fill | one drag fills a huge flat zone, no dots |
+  | clouds / round masses    | rounded blobs           | Ellipse   | ellipse = cloud puff in 1 drag; chain 2-3 for a cloud bank |
+  | tree-wall / mountain     | angular silhouette      | Polygon   | click the few silhouette vertices → clean straight-edged flat mass |
+  | straight bank/road/water edge | straight line      | Line      | one drag = crisp straight edge (brush wobbles) |
+  | organic foliage/grass texture | irregular, soft    | Brush     | directional sweeps give organic variation |
+  | outline / treeline       | thin continuous contour | Line (or chained Lines) | thin straight segments trace silhouette cleanly, size 4-5 |
+  | enclosed region recolor  | already-bounded area    | Bucket    | flood-fill inside closed outline (leaks if open) |
+VERIFIED(a_4296): painted a landscape section choosing Rect(sky)/Ellipse(clouds)/Polygon(2 tree-walls)/Line(bank)/Brush(grass)/Line(outline) — each tool matched its layer geometry, far cleaner than dot/short-stroke tiling. ★per-layer, STATE the tool chosen + why before using it.
+GOTCHA: clicking the canvas to raise Chrome drops a brush dot — raise the window via the TAB or title bar, never a canvas click.
+
+UPDATE 2026-09-09(a_4294 ★TOOL MASTERY DRILLS — ongoing skill-building, deliberate exercises):
+★POLYGON = TRACE REAL CONTOURS, never icons. Extraction pipeline(trace_plan.py): resize+MedianFilter→per-color mask→scipy.ndimage.label CONNECTED COMPONENTS(one poly per blob, NOT one poly per color)→skimage.measure.find_contours(marching-squares) for ORDERED boundary→decimate to N verts. ★NEVER radial-angle-sort around centroid for the boundary(fails on concave/multi-lobe → self-crossing STAR-BURST SPIKES; verified fail on tree-walls). marching-squares follows the true silhouette.
+  DRILL-A vertex sweet spot(circle traced at 8/16/32/48): 8=obvious polygon(icon), 16=near-circle rough-mass-OK, 24-32=SMOOTH curved contour=SWEET SPOT, 48=no visible gain over 32(wasted 2x clicks). → use 28-40 for organic masses(trees/clouds), 16-20 for rough distant masses, ≥24 only where a smooth curve reads.
+  clouds = per-blob components(real clouds fragment → 7 blobs for ref_4264), NOT one polygon(one sweep over fragmented mask = bowtie sliver, verified fail).
+TOOL-SELECTION JUDGMENT TABLE(drill-refined):
+  | feature | TOOL | drill note |
+  | flat sky/water/big field | Rect Fill | 1 drag, edge-to-edge band(drill-D: solid brown band clean) |
+  | traced organic mass(tree-wall/mountain/cloud) | Polygon(marching-squares contour, 24-40v) | real silhouette; per-connected-component |
+  | round/oval object(sun,moon,stone,berry) | Ellipse | drill-C: equal drag=circle(sun), wide-short=flat stone. ONLY genuinely round things |
+  | straight/curved edge(bank,ridge,ladder,horizon) | Line(chained polyline) | drill-B: chain drags sharing endpoints=continuous curve, no gaps; size=width |
+  | outline/contour | Line(thin, chained) | size 4-5, trace silhouette |
+  | texture(grass tuft,leaves,fur,sparkle) | Brush(small size 4-8, many short flicks) | drill-E: 40 short strokes=grass. texture ONLY, never fills |
+  | enclosed recolor | Bucket | flood inside closed outline(leaks if open) |
+VERIFY STANDARD(upgraded u_4294): a layer PASSES only if its shape matches the ref region SILHOUETTE(overlay/side-by-side compare), not merely "a shape of the right color exists". icon-level(single triangle tree, single ellipse cloud) = FAIL even if colored right.
+
+UPDATE 2026-09-09(a_4294 ★★OVERLAY-POSITIONAL VERIFY — supersedes existence-check):
+WHY: per-layer "a green shape of right color exists" PASSED garbage(icons, floating blobs, wrong-placed river) → needed fix-passes. Real standard = the shape sits on the RIGHT ref REGION (position+silhouette), checked by OVERLAY against the ref.
+MANDATORY IN-LOOP PROTOCOL, every layer:
+  (a) PRE: render the planned polygon(s) ONTO the ref image (canvas->ref map: rx=cx/1000*W, ry=cy/740*H; draw semi-transparent fill+outline) → confirm it lands on the correct ref feature BEFORE painting. (/tmp overlay.py: PIL ImageDraw.polygon on ref.copy)
+  (b) PAINT it.
+  (c) POST: crop the painted canvas, resize to ref size, Image.blend(ref,canvas,0.55) → confirm positional registration (painted region overlaps the real feature). Only then proceed.
+  A layer PASSES only on positional overlap, NOT existence. Catches: floating blobs, wrong-side river, icon shapes, drift.
+TOOLING: plan polys already in canvas coords derived from the ref grid, so plan-on-ref overlay is exact — if the PRE overlay is right, paint will be right (paint failures then = seam holes/hand-coded deviations, NOT the plan; trust the traced plan, don't hand-code regions). Grass-Rect base under foreground kills all poly-seam white holes.

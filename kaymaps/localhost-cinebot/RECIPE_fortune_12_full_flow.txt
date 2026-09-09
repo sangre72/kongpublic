@@ -4,6 +4,8 @@ REG: a_953~970(2026-08-19, 다수 시행착오 끝 966/968/969에서 최종 성�
 WHY: CineBot(localhost:4000) 앱에서 12간지 띠별 운세 자동생성→시나리오 전송→전체 슬라이드 생성까지 전체 플로우. 여러 함정(창포커스 손실, 날짜필드 a11y/VLM 판독불가, 서버(15000) 간헐적hang, 오탐지 배너)을 겪고 확립됨.
 ★DAY-PARAMETERIZED 루틴(a_970): 이 레시피는 "일일 포춘 생성 루틴"으로, STEPS 3(날짜세팅)의 날짜값·STEPS 6-7(progress API)의 date 파라미터만 매일 바꿔 그대로 재사용 가능. 나머지 스텝(나레이터·백엔드·시나리오전송·슬라이드생성)은 날짜와 무관하게 동일 절차. 다음날 실행시 이 문서를 그대로 따르되 "2026-08-21"을 그날 날짜로 치환.
 
+★OUTPUT PATH(added 2026-09-06 u_4115 — was undocumented, caused a search-detour): finished scene videos are NOT in kong-bot/jobs/ — they live in CineBot's own workspace: `/Users/bumsuklee/workspace-egov/youtube-top/python-server/projects/<dirname>/scene_01.mp4`~`scene_12.mp4`. Dirname pattern observed: `<created-YYYYMMDD>_<target-upload-date>_12간지_오늘의_운세_ko` (e.g. `20260904_2026-09-07_12간지_오늘의_운세_ko` = created 09-04, target upload date 09-07). Deliverable = 12 SEPARATE scene videos(one per 간지), uploaded as 12 individual YouTube Shorts per RECIPE_scheduled_upload_VERIFIED.txt — NOT one concatenated video. Always check THIS path first before assuming kong-bot/jobs/ or declaring a video missing.
+
 STEPS:
 0. ★서버 사전확인(필수, u_3291/3292 — 반복재발 예방): 이 레시피 실행 전 CineBot(4000)+fortune-API(15000) 둘 다 떠있는지 확인 —
    `curl -s -o /dev/null -w "%{http_code}" http://localhost:4000` 와 `curl -s http://localhost:15000/fortune/progress?date=<오늘>&lang=ko`.

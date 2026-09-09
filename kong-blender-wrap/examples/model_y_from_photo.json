@@ -1,0 +1,626 @@
+{
+  "output": "output/model_y_final.mp4",
+  "ops": [
+    {
+      "op": "world",
+      "color": [
+        0.7,
+        0.75,
+        0.82
+      ],
+      "strength": 0.85
+    },
+    {
+      "op": "profile",
+      "name": "body",
+      "width": 1.72,
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "profile": [
+        [
+          2.12,
+          0.5
+        ],
+        [
+          2.1,
+          0.62
+        ],
+        [
+          1.98,
+          0.68
+        ],
+        [
+          1.78,
+          0.7
+        ],
+        [
+          1.55,
+          0.74
+        ],
+        [
+          1.32,
+          0.9
+        ],
+        [
+          1.05,
+          1.06
+        ],
+        [
+          0.72,
+          1.13
+        ],
+        [
+          0.3,
+          1.14
+        ],
+        [
+          -0.15,
+          1.12
+        ],
+        [
+          -0.6,
+          1.06
+        ],
+        [
+          -1.0,
+          0.97
+        ],
+        [
+          -1.38,
+          0.86
+        ],
+        [
+          -1.68,
+          0.76
+        ],
+        [
+          -1.92,
+          0.7
+        ],
+        [
+          -2.08,
+          0.64
+        ],
+        [
+          -2.13,
+          0.54
+        ],
+        [
+          -2.1,
+          0.4
+        ],
+        [
+          -2.05,
+          0.28
+        ],
+        [
+          2.06,
+          0.28
+        ]
+      ],
+      "bevel": 0.02,
+      "subdivide": 2,
+      "smooth": true,
+      "color": [
+        0.8,
+        0.1,
+        0.1
+      ],
+      "metallic": 0.5,
+      "roughness": 0.28
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "glassL",
+      "location": [
+        0.3,
+        0.865,
+        0.9
+      ],
+      "size": 1,
+      "scale": [
+        1.55,
+        0.02,
+        0.24
+      ],
+      "color": [
+        0.05,
+        0.06,
+        0.09
+      ]
+    },
+    {
+      "op": "material",
+      "target": "glassL",
+      "color": [
+        0.05,
+        0.06,
+        0.09
+      ],
+      "metallic": 0.4,
+      "roughness": 0.05
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "glassR",
+      "location": [
+        0.3,
+        -0.865,
+        0.9
+      ],
+      "size": 1,
+      "scale": [
+        1.55,
+        0.02,
+        0.24
+      ],
+      "color": [
+        0.05,
+        0.06,
+        0.09
+      ]
+    },
+    {
+      "op": "material",
+      "target": "glassR",
+      "color": [
+        0.05,
+        0.06,
+        0.09
+      ],
+      "metallic": 0.4,
+      "roughness": 0.05
+    },
+    {
+      "op": "add",
+      "kind": "cylinder",
+      "name": "wFL",
+      "location": [
+        1.38,
+        0.85,
+        0.36
+      ],
+      "size": 0.66,
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        0.32
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.05
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cylinder",
+      "name": "wFR",
+      "location": [
+        1.38,
+        -0.85,
+        0.36
+      ],
+      "size": 0.66,
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        0.32
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.05
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cylinder",
+      "name": "wRL",
+      "location": [
+        -1.38,
+        0.85,
+        0.36
+      ],
+      "size": 0.66,
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        0.32
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.05
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cylinder",
+      "name": "wRR",
+      "location": [
+        -1.38,
+        -0.85,
+        0.36
+      ],
+      "size": 0.66,
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        0.32
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.05
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "cladF",
+      "location": [
+        1.38,
+        0.82,
+        0.34
+      ],
+      "size": 1,
+      "scale": [
+        0.44,
+        0.05,
+        0.2
+      ],
+      "color": [
+        0.04,
+        0.04,
+        0.04
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "cladR",
+      "location": [
+        -1.38,
+        0.82,
+        0.34
+      ],
+      "size": 1,
+      "scale": [
+        0.44,
+        0.05,
+        0.2
+      ],
+      "color": [
+        0.04,
+        0.04,
+        0.04
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "rocker",
+      "location": [
+        0,
+        0.84,
+        0.34
+      ],
+      "size": 1,
+      "scale": [
+        1.5,
+        0.02,
+        0.08
+      ],
+      "color": [
+        0.04,
+        0.04,
+        0.04
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "drl",
+      "location": [
+        2.09,
+        0,
+        0.72
+      ],
+      "size": 1,
+      "scale": [
+        0.015,
+        0.8,
+        0.02
+      ]
+    },
+    {
+      "op": "material",
+      "target": "drl",
+      "color": [
+        0.9,
+        0.95,
+        1.0
+      ],
+      "emission": [
+        0.85,
+        0.92,
+        1.0
+      ],
+      "emission_strength": 7.0
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "hlL",
+      "location": [
+        2.08,
+        0.5,
+        0.6
+      ],
+      "size": 1,
+      "scale": [
+        0.02,
+        0.18,
+        0.05
+      ],
+      "color": [
+        0.85,
+        0.9,
+        1.0
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "hlR",
+      "location": [
+        2.08,
+        -0.5,
+        0.6
+      ],
+      "size": 1,
+      "scale": [
+        0.02,
+        0.18,
+        0.05
+      ],
+      "color": [
+        0.85,
+        0.9,
+        1.0
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "rearbar",
+      "location": [
+        -2.11,
+        0,
+        0.68
+      ],
+      "size": 1,
+      "scale": [
+        0.015,
+        0.82,
+        0.055
+      ]
+    },
+    {
+      "op": "material",
+      "target": "rearbar",
+      "color": [
+        1.0,
+        0.12,
+        0.08
+      ],
+      "emission": [
+        1.0,
+        0.1,
+        0.06
+      ],
+      "emission_strength": 7.0
+    },
+    {
+      "op": "group",
+      "name": "car",
+      "members": [
+        "body",
+        "glassL",
+        "glassR",
+        "frontbar",
+        "rearbar",
+        "wFL",
+        "wFR",
+        "wRL",
+        "wRR",
+        "cladF",
+        "cladR",
+        "rocker",
+        "drl",
+        "hlL",
+        "hlR"
+      ],
+      "location": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "plane",
+      "name": "road",
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "size": 60,
+      "scale": [
+        1.0,
+        0.3,
+        1.0
+      ]
+    },
+    {
+      "op": "material",
+      "target": "road",
+      "color": [
+        0.5,
+        0.5,
+        0.52
+      ],
+      "roughness": 0.7
+    },
+    {
+      "op": "light",
+      "location": [
+        3,
+        -6,
+        10
+      ],
+      "energy": 4.0,
+      "light_type": "SUN"
+    },
+    {
+      "op": "camera",
+      "location": [
+        6,
+        -6.5,
+        1.9
+      ],
+      "look_at": [
+        -0.2,
+        0,
+        0.65
+      ]
+    },
+    {
+      "op": "motion",
+      "motion": "move",
+      "target": "car",
+      "from": [
+        -9,
+        0,
+        0
+      ],
+      "to": [
+        9,
+        0,
+        0
+      ]
+    },
+    {
+      "op": "motion",
+      "motion": "spin",
+      "target": "wFL",
+      "axis": "Y",
+      "turns": 4.0
+    },
+    {
+      "op": "motion",
+      "motion": "spin",
+      "target": "wFR",
+      "axis": "Y",
+      "turns": 4.0
+    },
+    {
+      "op": "motion",
+      "motion": "spin",
+      "target": "wRL",
+      "axis": "Y",
+      "turns": 4.0
+    },
+    {
+      "op": "motion",
+      "motion": "spin",
+      "target": "wRR",
+      "axis": "Y",
+      "turns": 4.0
+    },
+    {
+      "op": "camera_path",
+      "points": [
+        {
+          "frame_frac": 0.0,
+          "location": [
+            -4,
+            -7,
+            1.9
+          ],
+          "look_at": [
+            -9,
+            0,
+            0.6
+          ]
+        },
+        {
+          "frame_frac": 0.5,
+          "location": [
+            5,
+            -7,
+            1.9
+          ],
+          "look_at": [
+            0,
+            0,
+            0.6
+          ]
+        },
+        {
+          "frame_frac": 1.0,
+          "location": [
+            14,
+            -7,
+            1.9
+          ],
+          "look_at": [
+            9,
+            0,
+            0.6
+          ]
+        }
+      ]
+    },
+    {
+      "op": "render",
+      "width": 1100,
+      "height": 520
+    }
+  ],
+  "_scenario": "Tesla Model Y traced from orch-supplied real side photo (examples/tesla_model_y_side_ref.jpg). Cab-forward stance, forward roof peak + long fastback taper, high level beltline w/ dark greenhouse band, short overhangs. Driving w/ wheels rolling.",
+  "_reference": "kong-blender-wrap/examples/tesla_model_y_side_ref.jpg (Wikimedia Commons)",
+  "animation": {
+    "frame_start": 1,
+    "frame_end": 72,
+    "fps": 24
+  },
+  "_2025_refresh": "front=thin full-width top DRL strip + separate lower headlamps; rear=full-width connected light bar (Juniper styling, designcompass.org)"
+}

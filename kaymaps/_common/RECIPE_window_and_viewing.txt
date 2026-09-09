@@ -1,0 +1,39 @@
+RECIPE: window_and_viewing (macOS 창 크기·보기 조작 + 클릭前 화면정체성 확인 — 공통베이스)
+GATE: verified 2026-09-09 (u_4322 ARC play중 실증·실패교훈)
+REG: 모든 kongtrol UI작업 공통. cf .claude/rules/kongtrol-base-reference.md + RECIPE_coordinate_targeting_standard.txt
+WHY: 잘못된 앱/탭/창에 클릭하는 오작동이 최다 실패모드. 창이 작아 태스크 일부만 보고 오판. 이를 방지.
+
+===== ★★ CLICK前 화면-정체성 확인 (SCREEN-IDENTITY-FIRST, 매 클릭 필수) =====
+worker rule 0b 확장. 클릭 직전 반드시:
+1. FOREGROUND: open -a "<App>"; sleep 1.5
+2. IDENTITY: `kongtrol see --pid <PID> --a11y`로 확인 —
+   - ★window title 만 믿지 말 것(탭 전환시 title이 지연갱신됨, 실증사고: ARC탭 활성화됐는데 title은 계속 "YouTube Studio").
+   - ★진짜 신호 = **AXWebArea 라벨** 또는 페이지 고유 heading(예 "ARC-AGI Task #<id>", "EXAMPLES"). 이게 목표와 일치해야 클릭.
+   - 여러 탭이면 `grep AXRadioButton.*<제목>`로 목표탭 좌표 얻어 클릭 → 다시 AXWebArea로 전환확인(1회 클릭으로 안 바뀌면 재클릭).
+   - 여러 창이면 목표창 title로 식별. pgrep head-1이 엉뚱한 창 줄 수 있음.
+3. COORD from a11y ONLY, --yes, 후 재조회 verify. (표준 프로토콜)
+※ 실패모드: 창을 드래그로 옮기면 top-edge/tab-strip/주소창 y좌표가 전부 이동 → 이전 하드코딩 좌표 무효. 창 이동후 전부 재조회.
+
+===== 보기 기법 3종 (태스크 전체를 한눈에 / 격자 확대) =====
+A. ★PAGE ZOOM (제일 신뢰, 단일수정자라 kongtrol 지원):
+   - 축소 = `kongtrol input chord cmd "-" --yes` (여러번=67%/50%…) → 긴 페이지 전체(예제+테스트+에디터)를 한 화면에.
+   - 확대 = `chord cmd "+"` 또는 `cmd "="` → 격자 셀 색 읽기 확대.
+   - 리셋 = `chord cmd "0"`.
+   - ★조작前 반드시 대상 탭이 frontmost(위 정체성확인). 안그러면 zoom이 엉뚱한 탭에 감.
+B. 창 세로 최대화 = 상단 경계(top edge) 더블클릭:
+   - 원리: 커서가 창 프레임 top-edge의 정확한 경계픽셀(상하화살표 resize커서로 바뀌는 지점)에 있을 때만 더블클릭이 세로확장 발동.
+   - 방법: a11y AXWindow @(cx,cy)[WxH]에서 windowTop = cy - H/2 계산. 그 y에서 더블클릭(2클릭 ~0.2s간격).
+   - ★★probe 안전규칙(실사고 예방): windowTop-1은 프레임 1px 바깥 → 뒤 창/데스크탑에 클릭 새는 사고. 반드시 프레임 안쪽부터:
+     windowTop → windowTop+1 순으로 시도, 둘 다 실패할 때만 windowTop-1 시도. ★매 probe클릭後 a11y로 frontmost가
+     여전히 Chrome인지 확인(뒤 창으로 안 샜는지).
+   - ★한계(실측 2026-09-09): kongtrol 합성클릭은 resize-hotzone hover인식이 안돼 windowTop/+1 모두 915→불변(발동실패).
+     Chrome frontmost는 유지됨(안샘). → 신뢰도 낮음, PAGE ZOOM(A)을 우선 사용. 이 기법은 환경따라 될 때만.
+C. FULLSCREEN = 녹색버튼(신호등 3번째) 클릭 or 그 위 호버메뉴 "전체 화면 시작". esc로 해제.
+   - kongtrol 클릭으로 녹색버튼 좌표(창 좌상단 ~x54) 히트. option+click=화면채움(kongtrol 단일수정자라 chord로는 불가, 일반클릭만).
+
+===== ★태스크 리뷰: 판단前 전체스크롤 필수 =====
+- 뷰포트 일부만 보고 규칙추론 금지(실패교훈). ZOOM축소(A)로 전부 담거나, 담기면 그대로, 안되면 top→bottom 스크롤하며
+  ALL training examples + full test grid 를 훑은 뒤 규칙추론.
+- 스크롤: 대상탭 frontmost 확인 후 페이지 본문 클릭→`key down --repeat N`. ★스크롤 직후 중립클릭 금지(top으로 되돌아감).
+
+BASIS: u_4322 (2026-09-09) 사용자 코칭 3연 — 창높이확대·전체스크롤리뷰·정체성확인. arcprize 잡레시피는 이 파일 cross-ref만.

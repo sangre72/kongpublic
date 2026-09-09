@@ -1,0 +1,53 @@
+═══════════════════════════════════════════════════════════════════
+★★★★★ USE-FIRST (verified winners — per recipe-verified-path-priority rule) ★★★★★
+BEST-RESULT GENRE = GENRE 3 (HI-RES REGION-FILL REALISM). verified 2026-09-09 a_4289/a_4294 on ref_4264 → richest fidelity, delivered as video. USE THIS by default for photo repro.
+  quick-run: hires_plan.py(260x195,16-col mediancut,adj-lum-diff>18 outlines,RDP eps1.2) → hires_run.py(fills size20 dark→light, outline size4 #161616). ~14.6k fills + ~360 contours ≈ 13-16min.
+★MANDATORY BEFORE ANY RUN (these are the fixes that cost the most re-fails — do them or re-fail):
+  1. ONE window, tabs not separate windows (multi-window broke tab-clicks → collapse via osascript, close extras).
+  2. PIN window {0,39,1500,954}; CALIBRATE fresh (sx=144.7+cx*1.117, sy=126.1+cy*1.119); MEASURE slider (x=30+(px-8)*1.266); SMOKE-TEST 1 stroke. (window-resize coord-drift = the #1 "driver stalled" cause; process was alive, drags landed off-canvas.)
+  3. Driver = SINGLE Python subprocess loop (NEVER `python|while read` — pipe breaks mid-run = death).
+  4. Outline size crop-verify (landed 22 not 5 once → black blobs); outline = MEANINGFUL boundary only.
+★USE-BAN: sparse-SFS-tick outlines(look like scribble), 7-color hand-label alone(river absorbed→needs spatial-gated water pass), dot-tiling for fills(slow+muddy). See per-genre + mechanism recipe.
+VIDEO: ref-intro must be a CLEAN single full-window image in the SAME captured window(cmd+0 fit), THEN switch tab to canvas. pkill screencapture may miss → set -V cap and TRIM+timelapse in ffmpeg(intro 1x + paint 20x concat).
+═══════════════════════════════════════════════════════════════════
+
+RECIPE: painting_genres (mouse-painting technique GENRES — kong3d/paint.html via kongtrol)
+GATE: verified 2026-09-09 a_4289/a_4294 (worker1, all 4 genres run on ref_4264 landscape; G3=winner, recorded+delivered)
+REG: paired with kaymaps/_common/RECIPE_mouse_painting.txt (that = mechanism/calibration; THIS = genre selection). drivers in kong3d/scripts/.
+WHY: 4 distinct proven techniques emerged across the painting arc; each is a real art GENRE with its own look-method / layer-order / brush-mapping / use-case. Pick by desired output, then follow its row + the mechanism recipe.
+
+★SHARED PRE-REQ (all genres): follow RECIPE_mouse_painting.txt PRE-RUN PROTOCOL first — pin window {0,39,1500,954}, calibrate canvas→screen (sx=144.7+cx*1.117, sy=126.1+cy*1.119 for this bounds), measure slider (px→x=30+(px-8)*1.266), smoke-test 1 stroke. Single-Python driver (no shell pipe). Verify-per-layer.
+
+============================================================
+GENRE 1 — PIXEL / POINTILLISM / STIPPLE  (dot-run plotter)
+  LOOK-METHOD: downsample ref to a coarse grid (128x96 or 256x192). NO color reduction beyond grid — each cell = its own pixel. classify per-cell exact color.
+  DRAW: brush size 1-3. horizontal RLE run drags per same-color span (run-length = one drag per contiguous cell row of equal color). color-group the runs to minimize color switches.
+  LAYER ORDER: none semantic — paint row-major or color-grouped; overlap irrelevant (opaque).
+  BRUSH MAP: size 1-3 only (dot fidelity). fill = per-run drag.
+  WHEN: retro/8-bit look, plotter aesthetic, max structural fidelity at low res, "every pixel a real mouse mark" demos. SLOW (34k runs @256x192). scripts: pixel_plan.py, pixel_paint_driver.sh.
+
+GENRE 2 — CEL / TOON  (flat color zones + bold outline)
+  LOOK-METHOD: resize 200x150, classify into ~7 SEMANTIC hand-labeled colors (sky/cloud/tree-dark/mid/light/bank/grass). river = separate spatial-gated pass (narrow channel absorbed otherwise).
+  DRAW: flat fills as horizontal RLE runs, size ~40. THEN ONE outline pass: SILHOUETTE only (sky↔non-sky boundary = treeline), continuous polyline, size 5, #161616.
+  LAYER ORDER: sky→cloud→trees dark→mid→light→bank→grass→water→OUTLINE last.
+  BRUSH MAP: fills 40 / outline 5. ★outline on MEANINGFUL silhouette only — internal Laplacian ticks look like scribble; DON'T.
+  WHEN: clean anime/poster look, few bold colors, strong readable shapes, fast (~7k runs). scripts: cel_plan.py, cel_run.py, river_plan.py.
+
+GENRE 3 — HI-RES REGION-FILL REALISM  (many small zones + dense inked edges)
+  LOOK-METHOD: resize 260x195, MedianFilter denoise, 16-color MEDIANCUT quantize (ref's ACTUAL colors, not hand-labels) → many small flat zones w/ tonal depth (cloud gets 3 greys, foliage many greens).
+  DRAW: fills = RLE runs painted DARK→LIGHT (light on top reads cleaner), size ~20. THEN dense outline: EVERY region boundary where adjacent-lum-diff>18, walked into ordered 8-neighbour chains, RDP-simplified (eps1.2) → continuous smooth polylines, size 4, #161616.
+  LAYER ORDER: 16 fills by ascending luminance → outline last.
+  BRUSH MAP: fills 20 / outline 4. big run (~14.6k fills + ~5.7k outline drags, ~360 contours).
+  WHEN: detailed illustrated/inked-realism look, painterly depth, cloud shading + reflections + foliage clusters all rendered. best fidelity-to-photo of the flat genres. scripts: hires_plan.py, hires_run.py(inline).
+
+GENRE 4 — CURVED-STROKE PAINTERLY  (directional brushwork, no dots)
+  LOOK-METHOD: 14-color posterize into regions. per region, generate BROAD directional sweep strokes whose direction follows FORM (foliage=downward canopy arc, grass=upward sweep, sky=near-flat), each stroke = 3-pt curved polyline.
+  DRAW: fills = chained multi-drag through each stroke's polyline (shared endpoints = continuous curved line, NOT dot-tiling). outlines = ordered edge-chains as connected polylines. size fills ~9-14 / outline ~4-5.
+  LAYER ORDER: fill strokes (non-black) first → black outline strokes on top.
+  BRUSH MAP: fills 9-14, outline 4-5. cadence 0.03s chained; 0.35-0.5s only if mousedowns drop.
+  WHEN: hand-painted/impressionist feel, visible brush direction, organic (not flat) surfaces. scripts: stroke_plan.py, stroke_driver.sh.
+
+============================================================
+SELECTION CHEAT: retro/max-structure→G1 · clean bold poster→G2 · detailed realistic illustration→G3 · organic hand-painted→G4.
+COMMON PITFALLS(all): window-resize coord-drift(=recalibrate), slider non-linear(=measure), shell-pipe driver death(=single Python), outline-size-too-big blobs(=verify size crop), narrow water absorbed at low res(=spatial-gated pass). All detailed in RECIPE_mouse_painting.txt.
+SUBJECT: user-own/non-IP only.

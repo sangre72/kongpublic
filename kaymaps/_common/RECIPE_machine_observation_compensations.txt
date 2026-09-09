@@ -1,0 +1,127 @@
+★★★★★USE-FIRST(u_4247 2026-09-08 — PROVEN-WINNER methods, apply BEFORE anything below):
+ 1. COMPUTED-COORDINATE PLACEMENT — measure the ref image numerically(PIL edge/frac→coords), type/click
+    exact values; eye only verifies landing. PROVEN: M4 silhouette near-exact overlay, M8 corner-wrap
+    headlights. eyeball placement of anything measurable = BANNED.
+ 2. EVIDENCE-CROP RULE — every "fixed/done" claim ships with zoom-crop image files of the fixed region
+    at the FAILING angle(usually 3/4); no crop = claim rejected. PROVEN: broke the 3x claim-vs-reality
+    mismatch loop instantly(AR_4245).
+ 3. REF-BACKDROP GUI AUTHORING — load ref photo as in-editor backdrop, work over it, per-point verify.
+    PROVEN: M1~M5 workflow.
+ 4. PER-OP EYES-ON — one operation → look at result → next. PROVEN: entire kong3d arc vs blind blender era.
+ 5. SHAPE-FROM-SHADING (a_4250, PROVEN) — infer 3D form from photo COLOR/LUMINANCE via PIL/numpy, no ML.
+    script: kong3d/scripts/shape_from_shading.py <ref.jpg> <out_prefix>. extracts: (a) luminance-GRADIENT
+    map = curved-surface direction; (b) Laplacian value-STEP = crease/panel-edge (finds hood-V + door
+    shut-line + headlight/intake outlines EXACTLY — thin value discontinuities); (c) specular highlight
+    ridge = surface character-line (ModelY shoulder streak); (d) value-band segmentation = part regions
+    (glass/body/trim/light centroids+ranges). outputs image-frac coord data(crease_polyline_frac,
+    specular_ridge_frac, regions) + _overlay.png(verify edges land on features) → convert to world via
+    item 1 formula z=(0.5-u)*W, y=H*(1-v). PROVEN: front/side/34 overlays trace true creases; garage-bg
+    specular noise lands OFF body(ignorable), body edges clean. clean-bg refs=fully auto.
+    ★CAVEAT(a_4255 negative result, GT-validated): DENSE per-pixel Lambertian SfS(luminance→normal→
+    integrate→heightfield) FAILS on glossy uniform paint — RMSE 0.41 vs real-GLB hood cross-section,
+    no diffuse shading signal survives specular masking(white body reads flat, reflections=fake geometry).
+    dense-SfS = matte/textured subjects ONLY. for glossy car bodies: SPARSE crease-edge(above) +
+    reference-mesh measurement remains the method. always GT-validate a new perception method before
+    building on it.
+    ★CAVEAT-2(a_4257 negative #2, GT-validated): tried inferring THROUGH speculars — (1) harmonic/Poisson
+    normal-inpainting of masked highlight holes, (2) highlight-elongation as curvature cue. RMSE got WORSE
+    (hood 0.46, flank 0.48 vs 0.41 baseline). ROOT CAUSE confirmed: not the specular HOLES(only 0.7-15%),
+    it is the ABSENCE of diffuse shading gradient on glossy paint entirely — inpainting smooth holes over
+    an already-signal-less surface adds nothing, highlight blobs too few/small to constrain. dense-SfS is
+    a genuine dead-end for glossy studio-lit cars; sparse crease-edge + ref-mesh stands. (2 GT-validated
+    negatives now — stop trying dense-shading variants on this subject class.)
+(details per item = numbered sections below)
+
+RECIPE: machine_observation_compensations (u_4238 2026-09-08 — perception-failure catalog + fixes)
+GATE: every item below = real incident from 2026-09-07~08 ModelY arc(blender→kong3d), not theory.
+REG: ∀ visual/modeling/GUI task. read BEFORE any "look and reproduce" work. w/ TECHNIQUE 10(box_modeling recipe).
+WHY: user "사물을 보는 어떤 점이 문제였는지, 어떻게 보강하는지 하나씩 기술" — the AI's seeing has
+     SPECIFIC, repeatable failure modes; each has a specific compensation. catalog them so they're
+     engineered around, not re-discovered.
+
+[1] PIXEL-PRECISION BLINDNESS
+  problem: VLM-eye judges "where exactly is the outline" only coarsely(±tens of px). traced curves
+    drift/invert vs the photo even when "looking at" it(M3 hood inverted+wrong length).
+  fix: outline/edge/color-boundary = COMPUTABLE. extract contour deterministically(PIL edge-detect/
+    threshold), map to viewport coords(affine from ref-plane corners), THEN click. eye's job shrinks to
+    "did the point land on the line"(binary check = within VLM precision). M4 proved: near-exact overlay.
+
+[2] NUMBERS-MATCH ≠ SHAPE-MATCH
+  problem: width-at-height fractions matched ref exactly, yet cross-section stayed a round dome
+    (bm34 incident). metrics sampled sparsely can all pass while the SHAPE between samples is wrong.
+  fix: after any numeric fit, render and LOOK at the actual shape; claim fixed only when the change is
+    visible in the render. metric=necessary, visual=sufficient.
+
+[3] SMOOTHING MASKS GEOMETRY
+  problem: subdiv/smooth-shading rounds away the base mesh's real form — judged the base wrong when
+    the DISPLAY was the culprit(bm36: subdiv=2 dome; smooth:true hid flat facets even at subdiv=0).
+  fix: inspect base mesh(subdiv=0, flat-shade) FIRST to see true geometry; add smoothing deliberately,
+    per-object(smooth only genuinely-round parts: wheels; flat-shade paneled bodies).
+
+[4] SINGLE-VIEW DELUSION
+  problem: side-ortho silhouette diff hit 0.043 while the front view was still a round egg and 3/4
+    looked like a beetle. one projection says nothing about the other two axes.
+  fix: minimum verify set = front+side+top ortho + one 3/4 perspective, EVERY milestone. depth must be
+    measured, not assumed(u_4207).
+
+[5] FLATTERING-ANGLE BIAS
+  problem: milestones rendered/judged from the one angle that looked best(hero-side), plateau went
+    unnoticed(bm7≈bm8, bm34≈bm35 "visible change" claims).
+  fix: fixed camera set per milestone(same angles every time) + diff against the PREVIOUS milestone's
+    identical angle; "improved" requires a visible delta in at least one fixed view.
+
+[6] COMPLEXITY MISCALIBRATION
+  problem: judged a ~9k-tri single-mesh blob "close" to a subject whose real mesh = 113 parts/2.43M tris
+    (~270x denser). resemblance is impossible at toy part-count; the judgment itself was the bug.
+  fix: assume ANY real art/engineering subject = 100k+ polygons/objects. before claiming resemblance,
+    state your part/poly count vs the subject's(or its reference mesh's) — that ratio IS the gap.
+
+[7] DRAWING BLIND
+  problem: generating geometry from computed numbers and only occasionally rendering = "안보고 그리기".
+    wrongness accumulated invisibly for hours(entire blender script era).
+  fix: eyes-on-result after EVERY operation(viewport screenshot per step in GUI work; render per change
+    in scripted work). one op → look → next op. slow is correct.
+
+[8] SEGMENT/CORNER CONFLATION
+  problem: silhouettes were drawn as one continuous smooth curve across visible ANGLE BREAKS
+    (hood→windshield, roof→liftgate), blurring the subject's structural corners(u_4233).
+  fix: before drawing, classify every junction on the ref: smooth-tangent point vs corner point.
+    corners = separate segments meeting at an angle; never smooth-join across a visible discontinuity.
+
+[9] CAPABILITY≠LEGIBILITY OVERCLAIM
+  problem: "ceiling broken, reads as paneled car" when the mesh HAD seams but the render showed nearly
+    none(bm53). internal state was reported as visual truth.
+  fix: report the two separately: (a) capability/mesh-state(what exists in data) (b) visual legibility
+    (what a fresh render actually shows). claim (b) only from a fresh render viewed with own eyes.
+
+[10] CONTEXT-IDENTITY BLINDNESS
+  problem: searched for a button by scrolling an entirely WRONG SCREEN(raw-JSON debug tab) — the eye
+    checked "is the element here" without first checking "is HERE the right place"(u_4167). same family:
+    Finder row-position≠file-identity(u_4157), stale coords after view change.
+  fix: verify screen/tab/breadcrumb identity BEFORE element search; identify targets by text/name not
+    position; re-query coords after any view change.
+
+BASIS: u_4157/4164/4167/4187~4238 arc. update this file when a NEW perception-failure class appears
+  (not per-incident — per NEW CLASS). each entry = problem(real incident) + engineered fix.
+
+[5b] SFS v2 fineness (a_4253, kong3d/scripts/shape_from_shading2.py): (a) sub-pixel edge via
+  parabola-vertex fit on Laplacian peak per scanline(fractional y). (b) multi-scale: fine σ1.0(thin
+  creases, red) + coarse σ4.0(panel boundaries, blue) — one scale blurs thin lines, two separates them.
+  (c) adaptive local-window threshold(mean+k·std) + response FLOOR(k4.0/floor0.45 fine) — ★without floor
+  it fires on paint micro-texture everywhere(over-detection); floor is essential on glossy paint. (d)
+  gradient-direction field 8×12 cells(0-7=22.5° bins,-1 flat)=surface curvature orientation. (e)
+  repeatability = MAD-robust residual of crease polyline vs quadratic fit(report px). LESSON: tighten
+  the y-band to ONE feature before measuring repeatability — a wide band catches shut-line+char-line
+  together and inflates residual(not a sub-pixel failure). overlay_2 red=thin creases blue=panels.
+
+[5c] DENSE per-pixel SfS + GLB-validation (a_4255, kong3d/scripts/dense_sfs.py): luminance→normal
+  (Lambertian)→Frankot-Chellappa FFT integrate→heightfield→mesh grid. specular/reflection MASK
+  (bright>0.92 OR saturation>0.25 = reflected colored objects) + numpy-inpaint fill. ★VALIDATED vs
+  real GLB hood cross-section(kong3d/refs/glb_hood_section.json, extracted from body mesh centerline):
+  RMSE-norm hood=0.41, flank=0.37 = POOR. FINDING: dense Lambertian SfS FAILS on studio-lit glossy
+  uniform paint — the surface has near-zero shading gradient(white hood reads flat), and reflections
+  are fake geometry. the SPARSE crease-EDGE method(item 5/5b) carries the real signal for this subject,
+  dense-shading does not. KEEP dense-SfS for matte/textured subjects w/ real shading; for glossy cars
+  use edge/crease extraction + measured ratios. ★the GLB ground-truth validation is what caught this
+  BEFORE building on a bad method — always validate a new perception method against ground truth when
+  available, report the error number, don't assume it works.

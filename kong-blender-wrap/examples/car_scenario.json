@@ -1,0 +1,396 @@
+{
+  "_scenario": "A Tesla-style stylized low-poly car (beveled body + cabin + 4 wheels) driving forward along a dark asphalt highway with white lane markings, camera side-tracking as it passes. Composed entirely from existing primitive+mesh-edit+material ops.",
+  "output": "output/car.mp4",
+  "animation": {
+    "frame_start": 1,
+    "frame_end": 72,
+    "fps": 24
+  },
+  "ops": [
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "body",
+      "location": [
+        0,
+        0,
+        0.55
+      ],
+      "size": 1,
+      "scale": [
+        1.9,
+        0.85,
+        0.32
+      ]
+    },
+    {
+      "op": "modify",
+      "target": "body",
+      "modify": "bevel",
+      "width": 0.12,
+      "segments": 3
+    },
+    {
+      "op": "material",
+      "target": "body",
+      "color": [
+        0.75,
+        0.05,
+        0.08
+      ],
+      "metallic": 0.9,
+      "roughness": 0.25
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "cabin",
+      "location": [
+        -0.1,
+        0,
+        1.02
+      ],
+      "size": 1,
+      "scale": [
+        0.95,
+        0.72,
+        0.28
+      ]
+    },
+    {
+      "op": "modify",
+      "target": "cabin",
+      "modify": "bevel",
+      "width": 0.14,
+      "segments": 3
+    },
+    {
+      "op": "material",
+      "target": "cabin",
+      "color": [
+        0.06,
+        0.07,
+        0.1
+      ],
+      "metallic": 0.3,
+      "roughness": 0.1
+    },
+    {
+      "op": "add",
+      "kind": "cylinder",
+      "name": "wheelFL",
+      "location": [
+        1.05,
+        0.82,
+        0.34
+      ],
+      "size": 0.68,
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        0.32
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cylinder",
+      "name": "wheelFR",
+      "location": [
+        1.05,
+        -0.82,
+        0.34
+      ],
+      "size": 0.68,
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        0.32
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cylinder",
+      "name": "wheelRL",
+      "location": [
+        -1.05,
+        0.82,
+        0.34
+      ],
+      "size": 0.68,
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        0.32
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cylinder",
+      "name": "wheelRR",
+      "location": [
+        -1.05,
+        -0.82,
+        0.34
+      ],
+      "size": 0.68,
+      "rotation": [
+        90,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        0.32
+      ]
+    },
+    {
+      "op": "material",
+      "target": "wheelFL",
+      "color": [
+        0.03,
+        0.03,
+        0.03
+      ],
+      "roughness": 0.8
+    },
+    {
+      "op": "material",
+      "target": "wheelFR",
+      "color": [
+        0.03,
+        0.03,
+        0.03
+      ],
+      "roughness": 0.8
+    },
+    {
+      "op": "material",
+      "target": "wheelRL",
+      "color": [
+        0.03,
+        0.03,
+        0.03
+      ],
+      "roughness": 0.8
+    },
+    {
+      "op": "material",
+      "target": "wheelRR",
+      "color": [
+        0.03,
+        0.03,
+        0.03
+      ],
+      "roughness": 0.8
+    },
+    {
+      "op": "group",
+      "name": "car",
+      "members": [
+        "body",
+        "cabin",
+        "wheelFL",
+        "wheelFR",
+        "wheelRL",
+        "wheelRR"
+      ],
+      "location": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "plane",
+      "name": "road",
+      "location": [
+        0,
+        0,
+        0
+      ],
+      "size": 60,
+      "scale": [
+        1.0,
+        0.28,
+        1.0
+      ]
+    },
+    {
+      "op": "material",
+      "target": "road",
+      "color": [
+        0.09,
+        0.09,
+        0.1
+      ],
+      "roughness": 0.6
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "lane1",
+      "location": [
+        -6,
+        0,
+        0.02
+      ],
+      "size": 1,
+      "scale": [
+        1.2,
+        0.06,
+        0.02
+      ],
+      "color": [
+        0.95,
+        0.95,
+        0.9
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "lane2",
+      "location": [
+        0,
+        0,
+        0.02
+      ],
+      "size": 1,
+      "scale": [
+        1.2,
+        0.06,
+        0.02
+      ],
+      "color": [
+        0.95,
+        0.95,
+        0.9
+      ]
+    },
+    {
+      "op": "add",
+      "kind": "cube",
+      "name": "lane3",
+      "location": [
+        6,
+        0,
+        0.02
+      ],
+      "size": 1,
+      "scale": [
+        1.2,
+        0.06,
+        0.02
+      ],
+      "color": [
+        0.95,
+        0.95,
+        0.9
+      ]
+    },
+    {
+      "op": "light",
+      "location": [
+        6,
+        -6,
+        12
+      ],
+      "energy": 4.0,
+      "light_type": "SUN"
+    },
+    {
+      "op": "camera",
+      "location": [
+        0,
+        -9,
+        3
+      ],
+      "look_at": [
+        0,
+        0,
+        0.8
+      ]
+    },
+    {
+      "op": "motion",
+      "motion": "move",
+      "target": "car",
+      "from": [
+        -10,
+        0,
+        0
+      ],
+      "to": [
+        10,
+        0,
+        0
+      ]
+    },
+    {
+      "op": "camera_path",
+      "points": [
+        {
+          "frame_frac": 0.0,
+          "location": [
+            -6,
+            -8,
+            3.2
+          ],
+          "look_at": [
+            -10,
+            0,
+            0.7
+          ]
+        },
+        {
+          "frame_frac": 0.5,
+          "location": [
+            4,
+            -8,
+            3.2
+          ],
+          "look_at": [
+            0,
+            0,
+            0.7
+          ]
+        },
+        {
+          "frame_frac": 1.0,
+          "location": [
+            14,
+            -8,
+            3.2
+          ],
+          "look_at": [
+            10,
+            0,
+            0.7
+          ]
+        }
+      ]
+    },
+    {
+      "op": "render",
+      "width": 800,
+      "height": 450
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "_scenario": "A red cube slowly orbits a blue sphere while the camera circles the scene, looking at the center. ~4 second loop.",
+  "output": "output/orbit.mp4",
+  "animation": {"frame_start": 1, "frame_end": 96, "fps": 24},
+  "ops": [
+    {"op": "add", "kind": "sphere", "name": "hub", "location": [0, 0, 0], "size": 2, "color": [0.2, 0.4, 0.9]},
+    {"op": "add", "kind": "cube", "name": "runner", "location": [4, 0, 0], "size": 1, "color": [0.9, 0.2, 0.2]},
+    {"op": "add", "kind": "plane", "location": [0, 0, -1.5], "size": 40, "color": [0.5, 0.55, 0.5]},
+    {"op": "light", "location": [5, -4, 9], "energy": 4.0, "light_type": "SUN"},
+    {"op": "camera", "location": [10, -10, 6], "look_at": [0, 0, 0]},
+    {"op": "motion", "motion": "orbit", "target": "runner", "center": [0, 0, 0], "radius": 4, "height": 0, "turns": 1.0},
+    {"op": "motion", "motion": "spin", "target": "runner", "axis": "Z", "turns": 3.0},
+    {"op": "motion", "motion": "orbit_camera", "center": [0, 0, 0], "radius": 12, "height": 6, "turns": 0.5},
+    {"op": "render", "width": 640, "height": 480}
+  ]
+}

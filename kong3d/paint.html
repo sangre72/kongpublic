@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Kong Paint — by WhenCoding</title>
+<style>
+ body{margin:0;background:#2a2d34;color:#ddd;font:14px system-ui;display:flex;height:100vh}
+ #brand{position:fixed;bottom:8px;left:8px;font:11px ui-monospace;color:#5a6b7a;z-index:9;pointer-events:none}
+ #tools{width:120px;background:#1b1e24;padding:12px;display:flex;flex-direction:column;gap:10px}
+ #tools h1{font:700 15px system-ui;margin:0 0 2px;color:#4fd1c5;letter-spacing:.3px}
+ #tools .by{font:10px ui-monospace;color:#6b7a88;margin:-6px 0 4px}
+ #tools label{font-size:11px;color:#9aa}
+ #hexIn{width:100%;box-sizing:border-box}
+ #swatch{width:100%;height:40px;border:1px solid #444;border-radius:4px}
+ canvas{background:#fff;cursor:crosshair}
+ #sizeVal{font:12px ui-monospace}
+</style></head>
+<body>
+ <div id="tools">
+   <h1>Kong Paint</h1>
+   <div class="by">by WhenCoding</div>
+   <label>COLOR (hex)</label>
+   <input id="hexIn" type="text" value="#8fb3d9" aria-label="색상 입력">
+   <button id="setColor" aria-label="색상 적용">Set Color</button>
+   <div id="swatch"></div>
+   <label>BRUSH SIZE</label>
+   <input id="size" type="range" min="2" max="80" value="24" aria-label="브러시 크기">
+   <div id="sizeVal">24</div>
+   <button id="brushBtn" aria-label="브러시 도구">Brush</button>
+   <button id="bucketBtn" aria-label="버킷 채우기 도구">Bucket</button>
+   <button id="rectBtn" aria-label="사각형 채우기 도구">Rect Fill</button>
+   <button id="lineBtn" aria-label="선 도구">Line</button>
+   <button id="ellipseBtn" aria-label="타원 도구">Ellipse</button>
+   <button id="polyBtn" aria-label="다각형 도구">Polygon</button>
+   <button id="polyCloseBtn" aria-label="다각형 닫기 채우기">Close Poly</button>
+   <div id="mode" style="font:11px ui-monospace;color:#4fd1c5">brush</div>
+   <button id="clearBtn" aria-label="캔버스 지우기">Clear</button>
+   <button id="bgmBtn" aria-label="배경음악 재생">♪ BGM</button>
+   <label>CURSOR</label>
+   <div id="coord" style="font:12px ui-monospace">x— y—</div>
+ </div>
+ <canvas id="cv" width="1000" height="740"></canvas>
+<script>
+ const cv=document.getElementById('cv'), g=cv.getContext('2d');
+ g.fillStyle='#ffffff'; g.fillRect(0,0,cv.width,cv.height);
+ // persistence: restore on load, save after each op
+ const KEY='kongpaint_state_'+(new URLSearchParams(location.search).get('session')||'default');
+ if(new URLSearchParams(location.search).has('clear')){ try{localStorage.removeItem(KEY);}catch(e){} }
+ else try{ const s=localStorage.getItem(KEY); if(s){ const im=new Image(); im.onload=()=>g.drawImage(im,0,0); im.src=s; } }catch(e){}
+ function save(){ try{ localStorage.setItem(KEY, cv.toDataURL()); }catch(e){} }
+ let color='#8fb3d9', size=24, down=false, last=null;
+ const sw=document.getElementById('swatch'); sw.style.background=color;
+ g.lineCap='round'; g.lineJoin='round';
+ document.getElementById('setColor').onclick=()=>{ color=document.getElementById('hexIn').value.trim(); sw.style.background=color; };
+ document.getElementById('hexIn').onchange=()=>{ color=document.getElementById('hexIn').value.trim(); sw.style.background=color; };
+ document.getElementById('size').oninput=e=>{ size=+e.target.value; document.getElementById('sizeVal').textContent=size; };
+ document.getElementById('clearBtn').onclick=()=>{ g.fillStyle='#fff'; g.fillRect(0,0,cv.width,cv.height); };
+ let tool='brush';
+ const coordEl=document.getElementById('coord'), modeEl=document.getElementById('mode');
+ document.getElementById('brushBtn').onclick=()=>{ tool='brush'; modeEl.textContent=tool; };
+ document.getElementById('bucketBtn').onclick=()=>{ tool='bucket'; modeEl.textContent=tool; };
+ document.getElementById('rectBtn').onclick=()=>{ tool='rect'; modeEl.textContent=tool; };
+ document.getElementById('lineBtn').onclick=()=>{ tool='line'; modeEl.textContent=tool; };
+ document.getElementById('ellipseBtn').onclick=()=>{ tool='ellipse'; modeEl.textContent=tool; };
+ document.getElementById('polyBtn').onclick=()=>{ tool='poly'; poly=[]; modeEl.textContent=tool; };
+ document.getElementById('polyCloseBtn').onclick=()=>{ if(poly.length>=3){ g.fillStyle=color; g.beginPath(); g.moveTo(poly[0][0],poly[0][1]); for(let i=1;i<poly.length;i++) g.lineTo(poly[i][0],poly[i][1]); g.closePath(); g.fill(); } poly=[]; save(); };
+ let rectStart=null, dragStart=null, poly=[];
+ function pos(e){ const r=cv.getBoundingClientRect(); return [Math.round((e.clientX-r.left)*cv.width/r.width), Math.round((e.clientY-r.top)*cv.height/r.height)]; }
+ function bucketFill(sx,sy,hex){
+   const img=g.getImageData(0,0,cv.width,cv.height), d=img.data, W=cv.width, Hh=cv.height;
+   const idx=(x,y)=>(y*W+x)*4;
+   const t=idx(sx,sy); const tr=d[t],tg=d[t+1],tb=d[t+2];
+   const m=hex.replace('#',''); const nr=parseInt(m.slice(0,2),16),ng=parseInt(m.slice(2,4),16),nb=parseInt(m.slice(4,6),16);
+   if(tr===nr&&tg===ng&&tb===nb) return;
+   const tol=40, st=[[sx,sy]];
+   const near=i=>Math.abs(d[i]-tr)<=tol&&Math.abs(d[i+1]-tg)<=tol&&Math.abs(d[i+2]-tb)<=tol;
+   while(st.length){ const [x,y]=st.pop(); if(x<0||y<0||x>=W||y>=Hh)continue; const i=idx(x,y); if(!near(i))continue;
+     d[i]=nr;d[i+1]=ng;d[i+2]=nb;d[i+3]=255; st.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]); }
+   g.putImageData(img,0,0);
+ }
+ cv.addEventListener('mousemove',e=>{ const p=pos(e); coordEl.textContent='x'+p[0]+' y'+p[1]; });
+ cv.addEventListener('mousedown',e=>{ const p=pos(e);
+   if(tool==='bucket'){ bucketFill(p[0],p[1],color); save(); return; }
+   if(tool==='rect'){ rectStart=p; return; }
+   if(tool==='line'||tool==='ellipse'){ dragStart=p; return; }
+   if(tool==='poly'){ poly.push(p); g.fillStyle=color; g.beginPath(); g.arc(p[0],p[1],3,0,7); g.fill(); if(poly.length>1){ g.strokeStyle=color; g.lineWidth=Math.max(2,size/6); g.beginPath(); g.moveTo(poly[poly.length-2][0],poly[poly.length-2][1]); g.lineTo(p[0],p[1]); g.stroke(); } return; }
+   down=true; last=pos(e); dot(last); });
+ cv.addEventListener('mousemove',e=>{ if(!down)return; const p=pos(e); g.strokeStyle=color; g.lineWidth=size; g.beginPath(); g.moveTo(last[0],last[1]); g.lineTo(p[0],p[1]); g.stroke(); last=p; });
+ window.addEventListener('mouseup',e=>{ if(tool==='rect'&&rectStart){ const p=pos(e); g.fillStyle=color; const x=Math.min(rectStart[0],p[0]),y=Math.min(rectStart[1],p[1]); g.fillRect(x,y,Math.abs(p[0]-rectStart[0]),Math.abs(p[1]-rectStart[1])); rectStart=null; save(); }
+   if(tool==='line'&&dragStart){ const p=pos(e); g.strokeStyle=color; g.lineWidth=size; g.lineCap='round'; g.beginPath(); g.moveTo(dragStart[0],dragStart[1]); g.lineTo(p[0],p[1]); g.stroke(); dragStart=null; save(); }
+   if(tool==='ellipse'&&dragStart){ const p=pos(e); const cx=(dragStart[0]+p[0])/2,cy=(dragStart[1]+p[1])/2,rx=Math.abs(p[0]-dragStart[0])/2,ry=Math.abs(p[1]-dragStart[1])/2; g.fillStyle=color; g.beginPath(); g.ellipse(cx,cy,rx,ry,0,0,7); g.fill(); dragStart=null; save(); }
+   if(down){ down=false; save(); } });
+ function dot(p){ g.fillStyle=color; g.beginPath(); g.arc(p[0],p[1],size/2,0,7); g.fill(); }
+ window.__paint={ setColor:c=>{color=c;sw.style.background=c;}, setSize:s=>{size=s;} };
+ const bgmAudio=new Audio('kongpaint_bgm.wav'); bgmAudio.loop=true; bgmAudio.volume=0.6;
+ document.getElementById('bgmBtn').onclick=function(){ if(bgmAudio.paused){ bgmAudio.play(); this.textContent='♪ BGM ⏸'; } else { bgmAudio.pause(); this.textContent='♪ BGM'; } };
+</script><div id="brand">Kong Paint · WhenCoding</div></body></html>

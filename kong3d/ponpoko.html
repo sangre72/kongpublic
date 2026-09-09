@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KongPoko — Kong3D platformer</title>
+<style>
+:root{ --bg:#101322; --panel:#1b1e27; --line:#2e3342; --text:#e8eaf2; --accent:#7c6cff; --accent2:#4fd1c5; --warn:#ffb454; --danger:#ff6b81 }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%} body{background:var(--bg);color:var(--text);font:14px -apple-system,sans-serif;overflow:hidden}
+#game{position:fixed;inset:0}
+#hud{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:18px;
+  background:rgba(16,19,34,.78);border:1px solid var(--line);border-radius:12px;padding:8px 18px;
+  font:700 15px ui-monospace,monospace;letter-spacing:1px}
+#hud .fruit{color:var(--warn)} #hud .lives{color:var(--danger)} #hud .stage{color:var(--accent2)}
+#banner{position:fixed;inset:0;display:none;place-items:center;background:rgba(16,19,34,.65)}
+#banner div{font:800 44px ui-monospace,monospace;color:var(--warn);text-shadow:0 4px 24px rgba(255,180,84,.5);
+  background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px 48px}
+#help{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);color:#9aa1b5;font-size:12px;
+  background:rgba(16,19,34,.7);padding:5px 12px;border-radius:8px}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="hud"><span class="stage">STAGE 1</span><span class="fruit">🍎 0/0</span><span class="lives">♥♥♥</span></div>
+<div id="banner"><div id="bannerText">STAGE CLEAR!</div></div>
+<div id="help">A/D move · Space jump · W/S ladder · avoid spikes · collect all fruit</div>
+<script type="importmap">{ "imports": { "three": "./lib/three.module.js" } }</script>
+<script type="module" src="./game.js"></script>
+</body>
+</html>

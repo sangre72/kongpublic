@@ -1,0 +1,55 @@
+/* stage = rounded backdrop card showing the species scene, pet floats on top */
+#kongpet-stage{
+  position:fixed;right:14px;bottom:14px;z-index:2147483645;
+  width:150px;height:104px;border-radius:16px;overflow:hidden;
+  box-shadow:0 6px 18px rgba(0,0,0,.22);background:#dfeaf2;background-size:cover;background-position:center;
+}
+#kongpet-stage::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.08),transparent 55%)}
+#kongpet-widget{
+  position:fixed;right:32px;bottom:18px;z-index:2147483646;
+  width:96px;height:96px;cursor:pointer;user-select:none;
+  filter:drop-shadow(0 6px 10px rgba(0,0,0,.25));
+  animation:kongpet-idle 3.2s ease-in-out infinite;
+}
+#kongpet-widget img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;opacity:0;transition:opacity .22s ease-in-out;transform-origin:50% 88%}
+#kongpet-widget img.kp-on{opacity:1}
+/* Path B: procedural "alive" micro-motion on the active pose image (no video). */
+#kongpet-widget img.kp-on{animation:kongpet-breathe 3.6s ease-in-out infinite}
+/* species-tuned: fish swims (bob + slight rotate), land pets breathe */
+#kongpet-widget.kp-fish img.kp-on{animation:kongpet-swim 3s ease-in-out infinite;transform-origin:50% 50%}
+#kongpet-widget.kongpet-react{animation:kongpet-bounce .5s ease}
+@keyframes kongpet-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes kongpet-bounce{0%{transform:scale(1)}30%{transform:scale(1.18) rotate(-6deg)}60%{transform:scale(.94) rotate(4deg)}100%{transform:scale(1)}}
+/* breathe: subtle vertical squash-stretch, like chest rising */
+@keyframes kongpet-breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.035,.965)}}
+/* swim: gentle bob + tail-side rotate */
+@keyframes kongpet-swim{0%,100%{transform:translateY(0) rotate(-2.5deg)}50%{transform:translateY(-4px) rotate(2.5deg)}}
+#kongpet-bubble{
+  position:fixed;right:120px;bottom:52px;z-index:2147483646;
+  background:#fff;color:#3a2e2a;font-family:"Apple SD Gothic Neo",sans-serif;font-size:13px;font-weight:600;
+  padding:8px 12px;border-radius:14px 14px 4px 14px;box-shadow:0 4px 14px rgba(0,0,0,.18);
+  opacity:0;transform:translateY(6px);transition:.2s;pointer-events:none;max-width:180px;
+}
+#kongpet-bubble.show{opacity:1;transform:translateY(0)}
+@media (prefers-reduced-motion:reduce){#kongpet-widget,#kongpet-widget img.kp-on{animation:none}}
+
+#kongpet-shop{
+  position:fixed;right:18px;bottom:124px;z-index:2147483645;width:240px;
+  background:#fff;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.2);
+  font-family:"Apple SD Gothic Neo",-apple-system,sans-serif;color:#3a2e2a;
+  overflow:hidden;max-height:70vh;overflow-y:auto;
+}
+#kongpet-shop.kp-collapsed .kp-slot,#kongpet-shop.kp-collapsed .kp-shop-ft{display:none}
+.kp-shop-hd{background:#ff8a5b;color:#fff;font-weight:700;font-size:14px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.kp-min{cursor:pointer;font-weight:700;padding:0 6px}
+.kp-slot{padding:8px 12px;border-bottom:1px solid #f5e7dd}
+.kp-slot-lbl{font-size:11px;font-weight:700;color:#ff8a5b;margin-bottom:5px}
+.kp-ad-ph{background:repeating-linear-gradient(45deg,#faf3ee,#faf3ee 8px,#f3e6db 8px,#f3e6db 16px);border:1px dashed #e0c9b8;border-radius:8px;padding:16px;text-align:center;font-size:12px;color:#b7a498}
+.kp-shop-item{display:flex;gap:8px;text-decoration:none;color:inherit;align-items:center}
+.kp-shop-item img{width:44px;height:44px;object-fit:cover;border-radius:8px;background:#f5e7dd;flex-shrink:0}
+.kp-txt{min-width:0}
+.kp-shop-nm{font-size:12px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.kp-shop-pr{font-size:13px;font-weight:700;margin-top:2px}
+.kp-dc{color:#d64545;font-size:11px}
+.kp-empty{font-size:12px;color:#b7a498;padding:6px 0}
+.kp-shop-ft{font-size:10px;color:#b7a498;padding:8px 12px;text-align:center}

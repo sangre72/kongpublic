@@ -1,0 +1,185 @@
+RECIPE: blender_box_modeling_techniques (SUBJECT-AGNOSTIC, reusable ∀ vehicle/object)
+GATE: verified 2026-09-07 a_4170 (worker1) — extracted from ModelY box-modeling, generalized.
+REG: kong-blender-wrap box_model op(scripts/runner.py). ANY "model a real object from refs" task.
+WHY: these techniques kept getting re-discovered per-subject; centralize so next subject(any car/appliance/
+     furniture/tool) reuses directly, not buried in one subject's STATUS. Subject-specific outline/widthcurve
+     still per-subject; the METHODS below are universal.
+WITH: RECIPE_blender_reference_photo_to_profile.txt(localhost-comfyui, subject workflow + box_model detail).
+
+═══ TECHNIQUE 1: OFFICIAL-SPEC-RATIO SCALING (skip blueprint-image tracing) ═══
+WHEN: subject has published manufacturer/catalog DIMENSIONS (any product w/ a spec sheet: cars, appliances,
+      monitors, furniture — L×W×H + key sub-measures).
+WHY: spec NUMBERS are more precise than pixel-tracing a blueprint/photo. a drawing-image trace inherits
+      camera/scan distortion; the numbers don't. USE NUMBERS FIRST, image only for surface-detail shapes.
+STEPS:
+  1. gather official dims (mm/inch): overall L, W, H + sub-measures (wheelbase, track, any landmark spans).
+  2. compute RATIOS (dimensionless = the ground truth, scale-independent):
+       L/H, L/W, W/H, (sub-measure)/L e.g. wheelbase/L, tire-dia/H, overhang/L.
+  3. pick ONE anchor in model units (e.g. H = roof-z above ground). derive the rest:
+       L = H·(L/H),  W = H·(W/H),  wheelbase = L·(wb/L),  tire = H·(tire/H).
+  4. APPLY to model: scale side_outline-x + x_stations + all part-x by (L_target / current_L);
+       set base_halfwidth = W/2; set axle-x = ±wheelbase/2; set wheel size = tire.
+  5. VERIFY: recompute model ratios, assert each within ~0.005 of official.
+INCIDENT(a_4170): photo-pixel ModelY had drifted L/H 2.69 vs official 2.9255(-0.23), L/W 2.28 vs 2.47(-0.19);
+   spec-rescale fixed all 4 to within 0.001 in one pass. W/H was already right(good widthcurve). the pixel
+   estimate was systematically off; the spec numbers were exact.
+GENERAL RULE: if a spec sheet exists → ratio-scale from numbers. reserve image-tracing for shape-of-curve
+   (silhouette outline, widthcurve tumblehome) that numbers can't give — NOT for overall proportions.
+
+═══ TECHNIQUE 2: FLAT-SHADE-FOR-BOXY + SELECTIVE-SMOOTH-FOR-ROUND ═══
+WHEN: subject has BOTH flat-panel regions (car doors/hood/roof, appliance sides, furniture faces) AND
+      genuinely round parts (wheels, knobs, lenses, rollers).
+PROBLEM: global smoothing/subdivision rounds the flat panels into a "pod/blob" — reads wrong from 3/4 even
+      when the side-silhouette matches. (subdiv=2→dome, subdiv=1→partial, smooth-SHADING alone also rounds
+      by interpolating normals across facets, hiding flat geometry.)
+STEPS:
+  1. BODY (the box): subdivide:0 + smooth:false (FLAT shading) → crisp flat panels + shoulder/beltline read.
+       use ring_verts:~20-24 (box_model param) for finer facets that stay flat (NOT to reduce roundness —
+       denser rings + ANY subdiv rounds MORE; density only helps at subdiv=0).
+  2. ROUND PARTS (wheels/arches/knobs): per-object smooth:true → they look round.
+       (add_object honors per-object smooth:true/false, default false=flat.)
+  3. TRADEOFF (state honestly): flat-shade = visible facet edges (low-poly look) but reads correctly boxy;
+       smooth/subdiv = prettier surface but round-pod. for hard-edged subjects pick FLAT.
+DIAGNOSE-FIRST RULE: before blaming widthcurve/topology/creases for roundness, render subdivide:0 to see the
+   BASE mesh — it's often already correct and subdiv is the sole smoother. (a_4170: base mesh was box-like,
+   subdiv=2 alone made the dome.)
+
+═══ TECHNIQUE 3: DUAL-VIEW ORTHO VERIFY (side AND front, not side-only) ═══
+WHY: matching the side-silhouette ALONE is insufficient — a model can score a low side-diff yet read as a
+     round pod because the FRONT-view width-profile(cross-section) is still cylindrical.
+STEPS:
+  1. side-ortho: camera [0,-N,H] look_at[0,0,H] {ortho:true, ortho_scale:S}. verify height/length silhouette.
+  2. front-ortho: camera [N,0,H] look_at[0,0,H] {ortho:true, ortho_scale:smaller}. verify width-vs-height.
+  3. front_widthcurve from FRONT ref = width-at-each-height. box subjects: WIDE FLAT sides low, widest at
+     the shoulder, tumblehome above the beltline — NOT a round arch from a narrow bottom.
+  4. AXLE/LANDMARK-ANCHORED OVERLAY(scripts/overlay_ref.py): scale model by a landmark-span ratio
+     (wheelbase) + align on that landmark, NOT naive resize-both-to-same-canvas(misaligns proportions).
+     draws ref+model silhouettes on one scale = the honest visual diff.
+  5. TRACE-ARTIFACT WARNING: pixel-trace catches DARK regions(windows/glass) as silhouette-top → false
+     "roof dips". exclude near-black(val<60) when tracing the body outline, or verify a suspected dip against
+     the actual render before "fixing" a non-existent one.
+
+═══ TECHNIQUE 4: EDGE-CREASE for local crisp edges (box_model crease params) ═══
+box_model {crease_bands:[{z_world:[lo,hi] (or z_frac), x_range:[lo,hi], weight}], crease_pillars:[x...]}.
+holds crisp beltline/roof-rail/pillar edges through subsurf while other areas stay smooth. USE z_world (not
+z_frac) for a beltline — a real beltline is constant WORLD-z; z_frac drifts as roof-height varies per-x.
+combine crease + a front_widthcurve SHOULDER-STEP(widthcurve tucks in above the belt) so the crease sits on
+an actual y-shoulder = beltline READS. BLENDER 4.x: crease = named float layer `crease_edge`
+(bm.edges.layers.float.get/new), old bm.edges.layers.crease REMOVED.
+
+═══ VERIFY DISCIPLINE (the core lesson, all techniques) ═══
+- measure the RENDERED output (ortho trace + numeric diff), not the designed values (wheels below ground add
+  height; a widthcurve value ≠ the shaded shape).
+- confirm a claimed fix VISUALLY in the render, from the angle that matters(3/4 for boxiness), BEFORE
+  reporting success. numbers-matching ≠ shape-correct (a_4170: reported width-numbers matched while the shape
+  was still a dome — wrong).
+- render subdiv:0 to unmask the true base geometry when diagnosing roundness.
+
+Basis: a_4170 ModelY box-modeling(worker1). subject-specific outline/widthcurve/details live in that
+subject's spec+STATUS; these METHODS are reusable for the next subject unchanged.
+
+═══ TECHNIQUE 5: BLUEPRINT (multi-view line-drawing) — better than photos when available ═══
+FREE full-res source that worked(a_4170): drawingdatabase.com/wp-content/uploads/YYYY/MM/<Model>.gif
+   (the-blueprints.com = paywalled preview only; 3dmodels.org = 403). curl -sL, convert gif→png(PIL).
+WHY better than photo: (1) true ORTHOGRAPHIC elevations(no perspective foreshortening) (2) has TOP view =
+   plan-view width-taper(front_widthcurve's x-taper) that side+front photos can't give (3) clean line-art
+   silhouette, no studio-lighting ambiguity.
+TRACE line-art(not filled): dark(<128)=edges on white; SILHOUETTE per column = first..last dark pixel(outer
+   outline). isolate each view by quadrant/band bbox first. CHECK ORIENTATION(nose left or right) via the
+   low-short-overhang end → flip x to your model frame if needed(my_xfrac = 1 - bp_xfrac).
+VALIDATION(a_4170): blueprint side aspect L/H=2.99 ≈ official 2.9255 ≈ ratio-scaled-model 2.926 → 3 sources
+   agree = proportions confirmed. blueprint then drives the CURVE-shape refinement(hood-slope, roof-peak-x,
+   liftgate-angle) that ratios alone don't specify.
+
+═══ ★HONEST CEILING of the box/loft/profile op-set (a_4170, MUST-READ before promising fidelity) ═══
+WHAT IT CAN DO: accurate SILHOUETTE(side-outline) + PROPORTIONS(official ratios) + boxy stance(flat-shade)
+   + coarse detail parts(added primitives: lights/mirrors/bumper/glass as separate cubes/cylinders).
+WHAT IT STRUCTURALLY CANNOT(not an iteration gap — a topology limit):
+   (1) MULTI-PANEL surfacing — box_model/loft make ONE continuous lofted ring-skin(X-perpendicular cross
+       sections). no separate hood/fender/door/quarter panels, no shut-lines/reveals. it's one seamless blob.
+   (2) CHARACTER-LINES(belt-kink, fender bulge, door swage, hood crease-to-headlight) — these are
+       diagonal/curved EDGE-LOOPS. the ring topology only has X-perpendicular loops + the vertical side-loops;
+       crease_bands sharpens THOSE, cannot create an arbitrary diagonal crease.
+   (3) COMPOUND curves not expressible as width-at-height-per-X-station.
+=> a good silhouette-diff(e.g. 0.04) + right proportions is NECESSARY-NOT-SUFFICIENT for a hero-render car.
+   the output ceiling of this op-set = a STYLIZED LOW-POLY model(correct proportions/stance/silhouette),
+   NOT a crisp surfaced production car. DO NOT keep chasing silhouette-diff to "fix" panel-fidelity — it's a
+   structural wall. DON'T over-promise; state this ceiling up front for any hard-surface subject.
+TO EXCEED IT needs a DIFFERENT approach: (a) major runner.py extension(hand-placed edge-loops, boolean panel
+   cuts, per-panel surfaces, subdiv-crease-weighting on arbitrary edges) OR (b) import a real mesh / use
+   Blender sculpt/geometry-nodes(not in current scriptable op-set) OR (c) accept low-poly as the deliverable.
+
+═══ TECHNIQUE 6: CHARACTER-LINES via crease_line op (a_4170 tool-extension — breaks the ceiling) ═══
+NEW runner.py op `crease_line` — the arbitrary-line capability the ring-topology lacked. bisect_plane cuts an
+arbitrary plane(or a swept path) → a new edge-loop where the line goes; then bevel+crease it.
+  {op:'crease_line', target, path:[[x,y,z]...](WORLD polyline), sweep_axis:[0,1,0](surface-out dir:
+   +Y=flank for a side line, +Z=hood for a top line), bevel:{offset,segments,profile}, crease:0..1,
+   limit:{x:[lo,hi]}(localize)}
+CRITICAL IMPL LESSONS(debugged a_4170):
+  (1) ★WORLD→LOCAL: bmesh verts are in the object's LOCAL space; the path/planes come in WORLD → MUST
+      transform(obj.matrix_world.inverted()) before bisect. missing this = plane misses the mesh entirely,
+      0 cut edges(the first-attempt bug: cube at z=1 world, path z=1.1 world = local z0.1... plane at local
+      z1.1 was above the cube).
+  (2) plane normal = tangent × sweep_axis → the cut runs ALONG the path around the body. horizontal beltline
+      (tangent≈X, sweep +Y) → normal≈Z = a horizontal loop.
+  (3) ★a bevel/crease on a FLAT coplanar face is INVISIBLE(both sides stay in-plane). a character-line only
+      SHOWS where the surface actually changes slope across it — i.e. on a CURVED body(the ModelY flank), not
+      a flat test-cube face. verify on the real curved surface, not just a cube.
+VERIFIED: applied ModelY beltline(z~1.0) + fender-line(z~0.7) traced from body → 224+314 cut edges, VISIBLE
+  creases on the curved flank = the diagonal/curved lines box_model's ring loops could never make. ceiling
+  broken for character-lines. (panel_cut/panel_recess ops follow same bisect+world→local pattern.)
+
+═══ TECHNIQUE 7: PANEL SEAMS + RECESSES (panel_cut / panel_recess ops, a_4170) ═══
+`panel_cut` {target, cuts:[{co,no}(WORLD)...], gap(inset-reveal), crease} — bisect the skin along planes,
+   inset the seam faces by `gap` = visible shut-lines(hood/door/quarter divisions). same WORLD→LOCAL transform
+   as crease_line(MUST). ModelY set: cowl seam(co~[1.25,0,1.0] no~[1,0,0.25]), front-door(x0.35), rear-door
+   (x-0.75), all no~[1,0,0]. gap~0.010, crease~0.65.
+`panel_recess` {target, face_normal, x_range, z_range, thickness, depth} — select faces facing face_normal
+   within the bbox, inset+push-in = window-frame/grille/light-housing recess. (face selection is in LOCAL
+   space; fine for box bodies at origin.) greenhouse: face_normal[0,1,0] z_range[1.15,1.45].
+APPLY ORDER on a body: box → panel_recess(on base surface) → crease_line(character-lines) → panel_cut(seams).
+   do all bisect-based ops BEFORE heavy subdiv(bisect on a dense mesh makes messy n-gons).
+RESULT(bm53): ModelY with beltline + fender-swage character-lines + hood/door/quarter panel-seams = no longer
+   a seamless blob, reads as a paneled car. the box/loft ceiling(TECHNIQUE ceiling note above) is now BROKEN
+   by TECHNIQUES 6+7 — arbitrary character-lines AND panel separation both achievable scriptably/headless.
+
+═══ TECHNIQUE 8: REAL 3D MESH reference (Sketchfab, best-possible ref) ═══
+FREE CC-Attribution meshes on Sketchfab(download needs a free account — Epic/Google SSO; USER logs in, never
+the worker: credential-boundary). check the model page: only 'Add To/Embed/Share' = downloads DISABLED by
+author; a 'Download 3D Model' button = downloadable. click → format dialog(fbx/USDZ/glTF/GLB; pick GLB =
+self-contained, imports clean via bpy.ops.import_scene.gltf). ModelY-2021(2.4M tri, ~85MB) = c0a86cac...
+IMPORT+ALIGN: import → join all meshes → measure bbox → NOTE the length-axis(this mesh: length=Y, height=Z,
+width=X). for a SIDE ortho view put the CAMERA on the +X axis(look -X) — don't fight object-rotation(bound_box
+lags un-applied transforms; camera-placement is reliable). ortho_scale=length*1.1, cam-z=height/2.
+WHY BEST: gives EXACT roofline curve, door shut-line PATHS, character-line curvature, DLO/window shapes, arch
+profiles — measure panel-lines directly from real geometry instead of photo/blueprint guessing. saved:
+examples/tesla_model_y_REAL_mesh.glb. use as the ground-truth to trace crease_line paths + panel_cut planes.
+
+═══ TECHNIQUE 9: POLYGON DENSITY for complex curvature (a_4170, user rule-of-thumb) ═══
+RULE: a real curved car body needs FAR more polys than the default. ~10+ faces per curved region/panel MIN.
+  ring_verts=14(default) or 24 is spread thin across the WHOLE cross-section(bottom+side+top+side = ~6/quadrant)
+  → coarse-faceted flank. x_stations too sparse → hood/A-pillar/roof-peak/C-pillar/liftgate transitions blur.
+TEST(a_4170): ring_verts 24→60(2.5x) + x_stations 37→73(2x) = VISIBLY smoother flank/shoulder curvature
+  while holding flat-panel structure(subdiv0+flat-shade). real improvement from density ALONE.
+BUT density does NOT fix SHAPE problems: front-face slab-ness, panel_cut hood-BANDING(horizontal seam steps),
+  mirror-placement, rear-slab = these are shape/panel issues, not resolution. diagnose which is which: if a
+  surface looks coarse-but-right-shape → add density; if it looks wrong-shape → fix the outline/widthcurve/
+  panel, not the poly count. don't throw density at a shape bug.
+COST: ring_verts*x_stations = base face count; 60*73≈ fine headless. keep subdivide=0 at high ring_verts
+  (subdiv on dense = rounds MORE, per TECHNIQUE ceiling note). density is the alternative to subdiv for holding
+  BOTH smooth-curves AND flat-panels.
+
+═══ TECHNIQUE 10: COMPLEXITY-CALIBRATION + 3-AXIS DEPTH MEASURE (u_4207 2026-09-07, MUST) ═══
+WHY: recurring observation-gap — model built at toy-complexity while judging it "close" to a real subject.
+  REAL DATA POINT: authoritative ModelY GLB = 113 SEPARATE meshes / 2.43M tris. our bm56 body ≈ 1 mesh /
+  ~9k tris = ~270x less dense, 1/113 the part-count. every door/handle/light/trim/seal = its OWN object.
+RULES:
+  1. ★assume ANY art/engineering subject(car, appliance, building, machine) = 100,000+ constituent
+     polygons/objects. if your model has <1% of that, it CANNOT "look like" the subject — calibrate all
+     self-assessment against this before claiming resemblance. toy-count model = toy-look, always.
+  2. ★must be able to MEASURE the subject in ALL THREE AXES(front/rear, left/right, DEPTH) — never judge
+     from one 2D projection. minimum verify set: front-ortho + side-ortho + top-ortho + one 3/4 perspective.
+     a silhouette matching in ONE view says nothing about the other two (proven: side-match 0.043 while
+     front was still a round dome).
+  3. when a real reference mesh exists: diff YOUR part-count/poly-count against ITS part-count/poly-count
+     first — that ratio IS the honest "how far off are we" number, before any silhouette metric.
