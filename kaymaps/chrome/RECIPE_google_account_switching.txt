@@ -1,0 +1,38 @@
+RECIPE: google_account_switching (Chrome/Google 다중계정 전환 — 학습+실증 2026-09-09 u_4418)
+GATE: verified (kongbot757 추가 로그인 플로우 실측)
+REG: Gmail/Google 서비스에서 owner계정 유지한 채 보조계정(kongbot757) 사용.
+
+===== 개념 (혼동주의) =====
+- CHROME BROWSER PROFILE ≠ GOOGLE WEB SESSION.
+  * Chrome profile = 브라우저 사용자(북마크/확장/저장비번). 우상단 프로필칩(브라우저 크롬UI).
+  * Google web session = accounts.google.com 쿠키에 로그인된 Google 계정(들). 웹페이지 우상단 아바타.
+  * 하나의 Chrome profile 안에서 여러 Google 계정 multi-login 가능(owner + kongbot757 동시).
+- MULTI-LOGIN + /u/ 인덱스: 여러 계정 로그인시 각 계정은 URL의 /u/N 으로 접근.
+  * gmail.com/mail/u/0/ = 첫번째(대개 owner), /u/1/ = 두번째 추가계정, ...
+  * ★/u/<email>/ 형식은 무효(Temporary Error) — 반드시 /u/<숫자>/. 어느 숫자가 누구인지는 아바타 메뉴에서 확인.
+  * 서비스(예 Discord 웹)가 "Google로 로그인"할 때 어느 계정 쓸지는 계정선택창에서 고름(multi-login이면 chooser 뜸).
+
+===== 아바타 칩 계정-chooser (웹페이지 우상단) =====
+- 클릭 대상 = a11y "Google 계정: <이름> (<email>)" 아바타(예 @1466,315).
+- 메뉴 항목: (a) "다른 계정 추가"=새 계정 로그인(owner 유지, 세션에 추가) (b) 계정 리스트 클릭=그 계정으로 전환 (c) "모든 계정에서 로그아웃"=전체 로그아웃(주의, owner도 나감→금지).
+- ★owner 로그아웃 금지. 항상 "다른 계정 추가"로 kongbot757 ADD(전환은 /u/ 인덱스나 chooser로).
+
+===== 로그인 폼 필드 프로토콜 (MUST, 재사용 field-focus rule) =====
+- 이메일 단계: "이메일 또는 휴대전화" 필드 focus 확인 → kongbot757@gmail.com 타이핑 → 평문 이메일 보이는지 검증 → 다음.
+- 비밀번호 단계: "비밀번호" 필드 focus 확인 → 타이핑 → 마스킹 dots 검증. ★타이핑前 a11y로 focused 필드 label 읽어 일치확인(비번을 이메일칸에 넣는 사고 방지).
+- Google 계정 비밀번호 ≠ Discord 비밀번호(별개). Gmail 로그인엔 Google 비번 필요 — 없으면 유저에 pause.
+
+===== kongbot757 사용 절차 =====
+1. mail.google.com → 아바타(@~1466,315) → "다른 계정 추가"(@~1284,510).
+2. 로그인 폼: 이메일=kongbot757@gmail.com → 다음 → 비밀번호(Google 비번) → 로그인. (2단계 인증/비번 없으면 유저 pause.)
+3. 추가되면 kongbot757 inbox = gmail.com/mail/u/1/(또는 chooser에서 kongbot757 클릭). Discord 인증메일 열어 verify링크 클릭.
+4. owner(panic.hill)는 /u/0/ 그대로 유지.
+
+PITFALL: 계정 chooser 안 뜨고 바로 owner로 들어가면 이미 multi-login 상태 — URL /u/1/ 로 직접 이동하거나 아바타에서 kongbot757 선택.
+
+===== ★ BROWSER SEPARATION (u_4423 2026-09-09) =====
+- kongbot의 Gmail = SAFARI 전용(kongbot 전용 브라우저). Chrome = owner Google세션 전용. ★섞지 말 것.
+- Discord 가입/사용 = Chrome OK. 단 Google/Gmail(인증메일 읽기 등) = Safari에서 kongbot767@gmail.com 로그인.
+- 절차: `open -a Safari` → Safari에서 gmail 로그인(kongbot767) → Discord 인증메일 verify링크 클릭. Chrome의 owner세션 무관.
+- 이유: owner Google세션(Chrome)과 kongbot(Safari) 완전분리 → owner PII/세션 유출·혼선 방지(security §8).
+- ★NO PASSKEY: Google/Discord "패스키 만들기/간편 로그인" 제안시 항상 거절(나중에/건너뛰기). 비밀번호 로그인만. (u_4432)

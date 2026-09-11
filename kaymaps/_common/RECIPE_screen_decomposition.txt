@@ -1,0 +1,112 @@
+RECIPE: screen_decomposition (★CORE — how to SEE a screen precisely despite weak native vision)
+GATE: created 2026-09-11 (owner u_4599). Evidence = not-a-robot L5/L9, ARC lp85/ls20.
+REG: ANY visual task on screen — games, GUI automation, verification, diffing.
+WHY: our failure mode is almost never reasoning; it is READING THE SCREEN. A full-desktop screenshot at 1x is
+  below the resolution at which the deciding detail exists, so every judgement made from it is a guess dressed
+  as an observation. This recipe replaces "look harder" with a MECHANICAL DECOMPOSITION PROCEDURE.
+CROSS-REF: unknown_game_rule_discovery.txt(P11 framing, P13 resolution, P14 one-action-then-observe, P15 phase),
+  zoom_crop_value_verify.txt, screenshot_coord_conversion.txt, coordinate_targeting_standard.txt.
+
+===== D0. NEVER JUDGE FROM A RAW FULL-SCREEN CAPTURE =====
+A 1x full-desktop png is for LOCATING things, never for deciding them. If a decision depends on a line, an edge,
+a character, a colour boundary or an alignment, the raw capture is inadmissible as evidence. Decompose first.
+
+===== D1. DECIDE THE UNIT OF JUDGEMENT, THEN FRAME TO IT (the one rule that fixes most failures) =====
+Ask: what object is being judged?
+ - a RELATION between parts (continuity, alignment, symmetry, "do these meet?") -> frame must contain BOTH parts + the boundary between them. Per-part crops destroy the answer.
+ - ONE value (a label, digit, colour, state) -> crop that element ALONE, as large as possible.
+ - a LAYOUT (what cells exist, what moved) -> frame the whole container, nothing outside it.
+★the crop boundary must never fall where the information lives.
+
+===== D2. RAISE REAL RESOLUTION BEFORE LOOKING (two independent levers, use both) =====
+ (a) APP-SIDE ZOOM — make the thing physically bigger in real pixels BEFORE capture.
+     browser: View menu > Zoom In x3-5 (menus ARE a11y-visible even when the canvas is not).
+     ★keyboard zoom is unreliable: in Safari here cmd+/cmd= ZOOMED OUT. Verify direction by capturing after one press.
+     ★after zooming, EVERY coordinate is stale — re-measure before any click.
+ (b) CAPTURE-SIDE — `screencapture -x -R x,y,w,h` the target rect ONLY, then `sips -Z <big>` to upscale.
+ Upscaling alone cannot invent detail that was never captured; (a) is what actually adds information. Do (a) then (b).
+
+===== D3. TILE A LARGE SURFACE INSTEAD OF SHRINKING IT =====
+When the region is too big to read at once, do NOT capture it small. Split it into overlapping tiles
+(e.g. 2x2 or 3x3 of the region, ~15% overlap so no feature is cut), read each at full size, and compose the
+conclusion. Overlap matters: a feature sliced by a tile edge is the classic missed observation.
+
+===== D4. MEASURE, DO NOT EYEBALL — MAKE THE CRITERION NUMERIC =====
+"looks aligned/continuous/same" is not an observation. Convert to a number:
+ - continuity: read the coordinate where a feature meets an edge on BOTH sides; they must be equal (reference-line test).
+ - position: read the rect/centre, compare deltas.
+ - colour/state: sample the exact pixel, compare values, ¬impressions.
+ - structure: trace the actual separator lines and ENUMERATE cells; never assume "it is a 3x3".
+If you cannot state the criterion as a comparison of two numbers, you cannot falsify your own claim — and you will loop.
+
+===== D5. DIFF TWO CAPTURES TO DISCOVER RULES (the single strongest technique) =====
+The reliable way to learn what an action does: capture BEFORE -> perform ONE action -> capture AFTER -> compare
+deliberately, field by field (position, size, count, colour, selection marks, counters, grid lines, text).
+Enumerate what changed AND what did not; both are information. This is how L9's rule was settled in 3 probes
+after an hour of guessing, and it is how the owner demonstrated it.
+★one action per diff. Batched actions make attribution impossible (cf P14).
+
+===== D6. STATE WHAT YOU ACTUALLY SEE, SEPARATELY FROM WHAT YOU INFER =====
+Write observations as: OBSERVED(literal, from the image) / INFERRED(conclusion). Most of our wrong turns were
+inferences recorded as observations ("the middle column is vertical" when only its top tile had been seen).
+If an item cannot be pointed at in a specific crop, it is INFERRED — mark it and treat it as falsifiable.
+
+===== D7. RE-OBSERVE AFTER EVERY STATE CHANGE; TRUST NO STALE FRAME =====
+Any click may re-flow the layout (grids re-split, panels move, content scrolls). A coordinate or a judgement
+older than the last action is invalid. Capture fresh, re-measure, then act. Never carry numbers across a re-render.
+
+===== D8. VERIFY THE CAPTURE ITSELF BEFORE TRUSTING IT =====
+Cheap sanity checks that have each burned us:
+ - is the intended app FRONTMOST? (`open -a "<App>"; sleep 1.5` first — otherwise you captured the terminal)
+ - does the crop actually contain the subject, whole, with its boundary? (a crop that clips the widget hid the
+   refresh button from us for ~40 actions)
+ - is the content settled, or mid-animation? (L3: a word read during its settle animation was unreadable/misread 3x)
+ - is this frame from BEFORE or AFTER my last action? (capture immediately, ¬reuse an older file)
+
+===== D9. PROCEDURE (run this, do not improvise) =====
+ 1. foreground the app; confirm it is frontmost.
+ 2. name the unit of judgement in one line (D1).
+ 3. zoom the app up (D2a); re-measure geometry.
+ 4. crop exactly the unit, upscale (D2b); tile if large (D3).
+ 5. write OBSERVED items, with numbers where a comparison decides anything (D4, D6).
+ 6. act ONCE; capture again; diff (D5, D7).
+ 7. repeat. Submit/commit only when the criterion is numerically satisfied and the phase is COMMIT (P15).
+
+===== D10. WHAT THIS BUYS =====
+This is a prosthetic for weak native vision: it converts "look and judge" (which we fail) into
+"enlarge, crop, measure, diff" (which we can do reliably). Where a vision-native model sees the answer,
+we MEASURE it — slower per step, but falsifiable and repeatable, and it does not degrade with fatigue.
+EVIDENCE: not-a-robot L5 cost ~70 actions judging by eye; after adopting enlarge+measure+one-action-diff,
+L6/L7/L8 fell quickly and L9's mechanic was pinned with 3 deliberate probes.
+
+===== ★D11. RECORD THE BEFORE-STATE AND YOUR OWN ACTIONS (owner u_4618/u_4619) =====
+THE FAILURE THIS COMES FROM (not-a-robot L9, cost ~2h): the act of SELECTING tinted the target, so the
+colour we were searching for stopped existing on screen. We kept re-reading the CURRENT frame to find a
+target that our own clicks had disguised — a self-defeating loop. Detection kept latching onto brown bricks
+and 90px specks while the real sign sat there, recoloured.
+RULES:
+ 1. BEFORE the first state-changing action, SAVE the clean frame. That untouched capture is the ground truth
+    for "where the target is"; the live screen is not, once you have modified it.
+ 2. KEEP A LOG of your own actions: what you clicked, where, and what it did. You cannot infer your own
+    history from a mutated screen.
+ 3. ★CALIBRATE THE POST-ACTION APPEARANCE(owner's key insight): take ONE cell you are CERTAIN is the target,
+    act on it, and RECORD THE COLOUR IT BECAME. That "selected-target" colour is now your search key for the
+    rest of the task. Do the same for a cell you are certain is NOT the target. Two reference samples give a
+    separator that actually works.
+    WORKED EXAMPLE(L9): selected sign = (110,85,123) -> R-G = +25(red survives under the blue tint).
+    selected non-sign building = (78,90,116) -> R-G = -12. Separator: R>G means sign, R<G means not.
+    Verified: the sign area was dominated by (100,80,120) at 4677px. Guessed thresholds had failed repeatedly;
+    two measured samples settled it immediately.
+ 4. Re-derive the reference colours after any zoom/theme/state change — do not carry constants across sessions.
+
+===== ★D12. IDENTIFY BY SHAPE, NOT COLOUR ALONE (owner u_4609/u_4615/u_4616) =====
+Real-world targets are GEOMETRIC: a stop sign is an OCTAGON, yield a TRIANGLE, most signs are circles/squares.
+Colour alone lights up bricks, awnings, signage and car paint — that is exactly how we produced mass
+over-selection. Use colour to PROPOSE and shape to CONFIRM:
+ 1. build the colour mask (per D11's calibrated key),
+ 2. take CONNECTED COMPONENTS and keep the LARGEST blob — a real object is one big connected region;
+    stray matches are small and scattered,
+ 3. SANITY-CHECK THE BLOB'S GEOMETRY before trusting it: a sign's bbox aspect ratio is near 1.0 and its
+    pixel count is large. A blob with n=92 and ratio 2.14 is a brick wall, not a sign — reject it and
+    re-tune rather than acting on it. (Both numbers caught real false positives in L9.)
+ 4. everything outside that single blob is NOT the target, by definition.

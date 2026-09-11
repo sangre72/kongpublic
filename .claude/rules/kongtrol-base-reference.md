@@ -286,3 +286,42 @@ $KT see --help
 ```
 
 Basis: user "kongtrol is base tool, reference commands here — don't invent new commands, always verify binary exists first, use per recipe STEPS". Source reference: kongtrol/src/main.rs.
+
+---
+
+## ★ Codesign / TCC — silent total input failure (MUST, 2026-09-12 incident)
+
+**Symptom**: `kongtrol input click` / `input key` report success but NOTHING happens on screen —
+no error, no exception, zero pixels change. Both mouse AND keyboard are dead.
+
+**Root cause**: the binary's codesign identifier changed or vanished. macOS TCC keys the
+Accessibility grant to that identifier, so an unsigned/re-signed binary is treated as a different
+app and its permission is revoked. `cargo build` produces an unsigned binary, so ANY rebuild can
+trigger this.
+
+**Diagnose first (10 seconds, before blaming the app/page/game)**:
+```bash
+kongtrol see --a11y --compact     # "권한 부족" => permission problem, ¬target-app problem
+codesign -dvvv kongtrol/target/release/kongtrol 2>&1 | head -3
+#   "code object is not signed at all"  -> unsigned, THIS bug
+#   Identifier=<random hash>            -> random identifier, THIS bug
+#   Identifier=com.kongbot.kongtrol     -> signature fine, look elsewhere
+```
+
+**Fix**:
+```bash
+bash kongtrol/build_and_sign.sh          # build + sign with the fixed identifier
+# or sign only:
+codesign -s - --force --identifier "com.kongbot.kongtrol" kongtrol/target/release/kongtrol
+```
+Then the owner must re-approve it once: 시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용 →
+toggle kongtrol off/on (or remove with − and re-add with +). Verify with `see --a11y` again.
+
+★ALWAYS build via `kongtrol/build_and_sign.sh`, never bare `cargo build --release` — the script
+re-signs with the fixed identifier so the grant survives. Identifier `com.kongbot.kongtrol` is
+FIXED; changing it forces re-authorization.
+
+**Misdiagnosis to avoid**(cost ~1h on 2026-09-12): a keyboard-driven web game appeared to "not
+accept arrow keys" while mouse levels had worked earlier in the session. The real state was that
+ALL input had died mid-session. Rule: when an input stops working, test the OTHER input kind and
+run `see --a11y` BEFORE theorising about the target application.

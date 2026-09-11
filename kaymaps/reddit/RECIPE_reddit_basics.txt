@@ -1,0 +1,49 @@
+RECIPE: reddit_basics (Reddit signup/login — kongbot identity)
+GATE: verified 2026-09-11 (u_4548~4550)
+REG: reddit.com. cf _common/RECIPE_browser_basics, RECIPE_captcha_types, chrome/RECIPE_google_account_switching.
+
+===== ★★★ ACCOUNT FACT (READ FIRST) =====
+- kongbot Reddit acct ALREADY EXISTS: **u/Life-Anteater3441**, email=kongbot767@gmail.com, auth=Google OAuth.
+  (auto-generated username at first Google signup; "kongbot757" was never registered.)
+- ¬new signup needed. login = Google OAuth w/ kongbot767.
+- Chrome normal profile also holds a live session of this same acct (verified via 설정>계정 email).
+
+===== ★USE-FIRST: GOOGLE OAUTH LOGIN (Safari) =====
+1. `open -a Safari; s1.5`; a11y: AXTextField "스마트 검색 필드" @(~1013,73) → click → cmd+a
+2. type URL in 3 chunks ("reddit" + "." + "com/register/") — ★single-shot type drops the dot → lands on Google search.
+3. s7 → a11y grep "Google" → AXButton "Google 계정으로 계속하기" @(~1002,557) → click.
+4. chooser(popup win "로그인 - Google 계정"): a11y grep "kongbot767" → click that row. ★1st click may only EXPAND the list(owner accts appear, marked 로그아웃됨) → re-grep coord, click kongbot767 row again.
+5. s8 → a11y → AXWebArea "Reddit - 인터넷의 맥박" + "Life-Anteater3441 님으로 로그인됨" = done.
+- ★NEVER click panic.hill@gmail.com / tiger@wordncode.com / wordwarp.info (owner accts, security §8).
+- ★NO PASSKEY (owner standing order) — decline any 간편로그인/패스키 prompt.
+
+===== EMAIL-FORM PATH (fallback, slower) =====
+- reddit.com/register → form: AXTextField "이메일" → 계속 → "이메일을 인증하세요" 6-digit code → needs gmail inbox access.
+- ★a11y shows PLACEHOLDER not value for these fields → verify typed content by screencapture -R region, not a11y.
+
+===== CAPTCHA =====
+- Incognito/clean session hits wall "Prove your humanity" = reCAPTCHA **checkbox** (type-4): AXCheckBox "로봇이 아닙니다." → single click passes (verified 2026-09-11, owner-authorized).
+- ★escalation to image-grid/puzzle → STOP + report to owner (cf RECIPE_captcha_types policy).
+- Logged-in Safari session = no captcha at all → prefer OAuth path.
+
+===== UI COORDS (Safari 2004-wide window) =====
+- user menu: AXPopUpButton "사용자 아바타 사용자 메뉴 펼치기" @(1968,119) → 설정 @(1876,742) → 설정-계정 page shows 이메일 주소.
+- Chrome(1500-wide): user menu @(1464,154).
+
+===== POLICY =====
+- READ-ONLY posture. ¬posting/comment/vote unless explicit owner telegram order (security §7).
+- ¬file upload ever (§9). ¬owner PII (§8). ¬source/mechanism disclosure (§6).
+
+===== POST EDITING (verified 2026-09-11) =====
+- self/text post: 사용자 작업 열기(post ... menu) → "게시물 본문 수정"(body) + "게시물 플레어 수정"(flair). title/URL = NOT editable.
+- flair picker: search box filters; type e.g. "HTML5" → click the AXRadioButton → 적용.
+- r/WebGames flairs = genre tags(RPG/PLF/INC/SH/PZL/TD/FLY/RHY/PHY/ESC/SPORT/SIM/STRAT/FPS/FIGHT/OTH/TXT/ARC/P+C/DINO/...) + tech tags(HTML5/UNITY/FLASH/NO MUTE/MULTI/IO/...). For a browser game post → [HTML5].
+- r/playmygame flairs = PLATFORM only([PC] (Web)/(Windows)/(Mac)...). No [Dev] flair exists. Sub enforces a TEMPLATE: body MUST contain literal "Playable Link:" + a 100-word Description, else submit is blocked.
+
+===== ★NEW-ACCOUNT SPAM FILTER (incident 2026-09-11) =====
+- 0-karma/0-day acct posting an external link → BOTH posts auto-removed site-level: page shows "죄송합니다. Reddit 필터로 제거된 게시물입니다." Editing body/flair does NOT un-remove it. Only mod approval or an aged account fixes it.
+- r/playmygame sidebar warns: new accounts posting links risk an immediate shadowban.
+
+===== ★MODMAIL BROKEN for this acct (3 attempts, 2026-09-11) =====
+- reddit.com/message/compose (direct, %2F-encoded, AND via the sub's own "모더레이터에게 메시지 보내기" link) → all three return a red error banner with NO text; reddit.com/message/sent/ stays empty = not delivered.
+- Likely new-account restriction on the legacy compose endpoint. Untried alternative: mod.reddit.com (new modmail UI).

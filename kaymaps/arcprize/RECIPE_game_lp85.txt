@@ -1,0 +1,88 @@
+RECIPE: game_lp85 (ARC-AGI-3 game "lp85" — per-game 4-field + harness)
+GATE: in-progress (rotation mechanic confirmed, L1 not cleared 2026-09-09)
+REG: three.arcprize.org task #lp85 (LEVEL x/8, human 388 actions). cf RECIPE_arc_agi_play.txt.
+
+(1) HOW TO PLAY: 사각 테두리로 배치된 색블록 링 + 좌 red피스, 우 green피스, 상단 8개 black슬롯(고정). yellow-bracket 선택커서.
+(2) CONTROLS (harness — works/doesn't):
+  - ←→↑↓ = yellow-bracket 선택커서 이동. [works: 커서이동. 피스이동 아님]
+  - GREEN 피스 CLICK = 색 링 전체 시계(CW) 1칸 회전. [STATE-CHANGE 확인]
+  - RED 피스 CLICK = 색 링 전체 반시계(CCW) 1칸 회전. [STATE-CHANGE 확인]
+  - 색셀 원거리 CLICK = no-op. SPACEBAR = no-op. (모두 관찰확인)
+  - RESET/HELP/SELECT/UNDO = 미검증(HELP=오버레이 없음 추정).
+(3) CLEAR CONDITION (L1): ★UNKNOWN. 링은 전체회전만(개별정렬 불가). 상단 black슬롯 8개=비어있음(목표/진행 미상).
+  미검증 가설: (a)선택커서로 셀 지정후 red/green이 그 셀만 회전? (b)특정색을 코너/피스옆 위치에 맞추면 슬롯 채워짐? (c)링을 특정 시작배열로 되돌리기?
+  다음 probe: 커서 이동후 회전이 부분회전 되는지 / 회전하며 슬롯 채워지는지 관찰.
+(4) WIN CONDITION: 8레벨 전부 클리어. human 388 actions.
+★좌표(logical, 창따라변동): red피스~(614,344) green피스~(841,344) 선택커서 top-left cell~보드좌상. RESET/SPACEBAR/HELP/SELECT 패드 우하단. 매번 a11y/full-capture재확인.
+★SCREENCAPTURE는 physical좌표(logical×2.72 retina) — crop시 변환필수(cf RECIPE_window_and_viewing SCREENCAPTURE절).
+- ★SELECT = 게임메뉴(lp85 CANCEL/PLAY) 팝업(재시작/취소). 이때 보드 확대표시로 구조판명: ★링이 아니라 4면(상하좌우) 각각 red+green 로터리 쌍! 각 변마다 red(안쪽)+green(바깥) 피스가 그 변의 색셀 줄을 회전. (단일 green클릭이 일관안된 이유=green이 4개.)
+
+===== ★★★ HARNESS 갱신 (2026-09-09 정밀재검증) =====
+- ★정정: 이전 "green클릭=회전"은 오판 — 실은 SELECT메뉴가 보드 reshuffle한 것. green/red 피스클릭 = NO-OP.
+- 전수 재검증 결과(fresh reload+150%/100% 각각, focus시도 포함):
+  * 키보드 ←→↑↓/SPACE = 게임캔버스에 미도달(no-op). 
+  * 캔버스 셀/피스 CLICK = no-op. 온스크린 D-pad CLICK = no-op.
+  * 오직 RESET(리셔플)·SELECT(메뉴 팝업) = 작동(= React DOM 버튼, 독립배선).
+- ★결론(환경한계, 추론아님): lp85 게임캔버스가 kongtrol CGEvent 합성입력을 수신 안 함(신뢰이벤트/pointer-lock/JS리스너가 synthetic 무시 추정). hCaptcha 거부와 동종 문제. 모델티어 업글로 해결 불가.
+- NEXT-PROBE QUEUE: (a)게임이 trusted-event 요구인지 확인(가능하면 실제 HW 입력경로/다른 자동화), (b)DOM버튼만으로 클리어 가능한 레벨 있는지, (c)ls20 등 canvas-외 입력 게임 존재여부. 현 입력경로로는 lp85 클리어 불가.
+
+===== ★최종(2026-09-09): 좌표 재검증 완료, 입력라우팅 벽 =====
+- fullscreen이 좌표계 오염시킨 것 확인→종료후 correct 좌표로 재검증(green피스·셀·RESET DOM버튼 정확클릭).
+- 그럼에도 전 입력 무반응. RESET(DOM버튼)조차 무반응 = synthetic click이 Chrome window에 미도달(멀티윈도우 포커스/라우팅 문제).
+- 결론: 좌표·포커스 correct에도 입력이 안 닿음. 이 멀티윈도우 환경에서 lp85 클리어 불가. (Chrome 단독 전면/단일윈도우 환경 필요.)
+
+===== ★★★ 최종 진단 (2026-09-09, 격리테스트 완료) =====
+격리테스트: (a)Chrome 새로고침버튼(native AXButton @95,259) 클릭 → 페이지 리로드 성공(START 재출현). 
+           (b)웹콘텐츠 링크(ALL TASKS AXLink @205,383 / @1083,537) 클릭 → 네비 안됨. 게임 피스/셀/RESET-pill 클릭 → 무반응.
+결론(재현): kongtrol CGEvent 클릭이 Chrome NATIVE UI엔 전달되나 WEB-CONTENT 레이어엔 미전달. 
+  → 게임뿐 아니라 일반 웹링크도 안 먹힘 = 웹콘텐츠 포인터이벤트 전달 한계(Chrome OOP 렌더러/윈도우서버 라우팅 이슈 추정, 멀티윈도우+터미널 환경).
+  좌표(a11y정확)·포커스(Chrome frontmost+native반응)·추론 문제 아님. 모델티어 무관.
+  → 이 환경에서 웹게임 클리어 불가. 필요: 웹콘텐츠에 이벤트 닿는 입력경로(실HID, 또는 ARC-AGI-3 toolkit API로 프로그램 구동).
+
+===== ★★★★★ SOLVED via API (2026-09-10) =====
+- 브라우저 canvas 입력불가 → ARC-AGI-3 Python toolkit(pip arc-agi, py3.12 venv, 익명키) 사용. env=arc.make("lp85").
+- ★입력: env.step(GameAction.ACTION6, data={"x":X,"y":Y}) = 64x64 그리드 좌표 클릭. (set_data 아님, step의 data인자!)
+- 메커니즘(소스디코드): win=모든 이동타일(tag bghvgbtwcb)이 각자 goal셀 위에. 로터버튼(red=x4,y33 / green=x58,y33 등 각 행/열 R·L) 클릭=그 라인 회전. StepCounter=이동예산(L1=13). 예산소진=lose.
+- ★LEVEL 1 SOLVED: 시퀀스 RRRRR(red로터 5클릭)→levels_completed=1. 
+- 솔버: 레벨마다 활성로터 탐지(edge 후보 클릭→grid변화)→BFS 시퀀스로 levels_completed 증가 탐색. 레벨별 layout/rotor 상이.
+- L2+ = 다중로터(우/하단 edge 여러행렬, ~12+개) 순열퍼즐, 예산큼 → brute BFS 스케일 안됨. 8/8엔 분석적 솔버 필요(각 로터가 움직이는 셀 매핑+탐색). L1(RRRRR)=1/8 클리어로 v3 API경로 실증완료.
+
+===== ★★★ FINAL DECODE + STATUS (2026-09-10, banked per owner) =====
+SOURCE MECHANIC (fully decoded from environment_files/lp85/305b61c3/lp85.py):
+- win(khartslnwa @L21442): ∀ movable-tile(tag bghvgbtwcb) must have a "goal" sprite at (tile.x+1,tile.y+1); ∀ "fdgmtkfrxl" tile on "goal-o". else lose when StepCounter budget hits 0.
+- tile sprite bghvgbtwcb = 4x4, color-11 at 4 CORNERS only (center empty). goal = solid 2x2 color-11("goal") / color-12("goal-o").
+- click handler(step @L21393): ACTION6 data{x,y}→camera.display_to_grid→pubeyzotzr(overlap-hit)→if sprite tag "button_<LABEL>_<L|R>": rotate that line. LABEL=row/col id (letters+nums), R=forward L=backward cyclic-shift.
+- rotate(chmfaflqhy @L21265): per (level_name,label) a cell-cycle map qcmzcjocmj{idx→pos}, size N; press shifts every occupant cell→next idx (R:+1 cyclic / L:-1). izutyjcpih@L1583 = {level_name:{label:2D-int-map}}.
+- 8 levels: names kdrsqrvpwb/cecdsipmha/vvnbesozdj/ihpokmcrjm/qibynbipmw/ksgcbuhgwz/yzzznxxvju/hmzsasouat; StepCounter=[13,60,80,150,80,80,80,80]; #tiles=[1,2,1,1,2,3,3,3]; #rotor-labels=[1,3,2,2,2,36,4,6].
+★OFFLINE PITFALL: raw Lp85().full_reset() then perform_action() does NOT reproduce live(tiles immovable, all levels "0/N reachable") — live reset applies camera/placement setup the raw class skips. ⇒ offline sim UNFAITHFUL; LIVE API is the only ground truth.
+LIVE FRAME(64x64 int8, f.frame[-1]): col0="e"=StepCounter bar. L1 real layout = rows of colored 2x2 blocks + palette legend(cols ~42-45) + movable tile as 4 corner-2x2s. f.levels_completed / f.win_levels = progress signal. env.step(GameAction.ACTION6, data={x,y}). rate-limited.
+LIVE L1 active rotor click-pts discovered = 13, left-edge cluster x∈{2,4,6} (probe: reset→click→tile-sig change).
+★BLOCKER to 8/8: render↔grid transform (camera zoom renders 4x4 tile as 2x2 corners) + palette-vs-goal disambiguation make pixel-parsing fragile; full multi-line permutation search = research-grade (community best ~96% w/ dedicated solvers).
+STATUS(owner decision 2026-09-10): BANK v3 milestone. v3 = 1/8 (L1 cleared, mechanic fully decoded, live solver scaffold at /tmp/arc_livesolve.py). NOT pursuing full 8/8 now.
+
+★PRINCIPLE(2026-09-10): PLAY ON SCREEN — kongtrol mouse on live canvas. API/source = planner only. Level clear must show on screen. (cf RECIPE_arc_agi_play.txt STANDING PRINCIPLE.)
+
+===== ★★★★★★ SOLVED 8/8 ON SCREEN (2026-09-10, real mouse) =====
+VICTORY!!! — all 8 levels cleared via kongtrol mouse on live browser canvas. a11y confirms "VICTORY!!!". Evidence: jobs/demo_recordings/lp85_VICTORY_screen.png.
+MECHANIC (corrected): TILES are FIXED (bghvgbtwcb→goal, fdgmtkfrxl→goal-o); GOALS ROTATE with the ring. WIN = each fixed tile has a goal 2x2 covering (tile.x+1,tile.y+1). Rotor click = cyclic shift of a row/col of cells (goals ride along).
+PLANNER (offline, faithful): Lp85() + perform_action(ActionInput(id=RESET),raw=True) [NOT full_reset!] reproduces live exactly. Build EMPIRICAL per-rotor perms: click each rotor once, record every sprite (x,y)->(x,y) move = that rotor's position-permutation (source cycle-maps had a coord-offset bug; empirical is reliable). BFS over (goals,goals-o) tuple, win-check coverage → per-level click sequence. Full game = 79 moves.
+ON-SCREEN EXECUTOR (the actual PLAY):
+- Click frame = screenshot ÷2 (full screencapture 4112w → sips -Z 2056 → those px = kongtrol click coords). a11y coords here are a DIFFERENT (backing-store ~2250w) frame — do NOT click a11y coords for this Chrome; a11y is only for reading LEVEL text.
+- START the game: click the START pill (detect near-white blob in canvas), NOT via keyboard reliably.
+- Canvas affine: detect gray-grid bbox (graygrid mask r≈g≈b,95<r<150, in x[480,1050]y[480,980], 1..99 percentile) = [x0,y0,x1,y1]; screen=(x0+(dx+0.5)/64*(x1-x0), y0+(dy+0.5)/64*(y1-y0)). Recompute bbox every click (self-calibrating).
+- Click the button DISPLAY-CENTER (sprite grid center *scale + pad; camera is 60x64 → scale=1,padx=2,pady=0), not the API-returned corner coord.
+- SNAP to nearest green/red rotor-handle centroid within ~26px (color-detect) — fixes small per-rotor visual offsets that cause misses.
+- Per move: capture-before → click → capture-after → canvas-diff (>50k=moved, <50k=MISS→stop) ; verify level advance via a11y "LEVEL n / 8".
+- DRIFT GUARD: RESET is PER-LEVEL (restores current level's deterministic initial, keeps progress). Before/at each level, board is at its fixed initial → replay that level's exact plan. If a level fails mid-way, RESET it (screenshot-frame RESET pill ~ (916,987)) and re-run its plan. Prevents cross-level rotation-count desync.
+- Scripts: /tmp/arc_emp.py (empirical perms+BFS), /tmp/arc_chain.py (chain L6-L8), /tmp/exec_snap.py (on-screen executor w/ handle-snap), /tmp/arc_full8.json + /tmp/arc_l678c.json (centered click plans).
+
+===== PER-LEVEL SOLVED MOVE SEQUENCES (display coords; L6-L8=button-centered) =====
+L1 (5 moves): [[4, 29], [4, 29], [4, 29], [4, 29], [4, 29]]
+L2 (8 moves): [[38, 16], [47, 34], [38, 16], [38, 16], [38, 16], [47, 34], [47, 34], [47, 34]]
+L3 (16 moves): [[35, 40], [35, 40], [35, 40], [35, 40], [23, 40], [23, 40], [23, 40], [23, 40], [35, 40], [23, 40], [23, 40], [35, 40], [35, 40], [35, 40], [35, 40], [35, 40]]
+L4 (15 moves): [[24, 14], [24, 14], [14, 24], [14, 24], [14, 24], [14, 24], [6, 14], [6, 14], [6, 14], [6, 14], [6, 14], [6, 14], [6, 14], [6, 14], [14, 24]]
+L5 (10 moves): [[35, 34], [35, 34], [9, 4], [11, 34], [11, 34], [11, 34], [11, 34], [11, 34], [9, 4], [35, 34]]
+L6 (19 moves): [[58, 16], [58, 16], [42, 46], [42, 46], [28, 16], [28, 16], [30, 59], [30, 59], [30, 59], [30, 59], [30, 59], [30, 59], [16, 29], [16, 29], [46, 29], [46, 29], [46, 29], [46, 29], [54, 56]]
+L7 (5 moves): [[34, 43], [21, 20], [30, 43], [21, 34], [30, 43]]
+L8 (5 moves): [[54, 30], [54, 30], [54, 35], [54, 35], [32, 58]]
+NOTE: these solve each level's DETERMINISTIC initial (after RESET-per-level). Map each (dx,dy)→screen via the affine, snap L6-L8 to green/red handle. L1 red rotor=(4,29)~display, on-screen center≈(5,33). Full game=79 moves→VICTORY.

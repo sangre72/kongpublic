@@ -1,0 +1,24 @@
+RECIPE: browser_basics (Chrome 조작 기본원칙 — 공통베이스)
+GATE: verified 2026-09-09 (u_4322 실사고 다수로 도출)
+REG: 모든 Chrome UI작업. cf RECIPE_window_and_viewing.txt, kongtrol-base-reference.md
+
+===== ★★★ TAB DISCIPLINE (탭 규율, MUST) =====
+- 현재 탭에서 주소창 네비게이션 = 그 탭의 이전 페이지/상태 파괴. 
+- ★작업중인 앱/게임/폼 탭은 절대 네비게이션 금지. 다른 사이트/기능 필요시 = **cmd+t 새탭**에서 열고, 원탭은 탭스트립으로 복귀.
+- 실사고(u_4322): ls20 게임탭을 chatgpt.com으로 네비 → 게임 진행 전부 유실, 레벨 재시작 강제(2회 반복).
+- 탭 전환=탭스트립 클릭(a11y AXRadioButton "제목-메모리…" 좌표) or cmd+옵션+방향. 탭 목록 확인=`see --a11y|grep AXRadioButton`.
+
+===== ★★★ LEARN-BEFORE-USE (미숙앱 선학습, MUST) =====
+- 처음쓰는 도구/사이트 조작前, 먼저 UI를 학습: `see --a11y`로 컨트롤 전수스캔 → 각 버튼 역할 식별 → 함정 메모.
+- 그 다음에만 조작. 좌표추측·눈대중 클릭 금지.
+- 실사고(u_4322): ChatGPT 입력창 못찾아 헤맴 / send버튼 옆 mic버튼 오클릭→마이크권한팝업이 입력차단. 
+  → 학습결과 기록: ChatGPT composer = [+]=파일첨부(왼쪽), [mic]=음성(오른쪽, ★send 바로옆-오클릭주의-피하기), [↑화살표]=프롬프트보내기(전송).
+  입력=AXTextArea("ChatGPT와 채팅"). Grok도 유사(입력 중앙, 전송 오른쪽).
+- 팝업/모달(프로모·권한) 먼저 닫기/거부 후 조작(모달이 Enter·클릭 가로챔).
+
+BASIS: u_4322 2026-09-09 — 탭네비로 게임유실 반복 + 미숙UI 오클릭. 유저: "탭규율·선학습을 베이스 원칙으로".
+
+===== ★★★ FIELD-FOCUS PROTOCOL (웹폼 입력, MUST — u_4416) =====
+타이핑 前 매번: (1) a11y로 현재 FOCUSED 필드의 label/placeholder 읽고 명시("focused=비밀번호") (2) 의도한 필드와 일치할 때만 타이핑 (3) 타이핑 後 검증: 이메일=평문주소 보임, 비밀번호=마스킹 dots 보임. 불일치면 cmd+a→delete 후 올바른 필드 클릭.
+- 실사고(2회): 비밀번호를 이메일 필드에 타이핑→평문노출. 클릭이 focus 이동 실패한 채 타이핑한 것이 원인. 클릭後 focus 실측 필수.
+- ★비밀번호가 평문필드에 노출되면 = 그 비밀번호 BURN → 로그인後 즉시 rotate(새 비번으로 변경)+cred파일 갱신.

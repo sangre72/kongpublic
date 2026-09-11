@@ -1,0 +1,169 @@
+RECIPE: unknown_game_rule_discovery (GENERAL playbook — playing any unfamiliar GUI game/puzzle on screen)
+GATE: living doc, started 2026-09-11 (u_4568). Evidence = real levels played.
+REG: ANY unseen game/puzzle UI (neal.fun, ARC-AGI, browser games, app minigames).
+CROSS-REF: arcprize/RECIPE_arc_agi_play.txt(grid+minimum-action doctrine), _common/RECIPE_purpose_driven_task_loop.txt, _common/RECIPE_browser_basics.txt(learn-before-use).
+WHY: per-level answers are disposable; the RULE-FINDING METHOD transfers. Promote every general principle here as it is discovered, ¬at end.
+
+===== ★P0-PRIME. PARSE THE INSTRUCTION WORD EXACTLY, BEFORE ANY ACTION (owner u_4573) =====
+The instruction wording is the CHEAPEST and MOST RELIABLE source of the rule. Read it BEFORE probing, ¬after getting stuck.
+MANDATORY first step on every new level, in writing, one line each:
+ 1. extract the literal VERB + OBJECT ("reassemble the intersection", "select the squares with a vegetable", "enter the text", "order the …", "count the …", "rotate the …").
+ 2. state what that verb implies about the UNIT OF JUDGEMENT — what object is being graded: one element? a relation between elements? the WHOLE?
+ 3. state what counts as DONE for that unit.
+ 4. only then observe — and make the crop/framing match that unit (cf P11).
+VERB→UNIT quick map: select/pick → each element independently. reassemble/arrange/complete → the WHOLE, judged on relations between pieces. match/pair → a relation between two. order/sort → a sequence. count → a scalar. rotate/align → orientation of each element relative to its neighbours.
+★EVIDENCE L5 (the failure this rule comes from): the word was "Reassemble". That single word already asserts: the pieces belong to ONE original whole, and success is graded on the assembled whole, ¬on any individual tile. We never pinned that down, so we spent ~36 actions asking "is THIS tile right?" — a question with no answer — and never framed the whole board until told to. The level was not hard; the instruction was unparsed.
+★EVIDENCE L4: "Vegetable" was likewise a WORDING question (which sense — culinary or botanical?), ¬an image-recognition question. Getting the sense right was the entire level.
+COROLLARY: if you cannot say in one line what the verb implies, you are not ready to click.
+
+===== ★P0-PRIME-B. THE TITLE NAMES THE TARGET — USE ITS CANONICAL STRUCTURE AS A TEMPLATE (owner u_4585) =====
+When a task NAMES its subject, the finished state is knowable BEFORE touching anything. State what that subject looks like IN GENERAL (its canonical structure), treat that as the target template, then FIT THE PIECES TO THE TEMPLATE. ¬discover the structure by trial manipulation.
+PROCEDURE: read title -> name the object -> write its canonical layout in one line -> map that layout onto the board's cells -> now every piece has a KNOWN target, so each move is a placement, ¬an experiment.
+★EVIDENCE L5 "Reassemble the INTERSECTION": an intersection = two big roads crossing + loop ramps linking them. That alone dictates the whole answer — backbone road across the middle ROW, crossing road down the middle COLUMN, four ramps in the CORNERS. Knowable at action 0. We instead treated a named, familiar object as an unknown and burned ~70 actions rotating tiles to find out what the picture was. The level was cleared the moment we adopted that template.
+COROLLARY: this pairs with P0-PRIME (parse the verb). Verb = what operation + what is judged. Noun/title = what the finished thing looks like. Do BOTH before the first click.
+
+===== ★P15. IDENTIFY THE PHASE BEFORE TREATING ANY ACTION AS AN ANSWER (owner u_4595) =====
+Some puzzles separate a SETUP/DECOMPOSITION phase from a COMMIT phase. The SAME gesture means different things in each: during setup a click configures the board; only after setup completes does a click become an answer.
+RULE: before acting, ask which phase the interface is in. NEVER commit (submit/verify) mid-setup — a mid-setup state is not an answer and will always be rejected, no matter how correct it looks.
+DETECTION: if your action keeps CHANGING THE BOARD'S STRUCTURE (cells splitting, options expanding, fields appearing) you are still in setup. Setup is done when the same action stops changing structure. Only then does the commit control become meaningful.
+EVIDENCE: not-a-robot L9 "Nested" — clicking subdivides cells (setup); I pressed Verify at depths 1, 2 and 3 and it was inert every time. The selection was never wrong — it was never a SELECTION at all, because the level was still in decomposition. Multiple independent sub-regions each had to reach terminal granularity before ANY click counted as an answer.
+
+===== P0. LOOP =====
+observe → ONE probe → diff screen → infer rule → act minimum. ¬multi-change per probe (ambiguous attribution).
+
+===== P1. THE MOST INFORMATIVE PROBE = the one whose OUTCOMES PARTITION HYPOTHESES =====
+Pick the action whose possible results split "what this could be" roughly in half; ¬the action most likely to succeed.
+EV(1 tile click) at L5 = {nothing | it moves | it swaps | it ROTATES} → one click killed 3 hypotheses at once.
+EVIDENCE: not-a-robot L5 (Reassemble Intersection): assumed slide/swap puzzle; ONE click on one tile showed the tile rotated 90 deg in place → mechanic = per-tile rotation, ¬permutation. 1 action, whole genre re-identified.
+
+===== P2. "NOTHING VISIBLY CHANGED" ≠ "MY INPUT FAILED" =====
+Three distinct causes, distinguish BEFORE re-clicking:
+ (a) input never landed (window unfocused / wrong coord) — retest on a control KNOWN to respond.
+ (b) input landed, control is INERT BY DESIGN because preconditions unmet — the app is telling you your ANSWER is wrong.
+ (c) change is real but off-screen / sub-pixel / delayed.
+★Default suspicion order for a submit-type button = (b) FIRST, ¬(a). Re-reading the puzzle beats re-clicking the button.
+EVIDENCE: not-a-robot L4 (Vegetable): Verify clicked twice, no reaction. Was NOT a missed click — selection was incomplete (corn missing). Adding corn made the same click work.
+EVIDENCE(counter): L1 checkbox — first click after page load genuinely was case (a): window not yet focused. Rule: click a neutral area once after load, then act.
+
+===== P3. RENDER SETTLES — SCREENSHOT THE STEADY STATE =====
+Animated/transitioning UI shows a transient frame that misleads reading. Wait for settle (~1-3s) then capture; if a reading looks impossible, re-capture before concluding it is impossible.
+EVIDENCE: not-a-robot L3 (warped text): first capture = unreadable tangle, read as gibberish. After settle the SAME word rendered far less skewed and was plainly YHRPCD. The puzzle was never illegible; the capture was early.
+
+===== P4. AFFORDANCE READING OF A NEVER-SEEN UI =====
+Before acting, inventory controls and classify each: [input] [submit] [reset/refresh] [help/alt-channel] [decoy].
+- Icon semantics that recur: circular-arrows = regenerate/new instance (SAFE, often gives an easier instance); speaker = alternative channel (audio version of same challenge); X/close = abandon.
+- REGENERATE IS A LEGITIMATE MOVE when the current instance is unreadable/unsolvable-by-you — costs 1 action, may cost less than brute-forcing.
+EVIDENCE: L3 — refresh icon produced a new, cleaner word instead of fighting the first one.
+
+===== P5. THE PROMPT'S WORD IS A DEFINITION TEST, NOT A LABEL =====
+When a category is asked (vegetable/fruit/vehicle/food), the grader uses ONE specific sense — usually the COMMON/CULINARY/everyday sense, ¬the technical/botanical one. Decide which sense the author is testing, and expect deliberate boundary cases planted as traps.
+Trap taxonomy seen: technical-vs-common (tomato/eggplant/avocado = botanical fruit, culinary not-vegetable-either), DEPICTION-vs-thing (Mr. Potato Head = toy, ¬potato), part-vs-whole.
+EVIDENCE: not-a-robot L4 — correct set = carrot+onion+CORN; corn is the one people forget, and its omission silently blocked Verify (see P2).
+
+===== P6. DISGUISED KNOWN GENRE =====
+A captcha/quiz skin often wraps a classic genre. Name the genre first, then apply its standard solution, ¬invent a bespoke method.
+Checklist: is it really [tile-rotation] [15-puzzle/slide] [match-3] [chess/checkers position] [rhythm-timing] [trading/price] [maze/pathfind] [OCR] [set-selection]?
+EVIDENCE: L5 presented as "Reassemble" (implies rearrange) but is genuinely tile-ROTATION — reading the verb literally would have wasted many actions. Verb in the prompt is a HINT, ¬a spec.
+
+===== P7. COORDINATES WHEN a11y IS BLIND =====
+Some game DOM/canvas exposes nothing to AX. That is the sanctioned last-resort case for screenshot-derived coords (cf coordinate_targeting_standard).
+Formula: capture with known origin `screencapture -x -R ox,oy,w,h` → on 2x Retina, logical = ox + px/2 , oy + py/2. VERIFY the mapping once against a control with a visible state change, then trust it for that window.
+EVIDENCE: not-a-robot whole game (a11y returns only Safari chrome + ad iframes). First two clicks missed because the scale factor was guessed; one calibration click fixed all later coords.
+
+===== P1b. CONFIRM A RULE ON A SECOND, DIFFERENT INSTANCE BEFORE MASS-APPLYING =====
+One probe yields a hypothesis; a second probe on a DIFFERENT element turns it into a rule you can spend many actions on. Cost 1 action, saves an undo-storm.
+EVIDENCE: not-a-robot L5 — tile-rotation seen on r1c1, re-confirmed on centre tile r2c2 (vertical highway -> horizontal, now matching its left/right neighbours). Only then commit to rotating the rest.
+
+===== P9. ROTATION PUZZLES: SOLVE THE SEAM, ¬THE TILE =====
+With per-tile rotation and N tiles at 4 orientations, blind cycling is 4^N — unsearchable by eye. Do ¬judge a tile in isolation ("does this look right").
+METHOD: pick ONE seam (a shared edge between 2 tiles). A seam is correct iff the lane-lines, curb line AND crosswalk stripes all continue across it. Lock that pair, then extend to the next seam sharing a locked tile. Never re-rotate a locked tile.
+If a tile has NO orientation that satisfies an already-locked neighbour, the LOCK is wrong, ¬the tile — back up one seam.
+EVIDENCE: not-a-robot L5 — rotated centre/r1c1/r1c3/r3c1/r3c3/r1c2 by eye-appeal, hit Verify after each; ~8 actions burned with no convergence, and one rotation (r1c2 to vertical) broke a seam that was already right. Aesthetic judgement ≠ seam continuity.
+
+===== P10. AN EXPENSIVE LEVEL IS A SIGNAL TO CHANGE METHOD, ¬TO PUSH HARDER =====
+If action count on one level exceeds ~2x the level's tile/element count with no state progress, the METHOD is wrong. Stop, state the invariant you are actually testing, and switch to a constraint-propagation order (P9) or re-read the goal.
+EVIDENCE: L5 — repeated rotate->Verify loop was a search, not a solve.
+
+===== P11. ★FRAMING: MATCH THE CROP TO THE UNIT OF JUDGEMENT (owner rule u_4571) =====
+The crop you take IS the hypothesis you can test. Choose it by what you must JUDGE, ¬by what you want to see.
+ - judging a RELATION between neighbours (seam continuity, alignment, ordering, symmetry) → crop the WHOLE BOARD as ONE image, then upscale. Both sides of every seam must sit in the SAME frame at readable size.
+ - reading ONE value (a label, a number, a word, a single cell's colour) → crop that single element only.
+ - NEVER judge a relation from per-element crops: the crop boundary destroys exactly the information the puzzle is about.
+ - NEVER judge fine lines from a full-desktop screenshot: everything is too small to read.
+PROCEDURE for relation puzzles: screencapture -R <board rect ONLY> → sips -Z upscale → judge EVERY seam in that one frame → decide ALL element states on paper → THEN execute clicks in one batch → verify once.
+EVIDENCE: not-a-robot L5 — I read the 3x3 by row-strips and single-tile crops, so each seam was judged with its partner half-visible or absent; "all seams look continuous" was an artifact of the framing, and ~32 actions were spent on a board I had never actually seen whole at readable size.
+
+===== ★P12. REFERENCE-LINE TEST — MAKE CONTINUITY MEASURABLE (owner u_4575) =====
+We kept failing seam puzzles because "looks continuous" is not a criterion. A DRAWN REFERENCE LINE is.
+BACKBONE-FIRST: a scene has a BACKBONE (the dominant straight structure: highway, river, horizon, spine) and SUBORDINATE parts (ramps, branches, details). Solve the backbone first; everything else is constrained by it. ¬start with the pretty/complex pieces.
+THE TEST: pick the backbone's centre-line on a tile you trust. Read the coordinate where it meets that tile's LEFT edge and RIGHT edge (for a horizontal backbone: two y values). Extend that SAME y across the whole row. A neighbour tile is correct ONLY if its road sits ON that y at the shared edge. A straight road must not deviate from its line when the line is extended across a seam. Mirror it for a vertical backbone with a fixed x down the column.
+PROCEDURE: (1) crop WHOLE board, enlarge (P11). (2) read reference y at the centre tile's left+right edges. (3) rotate row neighbours until each delivers/receives the road at that exact y. (4) repeat with x for the column. (5) ONLY with both backbones locked, place the subordinate pieces: find the STUB on the already-locked backbone tile's edge first, then rotate the subordinate piece so its end lands on that stub — ¬the reverse. (6) Verify once.
+★ESCAPE CLAUSE: if the required orientation is impossible for 2+ tiles, the arrangement is likely not solvable by rotation alone (pieces permuted) — REPORT that, ¬loop.
+EVIDENCE: not-a-robot L5 — ~40 actions across 3 different structural models, each judged by eye, each "satisfied" yet rejected. No measurable criterion was ever established, so no model could be falsified.
+
+===== ★P13. RAISE THE INPUT RESOLUTION BEFORE TRYING HARDER (owner u_4579) =====
+When a visual judgement is hard, MAKE THE THING BIGGER first. Raising input resolution beats squinting + inferring from a small image. Two independent levers — use BOTH:
+ (1) APP-SIDE ZOOM: zoom the application itself (browser: `kongtrol input chord cmd + --yes` x2-4 for ~150-200%). The element is then physically larger in real pixels, so lines/edges actually exist in the capture. ★after zooming, ALL coords change — re-measure the board rect and element centres before clicking. restore with cmd 0.
+ (2) CAPTURE-SIDE: crop the target rect ONLY, then upscale the png (`sips -Z`) before reading.
+COMBINED (zoomed page + tight crop + upscale) is what makes lane lines, curbs, crosswalk stripes legible — exactly the detail a seam/continuity judgement depends on.
+ORDER OF OPERATIONS: enlarge FIRST, judge SECOND. Never spend actions acting on a judgement you made at a resolution where the deciding detail was not visible.
+EVIDENCE: not-a-robot L5 — dozens of actions were spent on corner-orientation calls made from ~150px tiles where grass-vs-road boundaries and ramp stubs were indistinguishable; each call "looked right" and each was rejected.
+
+===== ★P14. ONE CLICK -> RE-OBSERVE -> THEN THE NEXT (hard rule, owner u_4581) =====
+Never batch several state-changing clicks and look afterwards. Click ONE element, re-crop, confirm the new state, and only then decide the next click.
+LOCK DISCIPLINE: a tile/element declared correct is NEVER clicked again. Before every click, state WHICH element and WHY; if it is a locked one, do not click.
+WHY: batched clicks make attribution impossible (which click caused which change?) AND they silently destroy already-correct state — a click aimed at a neighbour lands on a locked element when coords are stale after a re-render.
+EVIDENCE: not-a-robot L5 — batching 3 corner rotations before re-reading flipped r3c2 out of its correct vertical orientation and broke the vertical backbone, plus knocked r3c1 off a good orientation. The regression cost more actions than the original fix.
+
+===== ★P16. OBSERVATION COST MUST BE PROPORTIONAL TO UNCERTAINTY (owner u_4603) =====
+P14 (one action -> observe) is for when the mechanic is UNKNOWN or the layout RE-FLOWS unpredictably. Once the mechanic is VERIFIED and actions are TOGGLES (reversible), keeping the per-click observe cycle is over-caution, ¬rigor — and it dominates runtime.
+COST MODEL: coord math ~microseconds, a click ~0.2s, but capture+upscale+re-read+judge ~5-10s. Running that per click over dozens of cells is where the hours go.
+BATCH MODE: (1) ONE fresh capture. (2) from that single frame enumerate ALL targets and compute every coord at once. (3) fire the clicks back-to-back (~0.15s apart), no capture between. (4) ONE capture afterwards, diff. (5) at most 2-3 rounds, then commit.
+SWITCH BACK to P14 the moment a batch produces an unexpected diff — that means the mechanic was not as verified as assumed.
+EVIDENCE: not-a-robot L9 — the mechanic (click=split when coarse / select when fine, toggle, per-region phase) was fully verified, yet I kept a capture-per-click cycle for dozens of cells.
+
+===== ★P17. OBJECT DETECTION = COLOUR + SHAPE + CONNECTIVITY, NEVER COLOUR ALONE =====
+A colour threshold alone is not an object detector. "Red" in a street photo is also bricks, signage, tail-lights, window frames — thresholding it produces mass false positives that look like a working detector until you check.
+METHOD: build the colour mask -> CONNECTED COMPONENTS -> keep the LARGEST blob -> sanity-check its SHAPE (aspect ratio, position) against what the object should be. That blob is the ground truth region; everything else is discarded by size.
+CALIBRATE BY SAMPLING, ¬by guessing constants: probe several known-positive and known-negative pixels, pick a cut that separates them, and record the measured values.
+ACCEPT EVERY VISUAL STATE of the object: an overlay/highlight shifts its colour (here selection tinted red -> purple), so a mask tuned only to the untouched appearance goes blind exactly where you have already worked.
+EXCLUDE UI CHROME before component analysis — a big flat-coloured header/panel will out-size the real object and win "largest blob".
+THRESHOLD LOW for membership tests (a cell counts if it intersects the blob at all), so thin edge slivers are caught.
+EVIDENCE: not-a-robot L9 — plain red threshold spanned px x978-1839 (bricks + signage included); after connectivity + largest-blob + header exclusion the sign came out as 11165 px with bbox ratio 1.00, matching an octagon.
+
+===== ★P18. RE-DERIVE COORDINATES AFTER ANY ZOOM OR SCROLL =====
+The widget moves. A capture rect memorised before a zoom/scroll silently points at the wrong pixels and you end up measuring the wrong thing (we read brown bricks as candidate sign red for several rounds). Locate the target by a STABLE VISUAL LANDMARK each time — e.g. a coloured header bar — and derive the rect from it, rather than reusing numbers.
+
+===== P8. MINIMUM ACTIONS IS A STANDING CONSTRAINT =====
+Every action counts even when no rule says so. Plan the full sequence before the first click; ¬explore by flailing. Discovery probes are budgeted too — prefer the P1 partitioning probe over several timid ones.
+
+===== ★P15. SETUP PHASE vs COMMIT PHASE — KNOW WHICH ONE YOU ARE IN (owner, not-a-robot L9) =====
+Some puzzles are NOT one flat interaction. They separate:
+ - SETUP/DECOMPOSITION phase — your action changes the STRUCTURE of the problem (splits a cell, deals a new row, reveals options). The action is a request, ¬an answer.
+ - COMMIT phase — the structure is final, and now the same gesture RECORDS A CHOICE that gets graded.
+THE ONE-PROBE PHASE TEST: perform a single action on an element you are confident about, re-observe, and classify:
+ (a) the STRUCTURE changed (it split / re-flowed / new elements appeared) => SETUP phase. keep shaping, do not submit.
+ (b) only a STATE MARK changed (highlight/selection/toggle) => COMMIT phase. your clicks are now the answer.
+CONSEQUENCES:
+ - NEVER submit/Verify while any region is still in setup — a partial-depth state is not an answer, and the grader rejects it silently, which reads as "the button is broken" (cf P2 inert-button).
+ - MULTI-TRAP: setup can be per-REGION, ¬global. Several areas may need to reach their terminal state independently; finishing one proves nothing about the others.
+ - Check whether the commit gesture is a TOGGLE (click again to undo). If so, mistakes are cheap: probe, observe, clean up. Verify reversibility once, early — it changes how boldly you may explore.
+ - A structure that re-flows invalidates every coordinate you hold: re-measure from a fresh capture before EVERY action (cf P14 one-click-then-re-observe).
+EVIDENCE: not-a-robot L9 "Nested" — a quadtree selection captcha. Selecting a cell in a coarse region SPLITS it; selecting one in an already-fine region merely marks it blue. We read every rejected Verify as "wrong cells" and kept re-picking cells, when the real cause was committing mid-decomposition. Three probes settled it: on-target click -> selected only(terminal); off-target sky click -> selected(the fail mode); same cell clicked again -> deselected(toggle confirmed).
+
+===== ★P16. OBSERVATION COST MUST BE PROPORTIONAL TO UNCERTAINTY (owner u_4603) =====
+P14(one action -> re-observe) is a rule for LEARNING AN UNKNOWN MECHANIC. Once the mechanic is verified it
+becomes pure overhead: the real bottleneck in GUI work is not coord math(microseconds) or the click(~0.2s) —
+it is the capture + re-read + judge cycle(~5-10s) run after every single action. Dozens of cells x that cycle
+is where hours go.
+SWITCH TO BATCH when ALL of these hold:
+ - the mechanic is verified(you know what a click does here), AND
+ - the action is REVERSIBLE(toggle/undo exists), AND
+ - the layout does not re-flow unpredictably between actions of the same kind.
+BATCH PROCEDURE: one fresh capture -> enumerate ALL targets and compute every coord from that single frame ->
+fire the clicks back-to-back(~0.15s apart, no capture between) -> ONE capture afterwards -> diff -> repeat
+at most 2-3 rounds -> commit.
+STAY IN P14 SINGLE-STEP MODE when: the rule is still unknown, the action is irreversible/destructive, the
+layout re-flows(coords go stale mid-batch), or a wrong action is expensive to undo.
+EVIDENCE: not-a-robot L9 — we ran a full capture-and-judge cycle per cell on a verified, toggleable mechanic,
+turning a few minutes of clicking into a long grind; owner flagged the mismatch directly.

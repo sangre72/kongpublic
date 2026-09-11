@@ -1,3 +1,18 @@
 [
-  {"name":"external_groundtruth_lesson","app":"general","desc":"자동측정 반복실패시 40회+뒤가아니라 조기에(5-10회) 유저 실사진/직접위치확인 등 외부ground-truth 우선요청","verified_runs":1,"gate":"1-run","file":"LESSON_external_groundtruth_over_self_measurement.txt"}
+  {
+    "name": "external_groundtruth_lesson",
+    "app": "general",
+    "desc": "자동측정 반복실패시 40회+뒤가아니라 조기에(5-10회) 유저 실사진/직접위치확인 등 외부ground-truth 우선요청",
+    "verified_runs": 1,
+    "gate": "1-run",
+    "file": "LESSON_external_groundtruth_over_self_measurement.txt"
+  },
+  {
+    "name": "screen_decomposition",
+    "app": "general",
+    "desc": "★화면을 정밀하게 보는 핵심 절차 — 판정단위에 맞춘 크롭, 앱확대로 실해상도 올리기, 타일분할, 눈대중 대신 수치측정, 1행동-전후 diff로 룰 발견. 시각판단 약점을 절차로 보완",
+    "verified_runs": 1,
+    "gate": "1-run",
+    "file": "RECIPE_screen_decomposition.txt"
+  }
 ]

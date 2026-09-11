@@ -1,0 +1,186 @@
+RECIPE: not_a_robot (neal.fun/not-a-robot — captcha-parody puzzle game, 48 levels)
+GATE: in-progress 2026-09-11
+REG: https://neal.fun/not-a-robot/ in Safari. Public GAME, ¬real bot-gate.
+CROSS-REF: ★general method = _common/RECIPE_unknown_game_rule_discovery.txt (P0-P8). This file = per-level specifics ONLY.
+
+===== ★COORD METHOD (this page is a11y-BLIND) =====
+a11y returns only Safari chrome + ad iframes; game DOM invisible to AX → sanctioned screenshot-coord case (cf general P7).
+FORMULA: `screencapture -x -R ox,oy,w,h` → 2x Retina → logical = ox + px/2 , oy + py/2. Calibrate once per window against a visible state change.
+MEASURED (window AXWindow [2004x1290], capture origin 560,180):
+ - 3x3 grid cell centres px: cols 586/883/1181, rows 328/630/920
+ - 4x4 grid cell centres px: cols 549/771/995/1218, rows 293/516/739/962
+ - Verify btn px(1245,1139) = click(1182,749) | refresh icon px(477,1136) = click(798,748)
+ - L3 text-input px(777,478)=click(948,419) | Submit px(1210,478)=click(1165,419) | L3 refresh px(1272,384)=click(1196,372)
+PITFALL: first click after page load is swallowed (window unfocused) → click neutral area once, then act.
+
+===== PER-LEVEL RECORD =====
+
+[LVL 1] TYPE: click-precision / baseline
+GOAL: tick the "I'm not a robot" checkbox.
+RULE: no trick — literal single checkbox, the honest version of the joke.
+SOLVE: click(872,263).
+TRAP: first click no-op'd → mis-blamed the coord math; real cause = window not focused (general P2 case-a). Also over-corrected the retina scale twice before calibrating.
+ACTIONS: 3 (2 wasted on focus/calibration).
+
+[LVL 2] TYPE: pattern-match / classic image-grid
+GOAL: select every square containing part of a Stop Sign, 4x4 photo grid.
+RULE: plain reCAPTCHA semantics — any cell the object touches counts; no hidden twist at this level.
+SOLVE: click r1c3(1057,326) r1c4(1169,326) r2c3(1057,438) r2c4(1169,438) → Verify(1182,749).
+TRAP: none.
+ACTIONS: 5.
+
+[LVL 3] TYPE: OCR / adversarial-render
+GOAL: read the warped blue word over red scribbles and type it.
+RULE: word IS legible; the render SETTLES over ~2s from a heavily-skewed transient into a readable form. refresh icon regenerates a new (often easier) word.
+SOLVE: click refresh(1196,372) → wait settle → read "YHRPCD" → click input(948,419) → type YHRPCD → click Submit(1165,419).
+TRAP: (1) captured mid-animation, concluded "illegible", guessed YHRPDD then YHAPED — both wrong. (2) Enter does NOT submit; only the Submit button does.
+ACTIONS: 7 (3 wasted on early-capture misreads).
+
+[LVL 4] TYPE: trick-instruction / category-definition
+GOAL: select every square showing a Vegetable, 3x3.
+RULE: grader uses the CULINARY sense, ¬botanical. Planted traps: tomato/banana/grapes/avocado/eggplant = botanically fruit; Mr. Potato Head = depiction of a toy, ¬a potato.
+SOLVE: click carrots(1001,344) onions(1150,344) corn(1150,495) → Verify(1182,749).
+TRAP: ★submitted carrot+onion only; Verify sat INERT twice. Mis-read as a missed click — actually the button reports "answer incomplete" by doing nothing. CORN is the easily-forgotten culinary vegetable.
+ACTIONS: 6 (2 wasted Verify presses).
+
+[LVL 5] TYPE: hidden-affordance / tile-rotation  (page header literally reads "Level 5: Rotation")
+VERB-PARSE(P0-prime): verb="Reassemble", object="the Intersection" -> unit of judgement = THE WHOLE PICTURE (relations across seams); done = one continuous aerial photo. Stating this FIRST is the whole level.
+GOAL: 3x3 aerial photo of a cloverleaf interchange; every tile is rotated; make the picture continuous.
+RULE: ONE click = rotate that tile 90deg in place. Tiles are NEVER permuted (header confirms rotation-only) — so the board is always solvable by rotation.
+SOLVE (the method that actually works, in order):
+ 1. crop the WHOLE BOARD in ONE frame and upscale (per-tile crops destroy seam info — P11).
+ 2. BACKBONE FIRST: the big highway. Pick the centre tile r2c2 as reference; read the y where its road meets its LEFT and RIGHT edges. Rotate r2c1 and r2c3 until each delivers/receives the road at that SAME y (reference-line test, P12). Then the vertical road down r1c2/r2c2/r3c2 with a fixed x.
+ 3. CORNERS LAST, by the grass-outside test: each corner is one loop ramp + green infill; the GRASS must sit in the board's OUTSIDE corner and the curve open toward the centre (r1c1 grass top-left, r1c3 top-right, r3c1 bottom-left, r3c3 bottom-right).
+ 4. ONE CLICK -> RE-CROP -> CONFIRM -> next click (P14). Never batch.
+ 5. Verify ONCE at the end.
+COORDS (100% zoom, widget fully visible): tile centres cols 851/981/1112, rows 345/475/606. Verify click(1182,752). Refresh icon click(799,752).
+TRAP: (a) "Reassemble" implies slide/swap — it does not, it is rotation. (b) Verify is INERT when wrong, it never says why (P2). (c) eye-judgement of "looks continuous" is worthless; only the reference-line/edge-offset measurement falsifies anything. (d) batching clicks silently destroys already-correct tiles — cost us a full regression. (e) the whole widget (incl. refresh icon) sits BELOW a naive crop; we never saw it for ~40 actions. (f) in this Safari cmd+/cmd= zoom OUT; cmd 0 restores.
+★CLEARED 2026-09-11. THE KEY: the TITLE gives the answer — "the Intersection" = two crossing roads + 4 corner loop ramps, so the target layout is knowable at action 0 (backbone across middle ROW, crossing road down middle COLUMN, ramps in the 4 CORNERS, each corner's GREEN hugging the board-OUTSIDE corner with its curve opening toward centre). Fit pieces to that template; ¬discover it by rotating.
+★ZOOM IS MANDATORY HERE: keyboard cmd+/cmd= zoom OUT in this Safari. USE THE VIEW MENU (a11y-exposed even though the canvas is not): menubar 보기(211,20) -> 실제 크기(325,483) to reset -> 확대(325,507) x5. Tiles become ~3x; corner grass/curve direction only became reliably readable at that size. RE-MEASURE every coord after zooming, and scroll down to bring row 3 into frame.
+COORDS AT 5x-ZOOM: tile centres cols 700/1000/1300, rows 475/775/1075. Verify (1364,1278). 
+HISTORICAL NOTE (what cost ~70 actions, now solved): the MIDDLE-COLUMN seam r1c2/r2c2 can never be made continuous. Measured on 2 separate deals: r2c2 delivers the vertical road straight at x=310; r1c2's two vertical orientations exit at x=250 and x=350-360 AND the road is SLANTED (divider x differs top vs bottom of tile). All 4 orientations tested one-at-a-time with a zoomed column crop. Horizontal backbone, all 4 corner-to-middle-row seams, and grass-outside all satisfied — Verify still inert.
+ => working hypothesis for next attempt: the source photo is shot at an ANGLE, so the "vertical" road is genuinely DIAGONAL. If so the straight/vertical criterion is WRONG and the seam must be judged by whether the diagonal CONTINUES across the edge (match entry/exit x only), ¬by whether the road looks vertical. Test this first next time.
+ACTIONS: ~75 (would be <15 with the title-template + View-menu zoom from action 0). Cause = no measurable criterion for most of it + batched clicks + too-small crops. The method above is the distilled result; next attempt should start from it at action 1.
+
+[LVL 6] TYPE: known-game / tic-tac-toe (adversarial; opponent replies after every move)
+VERB-PARSE: verb="Win at", object="Tic Tac Toe" -> unit of judgement = the BOARD containing 3 of MY marks in a line; done = that line exists. ★KNOWN GENRE (P0-PRIME-B): the entire game is known before probing — apply it, ¬rediscover it.
+
+HOW TO PLAY: 3x3 grid, two marks (X and O). Players alternate. You claim ONE empty cell per turn by clicking it.
+WIN CONDITION: three of YOUR OWN marks in a line — any row, any column, or either diagonal.
+LOSS: the opponent achieves that first.
+DRAW: all 9 cells filled, no line. ★A drawn board CANNOT be verified — press REFRESH for a new game. This is normal, ¬a failure.
+RULES: cannot click an occupied cell (the click is silently ignored — re-read the board, ¬assume it registered). Turn passes to the opponent after each valid move. The mark you are assigned (X or O) is whatever the game gives you — READ it from the first move, ¬assume.
+
+STRATEGY (minimum actions; this ordering never loses). Opening: take CENTRE if free, else a corner. Then each turn in strict priority:
+ 1. I have two in a line + third cell empty -> PLAY IT, WIN.
+ 2. Opponent has two in a line + third empty -> BLOCK.
+ 3. Create a FORK — one move giving me TWO separate two-in-a-rows at once.
+ 4. Block the opponent's fork.
+ 5. Centre -> opposite corner -> any corner -> any side.
+
+★CAUTION (captcha-parody site): a level may be RIGGED/absurd (opponent cheats, cells move, extra cells appear). The classic rules above are the BASELINE used to DETECT deviation; if the board behaves abnormally, record the deviation as this level's real RULE and adapt. On this playthrough the board behaved as normal tic-tac-toe — no deviation observed.
+
+SOLVE (the game that won): refresh to an EMPTY board -> corner r1c1 -> O replied r1c2 (¬centre) -> take CENTRE -> O blocked r3c3 -> r2c1 = FORK (threatens r2c1-r2c2-r2c3 AND r1c1-r2c1-r3c1) -> O could only block one, took r3c1 -> r2c3 completes the middle row -> Verify.
+COORDS at 5x zoom: cell centres cols 704/1001/1298, rows 471/767/1065. Verify (1364,1278). Refresh (596,1276).
+TRAP: (a) blocking reactively every turn = guaranteed DRAW; you must build a fork (priority 3). (b) I drew twice (~12 wasted actions) before switching to fork-first. (c) occupied-cell clicks silently ignored. (d) opponent moves BETWEEN your moves -> re-crop after every single click.
+ACTIONS: ~20 incl. 2 refreshed draws; the winning game itself = 4 clicks + Verify.
+
+[LVL 7] TYPE: word-search DISGUISED as an image captcha
+VERB-PARSE: header "Select all the squares with a Stop Sign and Bike" over a 10x10 LETTER grid -> the named objects are WORDS, ¬pictures. unit of judgement = the set of selected cells.
+GOAL: select exactly the letter cells that spell each named object.
+RULE: each named object is hidden in the letter grid in ANY of the 8 directions (incl. reversed and diagonal). Words may OVERLAP and share a cell — a shared cell is selected once and counts for both.
+SOLVE (this instance): grid rows DICYKEAGYP/VDNSRNDAEM/LDGKVGBPAD/MTMABIWHKA/IKSDKSGENL/BDSEHPULNY/EIDLSOMKOK/BYFLOTMVJL/WGUGLSDCRS/CVCSWBKTVC. STOPSIGN = column 5 read UPWARD (row8->row1). BIKE = diagonal down-left (2,6)->(5,3). Shared cell (3,5)=I. 11 cells 0-based: (1,5)(2,5)(2,6)(3,5)(4,4)(4,5)(5,3)(5,5)(6,5)(7,5)(8,5) -> Verify.
+GEOMETRY (measure per zoom, ¬reuse): at 5x zoom, crop(400,100,1300,1250) scaled to 1050 wide => logical x = 400 + px*1300/1050, same for y with origin 100. Cell centres: cols 601/690/779/868/957/1046/1135/1225/1314/1403, rows 367/457/546/635/724/813/902/991/1081/1170. Verify (1364,1278).
+TRAP: reading it as an image-selection captcha wastes the level; the title names OBJECTS but the board is letters. Also: verify each candidate cell's LETTER against the intended word before clicking — cheap check that catches an off-by-one column.
+ACTIONS: 11 clicks + Verify, no misses.
+
+[LVL 8] TYPE: OCR / read-from-photo
+VERB-PARSE: "Enter the perpetrator's license plate" -> unit of judgement = a typed STRING; done = exact plate text.
+GOAL: read the plate in the car photo and type it.
+RULE: straight reading, no trick. Plate = Arizona, SCOTTSDALE frame.
+SOLVE: click Answer field (895,989) -> type "867V309" -> click Submit (1330,988). ★Enter does NOT submit (same as L3) — only the button.
+TRAP: ambiguous glyphs 8/B, 0/O, V/Y — if rejected, re-crop the plate enlarged and read char-by-char. Not needed here, accepted first try.
+ACTIONS: 3 (click, type, submit).
+
+[LVL 9] TYPE: recursive / nested image selection  (in progress)
+VERB-PARSE: title "Nested" + "Select all the squares with a Stop Sign" -> unit of judgement = the selected region set AT EVERY nesting depth; done = object isolated to the required precision.
+GOAL: select the cells containing the stop sign, refining recursively.
+RULE (probe-derived, 2 probes): the board starts as ONE undivided photo, ¬a fixed grid. CLICKING A REGION SUBDIVIDES IT into a 2x2 and marks what you hit. Clicking inside a sub-cell subdivides THAT further. Precision demanded increases with depth.
+ ★clicking a region that does NOT contain the object still subdivides it = wasted action + clutter. Only click regions the object actually occupies.
+ ★Verify is INERT while the selection is still too coarse -> that is the signal to refine deeper, ¬that the selection is wrong.
+ ★REFRESH resets to the clean undivided photo — use it after exploratory probes so you don't inherit junk subdivisions.
+GEOMETRY: photo spans logical x 670-1340, y 360-1025 at current zoom. sign centre ~(1053,655). Verify (1240,1078). Refresh (698,1078).
+★GRID IS LIVE: the white lines MOVE between steps — cells merge/subdivide as you click. NEVER reuse cell coords across steps. Per step: crop board enlarged -> TRACE THE ACTUAL WHITE LINES to enumerate the CURRENT cells -> pick the ones the object touches -> click ONE -> re-crop. Lines are the source of truth, ¬any assumed 3x3.
+GEOMETRY FORMULA (re-derive each step): crop(650,340,710,710) scaled to 950 wide => logical = (650 + px*710/950, 340 + py*710/950).
+★RULE CONFIRMED BY DECISIVE PROBE: clicked ONE cell that clearly contained the sign's right half (1098,624). Result = (a) THAT SAME cell subdivided into a 2x2. ¬a different cell, ¬a selected state. So: A CLICK ALWAYS SUBDIVIDES THE CELL IT HITS, regardless of whether the object is in it. The 'wrong selection splits the cell' theory is FALSE — correct cells split too.
+★CONSEQUENCE: a plain click is the ZOOM/REFINE gesture, ¬the SELECT gesture. Selection must be something else, or emerges at minimum cell size.
+★★★TWO-PHASE STRUCTURE (owner, decisive — explains EVERY inert Verify on this level):
+ PHASE A DECOMPOSITION: clicking a cell SPLITS it into finer cells. A click here is a REQUEST TO SUBDIVIDE, ¬your answer.
+ PHASE B FINAL SELECTION: once cells stop subdividing (terminal granularity), clicks THEN act as the actual answer; only that final set is graded.
+ ⇒ NEVER press Verify while anything is still subdividing — a mid-decomposition state is not an answer and is always rejected.
+ ⇒ MULTI-TRAP: several independent sub-regions each decompose on their own; ALL must reach terminal granularity, ¬only the one being worked.
+ PROCEDURE: (1) drive decomposition on every region the octagon touches until a click no longer splits. (2) note terminal cells. (3) THEN select exactly the terminal cells overlapping the octagon, none without. (4) Verify ONCE.
+★(earlier owner demo, before/after screenshot diff): selecting a cell BOTH marks it (translucent BLUE overlay, cumulative) AND subdivides that area into finer cells. So each pass demands tracing the object's boundary at ever finer resolution — that is what "Nested" means. Multi-pass: the level does NOT end after one pass.
+★FAILURE MODE: selecting a cell that contains NO part of the object. Precision requirement rises every pass, so a cell that was acceptable at coarse granularity becomes wrong once it splits.
+★METHOD: at the CURRENT granularity select every cell containing any part of the object -> re-crop (grid re-flows after EVERY click) -> repeat inward until cells stop splitting -> Verify with exactly the object-covering cells selected and nothing else.
+(superseded note: clicking only ever SUBDIVIDES; after 4 clicks at depths 1-3 NO cell ever showed a selected/checkmark state (contrast L2/L4/L7 where selection was visibly marked), and Verify stayed inert at every depth. So either (a) selection uses a different gesture than a plain click (candidates untested: click-and-hold, double-click, drag across cells, or clicking a cell that is already at minimum size), or (b) subdividing IS the answer and the target is a specific granularity not yet reached. NEXT SESSION: test the gesture hypothesis FIRST on one cell, ¬keep subdividing.
+
+[LVL 9] TYPE: recursive/quadtree image-selection ("Level 9: Nested")
+VERB-PARSE(P0-prime): verb="Select all the squares with", object="a Stop Sign" -> unit = each CELL judged independently (does the octagon touch it?). BUT the cell set is not fixed — see RULE.
+GOAL: end with exactly the terminal-granularity cells overlapping the red octagon selected, nothing else.
+RULE (★verified by orch's own 3 probes 2026-09-11, ¬inferred):
+ 1. the grid is a QUADTREE, ¬a uniform 3x3. base is a coarse grid; regions near the target are subdivided into finer blocks. cell sizes DIFFER across the board at the same moment.
+ 2. ★TWO PHASES (owner's framing, confirmed): PHASE-A DECOMPOSITION — in a not-yet-terminal region a click SPLITS that cell into a finer block; the click is a request to subdivide, ¬an answer. PHASE-B FINAL SELECTION — once a region is at terminal granularity a click merely SELECTS (translucent blue), no further split; only this final set is graded.
+ 3. CLICK = TOGGLE. clicking a selected cell DESELECTS it. mistakes are fully reversible — probe freely, then clean up.
+ 4. FAIL CONDITION = a selected cell with no part of the octagon in it (orch selected 2 sky cells by mis-measure; deselecting restored the state).
+ 5. MULTI-TRAP: several independent regions decompose separately; all must reach terminal granularity before the answer means anything.
+PROBE THAT DECIDES EVERYTHING (cheap, do it first): click ONE cell clearly on the target, re-crop, and classify — (a) it subdivided => you are in Phase A there; (b) it just turned blue => that region is terminal, Phase B. one observation fixes the whole level.
+SOLVE: drive decomposition on every region the octagon touches until clicks stop splitting -> then toggle exactly the terminal cells overlapping the octagon -> Verify ONCE.
+TRAP: (a) ★never press Verify mid-decomposition — a partial-depth state is not an answer and is always rejected (this is why Verify looked "inert" for so long). (b) NEVER reuse cell coords across steps: the grid RE-FLOWS after every click (orch confirmed lines moved between two captures) — re-measure the white grid lines from a fresh crop before EVERY click. (c) do not assume 3x3: trace the actual lines and enumerate the CURRENT cells. (d) edge cells count — any overlap with the octagon, however small.
+COORDS: do not record any — they are invalid by the next click by design (see TRAP b).
+★GENERAL PRINCIPLE PROMOTED (-> _common playbook): some puzzles separate a SETUP/decomposition phase from a COMMIT phase. Identify WHICH PHASE you are in before treating any action as an answer, and never commit while setup is still unfinished. Detect the phase with a single probe (does my action change the STRUCTURE, or does it record a CHOICE?).
+
+
+===== [LVL 9] DETECTION METHOD (established 2026-09-11, u_4606/4608/4609) =====
+★COLOUR ALONE IS NOT ENOUGH. A plain red threshold lights up bricks, shop signage and window frames across the
+whole photo — that is exactly what produced our over-selection. Detection = COLOUR + SHAPE + CONNECTIVITY.
+
+1. RE-LOCATE THE WIDGET FIRST, EVERY TIME. After any zoom or scroll the board MOVES; a stale capture rect reads
+   brown bricks as candidate red and wastes rounds. Find it by its BLUE HEADER BAR: scan rows for a wide run of
+   strong blue (b>150 and b-r>40); the header's x-range gives the board's left/right, header bottom + 2 = board top.
+   MEASURED once at 5x zoom: header px x536-1872, board top px y516 -> logical board x 668-1336, y from 358.
+2. MASK accepts BOTH states of the sign, because the selection overlay tints sign-red toward purple/maroon:
+     bare red      : r>100 and r-g>45 and r-b>35
+     selected sign : r>85 and b>95 and (r-g)>18 and (b-g)>18 and g<130     # measured (112,86,124)
+     blue-over-white letters: b>150 and b-r>40 and 110<g<175 and r<150     # measured (122,149,192)
+   ★CALIBRATE BY SAMPLING, ¬by guessing constants: probe a few known sign pixels and a few known sky/tree/brick
+   pixels and pick a cut that separates them. Measured negatives: sky(192,194,209) tree(142,130,119) brick(213,212,208).
+3. CONNECTED COMPONENTS on that mask, keep the LARGEST BLOB = the sign. Everything else (bricks, small signage)
+   falls away by size. ★EXCLUDE THE HEADER BAND FIRST (y < board top): the blue header is itself a huge blue blob
+   and will win the size contest — that mistake gave a bbox with ratio 5.66.
+   SANITY-CHECK the blob: roughly as wide as tall (octagon-like). GOOD RESULT: 11165 px, bbox ratio 1.00,
+   logical bbox x920-1168, y529-777.
+4. A CELL QUALIFIES iff it INTERSECTS the blob by even a few pixels — threshold LOW so thin edge slivers count.
+5. OUTPUT TWO LISTS and act on both in ONE batch: SHOULD-SELECT-BUT-ISNT, SELECTED-BUT-NOT-IN-BLOB (click toggles fix each).
+6. Enumerate current cells by FLOOD-FILLING non-separator regions, ¬by a global line scan: nested separators are
+   PARTIAL and do not span the board, so a global scan finds only 2-3 lines and mis-sizes every cell.
+
+[LVL 13] TYPE: reverse-instruction selection ("Level 13: Reverse")
+VERB-PARSE(P0-prime): "Select all the squares WITHOUT a Traffic Light" — the word WITHOUT inverts the usual task; unit = each cell, condition = ABSENCE of the object.
+GOAL: select every cell that does NOT contain the traffic light.
+RULE: ordinary grid selection, but the predicate is negated. The POLE and the ONE WAY sign do NOT count as "traffic light" — only the light head itself does.
+SOLVE: select all 14 cells except the two holding the light head (top-middle pair). Cells containing only the white pole, the yellow arm or the street sign ARE selected.
+TRAP: (a) we first excluded every cell the pole passed through(too strict) -> rejected; then excluded only pure-sky(too loose) -> rejected. The accepted reading was "light head only". (b) ★CLICK DELIVERY: in ONE bash invocation only the FIRST click after activating Safari registered; every later click in the same command was silently dropped. FIX = one click per command invocation, with `osascript activate` + ~2s settle before it and ~2.5s after. This cost ~30 wasted actions before being diagnosed. (cf owner's warning about accidental double-clicks.)
+ACTIONS: ~45 (most lost to the click-delivery bug).
+
+[LVL 14] TYPE: logic / self-referential statement selection ("Level 14: Affirmations")
+GOAL: from ~60 checkboxes each asserting something, check the true one(s).
+RULE: every line claims to be a robot ("I'm a robot", "I'm a roomba", "I'm Stockfish", "I'm a microwave", binary strings, etc). Exactly ONE is the truthful statement for a non-robot: "I'm not a robot". Check only that.
+SOLVE: scroll the list, find "I'm not a robot"(it sits mid-list, deliberately buried among near-identical decoys), check it, done — no Verify press needed, it advances on its own.
+TRAP: double-negation decoys ("I'm not not a robot" = IS a robot), tense decoys ("I used to be a robot"), hedges ("I'm barely a robot"), and "I'm not a human"(= is a robot). Read each literally, ¬by keyword.
+ACTIONS: 2 (scroll + one check).
+
+[LVL 15] TYPE: real-time driving / KEYBOARD control ("Level 15: Parking") — ★BLOCKED
+GOAL: drive the Waymo with arrow keys into the one empty parking bay (right column, 2nd row: below the pink car, above the yellow).
+★BLOCKER(unresolved 2026-09-12): kongtrol key injection does NOT reach this game. `kongtrol input key up --yes` reports success but the car never moves 1px. Tried: click game area / click the car / click bare asphalt then key; `--repeat` vs many single presses; w key; tab-to-focus. All no-op. Every earlier level was MOUSE-only and worked fine, so this is specific to keyboard events reaching the page's key handler.
+NEXT IDEAS (untested): send keys via a different mechanism than CGEvent key injection; check whether the canvas needs a real focus event; have the owner press once to establish focus then continue.

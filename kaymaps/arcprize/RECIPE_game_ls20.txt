@@ -1,0 +1,80 @@
+RECIPE: game_ls20 (ARC-AGI-3 "ls20" — 4-field + harness)
+GATE: in-progress (controls confirmed 2026-09-10, clear-condition under narrowing)
+REG: three.arcprize.org task #ls20 (LEVEL x/7). cf RECIPE_arc_agi_play.txt (STANDING PRINCIPLE: play on screen, real mouse/kbd).
+★PRINCIPLE: PLAY ON SCREEN — kongtrol keyboard/mouse on live canvas. API/source=planner only.
+
+(1) HOW TO PLAY: gray maze-room (walkable) on dark walls. A 2-cell DOMINO piece (ORANGE top + BLUE bottom, vertical) is moved through the maze. White CROSS(+) marker in the room. Blue L-shape SOCKETS in small chambers (top + bottom-left). Bottom = YELLOW energy bar (+3 red segments at far right) = move budget, drains per move.
+(2) CONTROLS (harness — works/doesn't, verified 2026-09-10 via canvas-diff):
+  - ↑ (up)    = move domino up.    [WORKS: diff~487k when open]
+  - → (right) = move domino right. [WORKS: diff~482k]
+  - ↓ (down)  = move down.         [small diff~25k = blocked by wall here / minor]
+  - ← (left)  = move left.         [small diff~26k = blocked here]
+  (diff = canvas pixel-diff in region y[503,925] x[540,957] of screenshot÷2 frame)
+  - keyboard REACHES canvas (arrow keys work). SPACE/CLICK/rotation = UNTESTED.
+  - each move DRAINS the yellow energy bar (budget). exhaust=lose (hypothesis).
+(3) CLEAR CONDITION (L1): ★UNDER NARROWING. Deliver domino to a socket? cross transforms it? 
+  hypotheses to test: (a) domino into blue L-socket (top or bottom-left) = clear; (b) cross(+) flips/rotates domino color-order; (c) orient blue-end into socket.
+  next probes: move domino onto cross(+) → observe color/orientation change; move domino into a socket → observe clear.
+(4) WIN CONDITION: clear all 7 levels (scorecard). human ~776 actions.
+
+CALIBRATION (same as lp85): click/observe frame = full screencapture → sips -Z 2056 (÷2 logical); canvas gray-area bbox detect for any mouse mapping. LEVEL read via a11y "LEVEL n / 7". START = click white START pill (~744,747) OR detect near-white blob in canvas.
+
+===== HARNESS UPDATE (2026-09-10, narrowing) =====
+- INPUTS: ONLY arrow keys ←→↑↓ move the domino. SPACE=no-op. mouse CLICK on canvas=no-op. → no rotate key, no click mechanic.
+- DOMINO never rotates (always orange-top/blue-bottom on translation).
+- CROSS(+) = persistent tile (not consumed; reappears when domino leaves). Overlapping it showed no obvious color/shape change (needs per-cell zoom re-check). Likely the ONLY non-movement mechanic → candidate transformer.
+- TOP SOCKET: blue 2x2 with BOTTOM-LEFT corner missing (gap). Connected via 1-wide vertical corridor from the room.
+- BOTTOM-LEFT LEGEND: blue 3-cell shape, DIFFERENT orientation (missing bottom-right) — likely a target/legend, walls-separated.
+- Delivering domino UP into top socket with ORANGE leading = NO clear.
+- ENERGY: yellow bar drains ~1 tick/move; 3 red segments at far right = reserve/fail zone. ~40-move level budget est. Stop before red → let reset rather than burn reserve.
+- CLEAR-CONDITION (fable H1', best): match piece to legend (color+shape) then dock at top socket; cross=transformer. UNCONFIRMED. Since no rotate/click, transform (if any) must come from the cross tile. NEXT: per-cell cross overlap test (blue-only vs orange-only on cross) + zoom-diff; and blue-cell-in-gap socket approach.
+
+===== ★ DEEP OBSERVATION INVENTORY (2026-09-10, after RESET, per user "observation lacking") =====
+FULL element list (L1):
+1. ★PIECE (was mis-called 'domino'): actually a chunky RECTANGLE = ORANGE top-half over BLUE bottom-half, ~2 rows each, ~2-3 cols wide. Two color halves stacked. Never rotates; moves as one block via arrows.
+2. TOP SOCKET: small chamber (top), blue cells at top-left+top-right+bottom-right, GAP at bottom-left (2x2 minus 1). Reached via 1-wide vertical corridor.
+3. BOTTOM-LEFT LEGEND: chamber (bottom-left, wall-separated). Blue multi-cell shape (top row 2-wide + left col + a bottom-right cell) + a YELLOW horizontal bar beside it. = KEY/target diagram or per-level goal spec.
+4. WHITE CROSS (+): persistent tile mid-room (left). Not consumed. Role unconfirmed (candidate transformer).
+5. ENERGY BAR (bottom of canvas): YELLOW ticks (~40+, full at reset) draining right→left per move + 3 separate RED segments at far-right = reserve/danger or 3 lives.
+6. WALL LAYOUT: irregular gray room with internal notches forming a mini-maze; corridor to top socket; changes per level.
+7. CONTROL PAD (below canvas, cosmetic labels): D-pad arrows, SPACEBAR, CLICK, HELP, RESET, SELECT, UNDO(Z). Only arrows affect game (verified). HELP/SELECT/UNDO UNTESTED.
+★MISSED-THING candidates: (a) piece is 2-color RECTANGLE not thin domino → matching is about the blue half's footprint vs socket gap; (b) yellow bar INSIDE bottom-left legend chamber (separate from main energy bar) may encode required moves/target; (c) HELP button may show rules — UNTESTED, worth 1 press. 
+NEXT PROBE: press HELP (may reveal clear-condition/rules overlay); re-measure piece exact WxH; test cross with blue-half vs orange-half overlap + zoom-diff.
+
+★OBSERVATION: follow OBSERVATION STANDARD in RECIPE_arc_agi_play.txt (per-cell exact RGB, subject's-own-cells, every-step transit, per-direction, full-screen diff, verify-actual-transit).
+
+===== ★★ CLEAR RULE CONFIRMED (2026-09-10) =====
+CLEAR CONDITION (user-stated + verified): the BOTTOM-LEFT LEGEND shape must be made EQUAL to the TOP-SOCKET (goal box) shape, THEN dock the piece into the top socket → LEVEL n+1.
+MECHANIC: piece ENTERING the white cross (+) cell mutates the legend to its next shape (cycles ~4 states incl mirrors/rotations); each move costs the yellow gauge (~24px/move); gauge empty = GAME OVER ("Try Level Again" resets the level, deterministic, full gauge). Top socket + piece are fixed; only the legend changes.
+SOCKET(L1) normalized 4x4 = "#### / ..## / #.## / #.##" (top-bar+right-col+bottom-left). LEGEND(L1 initial) = "#### / ##.. / ##.# / ##.#" (mirror). Observed legend cycle shapes: ######..##.###.# , ####..###..###.# , ##.#...######### , ##.###..######## (4x4 sigs, ±1cell CV noise).
+SOLVE LOOP: (1) read socket sig once; (2) route piece to be directly below cross (cols aligned to cross), (3) move up THROUGH the cross (1 mutation per pass-through), compare legend→socket; (4) if not equal, exit+re-enter cross for next mutation; (5) once legend==socket, route piece under the 1-wide corridor (center-top of room) and press up to dock → clears.
+★EXECUTION BLOCKERS (open): (a) CV granularity — socket bbox ~20px, 4x4 read has ±1 cell noise → exact equality flaky; use larger normalized grid or template-match at cell scale. (b) cross-transit routing unreliable manually — piece must have its column aligned to the cross and actually PASS THROUGH (mutation fires on entry only); build BFS that guarantees a through-pass. (c) dock requires piece under corridor (cols vary per level) then straight up.
+STATUS: mechanic+clear-rule fully understood & reproducible (legend mutates, compare works); precise shape-match + reliable routing = remaining engineering to land the clear.
+
+===== ★★★★★ CLEAR CONDITION (CONFIRMED BY OWNER 2026-09-10) =====
+(1) Make the BOTTOM-LEFT LEGEND shape IDENTICAL to the GOAL-POINT (top socket box) shape — mutate the legend by stepping the piece ONTO the white cross (+), ONE mutation per cross-visit; verify the legend crop after each visit (per-cell/tight-bbox sig).
+(2) Once legend == goal shape, move the PIECE INTO the goal point (dock in the top socket) → the level CLEARS.
+This is the authoritative rule. Solve loop = [read goal sig once] → [cross-visit; re-read legend; compare] repeat until equal → [route piece into goal, dock].
+
+★HARNESS FACT (owner 2026-09-10): hitting a WALL also CONSUMES the move counter — bumps are NOT free. Plan paths to avoid wall bumps; every wasted bump costs budget. (Explains earlier GAME OVERs: blind routing bumped walls repeatedly.)
+
+===== WHY-MISSED POST-MORTEM (ls20 legend↔goal rule) =====
+Observations MADE but NOT CONNECTED: (a) noted the bottom-left blue glyph AND the top-socket blue glyph separately, and even that they were "different orientations" — but did NOT hypothesize they must be made EQUAL (relational pairing missing). (b) Saw the cross was "persistent/not consumed" and concluded "inert" instead of diffing the WHOLE screen to catch the legend mutation. (c) Saw the yellow bar but didn't tie gauge-drain to per-move (incl wall bumps).
+HARNESS ENTRIES THAT WERE MISSING: no "element→pairing" column (which HUD/mini-pic corresponds to which goal); no mandatory whole-screen transit-diff before declaring a tile inert; no per-cell RGB sig for small glyphs (eyeballed instead). 
+LESSON: harness-building QUALITY is the fix — for every element log {what, where, per-cell sig, WHICH element it pairs/matches, delta-per-action}. Corner mini-pics = goal previews (convention). Never label a tile "inert" without a full-screen before/during/after diff.
+
+★POST-MORTEM ADDENDUM: the wall-bump gauge cost was OBSERVED-BUT-DISMISSED (not unfound) — the gauge dropped on every bump, on screen each time, filtered as noise. Class it 'observed-but-dismissed'. RULE: attribute every gauge/counter delta to its cause action; no unexplained deltas allowed.
+
+===== SOLVER BUILD OUTCOME (2026-09-10) =====
+Built dedicated solver (exact-footprint block model + wall-map BFS + legend-sig compare loop). OUTCOME: reliable execution DEFEATED by CV precision — the 64-cell grid sampled from screenshot is misaligned with true game cells by ~1-2 cells, which is fatal for routing a WIDE (~5x5) piece through a TIGHT maze to a 2-cell cross. Symptoms: block-model marks the piece's own blend-row as wall; cross has adjacent wall stubs the wide block "can't" cover per map yet the real piece transits; left-moves that should pass read as wall-blocked. Empirical per-move legend-check loop also failed to ever transit the cross (piece confined to right columns by walls the map mis-locates).
+ROOT CAUSE (documented in playbook): not vision-native + no embodied game xp; countermeasure (computational pixel analysis) is itself limited by sub-cell CV alignment error on this game's fine 64x64 geometry.
+STATUS: mechanic + clear-rule 100% decoded and documented (legend==goal via cross-transit, then dock). Reliable automated CLEAR of L1 not achieved. Would need: sub-pixel-accurate cell-grid calibration (detect exact canvas origin+cell size from gridlines, not assumed bbox), then the existing block-BFS + mutation-count search would land it.
+
+===== ★★★★★ L1 CLEARED ON SCREEN (2026-09-10) — WORKING METHOD =====
+PROVEN end-to-end: LEVEL 1→2/7 via real keyboard. The clear rule (legend==goal then dock) WORKS.
+KEY EXECUTION INSIGHT: CV-derived block-BFS was unreliable (grid-vs-true-cell misalignment). What WORKED = EMPIRICAL per-move legend-watching:
+ 1. Read GOAL sig (top socket 3x3) once. Read LEGEND sig (bottom-left 3x3).
+ 2. Drive the piece around the room in a sweep (boustrophedon: left-run, up, right-run, up...), checking the LEGEND sig after EVERY single move. The move that changes the legend = a cross-transit (the piece passed over the + cell). 
+ 3. Continue until LEGEND sig == GOAL sig (here it matched after the transit that produced ###..##.#).
+ 4. Then route the piece to the top socket (align under the center corridor, press up) WITHOUT re-crossing the + (that would re-mutate). Dock = up into chamber → LEVEL advances.
+NOTE per-move legend-check is the reliable signal (don't rely on CV piece-position). Each move (incl wall bump) costs gauge — but full gauge survives ~40+ moves, enough for sweep+dock. Watch a11y "LEVEL n/7" for success.

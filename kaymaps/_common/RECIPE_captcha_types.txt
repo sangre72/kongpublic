@@ -1,0 +1,27 @@
+RECIPE: captcha_types (CAPTCHA 유형 카탈로그 + 정책 — 공통베이스)
+GATE: verified 2026-09-09 (u_4355 Discord hCaptcha 조우)
+REG: 웹 가입/인증 중 CAPTCHA 조우시. cf RECIPE_ask_when_stuck.txt, security-guideline.md §3(권한/인증 경계).
+
+===== ★★★ 정책 (MUST) =====
+- BOT 역할 = CAPTCHA 유형 인식 + 문서화(스샷) + 상태보고. ★실제 풀이는 사람 몫 → orch 경유 유저에 통보하고 PAUSE.
+- 봇이 자동으로 풀려는 시도 금지(anti-bot 설계라 실패·계정flag 위험, 실증: hCaptcha 드래그 3회 시도 전부 reset).
+- 인증벽 = 유저 명시 처리(security rule: 크레덴셜·인증은 유저). 봇은 챌린지 렌더 확인+스샷+대기.
+
+===== 유형 카탈로그 (인식법 + 무엇을 검증) =====
+1. IMAGE-GRID SELECT (reCAPTCHA v2 "다음 이미지를 모두 선택"): 3x3/4x4 이미지격자, "신호등/버스/횡단보도 선택".
+   인식: 격자+"~를 모두 선택" 문구. 검증=객체인식.
+2. SLIDE-PUZZLE EXACT-FIT (hCaptcha/GeeTest): 조각을 슬라이드/드래그해 빈자리·반쪽에 정확히 맞춤.
+   인식: "조각을 드래그하여 맞추세요/퍼즐" + 슬라이더바 or 드래그핸들("이동하다"). 검증=정밀드래그+마우스궤적.
+3. ROTATION-ALIGN: 이미지/화살표를 돌려 올바른 방향. 인식: 회전 컨트롤+"똑바로/정렬". 검증=각도맞춤.
+4. CHECKBOX BEHAVIORAL ("로봇이 아닙니다" 체크): 체크박스 1개. 인식: 단일 체크박스+reCAPTCHA로고. 검증=마우스행동/쿠키(대개 체크만으로 통과 or 위 1~3으로 확장).
+5. AUDIO: 음성듣고 숫자/단어 입력(시각장애 대체). 인식: 헤드폰아이콘. 검증=청취+타이핑.
+6. TEXT-DISTORT: 뒤틀린 글자 타이핑(구형). 인식: 왜곡문자이미지+입력창.
+
+===== 인식 절차 =====
+- 가입/제출 후 모달 뜨면 스샷 → 위 특징으로 유형판별 → a11y로 "hCaptcha/reCAPTCHA/챌린지" 라벨 확인(예 "hCaptcha 챌린지").
+- 유형+스샷 보고 후 PAUSE(유저 풀이). 로딩스피너면 잠깐대기(수초), 안뜨면 모달 X닫고 제출 재시도(폼필드 유지 확인 후).
+
+===== 사례 (첫 엔트리) =====
+- 2026-09-09 Discord 가입(kongbot757): SLIDE-PUZZLE EXACT-FIT (hCaptcha). "오른쪽의 조각을 드래그하여 일치하는 반쪽에 맞추세요",
+  하단 "hCaptcha 챌린지" 라벨, 드래그핸들 "이동하다". 봇 드래그 3회(정밀좌표+--human) 전부 실패·reset → 인식·문서화 후 유저에 이관.
+  교훈: hCaptcha 슬라이드퍼즐은 봇 자동드래그로 통과 불가(궤적탐지). 무조건 유저 hand-off.

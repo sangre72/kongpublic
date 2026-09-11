@@ -37,3 +37,9 @@ C. FULLSCREEN = 녹색버튼(신호등 3번째) 클릭 or 그 위 호버메뉴 "
 - 스크롤: 대상탭 frontmost 확인 후 페이지 본문 클릭→`key down --repeat N`. ★스크롤 직후 중립클릭 금지(top으로 되돌아감).
 
 BASIS: u_4322 (2026-09-09) 사용자 코칭 3연 — 창높이확대·전체스크롤리뷰·정체성확인. arcprize 잡레시피는 이 파일 cross-ref만.
+
+===== ★★★ SCREENCAPTURE PHYSICAL-PIXEL SCALE (실사고, u_4322) =====
+- `screencapture -R x,y,w,h` = PHYSICAL 픽셀 좌표. a11y/kongtrol click = LOGICAL 좌표. Retina는 physical=logical×(scale).
+- scale 구하기: `screencapture -x full.png; sips -g pixelWidth full.png` → physW / logicalScreenW = scale(예 4112/1512≈2.72).
+- 크롭시 반드시 logical→physical 변환: R = logical×scale. (안하면 화면 좌상단만 잡힘 — 다수 오독사고 원인.)
+- 읽은 crop에서 좌표 역산해 클릭시엔 다시 physical→logical(÷scale) 후 kongtrol click.

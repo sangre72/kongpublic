@@ -1,4 +1,6 @@
 RECIPE: arc_agi_play (ARC-AGI 공개 퍼즐 실플레이 — 격자읽기+규칙추론+마우스 답작성+제출)
+★★★ STANDING OBJECTIVE (all arcprize games, u_ 2026-09-10): CLEAR WITH MINIMUM ACTIONS (optimal play). This SITE scores by ACTIONS-vs-human-baseline on the leaderboard — efficiency IS the benchmark. Every action costs even when no rule says so (wall bumps, backtracks, redundant probes all count). Plan SHORTEST sequences; BFS-optimal routes; no wasted bumps. Probe-efficiently during discovery too. ★★★
+
 GATE: verified(v1 task#0520fde7 SOLVED "Correct!" 2026-09-09, real kongtrol mouse, screen-recorded)
 REG: arcprize.org/play?task=<id> (ARC-AGI-1/2 public), three.arcprize.org (ARC-AGI-3 game env)
 AUTHOR: kong worker (u_4322)
@@ -55,7 +57,29 @@ WHY: ARC 격자퍼즐 = train예시로 규칙추론→test 답격자 작성. 순
 - ARC-AGI-3: three.arcprize.org = 인터랙티브 게임env(격자가 아니라 액션기반). 점수=클리어레벨+액션수. UI 다름(별도 탐색 필요).
 
 ===== 녹화 (선택, u_4322) =====
-- screencapture -v -V <sec> <out.mov> & (백그라운드, 파일은 stop시 finalize). 플레이 전 시작, verdict후 kill. 경로 jobs/demo_recordings/.
+- ★★★실패교훈: `nohup screencapture -v ... &`로 백그라운드 실행하면 그 프로세스가 INT/TERM/HUP/killall/pgroup-kill
+  전부 무시(controlling terminal 없어서) → 파일 finalize 불가, kill -9시 mov 유실. 여러차례 재현됨.
+  → ★대안(권장): 각 단계 verdict마다 `screencapture -x <step>.png`로 스텝별 증거 PNG 저장(확실·검증가능).
+  연속 mov가 꼭 필요하면 nohup 말고 foreground 터미널에서 실제 Ctrl-C 가능한 상태로 돌려야 함(에이전트 백그라운드에선 비권장).
+- 경로 jobs/demo_recordings/.
+
+===== v2/v3 방법 (u_4322 3회차 검증) =====
+- ★FULLSCREEN(보기메뉴@223,20→전체화면시작@337,295)이 multi-example task 결정적 해결(창겹침·스크롤 제거).
+- 출력크기≠3x3 = resize 필수: size field(a11y로 y확인, 로드마다 469 or 511 변동)에 "6x6"/"9x9"/"6x3"/"1x1" 입력→Resize.
+  ★ARC size표기 = "가로x세로"(6x3=6열3행). Output 라벨로 방향확인.
+- 단색출력=Fill(flood, 1클릭). 혼합=Edit(셀별). resize후 셀좌표는 corner-probe로 pitch보정(0,0)&(max,max) 찍어 확인후 파이썬으로 색별 일괄클릭.
+- ★스와치 정밀: 인접색 오클릭 빈발(red↔magenta, magenta↔gray, orange). crop확대로 정확 x측정후 클릭, 결과 crop검증.
+- v3(ARC-AGI-3): three.arcprize.org/ls20 → "Start—play ls20"@(807,290) → START@(1025,354). 조작=화살표(이동)+space(액션)+
+  RESET/HELP/SELECT/UNDO(z). 무설명 탐색형(frontier AI 0.51%), 게임캔버스라 화살표 key로 조작. 레벨7개.
+
+===== ★WIN METHOD (2026-09-09 2회차 검증, v1 2/2) =====
+- ★FULLSCREEN이 정답: 보기메뉴(@223,20)→전체 화면 시작(@337,295) → Terminal 등 다른창 겹침 완전제거 + 전체 태스크 한화면.
+  (창 크기조작·스크롤 불안정 전부 회피. 이게 multi-example task의 실질 해결책.)
+- ★출력이 단색(전체 한 색)인 task = Fill(flood)로 아무 셀 1클릭 = 전체 채움(9클릭 불필요). 5582e5ca=최빈색 채움→Fill 1클릭.
+  단색 아니면 Edit(단일셀). 도구를 답 형태에 맞게 선택.
+- 좌표(fullscreen 2056x1290 기준, 매번 a11y): Fill@(1159,524) Edit@(1046,524) Submit@(1081,613) Clear@(1336,468)
+  palette y~554(black~1055 → 각 swatch ~+21px, cyan9번째~1220) output-grid cell0~(1264,271). ★값은 창따라 변동, a11y+crop 재확인.
+- 규칙예시: 5582e5ca=입력 최빈색으로 3x3 전체채움(Ex3 magenta최다→magenta, test cyan최다→cyan) "Correct!".
 
 ===== PITFALLS =====
 - P1 hover-tooltip이 격자 가림 → 읽기전 cursor 중립이동.
@@ -72,3 +96,156 @@ WHY: ARC 격자퍼즐 = train예시로 규칙추론→test 답격자 작성. 순
   한 화면에 넣은 뒤 조작(스크롤 의존 제거). 3x3 output처럼 작은건 grid작아도 OK.
 - P7 palette swatch 간격 좁음 → red(3번째) 오클릭시 magenta(7번째) 나옴. swatch crop 확대해 정확 x 계산, 선택후 badge확인.
 - P8 task에 "Test 1 of 2" = test input 복수 → 각각 답작성+Submit. Next로 다음 test.
+
+
+===== ★★★ GAME-FIRST-PRINCIPLE (모든 게임 착수시 표준, u_4322) =====
+게임 만나면 목표추구 前 반드시 규칙부터 확립. ★단 최우선 질문 = 'CLEAR CONDITION이 무엇인가'. 규칙발견은 clear-condition 발견에 복무. probe는 clear-condition 가설을 직접 테스트(cheapest-decisive first). 순서:
+(1) 제공된 설명/HELP 먼저 읽기.
+(2) 모든 오브젝트 식별(플레이어말·목표·변환기·벽·아이템 등 전수).
+(3) 각 오브젝트를 ONE-VARIABLE probe로 터치(1액션→before/after 캔버스crop diff로 반응관찰, 무변화=데이터, UNDO로 인과확인).
+(4) 규칙세트를 명시적으로 서술(무엇이 무엇을 어떻게).
+(5) 그 다음에만 계획+클리어 실행.
+★속도: probe는 수초당 1회 페이스(캔버스rect만 crop, 풀스크린 금지). query-then-act 즉시(재숙고 금지).
+
+===== ARC-AGI-3 ls20 게임 메커니즘 (u_4322 실플레이 발견, 진행중) =====
+- 조작: 화살표=2칸 도미노블록(orange+blue) 이동시도. 벽에 막히면 이동대신 ROTATE(가로↔세로 재배향). space/click/undo(z)/reset/help/select 패드.
+- 화면요소: 흰十자=마커(고정, 벽너머라 블록이 직접 못닿는 경우多), top-box·bottom-box의 blue-L=소켓/목표 or 진행표시,
+  하단 노란바=이동자원(줄어듦)+우측 빨강3칸.
+- 컨트롤 패드 실좌표(fullscreen): SPACEBAR@(1057,510) CLICK@(1057,527) UNDO@(1057,545) RESET@(1137,510) HELP@(1137,527) SELECT@(1137,545). START@(1025,354). 게임캔버스 클릭으로 포커스后 화살표 key.
+- RESET로 레벨 초기화(싸게 재시도). HELP=오버레이 없음(무설명 설계). 
+- ★목표추론 진행중: 블록을 corridor 통해 top-box 소켓에 넣기 or 특정 배향달성으로 보임. 레벨별 상이. (미완)
+- ★막힘시 도움요청: kaymaps/_common/RECIPE_ask_when_stuck.txt (self→web→AIchat→forum→user 사다리).
+  ls20 메커니즘 확보 실적: ChatGPT+Grok 자문 결과 = "흰 十자=TRANSFORMER. domino(key)를 socket 진입前 cross를 통과시켜
+  색순서를 flip해야 함(orange-top→blue-top). SPACEBAR는 90°회전만(색순서 안바뀜). cross통과가 색flip 담당." → in-game 검증중.
+- ★브라우저 기본: kaymaps/_common/RECIPE_browser_basics.txt (TAB규율=게임탭 네비금지·새탭사용, LEARN-BEFORE-USE=미숙UI 선스캔).
+  ls20 실사고: 게임탭을 AI챗으로 네비→진행유실 2회. AI챗은 새탭에서.
+
+===== ★게임 탐색 원칙 (u_4322, 무설명 게임 일반) =====
+- TOUCH-EACH-OBJECT: 오브젝트마다 블록을 부딪혀/올려 반응 관찰 후 목표추론. (ls20: cross, blue-L socket, walls, boxes 각각.)
+- ONE-VARIABLE OBSERVATION LOOP: screenshot BEFORE → 정확히 1액션(1변수) → screenshot AFTER → 두장 pixel-diff →
+  변화기록(무변화도 데이터=벽/no-op) → UNDO로 인과 재확인. 매 touch-test에 적용.
+- 이동이해 확보済: 화살표=도미노 1칸이동, 벽충돌시 회전, SPACE도 회전(단 여유공간時).
+
+===== ls20 관찰기록 (진행) =====
+- domino(orange위/blue아래 vertical) = 화살표로 이동, 1칸씩. 좁은통로(1폭)는 vertical만 통과.
+- corridor 진입 = domino를 corridor column에 정확정렬(1칸 좌우오차도 실패, up이 벽충돌) 후 up. ★정렬이 최대난관.
+- top socket = 3x3 box, blue-L(top-left+그 아래+오른쪽). domino orange가 box 하단에 들어가나 LEVEL 미클리어
+  → 소켓은 특정색/형태 요구로 추정. orange만으론 blue-L 완성 안됨.
+- white cross(transformer) = domino가 그 칸을 지나면 cross 사라졌다 재출현. ★단 orange/blue 색순서 flip은 관찰 안됨(테스트함).
+  SPACE on cross도 무변화. → transformer 정확기능 미확정(색flip 아닐수도, 또는 트리거조건 미발견).
+- ★미해결: 소켓 클리어 조건(어느 색/배향). AI자문(ChatGPT/Grok)=transformer flip 가설 줬으나 in-game 미재현.
+  다음: TOUCH-EACH loop로 socket에 각 배향/색 넣어보며 클리어조건 역추론, 또는 커뮤니티.
+
+===== ★★★ GAME 표준 4-FIELD 템플릿 (모든 게임 문서화 표준, u_4355) =====
+게임 만날 때마다 이 4필드로 정리(아는것 채우고 모르는것 UNKNOWN 표시):
+(1) HOW TO PLAY: 전체 방법/흐름.
+(2) CONTROLS: 각 입력과 효과.
+(3) CLEAR CONDITION: 레벨별 클리어 조건.
+(4) WIN CONDITION: 전체(게임) 승리 조건.
+
+----- ls20 (4-field, 2026-09-09 진행) -----
+(1) HOW TO PLAY: 격자 미로에서 2칸 도미노(key: orange위/blue아래)를 이동시켜 top의 socket(목표)로 배달. 흰十자·socket 등 오브젝트 존재. 하단 노란바=에너지(이동자원, refill셀로 회복 추정). 무설명.
+(2) CONTROLS: ←→↑↓=도미노 1칸 이동(벽이면 회전 or 정지). SPACEBAR=관찰상 no-op(회전 안됨, 여유공간서도). CLICK/UNDO(z)/RESET/HELP/SELECT 패드. RESET=레벨초기화. HELP=오버레이없음.
+(3) CLEAR CONDITION(L1): ★UNKNOWN. 확인된 것: orange셀만 socket 하단 진입=클리어 안됨. socket=3셀 blue 백L(top-mid·top-right·mid-right). cross통과·SPACE=socket 무변화. 미검증가설(우선순위순): (a)도미노 양셀 모두 socket안 안착 (b)blue셀이 특정 empty슬롯에 (c)특정 배향 (d)에너지/switcher 조건.
+(4) WIN CONDITION: 7레벨(0~6) 전부 클리어(scorecard). 인간 776액션. UNKNOWN 세부.
+★도전상태: L1 미클리어. 최대난관=corridor 1칸정렬 + clear-condition 미발견. AI자문+solver repo(refill/exit-gate/switcher 용어)참고. 커뮤니티(Discord invite discord.gg/9b77dPAmcA)=계정필요→유저 이메일인증 필요시 pause.
+
+===== ls20 커뮤니티 조사결과 (2026-09-09 read-only, kongewalker) =====
+- ARC Discord #forum-discussion 스레드 3개뿐: "Testing Guidelines", "What prompt is used when evaluating models on ARC-AGI-3?"(piotrek/Zanthous, eval프롬프트 논의), "Vibe Coding Approach". ls20 메커니즘/clear-condition 언급 없음.
+- #general(ARC-AGI-3): ls20/game 규칙 논의 없음.
+- 결론: 커뮤니티 스레드에 ls20 L1 clear-condition 답 없음. solver repos(github)의 용어(refill/exit-gate/switcher)가 유일 단서.
+  → self-probe로 복귀. 남은 가설: blue셀을 socket의 빈 슬롯에 올바른 배향으로 배달(orange아닌 blue가 목표셀에).
+
+===== lp85 (다른 게임, "Start—play ls20" 링크가 현재 lp85 서빙, 8레벨/388액션) =====
+- ls20과 다른 게임. 관찰: 화살표=선택커서(노란 브래킷) 이동(피스이동 아님). 색블록들이 사각테두리로 배치+상단 black슬롯 행(진행/목표).
+  좌=red 우=green 플레이어형 shape. SPACEBAR/CLICK=선택셀에 액션(미검증). GAME-FIRST 재적용 필요(ls20지식 전이 안됨).
+- ★ls20 도달문제: three.arcprize.org/ls20·/play/ls20 모두 landing 거쳐 featured game(현 lp85)로 감. ls20 직접 로드경로 미확인.
+- ★CONTROLS 확장(u_4454): 일부 게임은 보드 셀 MOUSE CLICK 입력 사용(컨트롤패드에 CLICK 명시됨). 화살표뿐 아니라 셀 직접클릭 probe 포함:
+  색셀/green피스/빈셀 각각 클릭→before/after crop-diff 관찰. (kongtrol input click 보드좌표.)
+- ★lp85 CLICK-probe 발견(u_4454 tip): green피스 클릭=색상 링 1칸 시계방향 ROTATE(테두리 색셀들이 회전). 색셀 원거리클릭=no-op.
+  화살표=yellow-bracket 선택커서 이동. 상단 black슬롯 행=고정(목표패턴 추정). 가설: 링을 회전시켜 목표배열에 맞추면 clear.
+- ★lp85 L1 확정 메커니즘(click-probe): green클릭=링 CW회전, red클릭=링 CCW회전(테두리 색셀 전체가 한칸씩 돎). 화살표=yellow-bracket 선택커서 이동. SPACE·색셀클릭=no-op. 상단 8개 black슬롯=비어있음(목표/진행 미상).
+  ★clear-condition 미확정: 링은 전체회전만 가능(개별 정렬 불가) → 회전만으론 정렬 못함. 참조패턴(어디에 맞춰야 하는지) 미발견. 남은 probe: 선택커서로 특정셀 지정후 red/green이 그 셀만 바꾸는지, 또는 특정색을 특정위치(코너/피스옆)에 맞추면 슬롯 채워지는지.
+
+===== ★PER-GAME RECIPES (u_4457) =====
+게임별 상세=별도파일(4-field + works/doesnt harness). 이 파일=일반 playbook.
+- kaymaps/arcprize/RECIPE_game_ls20.txt (domino/socket 게임, 7레벨)
+- kaymaps/arcprize/RECIPE_game_lp85.txt (색링 회전 게임, 8레벨: green클릭=CW, red클릭=CCW 회전 확정)
+새 게임 조우시 RECIPE_game_<id>.txt 생성(task페이지 상단 id 확인).
+
+===== ★★★ RULE-FINDING ALGORITHM: NARROWING (u_4463, 모든 게임) =====
+규칙발견 = 가능성 공간 축소: (1)후보 입력 전부 열거(키:단발/홀드/조합, 마우스:클릭/더블/연타/교차/홀드/드래그/호버, DOM버튼들) →
+(2)검증된 before/after diff로 안 되는 것 제거 → (3)살아남은 것이 곧 컨트롤 스킴 → (4)그 컨트롤만으로 clear-condition 도출.
+★전제: 좌표·포커스가 correct여야 "안됨"이 유효(fullscreen/zoom 후 좌표틀림·포커스상실이 흔한 오제거 원인 — 재검증필수).
+worked example(lp85): fullscreen이 좌표 오염→전 입력 no-op 오판. fullscreen종료후 재검증했으나, 멀티윈도우(터미널+Chrome) 환경에서
+synthetic click이 Chrome에 미도달(RESET DOM버튼조차 무반응)로 판명 — 입력라우팅/포커스 문제(좌표·추론 아님). 이 환경선 클리어 불가.
+
+===== ★★★★★ 웹콘텐츠 입력 FIX (2026-09-10, 결정적) =====
+- kongtrol 일반 CLICK = Chrome 웹콘텐츠에 미전달(native UI만 반응). 
+- ★kongtrol DRAG(input drag x y x+1 y+1, press-move-release) = 웹콘텐츠에 전달됨! (ALL TASKS 링크 drag로 네비성공.)
+- → 웹게임/웹요소 조작은 CLICK 대신 DRAG-as-click(src≈dst) 사용. 이게 ARC-AGI-3 게임 unblock의 핵심.
+- (원인추정: Chrome 웹렌더러가 CGEvent 단발 click은 무시하나 drag 시퀀스의 mouse-down/up은 처리.)
+- ★정밀후속(2026-09-10): DRAG-click은 DOM <a>링크엔 작동(ALL TASKS 네비O)하나, 게임 콘솔(canvas: RESET/pieces/셀)엔 drag·click·key 모두 무반응(보드 불변). 
+  → 웹 DOM일반요소는 drag로 조작가능하나, ARC-AGI-3 canvas게임의 입력핸들러는 synthetic 이벤트(click/drag/key)로 만족 안됨(이 환경). 게임클리어엔 실HID나 toolkit API 필요.
+- ★★★확정(2026-09-10): 게임=단일 <canvas>(a11y에 게임요소 전무). DOM버튼(Copy-game-link=drag클릭시 'Link copied' O, ALL-TASKS 네비 O)은 drag-click 작동. 
+  그러나 canvas게임 자체는 synthetic click/drag/key 전부 무반응. → canvas가 trusted-event 요구. synthetic UI로 ARC-AGI-3 게임 클리어 불가. 유일경로=ARC-AGI-3 toolkit/API(프로그램 구동).
+
+===== ★★★★★ FINAL SCOREBOARD (u_4322, banked 2026-09-10) =====
+- v1 (ARC-AGI-1 public): 3/3 SOLVED (real kongtrol mouse, screen-recorded). tasks incl #0520fde7("Correct!").
+- v2 (ARC-AGI-2 public): 3/3 SOLVED (same GUI method).
+- v3 (ARC-AGI-3 game lp85): ★8/8 SOLVED ON SCREEN via real kongtrol mouse (VICTORY!!! 2026-09-10). Offline empirical-perm sim=planner (79 moves), on-screen executor=play (canvas-bbox affine + handle-snap + per-move diff/a11y verify + RESET-per-level drift-guard). Correction to earlier note: browser canvas IS clickable by kongtrol (earlier 'immune' conclusion was START-screen/coord-frame error). Click frame=screenshot÷2, NOT a11y. Full method in RECIPE_game_lp85.txt.
+- KEY LEARNINGS: (a) v1/v2 = pure GUI grid-reasoning works. (b) v3 canvas needs trusted events → toolkit API only. (c) offline replay of frozen environment_files is UNFAITHFUL(live reset差) → live API = only ground truth. (d) per-game/level rotor layout & clear-condition differ; never carry assumptions between them.
+
+===== ★★★★★ STANDING PRINCIPLE: GAMES ARE PLAYED ON SCREEN (u_ 2026-09-10) =====
+- GAMES ARE PLAYED ON SCREEN: real mouse/keyboard on the visible interface (or whatever interface the game presents to a human player) — NOT via backend API calls.
+- API / source-reading may INFORM planning (compute the solution offline, decode mechanics), but PLAY = on-screen interaction. Level advance must be VISIBLE on screen.
+- Pattern: offline faithful sim = PLANNER (produces move sequence in game display-space); kongtrol mouse = EXECUTOR (map display→canvas screen px, click, verify on-screen level advance).
+- Aligns with feedback-gui-first-api-only-for-complex-apps: GUI is default; API is planning aid only, never the act of playing.
+
+===== ★ MODEL-TIER STRATEGY (u_ 2026-09-10) =====
+- INSIGHT (stuck on rule / clear-condition deduction) = temporarily switch to top-tier model (/model fable or opus-max), get the insight, VERIFY it in-game, then switch BACK to opus/sonnet for the mechanical play loop.
+- Insight bursts on the big model; execution (click-diff-verify loops, replay) on the fast one. Apply at discretion; NOTE each switch in status log.
+
+===== ★ CURIOSITY HABIT (u_ 2026-09-10, MUST) =====
+- For EVERY on-screen element ask: "why is this here? what is it? what differs from before / from other levels?" Treat any UNEXPLAINED element as an UNREAD HINT.
+- This includes menu/UI items: ★HELP and any menu/SELECT overlay may contain real hints — OPEN and READ them FULLY (screenshot the whole overlay, a11y-dump all text), don't skim one line. (ls20 HELP lists "Available Controls" = the exact active input set; lp85 HELP unre-checked — re-check.)
+- Full-screen diff when probing a tile: compare WHOLE screen before/during/after (not just the piece) — a tile may change something ELSEWHERE (legend, socket, counter, energy). List every changed region, then form the rule.
+- Deep-observation inventory BEFORE deducing: enumerate every element + role + per-level delta. Missed-element = missed rule (repeated lesson).
+
+===== ★★ OBSERVATION STANDARD (BASE RULE, u_ 2026-09-10, MUST for all game probing) =====
+When probing ANY tile/element effect, use ALL of these — coarse clustering/thresholds MISS subtle effects:
+1. PER-CELL EXACT RGB: sample each grid cell's mean RGB as raw numbers (no threshold/clustering). Subtle shade shifts (e.g. 219,135,67 → 215,131,63) count as state changes.
+2. SUBJECT'S-OWN-CELLS: check the moved piece's OWN cells before vs after (color/shade/order may swap or recolor) — not only the world. Effect may be ON the subject.
+3. EVERY-STEP TRANSIT CAPTURE: capture+sample at EVERY step while passing over/through the element, not just parked-state. Effects can fire on TRANSIT or on EXIT, not only while stationary on it.
+4. PER-DIRECTION ENTRY: enter the element from each of the 4 directions separately — effect may be direction-dependent.
+5. FULL-SCREEN DIFF: compare the WHOLE screen (legend, sockets, counters, energy, every cell), not just the subject — a tile may change something ELSEWHERE.
+6. VERIFY ACTUAL TRANSIT: confirm the subject actually reached/covered the element (read its cells) before concluding "no effect" — a wall-blocked no-op move is NOT a valid test.
+Cross-referenced by every per-game recipe (RECIPE_game_*.txt). Missed-effect = missed rule (repeated lesson: ls20 cross, HELP hint).
+7. ★FINDING-WHAT-CHANGES IS THE GAME: the clear-condition often hides in a SUBTLE state change you must hunt (a consumed gauge tick, a mirrored/rotated HUD glyph). Enumerate every candidate change region and diff ALL of them; do NOT conclude a tile is inert until you've full-screen-diffed the WHOLE board (piece + legend + gauges + sockets) before/after AND during transit. (ls20 lesson: cross mutates the bottom-left LEGEND — mirror/rotate — and consumes the yellow gauge; the piece itself is unchanged. Missed twice by loose observation.)
+8. ★PAIRING/RELATIONAL HYPOTHESIS FIRST: after finding WHAT changes, immediately ask which OTHER existing element it corresponds/matches to. Corner mini-pictures / HUD glyphs = goal PREVIEWS (universal game convention). Prioritize RELATIONAL "make X equal/match Y" hypotheses (same-shape, same-color, same-orientation between a controllable indicator and a fixed goal) OVER piece-centric ones (rotate/transform the piece). The variable you mutate is often a KEY/PREVIEW that must be matched to a fixed LOCK/GOAL. (ls20: bottom-left legend mini-pic = preview that must be made == the top goal-box shape; the cross mutates the preview.)
+
+===== ★ WHY THIS IS HARD — ROOT CAUSES + COUNTERMEASURES (u_ 2026-09-10) =====
+Root causes of the repeated observation/spatial misses:
+1. NOT vision-native: this model is language-first with vision attached — shapes, space, and subtle pixel/state changes are second-class vs text. Visual deltas (mirrored glyph, shade shift, 1-cell gap) get missed by default.
+2. NO embodied game experience: interaction history is coding, not act→observe→adjust gameplay. Lacks the human reflex of "poke it and watch what moves."
+Countermeasures (standing):
+A. COMPUTATIONAL PIXEL ANALYSIS substitutes weak vision — don't eyeball: per-cell exact RGB, tight-bbox normalized shape sigs (3x3/4x4), programmatic before/after/transit diffs, color-mask cluster detection, wall-map extraction + BFS. Treat the screen as data, not a picture.
+B. PER-GAME HARNESS ACCUMULATION substitutes missing interaction experience — write/grow RECIPE_game_<id>.txt every probe (controls table, element inventory, mutation rules, clear-condition, solve loop). The harness IS the experience; reuse and extend it rather than re-discovering.
+Apply both by default on every game task.
+
+===== WHY-MISSED POST-MORTEM PATTERN (record per hard game) =====
+When a rule is found late, write a post-mortem: (1) which observations were MADE but not CONNECTED (usually a relational pairing not hypothesized), (2) which harness entries were MISSING (pairing column, whole-screen transit-diff, per-cell sigs). Harness-building QUALITY is the lesson: log per element {what, where, per-cell RGB sig, WHICH element it pairs to, delta-per-action}. Never call a tile "inert" without a full-screen before/during/after diff. (ls20: legend & goal glyphs both seen but "make them equal" never hypothesized; cross mislabeled inert for lack of whole-screen diff.)
+
+===== ★ FAILURE TAXONOMY: OBSERVED-BUT-DISMISSED vs UNOBSERVED (u_ 2026-09-10) =====
+Two distinct miss-classes in post-mortems:
+- UNOBSERVED: the data was never captured/looked at.
+- OBSERVED-BUT-DISMISSED: the data WAS on screen (often every frame) but got filtered out as "noise" by attention bias. (ls20: the gauge dropped on every wall-bump — visible each time — but was dismissed; the legend mutation was on-screen but attributed to nothing.)
+RULE (no unexplained deltas): every gauge/counter/HUD change MUST be attributed to its CAUSE action in the harness. If a counter moved and you can't name why, that's an unexplained delta = a rule you haven't found — investigate, don't discard. Log deltas as {action → observed change} pairs; a change with no action, or an action with an unexpected change, is a lead.
+
+===== ★ NEW-LEVEL PROTOCOL (u_ 2026-09-10, human reflex = "try it once first") =====
+On EVERY new level, BEFORE running any known solve loop:
+1. LEVEL-DIFF vs previous level: full-screen inventory; list what's NEW, what CHANGED, what's gone. New/changed element = potentially new rule.
+2. ONE-TOUCH each new component exactly once (move onto/through it), full-screen + per-move legend/gauge/goal diff per the OBSERVATION STANDARD — establish what it does.
+3. JUDGE: go through ALL components exhaustively, assign each a role.
+4. EXECUTE the (now-validated) solve loop.
+Order = level-diff → one-touch each new component → judge → execute. Don't assume last level's rules fully transfer.

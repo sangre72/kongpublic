@@ -60,3 +60,13 @@ VERIFY:
 LIMIT/OPEN:
 - "예약됨"(Scheduled) 탭은 미확인 — 별도 검증 필요.
 - 실제 게시(Post 클릭)는 여전히 미실행 — 항상 별도 명시 지시 필요.
+
+===== ★★★ ACTUAL POST + THREADED REPLY (VERIFIED 2026-09-10, owner-approved) =====
+Full publish flow now proven (beyond draft-save):
+1. Compose modal (sidebar 게시하기 @a11y ~243,928) → click text area (AXTextArea "게시물 본문") → input text (ONE line, no newlines; paragraph breaks as spaces; hashtags inline). Verify value via a11y (no path leak!).
+2. Attach media: click "사진 또는 동영상 추가" (re-query coord each time — shifts as text grows) → VERIFY NSOpenPanel actually opened (screencapture; a11y may not expose it) BEFORE typing path. ★If panel did NOT open, "/"+path types INTO the tweet (leaks local path) — clear + redo. In panel: it remembers last folder; select file row + click 열기(Open). Confirm composer grew + NO local path in tweet text.
+3. ★APPROVAL GATE (owner policy): screencapture the composer (text+image visible), crop, send via scripts/send_photo_telegram.py to owner; POST only after explicit owner "go".
+4. Post: re-query 게시하기 button coord, click; verify modal closed (a11y "게시물 본문" gone) = posted.
+5. Get URL: profile (x.com/<handle>) → click tweet timestamp → read address bar (screenshot→sips -Z 2056 crop). Tweet URL = x.com/<handle>/status/<id>.
+6. Threaded REPLY: open the tweet permalink → click "답글하기" (opens reply composer, AXTextArea "게시물 본문") → type reply (1 line) → gate/approval → click 게시하기 → verify "1 답글" appears on parent. Reply URL via its own timestamp.
+NOTE: a11y coords worked for clicks on THIS Chrome's native+web buttons here (compose/OAuth/post) — but verify each click's effect; some modal Post clicks need re-query after layout shift. Delete-to-clear: click into text, cmd+a, delete (may need 2x); verify placeholder "무슨 일이..." returned.

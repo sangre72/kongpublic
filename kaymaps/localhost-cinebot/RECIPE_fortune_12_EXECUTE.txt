@@ -12,6 +12,7 @@ P0. 서버 up 확인(전부 응답해야 진행):
     curl -s "http://localhost:15000/fortune/progress?date=<DATE>&lang=ko"  → JSON (youtube-top uvicorn, 운세텍스트)
     ★★슬라이드 생성 백엔드도 필수(2026-09-01 ar_2995 실패교훈 — 이거 빠지면 §10 '전체 슬라이드 생성'이 '영상 생성 오류'로 12씬 전부 실패):
     curl -s -o /dev/null -w "%{http_code}" http://localhost:8188   → 200 (ComfyUI 이미지생성, 포트 8000/8188 drift 가능 — ps로 확인)
+    ★★2026-09-11 실사고+FIX: youtube-top 백엔드 python-server/services/comfyui_service.py 가 COMFYUI_URL='http://localhost:8000' 하드코딩(env override 불가). ComfyUI가 8188(기본포트)에서 돌면 백엔드 8000 체크 실패→§10 '슬라이드쇼 영상 생성 중 오류' 다이얼로그(즉시). ★반드시 ComfyUI를 8000으로 기동: `~/ComfyUI-src/venv/bin/python3 main.py --port 8000`(8188에 이미 떠있으면 kill 후 8000 재기동). 큐검증도 8000/api/queue. (=8000/8188 drift의 정확한 정체: 백엔드는 항상 8000 기대.)
     curl -s -o /dev/null -w "%{http_code}" http://localhost:15100   → (zodiac)
     curl -s -o /dev/null -w "%{http_code}" http://localhost:18081   → (Qwen MLX)
     (하나라도 000/무응답 → §JUDGE-4로. ComfyUI 기동: `~/ComfyUI-src/venv/bin/python3 main.py` ★bare python 금지=gguf 없음.)
@@ -31,6 +32,7 @@ P1. Chrome foreground: `open -a "Google Chrome" && sleep 2`. (§JUDGE-1 조건 �
    ★"⚠ zodiac Qwen(18081) 기동실패" 배너 = 오탐, 무시(12개 매칭이 기준).
 9. "전체 시나리오로"(~1572,196, a11y 1회 재확인) click → 시나리오탭 전환+대본 12항목 채워짐 확인(1회). ★2026-09-07 u_4165 MUST-기억: **projects/ 디렉토리는 이 스텝(전체 시나리오로 클릭)에서 비로소 생성됨** — §7 텍스트생성(운세생성 버튼) 단계는 디렉토리 생성 안 함(u_4164 사고: text-gen 완료여부를 disk-dir존재로 오판단했었음). 완료판정은 disk-dir이 아니라 §8의 a11y 12개매칭으로만.
 10. "전체 슬라이드 생성" click. ★2026-09-01 ar_2995 실측: 이 버튼은 씬목록 패널이되 **페이지 하단 스크롤 후** 노출됨(맨위 아님 — full_flow 옛설명과 상충). 방법: `see --a11y --compact | grep "전체 슬라이드 생성"` 안 잡히면 아래로 스크롤(down repeat)하며 재grep, 나오면 그 좌표 click. 상단부터 찾다 시간낭비 금지.
+   ★★2026-09-11 정정(u_ 실사고): 버튼위치는 스크롤상태에 따라 상/하 어디든 될 수 있음 — "하단 스크롤 후"라고 단정 금지. 방법: grep a11y로 정확라벨 매칭하되 위/아래 BOTH 방향 탐색. 실사고: 최하단으로 갔더니 원본 project-JSON 디버그뷰만 나오고(버튼은 오히려 위쪽에 있었음) a11y가 전 요소 y=284 h=1 degenerate 반환 → 좌표 못 얻음. 교훈: (a)한 방향만 스크롤 말 것(위→아래, 아래→위 둘 다), (b)a11y가 degenerate(모두 동일 y·h=1)면 그 스크롤위치는 버튼 실좌표 안 줌 → 스크롤위치 바꿔 재조회, (c)막히면 유저개입 요청(블라인드 클릭 금지, 인접 위험버튼 "지금 콘티 영상화").
    ★★2026-09-07 u_4168/4169 보강(SCREEN-IDENTITY-FIRST): 버튼탐색 전 **현재 화면이 시나리오탭이 맞는지 먼저 확인**(URL/탭제목/헤딩 a11y) — 원본 project-JSON 디버그화면 등 엉뚱한 화면에 가있으면 아무리 스크롤해도 못 찾음(9/9 배치 실사고: 오화면에서 스크롤 반복, 화면자체가 틀렸었음). 좌표는 스크롤량에 따라 달라짐(실측: y=128 상태=미정착/degenerate, "캐릭터" 섹션 지나 스크롤다운 후 안착=y=951 부근) — 고정좌표 하드코딩 금지, 매번 grep-매칭좌표 사용.
    ★★2026-09-03 ar_3509 실측(반복사고): 절대 "지금 콘티 영상화" 버튼을 누르지 말 것 — 이건 다른 버튼이고 클릭해도 ComfyUI 큐에 아무것도 안 걸림(UI만 "진행 중 씬1/12"로 보이는 조용한 정지). 오직 grep이 "전체 슬라이드 생성"으로 정확히 매칭된 그 버튼만 click(실측좌표 예 @104,1163, 매번 a11y 재조회).
    ★★큐 검증 필수: click 후 `curl -s localhost:8000/api/queue`에서 queue_running 또는 queue_pending >0 확인. 계속 0이면 클릭이 헛클릭(잘못된 버튼) — 다시 "전체 슬라이드 생성" 정확매칭 재클릭. UI 텍스트("진행 중")만 믿지 말 것.
