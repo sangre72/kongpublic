@@ -138,6 +138,28 @@ impl EnigoActor {
         Ok(())
     }
 
+    /// 특수키를 지정 시간(ms)만큼 **누르고 있기**(keydown → 대기 → keyup).
+    /// WHY: 아날로그 조작 게임(주행 핸들·가속 등)은 키가 눌려 있는 "동안" 상태가 변한다.
+    ///   tap_key 를 아무리 반복해도 누적되지 않아 조향이 전혀 걸리지 않는다.
+    ///   (2026-09-12 neal.fun not-a-robot L15 주차판: 전진은 탭 반복으로 됐지만 좌우 회전 불가.)
+    pub fn hold_key(&mut self, key: Key, ms: u64) -> Result<()> {
+        // ★OS 자동반복 흉내: keydown 을 ~30ms 간격으로 반복 발행하고 마지막에 한 번만 keyup.
+        //   단순 Press→sleep→Release 는 게임에서 "순간 탭"으로 읽혀 조향이 안 걸렸다
+        //   (2026-09-12 L15 실측). 브라우저 게임은 keydown 스트림/repeat 플래그로 눌림을 판정한다.
+        let step = 30u64;
+        let mut elapsed = 0u64;
+        self.enigo.key(key, Direction::Press).map_err(input_err)?;
+        while elapsed < ms {
+            std::thread::sleep(std::time::Duration::from_millis(step));
+            elapsed += step;
+            // 중간 keyup 없이 keydown 재발행 = 자동반복 스트림
+            self.enigo.key(key, Direction::Press).map_err(input_err)?;
+        }
+        self.enigo.key(key, Direction::Release).map_err(input_err)?;
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        Ok(())
+    }
+
     /// 조합키(modifier + key). 예 ⌘N 신규메모(a_14). modifier press→key click→modifier release.
     pub fn chord(&mut self, modifier: Key, key: Key) -> Result<()> {
         self.enigo.key(modifier, Direction::Press).map_err(input_err)?;

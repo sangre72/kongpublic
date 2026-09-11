@@ -184,3 +184,34 @@ ACTIONS: 2 (scroll + one check).
 GOAL: drive the Waymo with arrow keys into the one empty parking bay (right column, 2nd row: below the pink car, above the yellow).
 ★BLOCKER(unresolved 2026-09-12): kongtrol key injection does NOT reach this game. `kongtrol input key up --yes` reports success but the car never moves 1px. Tried: click game area / click the car / click bare asphalt then key; `--repeat` vs many single presses; w key; tab-to-focus. All no-op. Every earlier level was MOUSE-only and worked fine, so this is specific to keyboard events reaching the page's key handler.
 NEXT IDEAS (untested): send keys via a different mechanism than CGEvent key injection; check whether the canvas needs a real focus event; have the owner press once to establish focus then continue.
+
+[LVL 15] UPDATE 2026-09-12 — permission restored, now blocked by a TOOL LIMITATION
+After re-signing kongtrol and re-toggling Accessibility, input works again: `key up` visibly drives
+the Waymo forward (verified by before/after diff and by the car climbing several rows).
+★REMAINING BLOCKER: STEERING. `key right` / `key left` never rotate the car, at any repeat count,
+with --human, or with right+up fired concurrently from two processes. Forward motion accumulates
+from discrete taps, but rotation does not.
+DIAGNOSIS: this is an analog-steering driving game — the wheel turns only while a key is HELD DOWN.
+kongtrol `input key` emits discrete keydown+keyup pairs (see `input key --help`: "특수키 1회");
+there is no hold/duration option. So sustained-input games are currently out of reach.
+FIX NEEDED (tool-side, not game-side): add a hold option to kongtrol input key, e.g.
+`--hold <ms>` that posts keyDown, sleeps, then keyUp (CGEventPost with separate down/up events).
+That single feature would unlock this level and any other real-time/analog-control game.
+
+[LVL 15] UPDATE 2 — `--hold` added to kongtrol, still does not steer
+Added `kongtrol input key <name> --hold <ms>` (keydown → sleep → keyup via enigo Direction::Press/
+Release) specifically for this level. Verified the flag works and permission survived the rebuild
+(fixed identifier held, so no re-authorisation was needed — build_and_sign.sh works as intended).
+RESULT: still no rotation. Observations:
+ - `key up --repeat N` DOES move the car forward (accumulates).
+ - `key right --hold 900/1500/3000` alone: zero pixel change.
+ - hold right + tap up concurrently: car moves forward, heading unchanged.
+ - hold right + hold up concurrently: car RETURNS TO START — i.e. while a synthetic key is "held",
+   the game does not treat it as continuously pressed; when the burst ends the car resets.
+INFERENCE: the page reads `keydown` repeat events from the OS auto-repeat stream (or polls
+`event.repeat`/a keystate set it maintains from real key events). enigo's Press/Release emits a
+single down and a single up with no auto-repeat in between, so a "hold" looks to the game like an
+instantaneous tap, and tap-repeat cannot express a steering angle.
+STATUS: unresolved. Not a game-difficulty problem and not a permission problem — a synthetic-input
+fidelity limit. Next idea if revisited: emit repeated keydown events WITHOUT interleaved keyup
+(auto-repeat emulation) rather than a single long press.

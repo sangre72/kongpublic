@@ -126,6 +126,10 @@ pub enum InputVerb {
         /// 반복 횟수.
         #[arg(long, default_value_t = 1)]
         repeat: u32,
+        /// ★키를 누르고 있을 시간(ms). 지정하면 tap 대신 keydown→대기→keyup.
+        /// 아날로그 조작 게임(주행 핸들·가속)은 눌린 "동안" 상태가 변하므로 tap 반복으로는 안 됨.
+        #[arg(long)]
+        hold: Option<u64>,
     },
     /// 조합키(modifier+key). 예 `chord cmd n`(신규메모 ⌘N). modifier=cmd/ctrl/alt/shift.
     Chord {

@@ -206,12 +206,22 @@ fn dispatch_input(verb: &InputVerb, human: bool) -> Result<()> {
     }
     let mut actor = EnigoActor::with_human(human)?;
     match verb {
-        InputVerb::Key { name, repeat } => {
+        InputVerb::Key { name, repeat, hold } => {
             let key = key_from_name(name)?;
-            for _ in 0..*repeat {
-                actor.tap_key(key)?;
+            match hold {
+                Some(ms) => {
+                    for _ in 0..*repeat {
+                        actor.hold_key(key, *ms)?;
+                    }
+                    eprintln!("[input] key {name} ×{repeat} hold={ms}ms 주입");
+                }
+                None => {
+                    for _ in 0..*repeat {
+                        actor.tap_key(key)?;
+                    }
+                    eprintln!("[input] key {name} ×{repeat} 주입");
+                }
             }
-            eprintln!("[input] key {name} ×{repeat} 주입");
             Ok(())
         }
         InputVerb::Chord { modifier, key } => {
