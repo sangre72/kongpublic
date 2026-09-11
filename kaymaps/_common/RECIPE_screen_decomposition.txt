@@ -110,3 +110,23 @@ over-selection. Use colour to PROPOSE and shape to CONFIRM:
     pixel count is large. A blob with n=92 and ratio 2.14 is a brick wall, not a sign — reject it and
     re-tune rather than acting on it. (Both numbers caught real false positives in L9.)
  4. everything outside that single blob is NOT the target, by definition.
+
+===== ★D13. RUN THE NULL TEST BEFORE CLAIMING AN ACTION WORKED (owner u_4640) =====
+A before/after diff proves only that the screen CHANGED — never that YOUR ACTION caused the change.
+Many surfaces mutate on their own: idle animations, sprites, spinners, clocks, video, carousels,
+lazy-loaded media, cursor blink.
+MANDATORY NULL TEST (costs 2 seconds): capture, WAIT the same interval, capture again — with NO
+input at all. That number is the noise floor. An action only "worked" if its diff is clearly
+different from the null test IN SHAPE, ¬merely non-zero.
+ - compare WHERE it changed (bbox of the diff), not just HOW MANY pixels.
+ - better still, assert the specific expected outcome (this element moved / this value changed /
+   this control became enabled), ¬generic pixel churn.
+CROSS-CHECK ON A NEUTRAL SURFACE: if an input seems not to work, test the SAME input where its
+effect is unambiguous (arrow keys in a text field move the caret; cmd+L focuses the address bar
+and highlights it). That separates "the app ignores it" from "the input never arrived".
+EVIDENCE(2026-09-12, not-a-robot L15): I reported "forward driving works, steering doesn't" from
+diffs of ~3294 changed px. The null test then measured 3314 changed px with NO input — the car was
+simply animating. Keyboard input had never reached Safari at all(cmd+L did not focus the address
+bar, typed text never appeared). I built a whole kongtrol feature(--hold) on that false reading and
+reported a nonexistent "forward works / steering fails" asymmetry to the owner.
+RULE: no success claim from a diff alone. Null test first, expected-outcome assertion second.
