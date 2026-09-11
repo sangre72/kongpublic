@@ -215,3 +215,22 @@ instantaneous tap, and tap-repeat cannot express a steering angle.
 STATUS: unresolved. Not a game-difficulty problem and not a permission problem — a synthetic-input
 fidelity limit. Next idea if revisited: emit repeated keydown events WITHOUT interleaved keyup
 (auto-repeat emulation) rather than a single long press.
+
+[LVL 15] UPDATE 3 (2026-09-12) — controls fully mapped, level still not cleared
+INPUT MODEL (measured, per _common/RECIPE_realtime_vehicle_control.txt V0):
+ - `right`/`left` alone while stopped = 0 px change. The car only turns WHILE MOVING (car-like model).
+ - `up --hold 1500` alone = ~3300 px change and the car visibly translates.
+ - therefore steering MUST overlap forward motion: `( right --hold N ) & sleep 0.3; ( up --hold M ) & wait`.
+STEERING SIGN (measured): `left` = counter-clockwise, `right` = clockwise. Confirmed by rotating the
+ car from north → west with left, then west → north with right.
+DRIFT (measured, V4): a pure `up --hold 600` leaves the car tilted ~45° UP-LEFT. Forward motion carries
+ a constant LEFT bias; this is the single reason every approach ends wedged against the left-column
+ yellow car, and it is not an operator error.
+WHAT STILL FAILS: the left bias outweighs the steering authority available. Tried steer:accel ratios
+ from 1:1 up to 20:1 (right held 6000ms while up was pulsed 250ms×5), interleaved bursts, true
+ concurrent holds, and reverse-with-steer to swing the nose. Every sequence ends with the car in the
+ LEFT column or back at lane centre; it never translates toward the RIGHT-side empty bay.
+NEXT IDEAS (untested): (a) approach the bay from ABOVE — drive up the left side past the bay row, then
+ come down the right side so the left bias works FOR the approach instead of against it;
+ (b) check whether the bay must be entered nose-first from the lane at 90°, which may need the car
+ parked further up before turning; (c) look for an in-game speed/gear control we have not noticed.
