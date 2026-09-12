@@ -130,3 +130,17 @@ simply animating. Keyboard input had never reached Safari at all(cmd+L did not f
 bar, typed text never appeared). I built a whole kongtrol feature(--hold) on that false reading and
 reported a nonexistent "forward works / steering fails" asymmetry to the owner.
 RULE: no success claim from a diff alone. Null test first, expected-outcome assertion second.
+
+===== ★D14. 3번 실패하면 방법이 아니라 "목표"를 재검증하라 (owner u_4669) =====
+같은 지점에서 반복 실패할 때 우리는 항상 방법(각도·비율·경로·타이밍)만 바꾼다. 그러나 반복 실패의
+가장 흔한 원인은 방법이 아니라 **처음에 정한 목표가 틀린 것**이다.
+RULE: 같은 실패가 3번 나오면 실행을 멈추고 목표부터 다시 측정한다.
+ - 목표 대상이 정말 거기 있는가? (개수를 처음부터 다시 센다. 위에서부터/왼쪽부터 하나씩.)
+ - 목표 영역을 판 전체 맥락에서 봤는가, 아니면 주변만 확대해서 봤는가? (D1)
+ - "막힌다"는 신호를 실행 실패로만 읽지 않았는가? 물리적으로 못 들어가는 곳은 애초에 목표가 아닐 수 있다.
+★EVIDENCE(L15, 2026-09-12): 빈 주차칸을 "우측 2행"으로 초반에 단정한 뒤 수십 번 진입을 시도했다.
+ 진입각·조향비율·접근경로를 20가지 넘게 바꿨지만 매번 같은 좌표(x269~272)에서 막혔다. 오른쪽 열만
+ 잘라 확대해 위에서부터 세어보니 핑크→[빈칸]→노랑→경찰→보라→파랑 이었고, 내가 노린 곳은 노랑과 경찰
+ "사이의 경계선"이지 칸이 아니었다. 없는 칸에 주차하려 한 것. 확인에 든 시간은 5초였다.
+COROLLARY(왜 놓치는가): 원칙을 문서로만 갖고 있으면 안 지켜진다. 실행 직전에 읽는 체크리스트여야 한다.
+ 행동 시작 전 1회: (1) 목표가 무엇인가 (2) 그것을 방금 눈으로 확인했는가 (3) 판정 기준이 무엇인가.
