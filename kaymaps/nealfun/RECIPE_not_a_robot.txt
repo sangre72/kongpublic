@@ -234,3 +234,28 @@ NEXT IDEAS (untested): (a) approach the bay from ABOVE — drive up the left sid
  come down the right side so the left bias works FOR the approach instead of against it;
  (b) check whether the bay must be entered nose-first from the lane at 90°, which may need the car
  parked further up before turning; (c) look for an in-game speed/gear control we have not noticed.
+
+[LVL 15] UPDATE 4 (2026-09-12) — measurement fixed, route half-solved
+★MEASUREMENT BUG THAT COST HOURS: tracking the car by averaging white pixels also caught the white
+ parking-bay line(198x6), so the centroid barely moved and I concluded "steering does not reach the
+ game"(measured dx=0, 0.4deg/unit). FALSE. After isolating the car by connected components with a
+ size filter(car = ~46x58 blob), steering was plainly working: x 240->246->260->277->288.
+ cf _common/RECIPE_screen_decomposition.txt D15.
+TARGET(measured, not guessed): the empty bay is the 2nd slot from the top of the RIGHT column,
+ directly below the pink car. Scan column x=395 for a dark(asphalt) run: y 235-282, centre ~258.
+ ★I originally aimed at the yellow/police boundary — not a bay at all — and burned dozens of
+ attempts driving into a wall. cf D14(re-verify the goal after repeated failure).
+CONTROLS(measured on a freshly reloaded page):
+ - forward unit(`up --hold 110`): dy ~= -2.2px
+ - arc unit(`right --hold 800` overlapping `up --hold 110`): moves up AND right, and rotates the car
+   from vertical(46x58) toward horizontal — confirmed by bbox w/h flipping.
+ - `right` alone while stopped: no effect(car-like model, cf V0).
+ - long holds crash the car back to the spawn point(~x236,y508); 100-150ms units are safe.
+ROUTE SO FAR:
+ PHASE 1 (SOLVED, repeatable): climb the centre lane to bay height with lane-keeping —
+   each step: if car x>245 tap `left 160`, if x<228 tap `right 160`, then `up 100`.
+   Stops cleanly at (234, 289) with no collisions.
+ PHASE 2 (OPEN): turning right into the bay from that staging point. Applying right+up there raises
+   y(289->253) without increasing x, i.e. the car climbs past the bay instead of entering it.
+   Next to try: overshoot above the bay then reverse down into it, or build the horizontal heading
+   fully before any forward motion.
