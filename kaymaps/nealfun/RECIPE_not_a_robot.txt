@@ -279,3 +279,26 @@ STILL OPEN: at x~297-300 the car stops advancing and further pushes crash it bac
  slightly high(y~233 vs bay centre 258) and clips the pink car above.
 NEXT: after step 2, drop ~20px(`down` taps) to centre on y=258 BEFORE pushing east, so the whole body
  clears the pink car; or approach the bay from slightly below and rise into it.
+
+[LVL 15] UPDATE 6 — ★PARKED SUCCESSFULLY (car seated in the bay). Clear condition still unconfirmed.
+★THE MISSING MEASUREMENT THAT UNBLOCKED IT — FACING, not orientation:
+ For hours I only measured whether the car's bbox was wide(horizontal) or tall(vertical). That tells
+ you the AXIS but NOT which way it points. I laid the car horizontal and drove "forward" straight
+ WEST(x 257->179) without realising. FIX = probe-based facing test, 1 forward tap and read the sign:
+   a = car(); tap('up',150); b = car(); dx,dy = b-a
+   dx>+3 EAST | dx<-3 WEST | dy<-3 NORTH | dy>+3 SOUTH | else STUCK(blocked)
+ This also doubles as a blocked-detector: STUCK means something is in front, ¬that input failed.
+★WORKING ROUTE(automated loop, reproduced):
+ 1. face NORTH(probe; if EAST arc left, if WEST arc right), then climb with `up 110` taps to y<=300.
+ 2. ONE long right arc `right --hold 2000` overlapping `up --hold 700`; re-probe; repeat until facing EAST.
+    (long overlapping holds are what actually corner — short taps recentre the wheel, cf UPDATE 5)
+ 3. push EAST with `up --hold 200` taps; the car enters the bay.
+ 4. seat it: 2-3 `down --hold 120` taps to pull back inside the slot lines, then a small
+    `right 400`+`up 60` to square up with the neighbouring cars.
+ RESULT: Waymo sits inside the empty bay, parallel with the pink/yellow cars, fully within its lines.
+★RUN IT AS ONE BACKGROUND LOOP, not step-by-step: driving in small chunks across separate tool calls
+ leaves visible dead time between chunks(the owner repeatedly saw the car "stopped"). One script that
+ probes, decides and drives continuously is both faster and smoother.
+OPEN: Verify is ENABLED(solid blue) with the car parked, but pressing it does not advance the level.
+ Hypotheses to test next: the car may need to be (a) fully stationary for a moment, (b) more precisely
+ centred between the slot lines, (c) squared to near-0 deg, or (d) the level wants a different bay.
