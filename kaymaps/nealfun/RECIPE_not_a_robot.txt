@@ -259,3 +259,23 @@ ROUTE SO FAR:
    y(289->253) without increasing x, i.e. the car climbs past the bay instead of entering it.
    Next to try: overshoot above the bay then reverse down into it, or build the horizontal heading
    fully before any forward motion.
+
+[LVL 15] UPDATE 5 — ★the working technique: LONG OVERLAPPING HOLDS, not short bursts
+DISCOVERY(measured): short arc units(`right 800` + `up 110`) raise the car but barely translate it —
+ x stayed 234-236 for dozens of units. ONE long overlapping hold does what dozens of short ones could
+ not: `right --hold 2500` overlapped with `up --hold 900` moved the car +53px RIGHT, -65px up, and
+ flipped the bbox from vertical(34x52) to HORIZONTAL(56x48) — i.e. it actually completed the turn.
+ LESSON: in an analog-steering game, steering angle builds while the key is held. Chopping the input
+ into short taps keeps resetting the wheel to centre, so the car drives straight and only creeps.
+ Long holds = real cornering. (This refines V2/V3 in _common/RECIPE_realtime_vehicle_control.txt.)
+REPEATABLE ROUTE(reproduced several times):
+ 1. lane-keeping climb to y<=300: per step, x>245 -> `left 160`; x<228 -> `right 160`; then `up 100`.
+    lands ~(233, 299) upright, no collisions.
+ 2. ONE long arc: `right --hold 2500` + `up --hold 900` overlapped -> ~(248, 255) and HORIZONTAL.
+    Car is now level with the bay centre(y~258) and pointing east.
+ 3. push east with `up --hold 200` steps -> reaches x~300 at the bay mouth.
+STILL OPEN: at x~297-300 the car stops advancing and further pushes crash it back to spawn. Verify at
+ that position still resets, so the body is not fully inside the bay. The nose enters but the car sits
+ slightly high(y~233 vs bay centre 258) and clips the pink car above.
+NEXT: after step 2, drop ~20px(`down` taps) to centre on y=258 BEFORE pushing east, so the whole body
+ clears the pink car; or approach the bay from slightly below and rise into it.
