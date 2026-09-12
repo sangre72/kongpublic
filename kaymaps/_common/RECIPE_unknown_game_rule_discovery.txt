@@ -167,3 +167,30 @@ STAY IN P14 SINGLE-STEP MODE when: the rule is still unknown, the action is irre
 layout re-flows(coords go stale mid-batch), or a wrong action is expensive to undo.
 EVIDENCE: not-a-robot L9 — we ran a full capture-and-judge cycle per cell on a verified, toggleable mechanic,
 turning a few minutes of clicking into a long grind; owner flagged the mismatch directly.
+
+===== ★P17. 실행 전 30초 체크리스트 — L15에서 놓친 것 전부 (2026-09-12) =====
+L15(주차)에서 실제로 시간을 잡아먹은 건 게임 난이도가 아니라 **매번 "재보면 5초"인 것을 안 잰 것**이다.
+같은 실수 방지용으로, 새 판을 시작하거나 막혔을 때 아래를 순서대로 실행한다.
+
+[시작 전]
+ 1. 지시문의 동사+목적어를 적는다 → 판정 단위와 완료 조건이 뭔지 한 줄(P0).
+ 2. 제목이 대상을 named 하면 그 대상의 표준 구조를 먼저 떠올린다(P0-B).
+ 3. 목표 위치를 **세어서** 확정한다. 주변만 확대하지 말고 전체를 한 프레임에(D1).
+    ★L15: 빈칸을 한 칸 아래로 착각해 "없는 칸"에 수십 번 진입 시도(D14).
+ 4. 검출기를 쓸 거면 bbox 크기를 출력해 대상 크기와 맞는지 확인(D15).
+    ★L15: 주차선(198x6)을 차로 같이 잡아 "조향 불가"라는 틀린 결론.
+ 5. 입력 모델 3측정: 단발 / 홀드 / 정지 중 방향키(V0).
+ 6. ★방향(facing)도 측정한다 — 가로/세로(축)만으로는 동/서를 모른다.
+    전진 1회 후 dx·dy 부호로 판정. 이건 동시에 "막힘 감지기"다(변화 0 = 앞에 장애물).
+    ★L15: 가로로 눕혀놓고 서쪽으로 달리는 걸 한참 몰랐다.
+
+[막혔을 때]
+ 7. 같은 실패 3회 → 방법 말고 **목표**를 재검증(D14).
+ 8. 클릭 무반응 → **좌표부터** 다시 측정. "다른 곳은 눌린다"는 좌표 정당성의 근거가 아니다(D16).
+    ★L15: 최종 블로커가 이거였다. 주차는 이미 성공 상태였다.
+ 9. 일부 입력만 죽으면 페이지 리로드(browser_basics). 되살아나면 페이지 상태 문제였다.
+ 10. 성공 판정 전 무입력 대조군(D13). 화면이 변했다 ≠ 내 동작이 먹혔다.
+
+[실행 방식]
+ 11. 단계별로 끊지 말고 **한 스크립트에서 연속 실행**한다. 툴 호출 사이의 공백이 곧 정지로 보인다.
+ 12. 아날로그 조작은 짧은 탭이 아니라 **긴 겹침 홀드**로(V2/L15 UPDATE 5).
