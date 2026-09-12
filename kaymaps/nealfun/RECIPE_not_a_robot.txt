@@ -302,3 +302,18 @@ NEXT: after step 2, drop ~20px(`down` taps) to centre on y=258 BEFORE pushing ea
 OPEN: Verify is ENABLED(solid blue) with the car parked, but pressing it does not advance the level.
  Hypotheses to test next: the car may need to be (a) fully stationary for a moment, (b) more precisely
  centred between the slot lines, (c) squared to near-0 deg, or (d) the level wants a different bay.
+
+[LVL 15] ★CLEARED 2026-09-12. THE FINAL BLOCKER WAS THE BUTTON COORDINATE, NOT THE PARKING.
+The car had been correctly parked for a long time. Every `Verify` press produced a 0-pixel diff and I
+read that as "the game does not accept this park yet", then spent many more attempts nudging the car.
+ROOT CAUSE: I clicked the coordinate a11y reported for the button — AXButton Verify @ (1184,754) —
+but the button's true centre, measured from the rendered pixels, is (1182,736). 18px off in y was
+enough to miss it entirely. Clicks on Safari's own chrome worked, which wrongly reassured me that
+"the mouse is fine, so the button must be disabled".
+★LESSON(promote): when a click produces NOTHING, verify the TARGET's pixel centre, do not trust the
+ a11y coordinate alone — measure the button's coloured rect and click its centroid. And never infer
+ "the app rejected my action" from a dead click until the coordinate itself has been re-measured.
+ A click that works elsewhere in the app proves the input path, ¬the coordinate.
+FULL WINNING SEQUENCE: face-probe to NORTH -> climb with `up 110` taps to bay height -> ONE long
+ `right 2000` overlapping `up 700`, repeat until the face-probe says EAST -> push EAST with `up 200`
+ -> seat with 2-3 `down 120` taps + small squaring arc -> click Verify at its MEASURED pixel centre.
