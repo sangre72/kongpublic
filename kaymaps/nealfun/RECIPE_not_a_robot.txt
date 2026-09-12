@@ -317,3 +317,26 @@ enough to miss it entirely. Clicks on Safari's own chrome worked, which wrongly 
 FULL WINNING SEQUENCE: face-probe to NORTH -> climb with `up 110` taps to bay height -> ONE long
  `right 2000` overlapping `up 700`, repeat until the face-probe says EAST -> push EAST with `up 200`
  -> seat with 2-3 `down 120` taps + small squaring arc -> click Verify at its MEASURED pixel centre.
+
+===== L15 Parking — 2026-09-12 추가 실측(미클리어, 진행중) =====
+[CRITICAL-TRAP-1] 내 차 검출기가 남의 차를 추적했다.
+  autopilot.car_pos()는 연결성분 크기필터만 써서 분홍/주황 차를 "내 차"로 잡았다.
+  → "(675,368) 주차 성공" 보고가 전부 남의 차 좌표였고, Verify가 통과 안 되는 원인을 엉뚱한 곳에서 찾았다.
+  ★내 차 = 흰색 Waymo. 색으로 특정하라(waymo.py). 크기·형태만으로는 절대 구분되지 않는다.
+
+[CRITICAL-TRAP-2] 흰색 임계값만으로 차를 찾으면 카드 바깥 페이지 흰 배경과 한 덩어리(212,528px)가 된다.
+  → 반드시 보드(아스팔트) 영역(TOP200/BOT1090/LEFT15/RIGHT915)으로 crop 후 검출.
+[CRITICAL-TRAP-3] 차가 회전하면 흰 차체가 갈라져 연결성분이 쪼개진다 → 검출 None 연발.
+  → binary_closing(9x9)로 이어붙인 뒤 라벨링.
+[CRITICAL-TRAP-4] 경찰차 흰 부분(62x50)·주차선(210x8)이 흰 blob으로 같이 잡힌다 → w,h ≥ 90 요구.
+
+[측정] 조향 권한은 생각보다 약하다. right --hold 1500 = 90도 회전 아님(수평 유지한 채 대각 이동).
+[측정] 저속에서 700~900ms 조향 = 제자리 회전 후 충돌. 조향은 "고속 주행 중 짧게(140~180ms)"만 유효.
+[측정] 끊김 없는 긴 전진(up --hold 9000~14000) + 그 안에 짧은 조향 겹치기 = 유일하게 먼 거리 주행 성립.
+       전진을 매 스텝 끊으면 감속해서 찔끔찔끔 움직인다(주행 거리 급감).
+
+[지도] 우측 주차칸 6개(노랑·보라·초록·경찰·파랑·노랑) 전부 점유.
+       빈 칸 = 파란세단과 맨아래 택시 사이, y≈900~990, x≈620~. 칸은 서쪽(왼쪽)으로 열림 → 차는 동향(가로)이어야 진입.
+[도달기록] (609,932) 빈칸 입구 바로 앞 도달 성공. (636,570)/(644,483) 등.
+[미해결] 하강엔 우조향 필요 → 차가 남향(세로)이 됨 → 칸에 못 들어감. 하강 후 펴는 사이 충돌·리셋.
+         바닥(y≈968,x≈359)에서는 up 이동량 0 = 끼임. down 은 충돌.
