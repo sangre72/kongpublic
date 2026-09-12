@@ -1,0 +1,50 @@
+RECIPE: fast_screen_vision (★고속 화면 인식 — 실시간 게임/자율주행형 과제의 기반)
+GATE: 2026-09-12 실측 확립(owner u_4705~u_4709). neal.fun L16 주차판에서 도출.
+REG: 움직이는 대상을 추적해야 하는 모든 화면 과제(주행·리듬·액션·실시간 감시).
+CROSS-REF: screen_decomposition.txt(D13/D15/D18 측정검증), realtime_vehicle_control.txt(V0~V8).
+
+===== F1. screencapture 명령은 실시간 추적에 못 쓴다 =====
+`screencapture -x file.png` = **프레임당 180ms**(프로세스 생성 + 디스크 저장). 초당 4~5장.
+초당 750px 로 지나가는 물체는 그 사이 180px 이동 — 절대 못 따라간다.
+★게다가 `-t bmp` + `-R<rect>` 조합은 **캐시된 동일 프레임**을 반복 반환한 사례가 있다(D18).
+ 그 상태로 "움직이는 것 없음"을 세 번 보고했고 전부 거짓이었다.
+
+===== F2. Quartz 로 메모리에서 직접 받는다 — 15배 =====
+```python
+import numpy as np, Quartz
+from Quartz import (CGRectMake, CGWindowListCreateImage, CGImageGetWidth, CGImageGetHeight,
+                    CGImageGetDataProvider, CGDataProviderCopyData, CGImageGetBytesPerRow)
+def grab(rect):                      # rect = (x, y, w, h)
+    img = CGWindowListCreateImage(CGRectMake(*rect),
+        Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID,
+        Quartz.kCGWindowImageDefault)
+    w=CGImageGetWidth(img); h=CGImageGetHeight(img); bpr=CGImageGetBytesPerRow(img)
+    d=CGDataProviderCopyData(CGImageGetDataProvider(img))
+    a=np.frombuffer(d,dtype=np.uint8)[:h*bpr].reshape(h,bpr//4,4)[:,:w,:3]
+    return a[:, :, ::-1]             # ★BGRA -> RGB
+```
+실측: **11.9ms/프레임(84fps)**, numpy 변환 포함 17~19ms(50~60fps). 분석은 벡터연산이라 사실상 공짜.
+
+★두 가지 함정(둘 다 실제로 겪음):
+ 1. **좌표 단위** — Quartz 는 **논리 포인트**를 받는다. Retina 물리픽셀 좌표를 넣으면 엉뚱한 영역을
+    찍고, 그 영역이 정적이면 "아무 변화 없음"으로 보인다. 물리픽셀 ÷ 2 를 넣어라.
+ 2. **채널 순서** — BGRA 로 온다. `[:, :, ::-1]` 로 뒤집지 않으면 파랑/빨강이 바뀌어 색 분류가 전부 틀린다.
+★검증: 캡처 직후 대상을 한 번 움직이고 `np.abs(a-b).sum()` 이 0 이 아닌지 확인하라. 0 이면 위 둘 중 하나다.
+
+===== F3. 장면 이해 = 색 분류 + 연결성분 (모델 없이도 충분) =====
+주행형 과제에서 한 프레임으로 뽑을 수 있는 것:
+ - 길(아스팔트): R≈G≈B 이고 어두움 → 주행 가능
+ - 잔디: G 가 R 보다 25↑ 크고 B 낮음 → 주행 불가
+ - 흰색: 내 차 + 차선(점선은 침범 가능)
+ - 그 외 유채색: 주차된 차 = 정적 장애물
+ - **움직이는 방해물**: 연속 프레임 차분에서만 남는 영역(정적 배경·주차차량은 자동 제외)
+실측 출력 예: 도로 67.9% / 잔디 1.4% / 주차차량 21.8% / 흰색 8.1%, 빈칸 후보 4곳, 이동체 1개.
+
+===== F4. 모델(판단)과 루틴(구동)의 분리 (owner u_4705) =====
+모델은 **현황 파악 + 지시**만 한다. 실제 구동은 미리 만든 루틴이 한다.
+ - 모델 출력: "전방 차 있음/없음", "차선 어디", "빈칸 방향" 같은 **라벨 몇 개**
+   → 좌표 회귀도 불필요하므로 극단적으로 작은 모델로 충분하다.
+ - 루틴: 궤적 통실행(traj.run), 경로 추종(follow), free space 지도(grid/route)
+ - 모델은 **상태가 바뀌는 순간에만** 호출 — 매 프레임 무거운 추론이 필요 없다.
+★현재는 이 '모델 자리'를 위 F3 픽셀 규칙이 대신한다. 동시에 **학습 데이터 라벨러**로 쓸 수 있어,
+ 나중에 마이크로 비전 모델을 학습시킬 때 사람 손 없이 데이터가 나온다.
