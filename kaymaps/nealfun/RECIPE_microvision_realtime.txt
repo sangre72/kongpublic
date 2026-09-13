@@ -1,0 +1,49 @@
+RECIPE: 마이크로 비전 루프 — 실시간 화면 과제 표준 도구
+GATE: verified 2026-09-13 (L10 Whack-a-Mole 통과. u_4793 "마이크로 비전 모델 필요")
+REG: 화면을 보고 즉시 반응해야 하는 모든 과제(시간제한 게임·애니메이션·이동 표적)
+FILES: kaymaps/nealfun/microvis.py, kaymaps/nealfun/mole_solver.py
+
+## WHY — 실측 지연이 전략을 무력화한다
+| 방식 | 1회 지연 |
+|---|---|
+| `screencapture` 서브프로세스 | **319 ms** |
+| `kongtrol input click` 서브프로세스 | **430 ms** |
+| → 1사이클 | **750 ms** |
+| `Quartz.CGWindowListCreateImage` 직접 | **18 ms** |
+| `CGEventPost` 직접 | **4.3 ms** |
+| → 1사이클 | **23 ms** (32배 빠름) |
+
+표적 수명이 ~1초면 750ms 루프는 **읽는 순간 이미 과거**다.
+나는 이 상태에서 규칙·검출기·동기화 전략을 수십 번 바꿨지만 전부 무의미했다.
+
+## 핵심 코드 (microvis.py)
+```python
+import Quartz.CoreGraphics as CG
+def grab_rect(x,y,w,h):            # 물리픽셀 좌표 입력
+    img=CG.CGWindowListCreateImage(CG.CGRectMake(x/2.0,y/2.0,w/2.0,h/2.0),
+        CG.kCGWindowListOptionOnScreenOnly, CG.kCGNullWindowID, CG.kCGWindowImageDefault)
+    W=CG.CGImageGetWidth(img); H=CG.CGImageGetHeight(img)
+    bpr=CG.CGImageGetBytesPerRow(img)
+    buf=np.frombuffer(CG.CGDataProviderCopyData(CG.CGImageGetDataProvider(img)),dtype=np.uint8)
+    return buf[:H*bpr].reshape(H,bpr//4,4)[:,:W,[2,1,0]].astype(np.int16)  # BGRA->RGB
+def click(x,y):                    # 논리좌표 입력
+    p=CG.CGPointMake(x,y)
+    for ev in (CG.kCGEventLeftMouseDown, CG.kCGEventLeftMouseUp):
+        CG.CGEventPost(CG.kCGHIDEventTap, CG.CGEventCreateMouseEvent(None,ev,p,CG.kCGMouseButtonLeft))
+```
+주의: grab_rect 는 **물리픽셀**, click 은 **논리좌표**(물리/2). 레티나 2배.
+
+## 사용 절차
+1. 대상 영역(BOARD) 실측 → `grab_rect` 로 반복 캡처
+2. 색/형태 판정은 numpy 벡터 연산으로 프레임 내에서 끝냄(서브프로세스 금지)
+3. `click()` 직접 호출. kongtrol 은 이 루프에서 쓰지 않음
+4. 검증(Verify) 같은 1회성 조작만 kongtrol/a11y 사용
+
+## ★적용 시 반드시 함께 지킬 것
+- **오조작을 되돌리려 하지 말 것.** 되돌리는 사이 상태가 또 바뀐다.
+  L10은 오클릭이 영구 오답으로 남는 구조였고, 해제를 시도하는 한 영원히 못 맞췄다.
+  → 빠른 루프로 **애초에 틀리지 않는 것**이 유일한 해법.
+- 루프 진입 전 `time.time()` 전후로 **캡처·클릭 지연을 1회 측정**해 기록할 것.
+
+## [원리] 실시간 과제에서 "내 판단이 틀렸나"보다 "내 루프가 느린가"를 먼저 본다
+측정에 5초, 고치면 32배. 이걸 안 해서 40회를 실패했다.
