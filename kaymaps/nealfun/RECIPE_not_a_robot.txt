@@ -1205,3 +1205,25 @@ cols=np.where(cd>0.55)[0]; rows=np.where(rd>0.55)[0]  # 그룹화해 경계 산�
   "이 근처겠지"는 반드시 옆 칸을 찍는다. 이미 배운 규칙인데 또 어겼다.
   ★확대 이미지에서 좌표를 읽을 때는 crop 원점과 배율을 곱해 되돌리는 계산을
     매번 명시적으로 쓸 것(암산 금지).
+
+### ★L11 격자 제거(seamless) 탐색 기법 (u_4803 오너 제안, 2026-09-13)
+격자선이 인물을 토막 내서 줄무늬 검출과 육안 판별을 모두 방해한다.
+→ **칸 내부만 잘라 이어붙여 격자 없는 이미지를 만든 뒤 탐색**한다.
+
+```python
+GC,GR = 격자 경계(흰선 픽셀 검출로 산출)
+M=6                                   # 격자선(4px) + 여유
+rows=[]
+for ri in range(len(GR)-1):
+    cols=[a[GR[ri]+M:GR[ri+1]-M, GC[ci]+M:GC[ci+1]-M] for ci in range(len(GC)-1)]
+    hmin=min(c.shape[0] for c in cols); wmin=min(c.shape[1] for c in cols)
+    rows.append(np.hstack([c[:hmin,:wmin] for c in cols]))
+seam=np.vstack([r[:,:min(r.shape[1] for r in rows)] for r in rows])
+```
+효과: 인물이 온전히 보여 육안 스캔이 훨씬 정확해진다(격자에 잘린 월리도 한 덩어리로 보임).
+주의: seamless 좌표 → 원본 좌표 환산이 필요하므로 **클릭은 반드시 원본 격자 기준**으로.
+      (seam 좌표 x → ci = x // (칸폭-2M), 원본 중심 = (GC[ci]+GC[ci+1])//2)
+
+### L11 줄무늬 디코이(격자 제거 후에도 걸리는 것들)
+빨강흰 줄무늬 **수영복**, **수건**, **파라솔**, **바람막이(windbreak)**, 줄무늬 **비치볼**.
+→ 줄무늬만으로는 절대 확정 불가. **방울모자 + 안경 + 얼굴**을 함께 볼 것.
