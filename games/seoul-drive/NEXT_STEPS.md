@@ -12,6 +12,12 @@
 
 ## 다음에 할 일 (우선순위 순)
 
+### 0. [2026-09-14 완료] 라벨 채널 복구
+코드픽셀이 안 읽히던 원인 = BGR/RGB 혼동 + db 'Storage full' 배너가 코드픽셀을 가림.
+둘 다 수정 완료(decode.py·teacher.js·collect_screen.py, 커밋 d6bcb98/1bf437a).
+검증: 60초 수집 1627프레임 on_road 99.4% / lane 5.57m / steer_std 0.169.
+상세는 kaymaps/chrome/seoul-drive/RECIPE_training_pipeline.txt 맨 끝.
+
 ### 1. 데이터 재수집 → 재학습  ★여기부터
 지금까지 모은 데이터는 전부 폐기했다. 이유:
 - c2/c3: 차가 주차칸(도로 밖 13.25m)에서 출발해 51%가 이탈 상태
