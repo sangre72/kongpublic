@@ -170,7 +170,13 @@
     const cross = lt.cross || 0;
     const spd = Math.max(3, me.v);
     const xt = Math.atan2(0.9*cross, spd);               // 속도가 빠를수록 완만하게
-    const steer = Math.max(-1, Math.min(1, diff*1.8 + xt*1.6));
+    /* ★차선변경 중에는 cross-track 을 약하게 건다(u_5001 실측).
+       이 항은 '차로 중심으로 되돌리는' 힘이라, 3.2m 를 통째로 옮기는 동작에는
+       과하게 작용해 제어기가 스스로와 싸운다(실측: 폭 0.7m 에 그치고 속도가
+       45→14→1km/h 로 주저앉았다). 변경 중에는 목표점 추종(diff)에 맡기고,
+       끝나면 원래 세기로 돌아와 차로 중심을 잡는다. */
+    const xtK = T.laneMoving ? 0.5 : 1.6;
+    const steer = Math.max(-1, Math.min(1, diff*1.8 + xt*xtK));
     return {steer, thr, brake, rev:0, ok:true,
             lane_off: (ns?ns.d:0)/S, obst:d};
   };
