@@ -69,6 +69,28 @@
     let brake = 0, thr = 1;
     if(d < 9){ brake = 1; thr = 0; }            // 앞 막힘 → 정지
     else if(d < 18){ brake = 0.4; thr = 0.15; } // 접근 → 감속
+    /* ★적신호 정지(u_4978). 신호등은 91개가 깔려 있었지만 교사가 아예 보지
+       않아서, 데이터에 '빨간불에 선다'가 한 프레임도 없었다.
+       내 진행방향과 같은 방향을 바라보는 신호만 대상으로 한다(맞은편 신호 무시).
+       ★정지선을 넘었으면(뒤에 있으면) 그냥 통과한다 — 교차로 한가운데 서면 더 위험하다. */
+    if(typeof signals!=='undefined' && signals.length){
+      const now=performance.now();
+      const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
+      let sd=1e9;
+      for(const sg of signals){
+        const dx=sg.x-me.x, dy=sg.y-me.y;
+        const f=(dx*fx+dy*fy)/S;                       // 전방거리(m)
+        if(f<1.5 || f>38) continue;                    // 이미 지났거나 너무 멂
+        if(Math.abs(-dx*Math.sin(me.ang)+dy*Math.cos(me.ang))/S > 7) continue;  // 옆 도로
+        let rel=((sg.ang-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+        if(Math.abs(rel)>0.9) continue;                // 내 방향 신호가 아님
+        if(sigRed(sg, now) && f<sd) sd=f;
+      }
+      if(sd<1e9){
+        if(sd<10){ brake=1; thr=0; }                   // 정지선 앞 → 정지
+        else if(sd<22){ brake=Math.max(brake,0.5); thr=Math.min(thr,0.1); }
+      }
+    }
     // 커브에서 감속
     const bend = Math.min(1, Math.abs(diff)/0.7);
     thr *= (1 - 0.6*bend);

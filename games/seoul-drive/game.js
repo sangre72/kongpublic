@@ -1181,6 +1181,8 @@ const TRAFFIC_LV = {
 };
 const _TL = TRAFFIC_LV[window.__TRAFFIC] || TRAFFIC_LV.medium;
 const WANT_CARS=_TL.cars, WANT_PEDS=_TL.peds, CUT_P=_TL.cut;
+/* 앞쪽 우선 스폰 비율 — 밀도가 높을수록 강하게(정체를 만들려면 앞에 있어야 한다) */
+const FRONT_BIAS = {light:0.3, medium:0.6, heavy:0.85}[window.__TRAFFIC] ?? 0.6;
 let spawnAcc=0;
 function spawnDespawn(dt){
   const viewR=Math.max(W,H)/cam.z*0.62+140;      // 화면 반경
@@ -1208,11 +1210,43 @@ function spawnDespawn(dt){
   }
   if(!ring.length)return;
   if(cars.length<WANT_CARS){
-    const i=pick(ring),sg=segs[i];
+    /* ★내 앞에 차를 깔아준다(u_4975 후속).
+       WHY: heavy 로 72대를 띄워도 9x9km 에 흩어지면 내 차선 앞은 거의 항상 비어 있다.
+       실측: heavy 40초 주행에서 제동 0%, 앞차 없음(readout 에도 전방차 없음).
+       제동·정체·끼어들기를 배우려면 '내가 가는 길 위'에 있어야 의미가 있다.
+       그래서 후보 구간 중 내 진행방향 앞쪽(내적>0)인 것을 우선 고른다. */
+    let i;
+    if(FRONT_BIAS>0 && Math.random()<FRONT_BIAS){
+      const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
+      const fwd=ring.filter(k=>{
+        const A=nodes[segs[k].a],B=nodes[segs[k].b];
+        const mx=(A.x+B.x)/2-me.x, my=(A.y+B.y)/2-me.y;
+        return (mx*fx+my*fy)>0;                  // 내 앞쪽
+      });
+      i = fwd.length ? pick(fwd) : pick(ring);
+    }else i = pick(ring);
+    const sg=segs[i];
     const t=Math.random()<.14?'truck':Math.random()<.2?'moto':Math.random()<.13?'bike':'car';
     const T=TY[t];
     const dir=sg.o?1:(Math.random()<.5?1:-1);
-    const lane=(Math.random()*Math.max(1,sg.o?sg.l:Math.floor(sg.l/2)))|0;
+    const nlane=Math.max(1,sg.o?sg.l:Math.floor(sg.l/2));
+    /* ★내 차로(또는 바로 옆)에 놓는다(u_4975/4977 실측 후속).
+       WHY: 강남대로는 편도 5차로다. 차로를 균등난수로 고르면 내 차로에 올 확률이
+       1/5 이고, 그나마 앞/뒤·반대방향으로 또 갈린다. 실측에서 heavy 72대를 띄우고도
+       40초 동안 앞차를 한 번도 못 만나 제동이 0% 였다(화면에도 먼 차로에만 차가 있었다).
+       제동·정체를 배우게 하려면 '같은 차로 앞'에 있어야 한다. */
+    let lane;
+    if(FRONT_BIAS>0 && Math.random()<FRONT_BIAS){
+      /* 내 차로 번호는 따로 안 들고 있으므로 가장 가까운 구간 기준 횡오프셋에서 역산한다 */
+      let myl = 0;
+      const ns0 = nearestSeg(me.x,me.y);
+      if(ns0 && ns0.s === sg){
+        const lat = (-(ns0.px-me.x)*Math.sin(sg.ang) + (ns0.py-me.y)*Math.cos(sg.ang));
+        myl = Math.max(0, Math.min(nlane-1, Math.round(Math.abs(lat)/LW - 0.5)));
+      }
+      const jitter = Math.random()<0.6 ? 0 : (Math.random()<0.5?-1:1);
+      lane = Math.max(0, Math.min(nlane-1, myl + jitter));
+    }else lane=(Math.random()*nlane)|0;
     const c={t,...T,c:pick(T.cs),w:T.wm*S,h:T.hm*S,si:i,dir,lane,
       tp:Math.random(),v:T.vmax*rnd(.5,.9),x:0,y:0,ang:0,alive:1};
     placeCar(c);cars.push(c);
