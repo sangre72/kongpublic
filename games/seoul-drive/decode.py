@@ -20,19 +20,54 @@ MARK = np.array([165, 90, 195], dtype=float)
 B = 16
 
 def find_blocks(rgb):
-    """캔버스(RGB)에서 코드블록 중심 y 를 찾는다. 못 찾으면 None."""
-    d = np.abs(rgb.astype(float) - MARK).sum(2)
-    m = d < 60
-    ys, xs = np.nonzero(m)
-    if len(ys) < 50:
-        return None
-    top = ys.min()
-    sel = ys < top + 20
-    if sel.sum() < 50:
-        return None
-    return int(np.median(ys[sel]))
+    """코드블록 중심 y 를 찾는다. 못 찾으면 None.
 
-def decode(rgb):
+    ★2026-09-14 u_4969 재작성. 예전 구현은 '마커색에 가까운 픽셀 중 가장 위'를
+      골랐는데, 허용오차를 넓히자 브라우저 툴바(보라 계열)가 먼저 걸려서
+      엉뚱한 행을 읽었다(steer=1.00/brake=1.00 같은 불가능한 값이 나옴).
+      마커는 반드시 캔버스 좌상단 x=0..15 에 16px 로 있고 그 오른쪽으로
+      블록 3개가 이어지므로, 그 구조 자체를 검사해서 확정한다.
+    """
+    f = rgb.astype(float)
+    H = f.shape[0]
+    col = np.abs(f[:, :B, :] - MARK).sum(2).mean(1)   # x=0..15 평균 거리
+    cand = np.nonzero(col < 110)[0]
+    if len(cand) == 0:
+        return None
+    # 연속 구간으로 묶어 16px 이상인 것만 후보로
+    runs, s0 = [], cand[0]
+    for a, b in zip(cand, cand[1:]):
+        if b != a + 1:
+            runs.append((s0, a)); s0 = b
+    runs.append((s0, cand[-1]))
+    for a, b in runs:
+        if b - a + 1 < 10:
+            continue
+        cy = (a + b) // 2
+        # 오른쪽 3블록이 마커와 '다른' 색이어야 진짜 코드블록이다
+        # (툴바처럼 균일한 띠면 4칸이 전부 같은 색 → 탈락)
+        blocks = [f[cy, k * B + B // 2] for k in range(4)]
+        if max(np.abs(blocks[k] - blocks[0]).sum() for k in (1, 2, 3)) < 12:
+            continue
+        return int(cy)
+    return None
+
+def decode(rgb, bgr=True):
+    """bgr=True(기본): capture._to_np 가 주는 BGR 버퍼를 그대로 받는다.
+
+    ★2026-09-14 u_4969 실사고: capture._to_np 는 성능을 위해 채널을 뒤집지 않고
+      BGR view 를 그대로 돌려준다(주석에 명시, net.preprocess 가 GPU 에서 flip).
+      decode 는 그걸 RGB 로 가정해 읽고 있었다 → 마커 (165,90,195) 가
+      (195,90,165) 로 보여 거리 69 로 탐지 실패, 어쩌다 잡혀도 R/B 가 뒤바뀐
+      값(crashes 가 on_road 자리로)을 읽었다. 화면 실측(파란 4번 블록)과
+      캡처값(빨강)이 정반대인 것으로 확정.
+    """
+    if bgr:
+        rgb = rgb[:, :, ::-1]
+    return _decode_rgb(rgb)   # find_blocks 도 이 RGB 버퍼를 받는다
+
+
+def _decode_rgb(rgb):
     """→ dict(steer, thr, brake, rev, v, lane, crashes, hold, on_road) 또는 None"""
     cy = find_blocks(rgb)
     if cy is None:

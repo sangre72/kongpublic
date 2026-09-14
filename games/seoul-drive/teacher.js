@@ -223,6 +223,13 @@
    → 페이지가 스스로 db에 기록하고, 오케가 read_db로 정확한 값을 회수한다.
    화면 픽셀은 파이썬이 따로 캡처해 같은 타임스탬프로 맞춘다.                     */
 (async function(){
+  /* ★2026-09-14 u_4969: db 기록 중단.
+     라벨은 화면 코드픽셀(game.js draw() 말미)로 전달한다 — 용량 제약이 없고
+     픽셀과 라벨이 같은 프레임이라 시간 어긋남도 없다.
+     db 는 run 66개(≈20만 프레임)가 쌓여 'Storage full' 배너가 캔버스 상단을
+     덮었고, 그 배너가 바로 코드픽셀 자리를 가려 디코딩이 전부 실패했다.
+     되살리려면 이 return 을 지우기 전에 기존 runs/* 를 먼저 비울 것. */
+  return;
   if(!window.claude || !claude.use) return;
   const db = await claude.use('db').catch(()=>null);
   if(!db) return;
