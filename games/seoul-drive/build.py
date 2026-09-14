@@ -69,12 +69,16 @@ if '--lanedemo' in sys.argv:
     /* ★시작 차로를 강제하지 않는다(u_5001 실측).
        T.setLane(0) 을 먼저 걸면, 차가 이미 바깥 차로에 있을 때 큰 횡이동이
        즉시 요구돼 조향이 시작부터 포화된다. 지금 있는 차로에서 출발한다. */
-    setTimeout(function(){
-      var m = T.laneMax || 1;
-      var cur = Math.round(T.laneF || 0);
-      var tgt = (cur === m-1) ? 0 : m-1;    // 안쪽이면 바깥으로, 바깥이면 안쪽으로
-      T.setLane(tgt);
-      window.__laneDemo = (cur+1) + '->' + (tgt+1);
+    /* ★목표는 lane0 <-> lane1 로만 왕복한다(u_5001).
+       도로마다 차로 수가 달라서 '가장 바깥'을 찍으면 좁은 구간에서 범위를
+       벗어난다. 0과 1은 어느 도로에나 있으므로 항상 유효하다.
+       12초마다 번갈아 바꿔서, 화면에서 오갈 수 있게 한다. */
+    var flip = 0;
+    setInterval(function(){
+      if(!T.laneMax || T.laneMax < 2) return;   // 편도 1차로면 바꿀 곳이 없다
+      flip = flip ? 0 : 1;
+      T.setLane(flip);
+      window.__laneDemo = 'go' + (flip+1);
     }, 12000);
   }
   setTimeout(go, 3000);

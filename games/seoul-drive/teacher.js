@@ -39,15 +39,22 @@
       const guess = sg.o ? (lat0 + (sg.roadW/2)/S)/(LW/S) - 0.5
                          : Math.abs(lat0)/(LW/S) - 0.5;
       T.laneF = Math.max(0, Math.min(nl-1, Math.round(guess)));
-      T.lane  = T.laneF;                    // 시작 목표 = 현재 차로(급이동 방지)
+      /* ★목표(T.lane)는 아직 지정된 적 없을 때만 현재 차로로 맞춘다.
+         무조건 덮어쓰면 밖에서 setLane 으로 지시한 목표가 지워진다(u_5001). */
+      if(T.lane === undefined || T.laneSet !== true) T.lane = T.laneF;
     }
-    T.laneF = Math.max(0, Math.min(nl-1, T.laneF));
-    /* 한 번에 옮기지 않는다 — 실제 차선변경도 2~3초에 걸쳐 한다.
-       프레임당 0.02차로(≈0.065m)면 한 차로 이동에 약 2.5초(30fps 기준). */
+    /* ★차로 수가 다른 도로로 넘어갈 때도 '한 번에' 옮기지 않는다(u_5001 실사고).
+       예전엔 여기서 laneF 를 곧바로 nl-1 로 잘랐다. 4차로에서 2차로 구간으로
+       들어가는 순간 laneF 3 → 1 로 점프하고, 목표선이 6m 옆으로 튀어
+       조향이 포화됐다. clamp 도 한 프레임에 step 만큼만 적용한다. */
     const step = 0.02;
+    const hi = nl - 1;
+    if(T.laneF > hi) T.laneF = Math.max(hi, T.laneF - step);
+    if(T.laneF < 0)  T.laneF = Math.min(0,  T.laneF + step);
+    // 실제 차선변경도 2~3초에 걸쳐 한다(0.02/프레임 ≈ 한 차로에 2.5초@30fps)
     if(T.laneF < want)      T.laneF = Math.min(want, T.laneF + step);
     else if(T.laneF > want) T.laneF = Math.max(want, T.laneF - step);
-    T.laneMoving = Math.abs(T.laneF - want) > 0.005;
+    T.laneMoving = Math.abs(T.laneF - want) > 0.005 || T.laneF > hi;
 
     const off = laneOffset(sg, dir, T.laneF);     // 목표 차로 오프셋(고정)
     const ang = sg.ang + (dir<0 ? Math.PI : 0);   // 내 진행방향
@@ -186,7 +193,7 @@
   T.setMode = m => { T.mode = m; return T.mode; };
   /* 차로 지정 — 0 = 중앙선쪽 1차로, 커질수록 바깥(우측). 화면 readout 에 표시된다 */
   T.lane = 0;
-  T.setLane = k => { T.lane = Math.max(0, k|0); return T.lane; };
+  T.setLane = k => { T.lane = Math.max(0, k|0); T.laneSet = true; return T.lane; };
 
   /* ★자율 수집 모드 — AppleScript 없이 페이지 안에서 스스로 돈다(u_4926).
      Chrome이 기본으로 AppleScript JS 실행을 막아두기 때문에 외부 호출 대신
@@ -242,6 +249,7 @@
                +' br='+(a.brake||0).toFixed(2)
                +' ln'+(T.lane+1)+'->'+(T.laneF!==undefined?(T.laneF+1).toFixed(2):'-')
                +'/'+(T.laneMax||'?')
+               +' D='+(window.__laneDemo||'-')
                +' br='+(a.brake||0).toFixed(2)
                +' cr='+me.crashes+' ln='+lane+' LOG='+logged, x+2, y-6);
   };
