@@ -942,12 +942,49 @@ function draw(){
         빨강/초록 구분이 사실상 불가능했다(학습셋 실측: 빨간불 프레임당 평균 0.3px).
         실제 운전에서도 신호등은 멀리서 식별되게 돼 있으므로 과장이 아니다.
         반경을 2.2배로 키우고 흰 테두리를 둘러 축소 후에도 색이 살아남게 한다. */
+     /* ★실물 4색 신호등(u_4996 오너 지적 "엉망으로 그려놨다", u_4999 진행).
+        기존엔 색 원 하나였다 — 함체도 등도 없어서 '색 점'이었다.
+        한국 차량 신호등 규격(위키/나무위키 확인):
+          횡형 4색 = 왼쪽부터 적색 · 황색 · 녹색화살표(좌회전) · 녹색
+        ★모양 자체가 특징이다. 검은 가로 함체에 등 4개가 박힌 실루엣을
+          CNN 이 배울 수 있어야 한다. 색 점으로는 그 특징이 안 생긴다.
+        도로 방향(sg.ang)에 맞춰 회전시켜, 마주 오는 방향에서 정면으로 보이게 한다. */
      const RED=sigRed(sg,now);
-     g.fillStyle='#ffffff';
-     g.beginPath();g.arc(sg.x,sg.y,2.4*S,0,7);g.fill();
-     g.fillStyle=RED?'#ff0000':'#00c000';
-     g.beginPath();g.arc(sg.x,sg.y,2.0*S,0,7);g.fill();
-     g.strokeStyle='rgba(0,0,0,.55)';g.lineWidth=1.5;g.stroke();
+     const LW_=1.55*S, LH=1.55*S;            // 등 하나 크기
+     const BW=LW_*4+0.9*S, BH=LH+0.7*S;      // 함체
+     g.save();
+     g.translate(sg.x,sg.y);
+     g.rotate(sg.ang+Math.PI/2);             // 도로를 가로지르게
+     // 지주(짧게) — 함체가 공중에 뜬 느낌을 준다
+     g.fillStyle='#3a4048';
+     g.fillRect(-0.35*S, BH*0.5, 0.7*S, 1.6*S);
+     // 함체
+     g.fillStyle='#15181d';
+     rr(-BW/2,-BH/2,BW,BH,0.5*S); g.fill();
+     g.strokeStyle='rgba(255,255,255,.25)'; g.lineWidth=1; g.stroke();
+     // 등 4개 — 왼쪽부터 적 · 황 · 좌회전화살표 · 녹
+     const cols = RED ? ['#ff2d18','#2a2118','#16301c','#16301c']
+                      : ['#3a1512','#2a2118','#16301c','#19e05a'];
+     for(let i=0;i<4;i++){
+       const cx=-BW/2+0.45*S+LW_*(i+0.5);
+       g.fillStyle=cols[i];
+       g.beginPath(); g.arc(cx,0,LH*0.42,0,7); g.fill();
+       if(i===2){                            // 좌회전 화살표 실루엣
+         g.strokeStyle = cols[i]==='#16301c' ? 'rgba(120,200,140,.35)' : '#19e05a';
+         g.lineWidth=1.6; g.beginPath();
+         g.moveTo(cx+LH*0.22,0); g.lineTo(cx-LH*0.20,0);
+         g.moveTo(cx-LH*0.20,0); g.lineTo(cx-LH*0.02,-LH*0.20);
+         g.moveTo(cx-LH*0.20,0); g.lineTo(cx-LH*0.02, LH*0.20);
+         g.stroke();
+       }
+     }
+     // 점등된 등의 발광(멀리서도 색이 남게 — 축소돼도 살아남는 핵심)
+     const li = RED?0:3;
+     const gx=-BW/2+0.45*S+LW_*(li+0.5);
+     g.globalAlpha=.45; g.fillStyle=RED?'#ff2d18':'#19e05a';
+     g.beginPath(); g.arc(gx,0,LH*0.85,0,7); g.fill();
+     g.globalAlpha=1;
+     g.restore();
    }}
   // 경로
   if(auto.on&&auto.wp.length){

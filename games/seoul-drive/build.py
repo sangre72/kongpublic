@@ -33,6 +33,30 @@ te   = open('games/seoul-drive/teacher.js').read()
 gm = "window.__TRAFFIC='%s';window.__TARGET_KMH=%d;\n" % (_tf, _kmh) + gm
 # ★차로변경 데모(u_4992): --lanedemo 면 1차로에서 달리다 3차로로 옮긴다.
 #   아티팩트는 샌드박스라 콘솔/URL 로 못 건드린다 → 빌드에 넣는 수밖에 없다.
+if '--sigdemo' in sys.argv:
+    # ★신호등 확인용: 가장 가까운 신호등 앞에 차를 세운다(u_4999 검증)
+    gm += '''
+;(function(){
+  function go(){
+    if(typeof signals==='undefined'||!signals.length){ setTimeout(go,600); return; }
+    var best=null,bd=1e18;
+    for(var i=0;i<signals.length;i++){
+      var d=(signals[i].x-me.x)*(signals[i].x-me.x)+(signals[i].y-me.y)*(signals[i].y-me.y);
+      if(d<bd){bd=d;best=signals[i];}
+    }
+    if(!best) return;
+    /* 신호는 sg.ang 방향을 '바라보는' 차에게 보이도록 배치돼 있다.
+       그 반대편(-ang)에서 다가가야 정면으로 보인다. */
+    me.x=best.x-Math.cos(best.ang)*16*S; me.y=best.y-Math.sin(best.ang)*16*S;
+    me.ang=best.ang; me.v=0;
+    cam.x=(me.x+best.x)/2; cam.y=(me.y+best.y)/2;
+    if(typeof streamWorld==='function') streamWorld(true);
+    if(window.__teach) window.__teach.auto=false;   // 멈춰서 관찰
+    cam.z=1.8;
+  }
+  setTimeout(go,3000);
+})();
+'''
 if '--lanedemo' in sys.argv:
     te += '''
 ;(function(){
