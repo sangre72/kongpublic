@@ -1557,3 +1557,75 @@ if(LEARN){hardReset();epStart()}
    hardReset() 이 아예 안 불리고 초기 주차칸 위치가 그대로 남았다.
    실측: 디코더로 읽은 lane=13.0m, on_road=0 — 도로 밖에서 수집하고 있었다. */
 else { hardReset(); }
+
+/* ===== 목적지 검색 (u_5003) =====
+   오너 요구(u_4984): "한글이든 영문이든 주소든 지명이든 상호든 다 가게".
+   맵에 이미 도로명 1,507 + 건물명 1,900 이 들어 있어서 인덱스만 붙이면 된다.
+   찾은 지점은 건물 안일 수 있으므로, 반드시 '도로 위 진입점'으로 바꿔 경로를 낸다
+   (u_4896 오너 지적: POI는 건물 위치이지 도로 위 지점이 아니다). */
+(function(){
+  const box = document.getElementById('q');
+  const res = document.getElementById('qr');
+  const go  = document.getElementById('qgo');
+  if(!box || !res) return;
+  const IDX = (typeof SEARCH !== 'undefined') ? SEARCH : [];
+  let hits = [], sel = 0;
+
+  const norm = t => (t||'').toLowerCase().replace(/\s+/g,'');
+  const KIND = {road:'도로', bld:'건물', poi:'명소'};
+
+  function search(qq){
+    const q = norm(qq);
+    if(q.length < 1) return [];
+    const starts = [], contains = [];
+    for(const r of IDX){
+      const n = norm(r.n);
+      if(n === q || n.startsWith(q)) starts.push(r);
+      else if(n.includes(q)) contains.push(r);
+      if(starts.length > 40) break;
+    }
+    // 가까운 것 우선 — 지금 위치에서 먼 곳을 위에 띄우면 쓸모없다
+    const d2 = r => (r.x*S-me.x)**2 + (r.y*S-me.y)**2;
+    starts.sort((a,b)=>d2(a)-d2(b)); contains.sort((a,b)=>d2(a)-d2(b));
+    return starts.concat(contains).slice(0, 8);
+  }
+
+  function render(){
+    res.innerHTML = '';
+    hits.forEach((r,i)=>{
+      const km = Math.hypot(r.x*S-me.x, r.y*S-me.y)/S/1000;
+      const d = document.createElement('div');
+      d.className = 'it' + (i===sel?' sel':'');
+      d.innerHTML = '<b></b><span></span>';
+      d.querySelector('b').textContent = r.n;
+      d.querySelector('span').textContent = KIND[r.k]+' · '+km.toFixed(1)+'km';
+      d.onclick = ()=>{ sel=i; pick(); };
+      res.appendChild(d);
+    });
+  }
+
+  function pick(){
+    const r = hits[sel]; if(!r) return;
+    /* 건물 중심으로 바로 planTo 하면 '도로가 아닌 곳'을 목적지로 잡는다.
+       가장 가까운 도로 위 지점으로 옮긴다. */
+    const n = nearestSeg(r.x*S, r.y*S);
+    const gx = n ? n.px : r.x*S, gy = n ? n.py : r.y*S;
+    planTo(gx, gy);
+    flash(r.n + ' 로 안내 시작');
+    res.innerHTML = ''; box.blur();
+  }
+
+  let t=null;
+  box.oninput = ()=>{ clearTimeout(t); t=setTimeout(()=>{
+    hits = search(box.value); sel = 0; render();
+  }, 90); };
+  box.onkeydown = e=>{
+    if(e.key==='ArrowDown'){ sel=Math.min(hits.length-1,sel+1); render(); e.preventDefault(); }
+    else if(e.key==='ArrowUp'){ sel=Math.max(0,sel-1); render(); e.preventDefault(); }
+    else if(e.key==='Enter'){ pick(); e.preventDefault(); }
+    else if(e.key==='Escape'){ res.innerHTML=''; box.blur(); }
+    e.stopPropagation();          // 방향키가 주행 조작으로 새지 않게
+  };
+  if(go) go.onclick = ()=>{ if(!hits.length) hits=search(box.value); pick(); };
+  window.__search = search;       // 검증용
+})();
