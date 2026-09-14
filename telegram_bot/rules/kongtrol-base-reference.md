@@ -106,6 +106,7 @@ $KT input drag 1318 274 1002 777 --yes --human   # Finder → Chrome dropzone
 **CORE FACT(orch-measured, click 1222,459 direct-success):** kongtrol click-log = "physical(X,Y)→logical(X,Y)" = **1:1, ¬conversion**. a11y `@(X,Y)` == `kongtrol click X Y`(SAME logical-coord-system). ★×2·scale-calc·transform = FORBIDDEN(makes-it-wrong) — click a11y-coord AS-IS.
 - "which-takes-priority: scale·resolution·pointer, calc?"(u_3403) answer = **¬calc, a11y-logical-coord DIRECT**.
 - screencapture-png pixels(e.g. 4112×2658) ≠ logical-coords → **measuring coord from screenshot→click = WRONG**. coord=a11y-ONLY, screenshot=visual-verify-ONLY.
+- ★REPEATED-VIOLATION(2026-09-05 u_3969, multiple prior same-day incidents): despite this rule being documented, worker repeatedly falls back to screenshot-then-eyeball for web-UI elements(popups/dialogs especially) instead of `kongtrol see --a11y | grep <label-text>`. This is a compliance gap, not a documentation gap — before EVERY click on a web-page element, default reflex = a11y text-search first, screenshot only as a last-resort fallback when a11y genuinely returns no match.
 
 **MANDATORY CLICK PROTOCOL(∀ click·UI-task, unconditional):**
 1. **FOREGROUND**: `open -a "<App>" && sleep 1.5`(background-click = silent no-op).
@@ -114,6 +115,12 @@ $KT input drag 1318 274 1002 777 --yes --human   # Finder → Chrome dropzone
 4. **VERIFY after**: post-click a11y-requery for state-change → unchanged→re-check 1~3·re-click.
 5. **FRESH per step**: screen-changed→re-query-coord.
 
+- ★**TEXT from screenshots is banned too**(2026-09-13 ar_4845): the no-pixels rule covers not just
+  coordinates but any STRING read off an image — IDs, URLs, filenames, codes. A YouTube video id was
+  transcribed from a screenshot crop as `rZhRXrBIjz4` (capital I) when it was `rZhRXrBljz4`
+  (lowercase l), costing two failed attempts. Glyph pairs that look identical in a render
+  (I/l/1, O/0, rn/m) make OCR-by-eye unreliable. FIX: get the string from the source — copy the
+  address bar (`cmd+l`, `cmd+c`), read a11y `AXValue`, or read the file — never retype from pixels.
 - **Logical coords** used by kongtrol (not display pixels)
 - **Always use logical coords** in `see --a11y` output directly (no conversion)
 - kongtrol auto-translates to physical input

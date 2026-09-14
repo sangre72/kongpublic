@@ -121,6 +121,29 @@ def write_user_image_request(
     return path
 
 
+def write_user_video_request(
+    chat_id: int, username: str, caption: str, ref_rel: str, seq: int
+) -> Path:
+    """동영상(+선택 캡션) 요청 → u_{NN}.txt 작성.
+
+    [REF_VIDEO] 필드에 repo 상대경로를, 원문에는 caption 을 저장한다.
+    caption 이 비면 토픽은 'video_ref' 로 대체한다. (이미지 경로와 동일 규약.)
+    """
+    topic = _slug(caption) if caption.strip() else "video_ref"
+    path = U_DIR / f"u_{seq:02d}_{topic}.txt"
+    content = (
+        f"[FROM] user\n"
+        f"[CHAT_ID] {chat_id}\n"
+        f"[USERNAME] {username}\n"
+        f"[SEQ] {seq:02d}\n"
+        f"[REF_VIDEO] {ref_rel}\n\n"
+        "## 원문\n"
+        f"{caption}\n"
+    )
+    path.write_text(content, encoding="utf-8")
+    return path
+
+
 def find_user_file(seq: int) -> Path | None:
     """SEQ 로 u_{NN}_*.txt 파일 1건을 찾는다 (없으면 None)."""
     for p in U_DIR.glob(f"u_{seq:02d}_*.txt"):

@@ -1,0 +1,65 @@
+"""주행 신경망 정의 (2026-09-14 u_4935: 256 입력).
+
+WHY 256:
+  84x84 로 뭉개면 신호등이 4~5픽셀만 남아 빨강/초록 구분이 사실상 불가능했다
+  (학습셋 실측: 빨간불 프레임당 평균 0.3px). 해상도별 실측 결과 —
+      84 → 빨강 7px   / 합계 2.50ms
+     128 → 빨강 62px  / 합계 2.78ms
+     256 → 빨강 324px / 합계 3.03ms
+  256 이 84 보다 겨우 0.5ms 비싸다. 캡처 7.9ms 를 더해도 11ms 로 20ms 예산 안.
+  ⇒ 압축할 이유가 없다. 3D 로 갈 때도 이 해상도가 기준이 된다.
+
+★AdaptiveAvgPool2d 는 MPS 에서 입력이 출력의 배수가 아니면 터진다.
+  그래서 stride conv 를 더 쌓고 마지막에 global average pool 을 쓴다(입력크기 무관).
+"""
+import torch, torch.nn as nn
+
+IMG = 256          # 입력 한 변
+
+class DriveNet(nn.Module):
+    def __init__(self, out=3):
+        super().__init__()
+        self.f = nn.Sequential(
+            nn.Conv2d(3, 16, 5, 2), nn.ReLU(),
+            nn.Conv2d(16, 32, 3, 2), nn.ReLU(),
+            nn.Conv2d(32, 64, 3, 2), nn.ReLU(),
+            nn.Conv2d(64, 96, 3, 2), nn.ReLU(),
+            nn.Conv2d(96, 128, 3, 2), nn.ReLU())
+        self.h = nn.Sequential(nn.Linear(128, 96), nn.ReLU(), nn.Linear(96, out))
+    def forward(self, x):
+        z = self.f(x).mean(dim=(2, 3))     # global average pool (MPS 안전)
+        return torch.tanh(self.h(z))
+
+def preprocess(canvas_rgb, size=IMG, device=None, bgr=True):
+    """캔버스(H,W,3 uint8) → (3,size,size) float32 0~1 (device 텐서).
+
+    ★캡처를 kCGWindowImageNominalResolution 으로 바꾼 뒤(capture.py 참고)
+      입력이 이미 논리해상도(687x763)라 cv2 로 1/2 줄이는 단계가 필요 없다.
+      큰 입력(레티나 1374x1526)이 들어오면 예전처럼 cv2 AREA /2 를 먼저 태운다.
+
+    ★왜 antialias=True 인가: bilinear/nearest 단독은 '샘플링'이라 탭 사이에
+      떨어진 2px 차선을 통째로 건너뛴다(예전 ::7 스트라이드로 차선 764px→0 사고와
+      같은 원리). 면적 적분 계열은 흐려질지언정 위치가 보존된다.
+      신경망은 임계값이 아니라 연속값을 보므로 후자가 맞다.
+
+    ★MPS 주의: F.adaptive_avg_pool2d 는 입력이 출력의 배수가 아니면 터진다
+      (pytorch#96056). align_corners=False 필수.
+      uint8 로 올린 뒤 GPU 에서 float 변환해야 전송량이 1/4.
+    """
+    import torch
+    import torch.nn.functional as F
+    import numpy as _np
+    c = canvas_rgb
+    if c.shape[0] > size * 3:          # 레티나 등 큰 입력이면 정수배 고속경로로 먼저 축소
+        import cv2
+        c = cv2.resize(c, (c.shape[1] // 2, c.shape[0] // 2), interpolation=cv2.INTER_AREA)
+    dev = device if device is not None else (
+        'mps' if torch.backends.mps.is_available() else 'cpu')
+    # ★capture.grab_canvas() 는 BGR view 를 준다(팬시 인덱싱 복사를 피하려고).
+    #   채널 뒤집기는 GPU 에서 flip 으로 — CPU 복사 0.6ms 를 아낀다.
+    t = torch.from_numpy(_np.ascontiguousarray(c)).to(dev)
+    if bgr: t = torch.flip(t, dims=[2])
+    t = t.permute(2, 0, 1)[None].float().div_(255)
+    o = F.interpolate(t, size=(size, size), mode='bilinear',
+                      align_corners=False, antialias=True)
+    return o[0]

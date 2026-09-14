@@ -567,6 +567,7 @@ def build_task_from_user(u_path: Path) -> Path | None:
     chat_id = ps.read_field(u_path, "CHAT_ID")
     username = ps.read_field(u_path, "USERNAME")
     ref_image = ps.read_field(u_path, "REF_IMAGE")
+    ref_video = ps.read_field(u_path, "REF_VIDEO")
     # u_ 의 '## 원문' 섹션만 뽑아 유저 요청 본문으로.
     m = re.search(r"##\s*원문\s*\n(.+)\Z", text, re.S)
     body = (m.group(1).strip() if m else text.strip())
@@ -575,6 +576,7 @@ def build_task_from_user(u_path: Path) -> Path | None:
     title = _short(body or username or "요청", 40)
     a_path = ps.A_DIR / f"a_{seq}_auto.txt"
     ref_line = f"[REF_IMAGE] {ref_image}\n" if ref_image else ""
+    ref_line += f"[REF_VIDEO] {ref_video}\n" if ref_video else ""
     content = (
         "[TYPE] auto\n"
         "[PRIORITY] normal\n"
@@ -632,7 +634,7 @@ def _build_prompt(a_path: Path, resume: bool = False) -> str:
         "reasoning/narration=EN always. cf och.txt §1J/§31 K7.\n\n"
         f"{resume_note}"
         f"1) read instr: {a_rel} "
-        "(hdr [CHAT_ID]·[PARENT](user-orig u_)·[REF_IMAGE]. '## 유저 원문'=real request.)\n"
+        "(hdr [CHAT_ID]·[PARENT](user-orig u_)·[REF_IMAGE]·[REF_VIDEO]. '## 유저 원문'=real request.)\n"
         "2) exec '## 지시' in this proj code-context. obey .claude/rules + och.txt(§4·§7).\n"
         f"3) write reply file same dir: telegram_bot/orchestrator/protocol/a/ar_{seq}_auto.txt\n"
         "   - line1: [STATUS] done  (fail→ error|blocked)\n"

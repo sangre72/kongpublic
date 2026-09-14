@@ -439,6 +439,14 @@ def _process_update(tg: TelegramIO, upd: dict, allowed_ids: set[int]) -> None:
         handle_photo(tg, chat_id, username, file_id, ext, caption)
         return
 
+    # 동영상(video/animation/video-document) → 참조 비디오 수신 처리 (사진과 대칭)
+    video_ref = _extract_video_file(msg)
+    if video_ref is not None:
+        vfile_id, vext = video_ref
+        caption = msg.get("caption", "") or msg.get("text", "") or ""
+        handle_video(tg, chat_id, username, vfile_id, vext, caption)
+        return
+
     text = msg.get("text", "")
     if not text:
         return
@@ -919,6 +927,98 @@ def handle_photo(
             "이 이미지로 무엇을 만들지 요청 텍스트를 이어서 보내주세요.",
         )
         print(f"[사진→u_{seq:02d}] 캡션 없음 — 텍스트 대기(배정 보류)")
+
+
+# ---------- 동영상(참조 비디오) 수신 ----------
+
+def _extract_video_file(msg: dict) -> tuple[str, str] | None:
+    """message 에서 동영상 파일 참조를 뽑는다.
+
+    반환: (file_id, ext) | None
+      - video: message.video (텔레그램 네이티브 동영상), ext=mp4.
+      - animation: GIF/무음 mp4(message.animation), ext=mp4.
+      - document: video/* mime 만 허용. ext 는 mime 서브타입 또는 mp4.
+      - reply_to_message 도 확인(사진과 동일 규약 — 봇 영상에 유저가 답장한 경우).
+    이미지(_extract_image_file)와 동일한 우선순위·폴백 구조.
+    """
+    video = msg.get("video") or {}
+    if video.get("file_id"):
+        return (video["file_id"], "mp4")
+
+    anim = msg.get("animation") or {}
+    if anim.get("file_id"):
+        return (anim["file_id"], "mp4")
+
+    doc = msg.get("document") or {}
+    mime = (doc.get("mime_type") or "").lower()
+    if doc.get("file_id") and mime.startswith("video/"):
+        subtype = mime.split("/", 1)[1] if "/" in mime else "mp4"
+        # 흔한 컨테이너만 정규화, 그 외는 서브타입 그대로.
+        ext = {"quicktime": "mov", "x-matroska": "mkv", "mp4": "mp4"}.get(subtype, subtype or "mp4")
+        return (doc["file_id"], ext)
+
+    reply = msg.get("reply_to_message")
+    if reply:
+        return _extract_video_file(reply)
+    return None
+
+
+def handle_video(
+    tg: TelegramIO, chat_id: int, username: str,
+    file_id: str, ext: str, caption: str,
+) -> None:
+    """수신 동영상 → protocol/refs/ 저장 + u_ 파일 기록([REF_VIDEO]). 사진 경로와 대칭.
+
+    ★텔레그램 getFile 은 파일당 20MB 상한 — 초과 시 file_path 미제공/다운로드 실패하므로
+    실패를 유저에게 명확히 안내(작게 잘라 재전송 유도)한다.
+    """
+    print(f"[동영상수신] chat={chat_id} @{username} file={file_id[:8]} caption={caption[:40]!r}")
+
+    seq = ps.next_seq()
+    dest = ps.ref_dest_path(seq, file_id, ext)
+    try:
+        info = tg.get_file(file_id)
+        remote_path = info.get("file_path", "")
+        if not remote_path:
+            tg.send_message(
+                chat_id,
+                "⚠️ 동영상 정보를 가져오지 못했습니다(텔레그램 20MB 제한 초과 가능). "
+                "더 짧게/작게 잘라 다시 보내주세요.",
+            )
+            return
+        tg.download_file(remote_path, dest)
+    except Exception as e:  # noqa: BLE001
+        body = ""
+        try:
+            body = e.read().decode("utf-8", "replace")[:300]  # HTTPError 응답본문(원인 판별용)
+        except Exception:  # noqa: BLE001
+            pass
+        print(f"[경고] 동영상 다운로드 실패: {e} body={body!r}")
+        tg.send_message(
+            chat_id,
+            "⚠️ 동영상 다운로드에 실패했습니다(20MB 초과 가능). 더 작게 잘라 다시 보내주세요.",
+        )
+        return
+
+    ref_rel = ps.rel_from_repo(dest)
+    ps.write_user_video_request(chat_id, username, caption, ref_rel, seq)
+
+    if caption.strip():
+        tg.send_message(chat_id, f"🎬 동영상 접수 (#{seq:02d}) — 곧 워커에 배정합니다.")
+        print(f"[동영상→u_{seq:02d}] 캡션 포함 접수")
+    else:
+        # 캡션 없음 → 사진과 동일하게 다음 텍스트를 이 SEQ 에 연결(조기배정 보류).
+        _PENDING_IMAGE_SEQ[chat_id] = seq
+        try:
+            wk.hold_dispatch(ps.find_user_file(seq))
+        except Exception:  # noqa: BLE001
+            pass
+        tg.send_message(
+            chat_id,
+            f"🎬 동영상 접수 (#{seq:02d}) — 참조로 사용 가능합니다.\n"
+            "이 동영상으로 무엇을 할지 요청 텍스트를 이어서 보내주세요.",
+        )
+        print(f"[동영상→u_{seq:02d}] 캡션 없음 — 텍스트 대기(배정 보류)")
 
 
 def relay_worker_responses(tg: TelegramIO) -> None:

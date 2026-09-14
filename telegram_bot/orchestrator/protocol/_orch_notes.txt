@@ -19,3 +19,4 @@
   - orch_monitor_tick.sh 이미 ESEEN에 기록
   - orch가 처리 시작하면 seen_u에도 추가(중복 방지)
 [2026-09-09 u_4328] future: ARC-AGI official measurement route (Kaggle ARC Prize submission / semi-private verification) — scope after fun self-measure run done
+[2026-09-09 u_4349] ARC 결과 기록/공개 시 참가자명 = kongbot 표기

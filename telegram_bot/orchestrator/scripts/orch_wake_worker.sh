@@ -93,6 +93,11 @@ EOF
   sleep 1  # model-switch apply(2→1 u_3450 speed-trim; 0.3 submit-delays kept for do-script correctness)
 fi
 
+# ★2026-09-09 u_4377 fix: long MSG → 0.3s fixed delay too short, Enter lands mid-ingest → queued-unsubmitted.
+#   SUBMIT_DELAY scales with length (0.3s + 1s per 300 chars, cap 3s) + double-Enter (0.8s apart) for safety.
+MSG_LEN=${#MSG}
+SUBMIT_DELAY=$(python3 -c "print(min(3.0, 0.3 + $MSG_LEN/300.0))")
+
 # ★2026-08-28 u_2803/2804 fix: `do script "text" in w` on a Claude-Code TUI can QUEUE
 #   the text without submitting(prompt shows "Press up to edit queued messages", no Enter).
 #   Fix = 2nd do-script call sending bare newline to actually submit.
@@ -103,7 +108,9 @@ tell application "Terminal"
     repeat with w in windows
       if (tty of w) is targetTty then
         do script "$MSG" in w
-        delay 0.3
+        delay $SUBMIT_DELAY
+        do script (return & "") in w
+        delay 0.8
         do script (return & "") in w
         return "SUCCESS(tty): " & (name of w)
       end if
@@ -112,7 +119,9 @@ tell application "Terminal"
   repeat with w in windows
     if name of w contains "$WINDOW_HINT" then
       do script "$MSG" in w
-      delay 0.3
+      delay $SUBMIT_DELAY
+      do script (return & "") in w
+      delay 0.8
       do script (return & "") in w
       return "SUCCESS(title-fallback): " & (name of w)
     end if

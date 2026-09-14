@@ -145,3 +145,12 @@ B decide record location first (doc registry). Don't write anywhere random
 
 ## INTEGRATION VERIFY (orch directly)
 worker/agent done → orch cross-checks real output(§11.5 A3) → if clean, commit·push. No Next.js/deploy pipeline in this repo(sky-specific, removed 2026-08-30) — kong-bot's "deploy" = git push only, recipe/script changes take effect immediately on next worker pickup.
+
+## ★ u_ SEEN 등록 = 반드시 orch_seen.sh 사용 (2026-09-13 u_4820/4823 지연사고)
+- 금지: `echo "u_NNNN_....txt" >> logs/.orch_seen_u` (손으로 파일명 타이핑)
+- 사용: `bash telegram_bot/orchestrator/scripts/orch_seen.sh <번호> [번호...]`
+- WHY: 파일명을 손으로 적다 잘림/오타 발생(u_4816_..._완전_종료.txt vs 실제 ..._완전_종료_하도.txt)
+  → orch_monitor_tick.sh의 `grep -qx "$b" $SEEN` 불일치 → 미처리로 오판 → 60초마다 re-notify 재방출.
+  이 재방출 폭주가 실시간 명령을 파묻어 "응답이 30초씩 늦다"는 체감지연의 실제 원인이었음.
+- u_ 디렉토리 실경로 = telegram_bot/orchestrator/protocol/u (repo-root의 protocol/ 아님. 혼동 주의)
+- 처리 직후 즉시 등록하고, `unseen_total=0` 확인까지가 1세트.

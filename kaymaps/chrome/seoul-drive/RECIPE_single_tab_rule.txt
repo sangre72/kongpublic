@@ -1,0 +1,39 @@
+RECIPE: seoul-drive single-tab rule
+GATE: VERIFIED 2026-09-14 (owner u_4926 "게임 창 항상 한개만 유지 하도록 해")
+REG: Chrome × 강남 드라이브(games/seoul-drive) artifact tab
+
+WHY
+  Repeated `open -a "Google Chrome" <artifact-url>` spawns a NEW tab every time.
+  Measured 2026-09-14: 12 identical 강남 드라이브 tabs accumulated in one session.
+  Consequences:
+    - each tab runs its own game loop -> 12× CPU, frame rate of the visible one drops
+    - each tab writes its own training-label run to the artifact db, so the orch
+      cannot tell which label stream belongs to the captured screen
+    - offscreen tabs log DEGENERATE data (v frozen, steer 0, obst=40 "nothing seen");
+      training on it teaches "always straight, full throttle"
+  ★So the single-tab rule is a DATA-CORRECTNESS rule, not just tidiness.
+
+STEPS (before every reload / collection run)
+  KT=kongtrol/target/release/kongtrol
+  1) open -a "Google Chrome" && sleep 1.5
+  2) count tabs:
+       $KT see --a11y --pid $(pgrep -x "Google Chrome"|head -1) | grep -c "AXRadioButton"
+  3) IF >1 강남 드라이브 tab: for each extra, click the tab then its close button:
+       $KT input click <tab_x> 60 --yes ; sleep 0.4
+       $KT input click <close_x> 59 --yes ; sleep 0.6
+     ★close-button coord = tab_x + ~50; re-query a11y each time (coords shift after
+       every close). `AXButton ... 닫기` only appears for the hovered/active tab.
+  4) ¬`cmd w` — measured NOT to close the tab here (focus is inside the page, not the
+     tab strip); the close-button click is the reliable path.
+  5) To RELOAD the game use `cmd r` on the existing tab, NEVER re-`open` the URL
+     (re-opening = new tab = the bug above).
+
+VERIFY
+  $KT see --a11y --pid $(pgrep -x "Google Chrome"|head -1) | grep "AXRadioButton"
+  -> exactly ONE row, label contains 강남 드라이브.
+  Careless closing can leave the WRONG tab (incident: left "Autopilot Driving Sim",
+  the game was gone) -> always check the surviving tab's LABEL, not just the count.
+
+LIMIT
+  Window should also be full-screen for a usable view: 창 menu @(469,20) > 채우기 @(554,105).
+  Small window measured at 339×429 logical = unreadable and bad for capture.

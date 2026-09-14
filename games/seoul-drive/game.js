@@ -1,0 +1,1398 @@
+/* ====== 강남 드라이브 — 실측 스케일 물리/렌더 ======
+   ★스케일 규약: S = px per metre. 모든 치수는 '미터'로 쓰고 S를 곱해 그린다.
+     (이전 버그: 차 5.8m×12.3m > 차로폭 3.5m → 차가 도로를 벗어남) */
+const S = 6.0;                 // px/m
+const LANE_M = 3.25;           // 차로폭(m) — 한국 도시부 기준
+const LW = LANE_M * S;         // 19.5px
+const SIDEWALK_M = 3.0;        // 인도폭(m)
+
+const cv=document.getElementById('cv'),g=cv.getContext('2d');
+let W,H,DPR=Math.min(devicePixelRatio||1,2);
+function fit(){W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;g.setTransform(DPR,0,0,DPR,0,0)}
+addEventListener('resize',fit);fit();
+/* ★u_4923 '지도가 너무 어둡다'.
+   원인: CSS 변수를 밝게 덮어써도 소용없었다(실측: 도로 픽셀 변화 0).
+   아티팩트 뷰어가 iframe 위에 어두운 레이어를 덧씌우기 때문에 페이지 CSS로는 못 이긴다.
+   → 게임이 칠하는 색 자체를 밝은 값으로 고정한다. 합성 후에도 남는다.
+   사람 눈에도, CNN 입력 픽셀에도 같이 효과가 있다. */
+/* ★u_4923/u_4924 '지도가 어둡다 / 잘 안 보인다'.
+   아티팩트 뷰어가 캔버스를 약 27% 밝기로 눌러버린다(실측: 도로 #b9bfc8 → [51,52,54]).
+   CSS 필터로 되돌리려다 화면이 전부 회색으로 뭉개져 실패했었다(전역 곱이라 명암이 같이 죽음).
+   → 색을 '밝게'가 아니라 '대비를 키운 채' 다시 고른다.
+     도로는 거의 흰색까지 올리고, 차선·글자는 완전한 흰/검으로 양 끝에 붙인다.
+     눌린 뒤에도 도로-차선 차이가 남도록 하는 게 핵심(CNN 입력에도 동일하게 유효). */
+/* ★대비 강화(u_4945). 차선·오브젝트가 흰 도로에 묻혀 안 보였다.
+   도로는 약간 회색으로 내리고, 차선은 완전한 검정, 보도는 확실히 구분되는 톤으로. */
+/* ★실제 도로교통 기준 색(2026-09-14 u_4955).
+   기존에는 도로를 밝게(#e4e8ee) 하고 차선을 검정으로 칠했다 — 실제와 정반대다.
+   한국 도로표지 기준으로 맞춘다:
+     차도   = 아스팔트 진회색   (배경·인도와 명확히 구분)
+     차선   = 흰색 점선         (같은 방향 차로 구분)
+     중앙선 = 노란색 실선       (반대방향 분리)
+     인도   = 밝은 회색
+   차도만 어둡게 하면 차선(흰색)이 그 위에서 가장 밝아 대비가 최대가 된다.
+   사람 눈에도 CNN 입력에도 이 배치가 맞다. */
+/* ★실제 도로교통 기준 색(2026-09-14 u_4955).
+   차도=아스팔트 진회색 / 차선=흰색 / 중앙선=노란색 / 인도=밝은 회색.
+   차도만 어둡게 하면 흰 차선이 그 위에서 가장 밝아 대비가 최대가 된다.
+   대비 실측(도로 기준): 차선 175, 중앙선 134, 인도 123, 배경 166.
+
+   ※'화면이 파랗다'고 판단했던 건 오진이었다(u_4957 오너 지적).
+     뷰어 오버레이가 아니라 페이지 텍스트가 전체선택(Cmd+A)된 상태의
+     선택 하이라이트였다. 캔버스 빈 곳을 클릭해 선택을 풀면
+     색편향(B-R)이 +47 → +2 로 사실상 중립이 된다.
+     ⇒ 캡처 전에는 항상 선택을 해제할 것. 색 보정은 필요 없다. */
+const PAL={'--bg':'#f5f6f8','--bld':'#d6dbe3','--bldEdge':'#8b95a3','--bldInk':'#1a1f28',
+           '--road':'#4a4f57','--walk':'#c3cad3','--line':'#ffffff','--center':'#ffd400',
+           '--roadInk':'#ffffff','--halo':'rgba(0,0,0,.55)','--lamp':'#2a2f36',
+           '--green':'#00b050','--ink':'#1a1f28'};
+const C=v=>PAL[v] || getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/* ---------- 지도 청크 로딩 (서울·경기 전역, u_4877/4878) ----------
+   전체 9.8MB를 한 번에 올리면 브라우저가 죽는다 → 1km 격자로 쪼개
+   차 주변 3x3만 메모리에 올린다. 중앙값 15KB/청크. */
+const CHUNK=1000;                                   // m
+var curChunk='';
+var navErr='';
+var crashLit=0;
+var lastDraw=0; var DRAW_MS=1000/30;   /* 렌더 30fps 제한(u_4941).
+  ※60fps 로 올려도 비전 새화면은 92→94fps 로 거의 안 늘고(캡처 API 고정비용이 상한),
+    WindowServer 는 10.8%→21.5% 로 2배가 된다. 30fps 가 최적점.(u_4942 실측) */
+var crashHold=0;   // 사고 정지 상태(화면 빨강 고정)   // ★hardReset()가 먼저 호출되므로 var로 호이스팅(TDZ 방지)
+const CH=(typeof CHUNKS!=='undefined')?CHUNKS:null;
+function chunkKey(x,y){return Math.floor(x/CHUNK)+','+Math.floor(y/CHUNK)}
+let loadedKeys=new Set();
+function collectRoads(cx,cy){
+  // cx,cy = 미터 기준 차 위치
+  if(!CH) return ROADS;
+  const out=[];const keys=[];
+  const i0=Math.floor(cx/CHUNK),j0=Math.floor(cy/CHUNK);
+  for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++){
+    const k=i+','+j;keys.push(k);
+    const c=CH[k];if(c)out.push(...c.r);
+  }
+  loadedKeys=new Set(keys);
+  return out;
+}
+function collectBlds(cx,cy){
+  if(!CH) return BLDS;
+  const out=[];
+  const i0=Math.floor(cx/CHUNK),j0=Math.floor(cy/CHUNK);
+  for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++){
+    const c=CH[i+','+j];if(c)out.push(...c.b);
+  }
+  return out;
+}
+let ROADS_ACTIVE=collectRoads(0,0);
+let BLDS_ACTIVE =collectBlds(0,0);
+
+/* ---------- 그래프 (청크가 바뀌면 다시 짓는다) ---------- */
+const nodes=[],segs=[];let nmap=new Map();
+const key=p=>p[0].toFixed(0)+'_'+p[1].toFixed(0);
+function nid(p){const k=key(p);if(nmap.has(k))return nmap.get(k);
+  const i=nodes.length;nodes.push({x:p[0]*S,y:p[1]*S,e:[]});nmap.set(k,i);return i}
+function buildGraph(roads){
+  nodes.length=0;segs.length=0;nmap=new Map();
+  for(const w of roads)for(let i=0;i<w.p.length-1;i++){
+    const a=nid(w.p[i]),b=nid(w.p[i+1]);if(a===b)continue;
+    const si=segs.length;
+    const len=Math.hypot(nodes[b].x-nodes[a].x,nodes[b].y-nodes[a].y);
+    const ang=Math.atan2(nodes[b].y-nodes[a].y,nodes[b].x-nodes[a].x);
+    segs.push({a,b,l:w.l,o:w.o,n:w.n,len,ang,roadW:w.l*LW});
+    nodes[a].e.push(si);nodes[b].e.push(si);
+  }
+}
+buildGraph(ROADS_ACTIVE);
+const other=(s,n)=>s.a===n?s.b:s.a;
+function nearestSegRaw(x,y){
+  let b=null,bd=1e18;
+  for(const s of segs){
+    const A=nodes[s.a],B=nodes[s.b];
+    const vx=B.x-A.x,vy=B.y-A.y,L=vx*vx+vy*vy;
+    let t=L?((x-A.x)*vx+(y-A.y)*vy)/L:0;t=Math.max(0,Math.min(1,t));
+    const d=(A.x+vx*t-x)**2+(A.y+vy*t-y)**2;
+    if(d<bd){bd=d;b=s}
+  }
+  return b;
+}
+let XR=nodes.map(n=>n.e.length>=3);
+function recalcXR(){XR=nodes.map(n=>n.e.length>=3)}
+
+/* 건물 폴리곤(px) */
+let blds=[];
+function mkBlds(src){return src.map(b=>{
+  const p=b.p.map(q=>[q[0]*S,q[1]*S]);
+  let cx=0,cy=0;for(const q of p){cx+=q[0];cy+=q[1]}
+  cx/=p.length;cy/=p.length;
+  let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+  for(const q of p){minx=Math.min(minx,q[0]);maxx=Math.max(maxx,q[0]);
+    miny=Math.min(miny,q[1]);maxy=Math.max(maxy,q[1])}
+  return{n:b.n,h:b.h||3,p,cx,cy,minx,maxx,miny,maxy,
+    area:(maxx-minx)*(maxy-miny)};
+})}
+blds=mkBlds(BLDS_ACTIVE);
+
+/* 건물 충돌 인덱스 — 격자 버킷(빠른 조회) */
+const GRID=40*S;
+let bgrid=new Map();
+const gkey=(i,j)=>i+'|'+j;
+function buildBldGrid(){
+  bgrid=new Map();
+  for(let bi=0;bi<blds.length;bi++){
+    const b=blds[bi];
+    for(let i=Math.floor(b.minx/GRID);i<=Math.floor(b.maxx/GRID);i++)
+      for(let j=Math.floor(b.miny/GRID);j<=Math.floor(b.maxy/GRID);j++){
+        const k=gkey(i,j);if(!bgrid.has(k))bgrid.set(k,[]);bgrid.get(k).push(bi);
+      }
+  }
+}
+buildBldGrid();
+function pointInPoly(x,y,p){
+  let c=false;
+  for(let i=0,j=p.length-1;i<p.length;j=i++){
+    const xi=p[i][0],yi=p[i][1],xj=p[j][0],yj=p[j][1];
+    if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c;
+  }
+  return c;
+}
+/* 점이 건물 안인가 → 건물 인덱스 반환(없으면 -1) */
+function bldAt(x,y){
+  const arr=bgrid.get(gkey(Math.floor(x/GRID),Math.floor(y/GRID)));
+  if(!arr)return -1;
+  for(const bi of arr){
+    const b=blds[bi];
+    if(x<b.minx||x>b.maxx||y<b.miny||y>b.maxy)continue;
+    if(pointInPoly(x,y,b.p))return bi;
+  }
+  return -1;
+}
+/* 차 앞범퍼/모서리 4점으로 벽 충돌 검사 */
+function bldHit(c){
+  const ca=Math.cos(c.ang),sa=Math.sin(c.ang);
+  const hx=c.h*.5,wx=c.w*.5;
+  const pts=[[hx,0],[hx,wx*.8],[hx,-wx*.8],[-hx,0]];
+  for(const[f,l]of pts){
+    const x=c.x+ca*f-sa*l, y=c.y+sa*f+ca*l;
+    const bi=bldAt(x,y);
+    if(bi>=0)return bi;
+  }
+  return -1;
+}
+
+/* 횡단보도 — ★실제 OSM crossing 노드(ar_4872). 합성 아님 */
+let cross=[];
+function buildCross(){cross=(typeof XWALK!=='undefined'?XWALK:[]).map(c=>{
+  const x=c.x*S,y=c.y*S;
+  const n=nearestSegRaw(x,y);
+  return{x,y,ang:n?n.ang:0,w:n?n.roadW:3*LW};
+})}
+buildCross();
+/* ★신호등 — 교차로 진입부 정지선마다 배치(u_4875).
+   실제 도로처럼: 한 교차로의 신호는 하나의 주기를 공유하고,
+   교차하는 방향끼리는 서로 반대 위상(직교 현시)이다.
+   ※단, 차량 AI에는 이 정보를 주지 않는다 — 화면의 '색'으로만 존재한다. */
+let signals=[];
+function buildSignals(){
+ signals=[];
+  // OSM 신호등이 있는 교차로만 신호교차로로 취급(실제 상황 반영)
+  const sigPts=(typeof SIGNALS!=='undefined'?SIGNALS:[]).map(c=>({x:c.x*S,y:c.y*S}));
+  const isSignalised=n=>sigPts.some(p=>Math.hypot(p.x-n.x,p.y-n.y)<38*S);
+  for(let ni=0;ni<nodes.length;ni++){
+    if(!XR[ni])continue;
+    const N=nodes[ni];
+    if(!isSignalised(N))continue;
+    const t0=Math.random()*20, period=16+Math.random()*6;
+    for(const si of N.e){
+      const sg=segs[si];
+      const toward=(sg.a===ni)?sg.ang+Math.PI:sg.ang;   // 교차로를 향하는 진행방향
+      const d=sg.roadW*.5+SIDEWALK_M*S+1.6*S;           // 정지선 위치
+      // 접근 차로(우측) 쪽으로 치우쳐 배치
+      const lat=sg.roadW*.28;
+      signals.push({
+        x:N.x+Math.cos(toward+Math.PI)*d-Math.sin(toward)*lat,
+        y:N.y+Math.sin(toward+Math.PI)*d+Math.cos(toward)*lat,
+        ang:toward, node:ni, t0, period,
+        // 직교 현시: 도로 방향(가로/세로)에 따라 위상 반전
+        phase: (Math.abs(Math.cos(sg.ang))>0.5)?0:1
+      });
+    }
+  }
+}
+buildSignals();
+function sigRed(sg,now){
+  const ph=((now/1000)+sg.t0)%sg.period;
+  const green = sg.phase===0 ? (ph<sg.period*0.45)
+                             : (ph>=sg.period*0.5 && ph<sg.period*0.95);
+  return !green;
+}
+/* ★표지판 — 도로 내용에 맞게 자동 생성(u_4875)
+   실제 도로 속성(차로수·일방통행·교차로)에서 유도한다. 임의 배치 아님.
+   ※차량 AI는 이걸 표지판으로 인식하지 않는다 — 화면의 색 덩어리일 뿐. */
+let signs=[];
+function buildSigns(){
+ signs=[];
+  for(const s of segs){
+    if(s.len<45*S)continue;
+    const A=nodes[s.a],B=nodes[s.b];
+    const put=(t,frac,txt,col)=>{
+      const h=s.roadW*.5+SIDEWALK_M*S*.7;
+      signs.push({x:A.x+(B.x-A.x)*frac-Math.sin(s.ang)*h,
+                  y:A.y+(B.y-A.y)*frac+Math.cos(s.ang)*h,
+                  t,txt,col});
+    };
+    // 일방통행 → 진입금지/일방통행 표지
+    if(s.o) put('one',0.5,'⇧','#2f6fd0');
+    // 넓은 도로(4차로+) → 제한속도 60, 좁으면 30
+    if(s.l>=3||Math.random()<.35) put('spd',0.28, s.l>=4?'60':'30', '#c0392b');
+    // 교차로 직전 → 신호/양보
+    if(XR[s.b]) put('yld',0.86,'▽','#c0392b');
+  }
+}
+buildSigns();
+
+/* 가로등 */
+let lamps=[];
+function buildLamps(){
+ lamps=[];
+ for(const s of segs){
+  const h=s.roadW*.5+SIDEWALK_M*S*.55;
+  for(let d=8*S;d<s.len-8*S;d+=25*S)
+    for(const sg of[-1,1]){
+      const t=d/s.len,A=nodes[s.a],B=nodes[s.b];
+      lamps.push({x:A.x+(B.x-A.x)*t-Math.sin(s.ang)*h*sg,
+                  y:A.y+(B.y-A.y)*t+Math.cos(s.ang)*h*sg});
+    }
+ }
+}
+buildLamps();
+
+/* ---------- 차량 제원(실제 m) ---------- */
+const TY={
+  /* ★차량색 진하게(2026-09-14 u_4945 '하나도 안 보인다').
+     도로를 거의 흰색으로 만든 뒤로 #eef2f7(거의 흰색) 같은 차량이 배경에 묻혔다.
+     흰 바닥에서 확실히 구분되는 진한 원색만 쓴다 — 사람 눈과 CNN 입력 양쪽에 유효. */
+  /* ★차량색(u_4955 후속): 도로를 실제 아스팔트(#4a4f57)로 바꿨으므로
+     어두운 차량은 바닥에 묻힌다. 밝고 채도 높은 색으로 간다.
+     실제 도로에서도 차는 배경보다 밝거나 채도가 높아 눈에 띈다. */
+  car  :{wm:1.8,hm:4.6,vmax:13,n:'승용차',cs:['#ffffff','#e8e8e8','#d81b1b','#1565ff','#00a862','#ffb300','#9c27b0']},
+  truck:{wm:2.5,hm:8.5,vmax:9 ,n:'트럭'  ,cs:['#f0f0f0','#7fb3d5','#e67e22']},
+  moto :{wm:0.8,hm:2.1,vmax:15,n:'오토바이',cs:['#ff4081','#ffea00']},
+  bike :{wm:0.6,hm:1.8,vmax:5 ,n:'자전거',cs:['#26d07c','#40c4ff']}
+};
+const rnd=(a,b)=>a+Math.random()*(b-a),pick=a=>a[(Math.random()*a.length)|0];
+
+/* 차로 중심 오프셋: dir=+1 → 진행방향 기준 오른쪽 차로 */
+function laneOffset(s,dir,lane){
+  if(s.o){ return (lane+0.5)*LW - s.roadW/2; }      // 일방통행: 전 차로 사용
+  const halfLanes=Math.max(1,Math.floor(s.l/2));
+  const k=Math.min(lane,halfLanes-1);
+  return dir>0 ? (k+0.5)*LW : -((k+0.5)*LW);
+}
+const cars=[],peds=[];
+function seed(){
+  cars.length=0;peds.length=0;
+  for(let i=0;i<segs.length;i++){
+    const s=segs[i];
+    if(s.len<12*S)continue;
+    const n=s.l>=4?3:s.l>=3?2:1;
+    for(let k=0;k<n;k++){
+      const t=Math.random()<.14?'truck':Math.random()<.18?'moto':Math.random()<.12?'bike':'car';
+      const T=TY[t];
+      const dir=s.o?1:(Math.random()<.5?1:-1);
+      const lane=(Math.random()*Math.max(1,s.o?s.l:Math.floor(s.l/2)))|0;
+      cars.push({t,...T,c:pick(T.cs),w:T.wm*S,h:T.hm*S,
+        si:i,dir,lane,tp:Math.random(),
+        v:T.vmax*rnd(.55,.85),x:0,y:0,ang:0,alive:1});
+    }
+    if(Math.random()<.45){
+      const sg=Math.random()<.5?-1:1;
+      peds.push({si:i,tp:Math.random(),sg,v:rnd(1.1,1.6),dir:Math.random()<.5?1:-1,
+        x:0,y:0,c:pick(['#d94a3d','#3b7dd8','#2fa360','#e8a317','#111827','#8b5cf6'])});
+    }
+  }
+  cars.forEach(c=>placeCar(c));peds.forEach(p=>placePed(p));
+}
+function placeCar(c){
+  const s=segs[c.si],A=nodes[s.a],B=nodes[s.b];
+  const off=laneOffset(s,c.dir,c.lane);
+  const a=s.ang+(c.dir<0?Math.PI:0);
+  c.x=A.x+(B.x-A.x)*c.tp-Math.sin(s.ang)*off;
+  c.y=A.y+(B.y-A.y)*c.tp+Math.cos(s.ang)*off;
+  c.ang=a;
+}
+function placePed(p){
+  const s=segs[p.si],A=nodes[s.a],B=nodes[s.b];
+  const h=s.roadW*.5+SIDEWALK_M*S*.5;
+  p.x=A.x+(B.x-A.x)*p.tp-Math.sin(s.ang)*h*p.sg;
+  p.y=A.y+(B.y-A.y)*p.tp+Math.cos(s.ang)*h*p.sg;
+}
+seed();
+
+/* ---------- 주차장 (시작 위치) ----------
+   오너 지시: "시작할때 난 주차 영역에 있어야함" — 도로 위 스폰 = 즉시 사고. */
+const PARK={bays:[],cx:0,cy:0,ang:0};
+(function(){
+  // 지도 중심에서 가장 가까운 '긴 도로' 옆 빈 땅에 주차장을 만든다
+  let bs=null,bd=1e18;
+  for(const s of segs){
+    if(s.len<28*S)continue;
+    const mx=(nodes[s.a].x+nodes[s.b].x)/2,my=(nodes[s.a].y+nodes[s.b].y)/2;
+    const d=mx*mx+my*my;if(d<bd){bd=d;bs=s}
+  }
+  if(!bs)return;
+  const A=nodes[bs.a],B=nodes[bs.b];
+  const mx=(A.x+B.x)/2,my=(A.y+B.y)/2;
+  // 도로 옆(인도 바깥)으로 물러난 지점, 건물이 없는 쪽 선택
+  const off=bs.roadW*.5+SIDEWALK_M*S+7*S;
+  let best=null;
+  for(const sg of[1,-1]){
+    const px=mx-Math.sin(bs.ang)*off*sg, py=my+Math.cos(bs.ang)*off*sg;
+    if(bldAt(px,py)<0){best={px,py,sg};break}
+  }
+  if(!best)best={px:mx-Math.sin(bs.ang)*off,py:my+Math.cos(bs.ang)*off,sg:1};
+  PARK.cx=best.px;PARK.cy=best.py;PARK.ang=bs.ang;
+  const BW=2.5*S,BH=5.2*S;                 // 주차칸 2.5m x 5.2m
+  for(let i=0;i<6;i++){
+    const t=(i-2.5)*BW*1.06;
+    PARK.bays.push({x:best.px+Math.cos(bs.ang)*t, y:best.py+Math.sin(bs.ang)*t,
+                    w:BW,h:BH,ang:bs.ang+Math.PI/2});
+  }
+  PARK.exit={x:mx-Math.sin(bs.ang)*(bs.roadW*.25)*best.sg,
+             y:my+Math.cos(bs.ang)*(bs.roadW*.25)*best.sg};
+})();
+
+/* ---------- 목적지 POI ---------- */
+/* ★POI는 '건물 위치'이지 '도로 위 지점'이 아니다(u_4896 오너 지적).
+   실측: 60곳 중 55곳이 도로에서 20m 이상 떨어져 있고 중앙값 539m.
+   내비 목적지는 반드시 **도로 위 진입점(entrance)** 이어야 한다.
+   이건 학습 문제가 아니라 목적지를 잡는 방식의 문제다. */
+const POIS=(typeof POI!=='undefined'?POI:[]).map(p=>({n:p.n,k:p.k,x:p.x*S,y:p.y*S,ex:null,ey:null}));
+function poiEntrance(p){
+  if(p.ex!==null)return p;
+  const n=nearestSeg(p.x,p.y);
+  if(n){p.ex=n.px;p.ey=n.py;p.edist=n.d/S}
+  else {p.ex=p.x;p.ey=p.y;p.edist=1e9}
+  return p;
+}
+let poiIdx=0;
+function hasChunk(xm,ym){
+  if(!CH)return true;
+  return !!CH[Math.floor(xm/CHUNK)+','+Math.floor(ym/CHUNK)];
+}
+function nextPOI(){
+  if(!POIS.length)return null;
+  /* ★목적지는 '지금 로딩된 도로망 안'에 있어야 한다(u_4895).
+     이전엔 청크 존재만 봤는데, 청크가 있어도 활성 그래프(3x3)에 없으면
+     경로가 지도 가장자리에서 끊긴다 — 실측: 한국분재박물관은 가장 가까운
+     도로노드까지 2625m, 즉 도달 불가인데 목적지로 잡히고 있었다.
+     → 실제 도로 노드에서 120m 이내인 POI만 후보로 삼는다. */
+  const near=[];
+  for(const p of POIS){
+    const n=nearestSegRaw(p.x,p.y);
+    if(!n)continue;
+    const A=nodes[n.a],B=nodes[n.b];
+    const vx=B.x-A.x,vy=B.y-A.y,L=vx*vx+vy*vy;
+    let t=L?((p.x-A.x)*vx+(p.y-A.y)*vy)/L:0;t=Math.max(0,Math.min(1,t));
+    const d=Math.hypot(A.x+vx*t-p.x,A.y+vy*t-p.y);
+    if(d<120*S)near.push({p,d});
+  }
+  if(!near.length)return null;
+  near.sort((a,b)=>Math.hypot(a.p.x-me.x,a.p.y-me.y)-Math.hypot(b.p.x-me.x,b.p.y-me.y));
+  const raw=near[poiIdx++%near.length].p;
+  const e=poiEntrance(raw);
+  // 목적지 = 도로 위 진입점. 이름은 POI 이름을 그대로 쓴다.
+  return {n:raw.n,k:raw.k,x:e.ex,y:e.ey,poiX:raw.x,poiY:raw.y};
+}
+
+/* ---------- 내 차 ---------- */
+var mt;
+function flash(t){const m=document.getElementById('msg');if(!m)return;m.textContent=t;
+  m.classList.add('show');clearTimeout(mt);mt=setTimeout(()=>m.classList.remove('show'),1200)}
+const auto={on:0,goal:null,wp:[],i:0,act:'대기'};
+const me={x:0,y:0,ang:0,v:0,steer:0,wm:1.8,hm:4.6,w:1.8*S,h:4.6*S,
+  dmg:0,crashes:0,cool:0,offroad:0};
+let start=0,_bd=1e18;
+for(let i=0;i<segs.length;i++){
+  const s=segs[i];if(s.len<20*S)continue;
+  const mx=(nodes[s.a].x+nodes[s.b].x)/2,my=(nodes[s.a].y+nodes[s.b].y)/2;
+  const d=mx*mx+my*my;if(d<_bd){_bd=d;start=i}
+}
+function reset(){
+  const s=segs[start],A=nodes[s.a],B=nodes[s.b];
+  /* ★걸음마 단계에서는 도로 위에서 시작한다(u_4917 실측 근거).
+     주차칸 시작은 도로에서 13.3m 떨어져 있어, 직진하면 도로에 닿지 못하고
+     5.5초 만에 '도로이탈' 사고가 난다 — 25판 중 19판이 1.6~2.1초에 죽은 원인.
+     주차는 별도 단계(4~5)에서 다룬다. */
+  /* ★주차칸 출발은 학습·수집에 해롭다(2026-09-14 u_4950 지적으로 발견).
+     PARK.bays[2] 는 도로 밖 13.25m 지점이다. 수집 빌드는 LEARN 이 아니라
+     이쪽으로 빠져서, 교사가 도로를 벗어난 채 계속 달렸다.
+     실측: 학습 데이터 29,121프레임 중 51%가 차로중심 10m 초과(중앙값 13.25m).
+     그 상태로 모은 데이터가 '좌측통행/차로무시'처럼 보인 원인이다.
+     ⇒ LEARN 이든 아니든 도로 위에서 출발한다. 주차는 별도 단계에서 다룬다. */
+  if(segs.length && segs[start]){
+    const sg=segs[start],A2=nodes[sg.a],B2=nodes[sg.b];
+    const off2=laneOffset(sg,1,0);
+    me.x=(A2.x+B2.x)/2-Math.sin(sg.ang)*off2;
+    me.y=(A2.y+B2.y)/2+Math.cos(sg.ang)*off2;
+    me.ang=sg.ang;
+  }else{
+    const off=laneOffset(s,1,0);
+    me.x=(A.x+B.x)/2-Math.sin(s.ang)*off;
+    me.y=(A.y+B.y)/2+Math.cos(s.ang)*off;
+    me.ang=s.ang;
+  }me.v=0;me.dmg=0;me.crashes=0;me.offroad=0;
+  auto.on=0;auto.goal=null;auto.wp=[];seed();sync();flash('리셋');
+}
+
+/* ---------- 도로 판정(인도 침범 감지) ---------- */
+function nearestSeg(x,y){
+  let best=null;
+  for(const s of segs){
+    const A=nodes[s.a],B=nodes[s.b];
+    const vx=B.x-A.x,vy=B.y-A.y,L=vx*vx+vy*vy;
+    let t=L?((x-A.x)*vx+(y-A.y)*vy)/L:0;t=Math.max(0,Math.min(1,t));
+    const px=A.x+vx*t,py=A.y+vy*t,d=Math.hypot(px-x,py-y);
+    if(!best||d<best.d)best={d,s,t,px,py};
+  }
+  return best;
+}
+function onRoad(x,y){
+  const n=nearestSeg(x,y);
+  if(!n)return{ok:false,d:1e9,s:null};
+  return{ok:n.d<=n.s.roadW*.5,d:n.d,s:n.s,edge:n.d-n.s.roadW*.5};
+}
+
+/* ---------- A* ---------- */
+function nearestNode(x,y){let b=0,d=1e18;
+  for(let i=0;i<nodes.length;i++){const t=(nodes[i].x-x)**2+(nodes[i].y-y)**2;
+    if(t<d){d=t;b=i}}return b}
+function astar(s,t){
+  const G={[s]:0},F={[s]:0},came={},open=[s],seen=new Set();
+  const h=(a,b)=>Math.hypot(nodes[a].x-nodes[b].x,nodes[a].y-nodes[b].y);
+  while(open.length){
+    open.sort((a,b)=>F[a]-F[b]);const c=open.shift();
+    if(c===t){const p=[c];let k=c;while(came[k]!==undefined){k=came[k];p.unshift(k)}return p}
+    seen.add(c);
+    for(const si of nodes[c].e){
+      const nb=other(segs[si],c),ng=G[c]+segs[si].len;
+      if(G[nb]===undefined||ng<G[nb]){came[nb]=c;G[nb]=ng;F[nb]=ng+h(nb,t);
+        if(!seen.has(nb))open.push(nb)}
+    }
+  }return null;
+}
+/* ★장거리 경로용 전역 그래프(2026-09-14 u_4947).
+   streamWorld 는 3x3 청크(±1.5km)만 nodes/segs 에 올린다. 그래서 4km 떨어진
+   종합운동장으로 planTo 하면 목적지 노드가 아예 없어 A* 가 항상 null 을 냈다
+   (실측: dm=17 회 시도, wp=0). 경로 탐색만은 전체 도로로 해야 한다. */
+let GNODES=null, GSEGS=null, GIDX=null;
+function buildGlobalGraph(){
+  if(GNODES||!CH) return;
+  const all=[];
+  for(const k in CH){ const c=CH[k]; if(c&&c.r) all.push(...c.r); }
+  const map=new Map(); GNODES=[]; GSEGS=[];
+  const key=(x,y)=>Math.round(x*10)+','+Math.round(y*10);
+  const nid=(x,y)=>{ const k=key(x,y); let i=map.get(k);
+    if(i===undefined){ i=GNODES.length; map.set(k,i); GNODES.push({x:x*S,y:y*S,e:[]}); }
+    return i; };
+  for(const r of all){
+    const p=r.p; if(!p||p.length<2) continue;
+    for(let i=0;i+1<p.length;i++){
+      const a=nid(p[i][0],p[i][1]), b=nid(p[i+1][0],p[i+1][1]);
+      if(a===b) continue;
+      const A=GNODES[a],B=GNODES[b];
+      const len=Math.hypot(B.x-A.x,B.y-A.y);
+      const si=GSEGS.length; GSEGS.push({a,b,len});
+      A.e.push(si); B.e.push(si);
+    }
+  }
+}
+function gNearest(x,y){
+  let bi=0,bd=1e18;
+  for(let i=0;i<GNODES.length;i++){
+    const d=(GNODES[i].x-x)**2+(GNODES[i].y-y)**2;
+    if(d<bd){bd=d;bi=i}
+  }
+  return bi;
+}
+function gAstar(s,t){
+  const G={[s]:0},F={[s]:0},came={},open=[s],seen=new Set();
+  const h=(a,b)=>Math.hypot(GNODES[a].x-GNODES[b].x,GNODES[a].y-GNODES[b].y);
+  let guard=0;
+  while(open.length && guard++<400000){
+    open.sort((a,b)=>F[a]-F[b]); const c=open.shift();
+    if(c===t){const p=[c];let k=c;while(came[k]!==undefined){k=came[k];p.unshift(k)}return p}
+    seen.add(c);
+    for(const si of GNODES[c].e){
+      const sg=GSEGS[si], nb=(sg.a===c)?sg.b:sg.a, ng=G[c]+sg.len;
+      if(G[nb]===undefined||ng<G[nb]){came[nb]=c;G[nb]=ng;F[nb]=ng+h(nb,t);
+        if(!seen.has(nb))open.push(nb)}
+    }
+  }
+  return null;
+}
+function planTo(x,y){
+  buildGlobalGraph();
+  let p=null, NS=nodes;
+  if(GNODES){                                  // 장거리: 전역 그래프로
+    const gp=gAstar(gNearest(me.x,me.y), gNearest(x,y));
+    if(gp){ p=gp; NS=GNODES; }
+  }
+  if(!p){ p=astar(nearestNode(me.x,me.y),nearestNode(x,y)); NS=nodes; }
+  if(!p){flash('경로 없음');return}
+  const wp=[];
+  for(let i=0;i<p.length;i++){
+    const n=NS[p[i]];
+    if(i<p.length-1){
+      const m=NS[p[i+1]],a=Math.atan2(m.y-n.y,m.x-n.x);
+      wp.push({x:n.x-Math.sin(a)*LW*.5,y:n.y+Math.cos(a)*LW*.5});
+    }else wp.push({x:n.x,y:n.y});
+  }
+  /* ★마지막 지점은 반드시 '도로 위'로 스냅한다(u_4896).
+     POI 원점은 건물 안/뒤라서 그대로 두면 경로 마지막 구간이 길이 아닌 곳을 가로지른다. */
+  const nn=nearestSeg(x,y);
+  wp.push(nn?{x:nn.px,y:nn.py}:{x,y});
+  auto.wp=wp;auto.i=0;auto.goal=wp[wp.length-1];auto.on=1;sync();
+}
+/* ★공간 해시 — 전수 비교(O(n^2), 2628대에서 182ms)를 근처만 비교(O(n))로 바꾼다 */
+const HG=30*S;                       // 격자 한 칸 30m
+let hgrid=new Map();
+function hkey(x,y){return ((x/HG)|0)+'|'+((y/HG)|0)}
+function rebuildHash(){
+  hgrid=new Map();
+  for(const o of cars){if(!o.alive)continue;
+    const k=hkey(o.x,o.y);let a=hgrid.get(k);if(!a){a=[];hgrid.set(k,a)}a.push(o)}
+  for(const o of peds){
+    const k=hkey(o.x,o.y);let a=hgrid.get(k);if(!a){a=[];hgrid.set(k,a)}a.push(o)}
+  /* ★내 차를 공간해시에 넣는다(u_4924 실측 결함).
+     빠져 있어서 다른 차·오토바이·자전거 눈에 내 차가 '존재하지 않았다'.
+     내가 가만히 서 있어도 그대로 통과·충돌 → 피할 방법이 없는 사고였다. */
+  {const k=hkey(me.x,me.y);let a=hgrid.get(k);if(!a){a=[];hgrid.set(k,a)}a.push(me)}
+}
+function gap(c,range){
+  range=range||40*S;let b=range;
+  const ca=Math.cos(c.ang),sa=Math.sin(c.ang);
+  const i0=(c.x/HG)|0,j0=(c.y/HG)|0;
+  const r=Math.ceil(range/HG);
+  for(let i=i0-r;i<=i0+r;i++)for(let j=j0-r;j<=j0+r;j++){
+    const arr=hgrid.get(i+'|'+j);if(!arr)continue;
+    for(const o of arr){
+      if(o===c)continue;
+      const dx=o.x-c.x,dy=o.y-c.y;
+      const f=dx*ca+dy*sa;
+      if(f<=0||f>=b)continue;
+      const l=-dx*sa+dy*ca;
+      if(Math.abs(l)<LW*.62)b=f;
+    }
+  }
+  return b;
+}
+const KMH=v=>Math.round(v*3.6);
+function driveAuto(dt){
+  if(!auto.wp.length){auto.act='대기';return}
+  const t=auto.wp[auto.i],d=Math.hypot(t.x-me.x,t.y-me.y);
+  if(d<4*S){
+    if(auto.i<auto.wp.length-1)auto.i++;
+    else{me.v*=.82;auto.act='도착';
+      if(me.v<.3){me.v=0;auto.on=0;flash('목적지 도착');sync()}return}
+  }
+  let df=((Math.atan2(t.y-me.y,t.x-me.x)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+  const gp=gap(me),curve=Math.min(1,Math.abs(df)/.8);
+  let vmax=14*(1-.62*curve);                       // m/s (≈50km/h)
+  if(gp<28*S)vmax=Math.min(vmax,14*(gp-9*S)/(19*S));
+  if(gp<11*S)vmax=0;
+  if(auto.i>=auto.wp.length-1&&d<22*S)vmax=Math.min(vmax,4);
+  me.steer=Math.max(-.9,Math.min(.9,df*2.4));
+  me.v+=(vmax-me.v)*Math.min(1,dt*2.0);
+  auto.act=gp<11*S?'정지 — 전방 장애물':gp<28*S?'감속 — 차간유지'
+    :curve>.4?'선회 중':(auto.i>=auto.wp.length-1&&d<22*S)?'목적지 접근':'주행 중';
+}
+
+/* ---------- 충돌 ---------- */
+function obb(a,b){          // 회전 사각형 근사(반지름 + 축투영)
+  const dx=b.x-a.x,dy=b.y-a.y;
+  const dist=Math.hypot(dx,dy);
+  if(dist>(a.h+b.h))return false;
+  const c=Math.cos(a.ang),s=Math.sin(a.ang);
+  const f=Math.abs(dx*c+dy*s),l=Math.abs(-dx*s+dy*c);
+  return f<(a.h+b.h)*.46 && l<(a.w+b.w)*.5;
+}
+function respawnOnRoad(){
+  /* ★사고 후 도로 복귀. 단순히 제자리에 세우면 같은 건물로 다시 직진해
+     무한 충돌한다(실측: 같은 건물에 34회). 그래서:
+       - 차로 중앙에 세우고
+       - 진행방향을 '도로를 따라' 맞추되
+       - 방금 박은 쪽 반대로 조금 물러나 재출발시킨다. */
+  const n=nearestSeg(me.x,me.y);
+  if(!n)return;
+  const sg=n.s;
+  const off=laneOffset(sg,1,0);
+  // 세그먼트를 따라 조금 뒤로 물린 지점
+  const back=Math.min(0.35,(8*S)/Math.max(1,sg.len));
+  const t2=Math.max(0,Math.min(1,n.t-back));
+  const A=nodes[sg.a],B=nodes[sg.b];
+  const px=A.x+(B.x-A.x)*t2, py=A.y+(B.y-A.y)*t2;
+  me.x=px-Math.sin(sg.ang)*off;
+  me.y=py+Math.cos(sg.ang)*off;
+  me.ang=sg.ang;me.v=0;me.offroad=0;me.cool=1.0;
+}
+function crash(label,heavy){
+  if(me.cool>0)return;
+  me.cool=.8;me.crashes++;
+  me.dmg=Math.min(100,me.dmg+(heavy?22:14));
+  me.v*=-.25;
+  const el=document.getElementById('crash');
+  /* ★사고 = 화면 전체를 붉게 '정지'시킨다(u_4918 오너 지시).
+     140ms 번쩍임은 판별이 어려웠다 → 깜빡임 없이 꽉 찬 빨강으로 고정.
+     학습모드면 그 상태로 잠깐 멈췄다가 처음부터 다시 시작한다. */
+  if(el){el.style.opacity=.92;}
+  crashLit=1.2;
+  crashHold=1;
+  if(LEARN){
+    me.v=0;
+    setTimeout(()=>{
+      if(el)el.style.opacity=0;
+      crashHold=0; crashLit=0;
+      hardReset(); epStart();
+    }, 600);
+  }else{
+    /* ★2026-09-14 검증 중 발견: 학습모드가 아니면 사고 후 리셋이 없어서,
+       모델 검증 때 한 번 박으면 차가 그 자리에 영원히 멈춰 있었다
+       (실측: 26초간 화면 diff 0.0, 화면에 차도 안 보임).
+       검증에서도 사고가 나면 처음부터 다시 시작해야 계속 볼 수 있다. */
+    setTimeout(()=>{
+      if(el)el.style.opacity=0;
+      crashHold=0; crashLit=0;
+      hardReset();
+    }, 600);
+  }
+  flash('💥 '+label);
+  if(auto.on){auto.on=0;sync()}
+  respawnOnRoad();          // 도로로 복귀시켜 다음 시도를 가능하게
+  sync();
+}
+
+/* ---------- 물리 ---------- */
+const K={};
+function step(dt){
+  if(crashHold){me.v=0;return}   // 사고 정지 중엔 움직이지 않는다
+  const AC=5.2,BR=9.0,VMAX=17;                    // m/s
+  if(!auto.on){
+    if(K.ArrowUp)me.v+=AC*dt;
+    else if(K.ArrowDown)me.v-=BR*dt;
+    else me.v-=Math.sign(me.v)*Math.min(Math.abs(me.v),2.4*dt);
+    me.v=Math.max(-5,Math.min(VMAX,me.v));
+    me.steer=((K.ArrowLeft?-1:0)+(K.ArrowRight?1:0))*.85;
+  }
+  const px0=me.x,py0=me.y,pa0=me.ang;   // 벽 충돌시 되돌릴 직전 위치
+  // 자전거 모델: 조향각 → 곡률 (속도 낮으면 회전 못함)
+  const wheelbase=me.hm*.6;
+  const maxSteer=.62;                              // rad
+  const sa=me.steer*maxSteer;
+  me.ang += (me.v/wheelbase)*Math.tan(sa)*dt;
+  me.x += Math.cos(me.ang)*me.v*S*dt;
+  me.y += Math.sin(me.ang)*me.v*S*dt;
+  if(me.cool>0)me.cool-=dt;
+
+  // ★건물(벽) 충돌 — 통과 불가. 이전 위치로 되돌리고 정지
+  const bi=bldHit(me);
+  if(bi>=0){
+    me.x=px0;me.y=py0;me.ang=pa0;
+    const nm=blds[bi].n?blds[bi].n:'건물';
+    me.v=0;
+    crash(nm+' 충돌',true);
+  }
+  // 인도/도로밖 판정 — 속도 저하 + 사고
+  const r=onRoad(me.x,me.y);
+  const inPark=PARK.bays.length&&Math.hypot(me.x-PARK.cx,me.y-PARK.cy)<12*S;
+  if(!r.ok&&!inPark){
+    me.offroad+=dt;
+    me.v*=(1-2.6*dt);                              // 인도에선 급감속
+    if(me.offroad>.28){me.offroad=0;
+      crash(r.edge>SIDEWALK_M*S?'도로 이탈':'인도 침범',false)}
+  }else me.offroad=0;
+
+  for(const c of cars){if(!c.alive)continue;
+    if(obb(me,c)){crash(c.n+' 추돌',c.t==='truck')}}
+  for(const p of peds){
+    if(obb(me,{x:p.x,y:p.y,ang:me.ang,w:1.4*S,h:1.4*S}))crash('보행자 사고',true)}
+}
+function stepCar(c,dt){
+  const s=segs[c.si];
+  const gp=gap(c,26*S);
+  // ★후진하는 차(주차 진입/출차 흉내) — 가끔 뒤로 뺀다
+  if(c.rev===undefined&&Math.random()<0.00035){c.rev=1.2+Math.random()*1.4}
+  if(c.rev>0){
+    c.rev-=dt;c.v+=(-2.2-c.v)*Math.min(1,dt*2);
+    if(c.rev<=0){c.rev=undefined}
+  }else{
+    const tv=gp<10*S?0:gp<20*S?c.vmax*.35:c.vmax*.8;
+    c.v+=(tv-c.v)*Math.min(1,dt*1.6);
+  }
+  c.tp+=c.dir*(c.v*S*dt)/s.len;
+  if(c.tp>1||c.tp<0){
+    const nd=c.tp>1?s.b:s.a;
+    const opts=nodes[nd].e.filter(i=>i!==c.si);
+    if(opts.length){
+      const ni=pick(opts),ns=segs[ni];
+      c.si=ni;c.dir=(ns.a===nd)?1:-1;c.tp=(ns.a===nd)?0.001:0.999;
+      c.lane=Math.min(c.lane,Math.max(0,(ns.o?ns.l:Math.floor(ns.l/2))-1));
+    }else{c.dir*=-1;c.tp=Math.max(0.001,Math.min(0.999,c.tp))}
+  }
+  placeCar(c);
+}
+function stepPed(p,dt){
+  const s=segs[p.si];
+  // ★건널목 횡단(u_4873): 가까운 횡단보도에 닿으면 길을 건넌다
+  if(p.cross){
+    p.cx2+=p.cdir*p.v*S*dt;
+    if(Math.abs(p.cx2)>p.cmax){p.cross=0;p.sg=-p.sg}
+    const h=s.roadW*.5+SIDEWALK_M*S*.5;
+    const base=h*p.sg - p.cdir*0;                // 인도에서 차도로
+    const off=p.sg>0? h-Math.abs(p.cx2)*2 : -h+Math.abs(p.cx2)*2;
+    const A=nodes[s.a],B=nodes[s.b];
+    p.x=A.x+(B.x-A.x)*p.tp-Math.sin(s.ang)*off;
+    p.y=A.y+(B.y-A.y)*p.tp+Math.cos(s.ang)*off;
+    return;
+  }
+  p.tp+=p.dir*(p.v*S*dt)/s.len;
+  if(p.tp>1||p.tp<0){p.dir*=-1;p.tp=Math.max(0,Math.min(1,p.tp))}
+  placePed(p);
+  if(Math.random()<0.02){                          // 횡단 시작(실측 조정: 후보 보행자가 적어 확률 상향)
+    for(const c of cross){
+      if(Math.hypot(c.x-p.x,c.y-p.y)<14*S){
+        p.cross=1;p.cx2=0;p.cdir=1;p.cmax=(s.roadW*.5+SIDEWALK_M*S*.5);break;
+      }
+    }
+  }
+}
+
+/* ---------- 렌더 ---------- */
+const cam={x:0,y:0,z:1};
+var camA=0;   // 카메라 회전각(차 진행방향이 화면 위)
+function draw(){
+  g.fillStyle=C('--bg');g.fillRect(0,0,W,H);
+  cam.x+=(me.x-cam.x)*.12;cam.y+=(me.y-cam.y)*.12;
+  const zoom=cam.z;
+  /* ★차 전방이 항상 화면 위쪽이 되도록 맵을 회전한다(u_4920).
+     실제 내비·주행 시점과 같다. 이래야 '직진 = 화면에서 위로 뻗은 길'이 되어
+     신경망이 배울 대상이 일관된다(회전 안 하면 같은 직진도 매번 다른 그림). */
+  camA += ((me.ang + Math.PI/2) - camA) * 0.18;     // 부드럽게 따라감
+  g.save();g.translate(W/2,H*0.62);g.scale(zoom,zoom);
+  g.rotate(-camA);
+  g.translate(-cam.x,-cam.y);
+  const vw=W/zoom/2+60,vh=H/zoom/2+60;   // ★화면에 보이는 만큼만(u_4880)
+  // 회전 후에는 축정렬 사각형이 안 맞는다 → 반경으로 판정
+  const vr=Math.hypot(vw,vh);
+  const inView=(x,y,m)=>((x-cam.x)**2+(y-cam.y)**2) < (vr+(m||0))**2;
+
+  // 건물
+  g.lineJoin='round';
+  for(const b of blds){
+    if(!inView(b.cx,b.cy,Math.max(b.maxx-b.minx,b.maxy-b.miny)))continue;
+    g.beginPath();g.moveTo(b.p[0][0],b.p[0][1]);
+    for(let i=1;i<b.p.length;i++)g.lineTo(b.p[i][0],b.p[i][1]);
+    g.closePath();
+    g.fillStyle=C('--bld');g.fill();
+    g.strokeStyle=C('--bldEdge');g.lineWidth=1.2;g.stroke();
+  }
+  // ★미로딩 구역 표시 — 데이터가 없는 칸은 '갈 수 없는 곳'으로 칠한다.
+  //   비어 있으면 비전이 '뻥 뚫린 도로'로 착각해 그리로 돌진한다(u_4888 실사고).
+  if(CH){
+    const i0=Math.floor((cam.x/S)/CHUNK),j0=Math.floor((cam.y/S)/CHUNK);
+    for(let i=i0-2;i<=i0+2;i++)for(let j=j0-2;j<=j0+2;j++){
+      if(CH[i+','+j])continue;
+      const x=i*CHUNK*S,y=j*CHUNK*S,w=CHUNK*S;
+      g.fillStyle=C('--void');g.fillRect(x,y,w,w);
+    }
+  }
+  // 인도
+  g.lineCap='round';
+  for(const s of segs){
+    const A=nodes[s.a],B=nodes[s.b];
+    if(!inView((A.x+B.x)/2,(A.y+B.y)/2,s.len))continue;
+    g.strokeStyle=C('--walk');g.lineWidth=s.roadW+SIDEWALK_M*2*S;
+    g.beginPath();g.moveTo(A.x,A.y);g.lineTo(B.x,B.y);g.stroke();
+  }
+  // 차도
+  for(const s of segs){
+    const A=nodes[s.a],B=nodes[s.b];
+    if(!inView((A.x+B.x)/2,(A.y+B.y)/2,s.len))continue;
+    g.strokeStyle=C('--road');g.lineWidth=s.roadW;
+    g.beginPath();g.moveTo(A.x,A.y);g.lineTo(B.x,B.y);g.stroke();
+  }
+  // 차선
+  for(const s of segs){
+    if(s.l<2)continue;
+    const A=nodes[s.a],B=nodes[s.b];
+    if(!inView((A.x+B.x)/2,(A.y+B.y)/2,s.len))continue;
+    /* ★중앙선 버그 수정(2026-09-14 u_4950 '중앙선이 없다').
+       기존 조건 i===s.l/2 는 차로수가 홀수면 절대 참이 안 된다
+       (i 는 정수, s.l/2 는 x.5). 실측: 3/5/9차로 등 전체 도로의 18%(847개)가
+       중앙선 없이 그려지고 있었다.
+       양방향 도로는 항상 중앙에 선이 있어야 하므로 반올림해서 판정한다. */
+    const midIdx = Math.round(s.l/2);
+    for(let i=1;i<s.l;i++){
+      const off=(i-s.l/2)*LW,ox=-Math.sin(s.ang)*off,oy=Math.cos(s.ang)*off;
+      const mid=!s.o&&i===midIdx;
+      g.strokeStyle=mid?C('--center'):C('--line');
+      g.lineWidth=mid?2.6:1.8;g.setLineDash(mid?[]:[3*S,3*S]);
+      g.beginPath();g.moveTo(A.x+ox,A.y+oy);g.lineTo(B.x+ox,B.y+oy);g.stroke();
+    }
+    g.setLineDash([]);
+  }
+  // 주차장
+  if(PARK.bays.length){
+    g.save();
+    for(const b of PARK.bays){
+      g.save();g.translate(b.x,b.y);g.rotate(b.ang);
+      g.fillStyle=C('--walk');g.fillRect(-b.h/2,-b.w/2,b.h,b.w);
+      g.strokeStyle=C('--line');g.lineWidth=1.6;
+      g.strokeRect(-b.h/2,-b.w/2,b.h,b.w);
+      g.restore();
+    }
+    g.restore();
+  }
+  // 목적지 POI 마커
+  for(const p of POIS){
+    if(!inView(p.x,p.y,0))continue;
+    const on=auto.goal&&Math.hypot(auto.goal.x-p.x,auto.goal.y-p.y)<6*S;
+    g.fillStyle=on?C('--green'):'rgba(214,90,60,.85)';
+    g.beginPath();g.arc(p.x,p.y,on?2.2*S:1.3*S,0,7);g.fill();
+    g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=1.4;g.stroke();
+  }
+  // 횡단보도
+  for(const c of cross){
+    if(!inView(c.x,c.y,0))continue;
+    g.save();g.translate(c.x,c.y);g.rotate(c.ang);
+    g.fillStyle=C('--line');
+    for(let i=-c.w/2+2;i<c.w/2-3;i+=.9*S)g.fillRect(-1.8*S,i,3.6*S,.45*S);
+    g.restore();
+  }
+  // 표지판 — 실제 도로 속성에서 생성된 것
+  for(const sg of signs){
+    if(!inView(sg.x,sg.y,0))continue;
+    g.save();g.translate(sg.x,sg.y);
+    g.fillStyle='#7b8493';g.fillRect(-.12*S,0,.24*S,1.6*S);   // 기둥
+    g.beginPath();
+    if(sg.t==='spd'){g.arc(0,-.2*S,1.15*S,0,7);g.fillStyle='#fff';g.fill();
+      g.lineWidth=.28*S;g.strokeStyle=sg.col;g.stroke();}
+    else if(sg.t==='yld'){g.moveTo(0,.9*S);g.lineTo(-1.1*S,-1*S);g.lineTo(1.1*S,-1*S);
+      g.closePath();g.fillStyle='#fff';g.fill();g.lineWidth=.26*S;g.strokeStyle=sg.col;g.stroke();}
+    else{g.fillStyle=sg.col;g.fillRect(-1*S,-1.2*S,2*S,1.9*S);}
+    if(sg.t==='spd'){g.fillStyle='#111';g.font='700 '+(1.1*S)+'px system-ui';
+      g.textAlign='center';g.textBaseline='middle';g.fillText(sg.txt,0,-.2*S);}
+    else if(sg.t==='one'){g.fillStyle='#fff';g.font='700 '+(1.2*S)+'px system-ui';
+      g.textAlign='center';g.textBaseline='middle';g.fillText(sg.txt,0,-.25*S);}
+    g.restore();
+  }
+  // 신호등 — 색만 그린다(차는 이 색을 '바닥과 다른 것'으로만 본다)
+  {const now=performance.now();
+   for(const sg of signals){
+     if(!inView(sg.x,sg.y,0))continue;
+     /* ★신호등 크기 상향(2026-09-14 u_4934/u_4935).
+        기존 반경 .95*S(=5.7px)는 화면을 84x84로 줄이면 4~5픽셀만 남아
+        빨강/초록 구분이 사실상 불가능했다(학습셋 실측: 빨간불 프레임당 평균 0.3px).
+        실제 운전에서도 신호등은 멀리서 식별되게 돼 있으므로 과장이 아니다.
+        반경을 2.2배로 키우고 흰 테두리를 둘러 축소 후에도 색이 살아남게 한다. */
+     const RED=sigRed(sg,now);
+     g.fillStyle='#ffffff';
+     g.beginPath();g.arc(sg.x,sg.y,2.4*S,0,7);g.fill();
+     g.fillStyle=RED?'#ff0000':'#00c000';
+     g.beginPath();g.arc(sg.x,sg.y,2.0*S,0,7);g.fill();
+     g.strokeStyle='rgba(0,0,0,.55)';g.lineWidth=1.5;g.stroke();
+   }}
+  // 경로
+  if(auto.on&&auto.wp.length){
+    g.strokeStyle=C('--green');g.globalAlpha=.6;g.lineWidth=5;g.setLineDash([4*S,3*S]);
+    /* 차→다음웨이포인트 직선을 그리면 건물을 가로질러 '길이 아닌 경로'로 보인다.
+       도로 위 지점에서 시작해 웨이포인트만 잇는다. */
+    const s0=nearestSeg(me.x,me.y);
+    g.beginPath();
+    if(s0)g.moveTo(s0.px,s0.py); else g.moveTo(auto.wp[auto.i].x,auto.wp[auto.i].y);
+    for(let i=auto.i;i<auto.wp.length;i++)g.lineTo(auto.wp[i].x,auto.wp[i].y);
+    g.stroke();g.setLineDash([]);g.globalAlpha=1;
+    g.fillStyle=C('--green');g.beginPath();g.arc(auto.goal.x,auto.goal.y,1.6*S,0,7);g.fill();
+  }
+  // 가로등
+  for(const l of lamps){
+    if(!inView(l.x,l.y,0))continue;
+    /* ★가로등도 진하게(u_4945) — 연한 노랑 후광이 흰 배경에 묻혔다 */
+    g.fillStyle='rgba(255,190,60,.55)';g.beginPath();g.arc(l.x,l.y,2.4*S,0,7);g.fill();
+    g.fillStyle=C('--lamp');g.beginPath();g.arc(l.x,l.y,.9*S,0,7);g.fill();
+  }
+  // 보행자
+  for(const p of peds){
+    if(!inView(p.x,p.y,0))continue;
+    g.fillStyle='rgba(0,0,0,.22)';g.beginPath();g.arc(p.x+1,p.y+1.5,.42*S,0,7);g.fill();
+    g.fillStyle=p.c;g.beginPath();g.arc(p.x,p.y,.38*S,0,7);g.fill();
+  }
+  for(const c of cars){if(c.alive&&inView(c.x,c.y,10))veh(c)}
+  veh(me,1);
+
+  /* 도로명 · 건물명 라벨 (월드 좌표에 그리되 글자는 화면 기준 크기) */
+  g.save();
+  const inv=1/zoom;
+  // 건물명
+  g.textAlign='center';g.textBaseline='middle';
+  for(const b of blds){
+    if(!b.n)continue;
+    if(!inView(b.cx,b.cy,0))continue;
+    if(b.area<(10*S)*(10*S))continue;
+    g.save();g.translate(b.cx,b.cy);g.scale(inv,inv);
+    g.font='600 12px "Chakra Petch",system-ui,sans-serif';
+    g.lineWidth=3;g.strokeStyle=C('--halo');g.strokeText(b.n,0,0);
+    g.fillStyle=C('--bldInk');g.fillText(b.n,0,0);
+    g.restore();
+  }
+  // POI 이름
+  for(const p of POIS){
+    if(!inView(p.x,p.y,0))continue;
+    g.save();g.translate(p.x,p.y-2.4*S);g.scale(inv,inv);
+    g.font='700 12px "Chakra Petch",system-ui,sans-serif';
+    g.lineWidth=3.5;g.strokeStyle=C('--halo');g.strokeText(p.n,0,0);
+    g.fillStyle='#c0392b';g.fillText(p.n,0,0);
+    g.restore();
+  }
+  // 도로명 — 같은 이름은 화면당 한 번만
+  const shown=new Set();
+  for(const s of segs){
+    if(!s.n||shown.has(s.n))continue;
+    const A=nodes[s.a],B=nodes[s.b];
+    const mx=(A.x+B.x)/2,my=(A.y+B.y)/2;
+    if(!inView(mx,my,0))continue;
+    if(s.len<16*S)continue;
+    shown.add(s.n);
+    let a=s.ang;if(a>Math.PI/2||a<-Math.PI/2)a+=Math.PI;
+    g.save();g.translate(mx,my);g.rotate(a);g.scale(inv,inv);
+    g.font='700 13px "Chakra Petch",system-ui,sans-serif';
+    g.lineWidth=3.5;g.strokeStyle=C('--halo');g.strokeText(s.n,0,0);
+    g.fillStyle=C('--roadInk');g.fillText(s.n,0,0);
+    g.restore();
+  }
+  g.restore();
+  g.restore();
+  drawChip();
+  if(window.__teach&&window.__teach.drawLabel)window.__teach.drawLabel();
+  /* ★라벨 코드픽셀 — 화면에서 직접 읽는다(2026-09-14).
+     아티팩트 db 로 라벨을 보내던 방식은 용량 초과로 1시간 동안 조용히 죽어 있었고
+     (run 66개 누적, 'Storage full'), 그 사이 수집한 42,584프레임이 라벨 없이 버려졌다.
+     화면에 찍으면 용량 제약이 없고, 픽셀과 라벨이 같은 프레임이라 시간 어긋남도 없다.
+     16px 블록 4개: [마커, steer/thr/brake, rev/속도/차로거리, 사고/정지/장애물] */
+  {
+    const T=window.__teach, a=(T&&T.last)||{steer:0,thr:0,brake:0,rev:0};
+    const ns=nearestSeg(me.x,me.y);
+    const enc=v=>Math.max(0,Math.min(255,Math.round(v*255)));
+    const B=16, X0=0, Y0=0;
+    const put=(i,r,gg,b)=>{ g.fillStyle='rgb('+r+','+gg+','+b+')';
+                            g.fillRect(X0+i*B, Y0, B, B); };
+    put(0, 0xA5, 0x5A, 0xC3);                                    // 고정 마커
+    put(1, enc((a.steer+1)/2), enc(a.thr), enc(a.brake));
+    put(2, enc(a.rev), enc(Math.min(1,me.v/20)), enc(Math.min(1,(ns?ns.d/S:0)/16)));
+    put(3, Math.min(255,me.crashes), crashHold?255:0, onRoad(me.x,me.y).ok?255:0);
+  }
+  /* ★항상 켜지는 상태 표시(2026-09-14). 교사가 꺼진 검증 빌드에서는 교사 readout 이
+     안 그려져서, 차가 왜 멈췄는지 화면에서 읽을 방법이 없었다.
+     속도·사고횟수·도로위 여부·차로중심거리를 언제나 찍는다. */
+  {
+    const ns=nearestSeg(me.x,me.y);
+    const on=onRoad(me.x,me.y);
+    g.font='11px ui-monospace,Menlo,monospace';
+    g.fillStyle='#000'; g.fillRect(6,H-14,360,13);
+    g.fillStyle= on.ok ? '#7CFF9E' : '#ff6b6b';
+    g.fillText('CAR v='+((me.v*3.6)|0)+' cr='+me.crashes
+               +' road='+(on.ok?'Y':'N')
+               +' d='+(ns?(ns.d/S).toFixed(1):'--')+'m'
+               +' hold='+(crashHold?1:0)
+               +' sig='+signals.length            /* 신호등 생성 개수 — 0 이면 데이터/필터 문제 */
+               +' wp='+(auto.wp?auto.wp.length:0)  /* 경로 웨이포인트 수 — 0 이면 planTo 실패 */
+               +' dm='+(window.__demoTry||0)+'/'+(window.__demoWhy||'-')  /* 데모 시도/실패사유 */
+               +' auto='+(auto.on?1:0)          /* ★auto.on 이면 키 입력이 전부 무시된다(step) */
+               +' K='+(K.ArrowUp?'U':'-')+(K.ArrowDown?'D':'-')
+                     +(K.ArrowLeft?'L':'-')+(K.ArrowRight?'R':'-'), 9, H-4);
+  }
+  try{ drawNav(); }
+  catch(e){ navErr=String(e&&e.message||e).slice(0,60);
+    g.fillStyle='#ff3b30';g.font='700 12px system-ui';
+    g.fillText('NAV ERR: '+navErr, 12, H-12); }
+}
+function veh(c,mine){
+  g.save();g.translate(c.x,c.y);g.rotate(c.ang+Math.PI/2);
+  const w=c.w,h=c.h,r=Math.min(w,h)*.22;
+  g.fillStyle='rgba(0,0,0,.25)';rr(-w/2+1.5,-h/2+2,w,h,r);g.fill();
+  g.fillStyle=mine?'#f1f4f9':c.c;rr(-w/2,-h/2,w,h,r);g.fill();
+  /* ★차량 윤곽을 밝게(u_4955): 도로가 아스팔트 진회색이라 검은 테두리는 묻힌다.
+     빨강·파랑 차량은 도로 대비가 58~85 로 낮은데, 밝은 테두리를 두르면
+     어떤 차체색이든 형태가 살아난다(실제 야간 도로에서 차 윤곽이 보이는 것과 같다). */
+  g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=1.2;rr(-w/2,-h/2,w,h,r);g.stroke();
+  if(c.t!=='bike'&&c.t!=='moto'){
+    g.fillStyle='rgba(18,24,32,.55)';
+    rr(-w/2+w*.14,-h/2+h*.16,w*.72,h*.22,r*.5);g.fill();
+    rr(-w/2+w*.14,h/2-h*.34,w*.72,h*.18,r*.5);g.fill();
+  }
+  if(mine){
+    g.fillStyle='#ffe9a8';g.fillRect(-w/2+w*.1,-h/2-1.5,w*.22,2);
+    g.fillRect(w/2-w*.32,-h/2-1.5,w*.22,2);
+    if(me.v<-0.1||K.ArrowDown){g.fillStyle='#ff5a4d';
+      g.fillRect(-w/2+w*.1,h/2-.5,w*.22,2);g.fillRect(w/2-w*.32,h/2-.5,w*.22,2)}
+  }
+  g.restore();
+}
+function rr(x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);
+  g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
+
+function roadName(){const n=nearestSeg(me.x,me.y);return n&&n.s.n?n.s.n:'이름없는 길'}
+
+/* ---------- 입력/UI ---------- */
+addEventListener('keydown',e=>{
+  if(e.key.startsWith('Arrow')){K[e.key]=1;e.preventDefault();
+    if(auto.on){auto.on=0;sync();flash('수동 전환')}}
+  if(e.key==='r'||e.key==='R')reset();
+  if(e.key==='h'||e.key==='H')flash('🔊 빵!');
+  if(e.key==='+'||e.key==='=')cam.z=Math.min(2.2,cam.z*1.18);
+  if(e.key==='-'||e.key==='_')cam.z=Math.max(.45,cam.z/1.18);
+});
+addEventListener('keyup',e=>K[e.key]=0);
+cv.addEventListener('pointerdown',e=>{
+  const r=cv.getBoundingClientRect();
+  planTo((e.clientX-r.left-W/2)/cam.z+cam.x,(e.clientY-r.top-H/2)/cam.z+cam.y);
+  flash('목적지 설정');
+});
+cv.addEventListener('wheel',e=>{e.preventDefault();
+  cam.z=Math.max(.45,Math.min(2.2,cam.z*(e.deltaY<0?1.1:1/1.1)))},{passive:false});
+document.getElementById('md').onclick=()=>{
+  if(auto.on){auto.on=0;flash('수동 전환')}
+  else if(auto.goal){auto.on=1;flash('자율주행 재개')}
+  else flash('지도를 클릭해 목적지를 정하세요');
+  sync();
+};
+document.getElementById('rs').onclick=reset;
+
+/* ★계기판 토글(u_4874) — 주행 중엔 화면을 가리지 않는다 */
+let hudOn=false;
+function setHud(v){
+  hudOn=v;
+  for(const id of['hp','tp','tl']){const e=document.getElementById(id);if(e)e.hidden=!v}
+  const b=document.getElementById('burger');
+  if(b){b.classList.toggle('on',v);b.setAttribute('aria-expanded',v?'true':'false')}
+}
+const _bg=document.getElementById('burger');
+if(_bg)_bg.onclick=e=>{e.stopPropagation();setHud(!hudOn)};
+addEventListener('keydown',e=>{if(e.key==='i'||e.key==='I')setHud(!hudOn)});
+setHud(false);
+function sync(){
+  const b=document.getElementById('md'),s=document.getElementById('st');
+  if(b){b.textContent=auto.on?'수동으로':'자율주행';b.classList.toggle('on',!!auto.on)}
+  if(s){s.textContent=auto.on?'AUTOPILOT':'수동';s.classList.toggle('live',!!auto.on)}
+  const cc=document.getElementById('cc');if(cc)cc.textContent=me.crashes;
+  const d=document.getElementById('dm');
+  if(d){d.style.width=(100-me.dmg)+'%';
+    d.style.background=me.dmg>66?C('--red'):me.dmg>33?C('--amber'):C('--green')}
+}
+// ★LEARN을 reset()보다 먼저 정한다 — reset()이 학습모드 여부로 시작위치를 고른다.
+var LEARN=/[?&]learn=1/.test(location.search);
+reset();sync();
+
+/* ★동적 스트리밍(u_4879) — 차가 청크를 넘어가면 그 주변만 다시 짓는다.
+   화면에 보이는 영역만 유지하므로 서울·경기 전역이어도 메모리가 일정하다. */
+function streamWorld(force){
+  if(!CH)return;
+  const k=chunkKey(me.x/S,me.y/S);
+  if(!force&&k===curChunk)return;
+  curChunk=k;
+  ROADS_ACTIVE=collectRoads(me.x/S,me.y/S);
+  BLDS_ACTIVE =collectBlds(me.x/S,me.y/S);
+  buildGraph(ROADS_ACTIVE);recalcXR();
+  blds=mkBlds(BLDS_ACTIVE);buildBldGrid();
+  buildCross();buildSignals();buildSigns();buildLamps();
+  respawnTraffic();
+}
+/* 새 영역에 맞춰 교통 재배치(먼 곳 차량은 버린다) */
+function respawnTraffic(){
+  cars.length=0;peds.length=0;
+  for(let i=0;i<segs.length;i++){
+    const sg=segs[i];
+    if(sg.len<12*S)continue;
+    const A=nodes[sg.a],B=nodes[sg.b];
+    const mx=(A.x+B.x)/2,my=(A.y+B.y)/2;
+    if((mx-me.x)**2+(my-me.y)**2>(620)**2)continue;   // 초기 소수만(나머지는 동적 등장)
+    if(Math.random()>0.25)continue;
+    for(let k2=0;k2<1;k2++){
+      const t=Math.random()<.14?'truck':Math.random()<.18?'moto':Math.random()<.12?'bike':'car';
+      const T=TY[t];
+      const dir=sg.o?1:(Math.random()<.5?1:-1);
+      const lane=(Math.random()*Math.max(1,sg.o?sg.l:Math.floor(sg.l/2)))|0;
+      const c={t,...T,c:pick(T.cs),w:T.wm*S,h:T.hm*S,si:i,dir,lane,tp:Math.random(),
+        v:T.vmax*rnd(.55,.85),x:0,y:0,ang:0,alive:1};
+      placeCar(c);cars.push(c);
+    }
+    if(Math.random()<.12){
+      const sgn=Math.random()<.5?-1:1;
+      const p2={si:i,tp:Math.random(),sg:sgn,v:rnd(1.1,1.6),dir:Math.random()<.5?1:-1,
+        x:0,y:0,c:pick(['#d94a3d','#3b7dd8','#2fa360','#e8a317','#111827','#8b5cf6'])};
+      placePed(p2);peds.push(p2);
+    }
+  }
+}
+
+/* ★오브젝트 동적 등장/퇴장(u_4881)
+   전부 미리 깔지 않는다. 화면 가장자리 밖에서 조금씩 나타나고,
+   멀어지면 사라진다. 매번 다른 상황이 만들어져 학습 표본이 다양해진다. */
+const WANT_CARS=34, WANT_PEDS=16;
+let spawnAcc=0;
+function spawnDespawn(dt){
+  const viewR=Math.max(W,H)/cam.z*0.62+140;      // 화면 반경
+  const killR=viewR*1.9;
+  // 멀어진 것 제거
+  for(let i=cars.length-1;i>=0;i--){
+    const c=cars[i];
+    if((c.x-me.x)**2+(c.y-me.y)**2>killR*killR)cars.splice(i,1);
+  }
+  for(let i=peds.length-1;i>=0;i--){
+    const p=peds[i];
+    if((p.x-me.x)**2+(p.y-me.y)**2>killR*killR)peds.splice(i,1);
+  }
+  // 조금씩 등장(한 프레임에 몰아서 넣지 않는다)
+  spawnAcc+=dt;
+  if(spawnAcc<0.12)return;
+  spawnAcc=0;
+  const ring=[];                                   // 화면 밖 가장자리 도로
+  for(let i=0;i<segs.length;i++){
+    const sg=segs[i];if(sg.len<12*S)continue;
+    const A=nodes[sg.a],B=nodes[sg.b];
+    const mx=(A.x+B.x)/2,my=(A.y+B.y)/2;
+    const d2=(mx-me.x)**2+(my-me.y)**2;
+    if(d2>viewR*viewR*0.85&&d2<killR*killR*0.8)ring.push(i);
+  }
+  if(!ring.length)return;
+  if(cars.length<WANT_CARS){
+    const i=pick(ring),sg=segs[i];
+    const t=Math.random()<.14?'truck':Math.random()<.2?'moto':Math.random()<.13?'bike':'car';
+    const T=TY[t];
+    const dir=sg.o?1:(Math.random()<.5?1:-1);
+    const lane=(Math.random()*Math.max(1,sg.o?sg.l:Math.floor(sg.l/2)))|0;
+    const c={t,...T,c:pick(T.cs),w:T.wm*S,h:T.hm*S,si:i,dir,lane,
+      tp:Math.random(),v:T.vmax*rnd(.5,.9),x:0,y:0,ang:0,alive:1};
+    placeCar(c);cars.push(c);
+  }
+  if(peds.length<WANT_PEDS){
+    const i=pick(ring);
+    const p2={si:i,tp:Math.random(),sg:Math.random()<.5?-1:1,v:rnd(1.0,1.7),
+      dir:Math.random()<.5?1:-1,x:0,y:0,
+      c:pick(['#d94a3d','#3b7dd8','#2fa360','#e8a317','#111827','#8b5cf6'])};
+    placePed(p2);peds.push(p2);
+  }
+}
+
+/* ===== 학습 에피소드 (u_4882/4883) =====
+   판 시작 → POI 자동 지정 → 주행 → 도착/실패 → 자동 리셋 → 다음 판.
+   ★상태는 화면 좌상단 4x4 픽셀 '상태칩'으로만 노출한다.
+     게임 변수를 파이썬에 넘기지 않는다 = 비전이 눈으로 읽어야 한다(로직금지 준수). */
+const EP={n:0,t:0,limit:75,goal:null,state:'run',clears:0,fails:0,startD:0,
+          stuck:0,bestD:1e18};
+function epStart(){
+  EP.n++;EP.t=0;EP.state='run';EP.stuck=0;
+  const p=nextPOI();
+  if(p){EP.goal=p;auto.goal={x:p.x,y:p.y};}
+  else EP.goal=null;
+  EP.startD=EP.goal?Math.hypot(EP.goal.x-me.x,EP.goal.y-me.y):0;
+  EP.bestD=EP.startD;
+  /* ★제한시간 = 거리에 비례(u_4884).
+     실측: POI까지 중앙값 2985m, 최대 5247m.
+     실주행 ~10m/s에 우회 1.6배 → 필요시간 = 거리/10*1.6.
+     여기에 2배 여유 + 최소 90초. 즉 '75초 안에 도착'이 아니라
+     '그 거리면 이 정도는 줘야 한다'로 계산한다. */
+  const need=(EP.startD/S)/10*1.6;
+  EP.limit=Math.max(90,Math.min(900,need*2));
+}
+function epEnd(ok){
+  EP.state=ok?'clear':'fail';
+  if(ok)EP.clears++;else EP.fails++;
+  setTimeout(()=>{hardReset();epStart()},700);
+}
+function hardReset(){
+  /* ★학습모드는 도로 위에서 재시작한다(u_4917).
+     여기가 주차칸으로 고정돼 있어 reset()을 고쳐도 매 판 주차칸으로 돌아갔다.
+     주차칸은 도로에서 13.3m 떨어져 있어 직진하면 도로에 닿기 전에 이탈 사고. */
+  /* ★검증(교사 OFF) 때도 도로 위에서 출발해야 한다. 주차칸 출발은 도로 밖 13m 지점이라
+     모델이 아무리 전진해도 길을 못 찾는다(2026-09-14 검증 실패 원인 중 하나). */
+  /* ★hardReset()은 teacher.js 보다 먼저 돈다 → window.__teach 로 판단하면 항상 false 라
+     주차칸(도로 밖 13.3m)에서 출발해 버린다(실측: readout 'road=N d=13.3m').
+     빌드 플래그(window.__SPAWN_ON_ROAD)로 판단한다. */
+  /* ★2026-09-14 u_4953: 여기가 진짜 사고-리셋 경로다.
+     앞서 reset()(410행) 만 고치고 이걸 놓쳐서, 사고가 나면 주차칸으로 돌아가
+     그대로 갇혔다. 실측: 수집 421초 중 첫 10%만 도로위 93%, 사고 발생 후
+     나머지 90%가 전부 lane=13.01m / 도로위 0.3% / 속도 12km/h 로 고정.
+     LEARN·플래그와 무관하게 항상 도로 위에서 재시작한다. */
+  if(segs.length){
+    /* ★사고 지점 근처 청크로 스트리밍이 바뀌면 옛 start 인덱스는 무효다.
+       현재 위치에서 가장 가까운 '충분히 긴' 구간을 새로 고른다. */
+    let bs=null,bl=-1;
+    for(const q of segs){
+      if(q.len < 20*S) continue;
+      if(q.len > bl){ bl=q.len; bs=q; }
+    }
+    if(!bs) bs=segs[0];
+    const A2=nodes[bs.a],B2=nodes[bs.b];
+    const off2=laneOffset(bs,1,0);
+    const t0=0.15;
+    me.x=A2.x+(B2.x-A2.x)*t0-Math.sin(bs.ang)*off2;
+    me.y=A2.y+(B2.y-A2.y)*t0+Math.cos(bs.ang)*off2;
+    me.ang=bs.ang;                       // a→b 진행방향과 동일
+    /* ★멀리 순간이동하면 그 구역 청크가 아직 없어 road=N 이 된다(실측 d=13.2m).
+       스폰 직후 강제로 월드를 다시 스트리밍해 도로·신호등을 채운다. */
+    try{ if(typeof streamWorld==='function') streamWorld(true); }catch(e){}
+  }else if(PARK.bays.length){const b=PARK.bays[2];me.x=b.x;me.y=b.y;me.ang=PARK.ang}
+  me.v=0;me.dmg=0;me.crashes=0;me.offroad=0;me.cool=0;
+  auto.on=0;auto.wp=[];auto.i=0;
+  streamWorld(true);
+}
+function epTick(dt){
+  if(!LEARN||EP.state!=='run')return;
+  EP.t+=dt;
+  if(EP.goal){
+    const d=Math.hypot(EP.goal.x-me.x,EP.goal.y-me.y);
+    if(d<9*S){epEnd(true);return}          // ★클리어 = 목적지 도달
+    /* 진전이 있으면 시간을 더 준다 — 오래 걸리는 게 죄는 아니다.
+       '가까워지지 않는 것'만 실패로 본다. */
+    if(d<EP.bestD-3*S){EP.bestD=d;EP.stuck=0}
+    else{EP.stuck+=dt}
+    if(EP.stuck>45){epEnd(false);return}   // 45초간 한 발짝도 못 가까워지면 포기
+  }
+  if(EP.t>EP.limit){epEnd(false);return}   // 거리 대비 총 제한시간
+  if(me.dmg>=100){epEnd(false);return}     // 대파
+}
+/* 상태칩 — 화면 좌상단. 비전이 이 색을 보고 판정한다.
+   초록=클리어 / 빨강=실패 / 파랑=주행중, 옆 막대=남은시간 */
+/* ★네비 미니맵(u_4893) — 실제 내비처럼 '축약된 경로'를 화면에 그린다.
+   비전은 이 그림을 눈으로 본다. 좌표를 넘겨받는 게 아니다(로직금지 유지).
+   화면 우상단 고정 위치 = 눈이 항상 같은 자리를 보면 된다. */
+function drawNav(){
+  /* 목적지가 아직 없으면 가까운 POI를 잠정 목표로 삼아서라도 내비를 띄운다.
+     (학습모드 진입 전에도 비전이 같은 자리에서 같은 그림을 보게 하려는 것) */
+  let G=EP.goal||auto.goal;
+  if(!G&&POIS.length){
+    let b=null,bd=1e18;
+    for(const p of POIS){const d=(p.x-me.x)**2+(p.y-me.y)**2;if(d<bd){bd=d;b=p}}
+    G=b;
+  }
+  if(!G)return;
+  /* ★위치: 화면 상단 중앙에서 약간 오른쪽. 우측 끝에 붙이면 창 경계에 걸려
+     비전 캡처 밖으로 잘려 안 보였다(2026-09-14 실측). */
+  const R=54,cx=Math.min(W-R-10,W*0.72),cy=R+12;
+  // 배경 원
+  g.save();
+  g.beginPath();g.arc(cx,cy,R,0,7);
+  g.fillStyle='rgba(12,16,22,.82)';g.fill();
+  g.strokeStyle='rgba(255,255,255,.22)';g.lineWidth=1.5;g.stroke();
+  g.clip();
+  // 차 기준 회전(항상 위쪽이 진행방향) — 실제 내비와 같은 방식
+  g.translate(cx,cy);g.rotate(-me.ang-Math.PI/2);
+  const SC=R/(260*S);                    // 반경 260m를 원 안에 축약
+  // 주변 도로를 가늘게
+  g.strokeStyle='rgba(150,160,175,.55)';
+  for(const sg of segs){
+    const A=nodes[sg.a],B=nodes[sg.b];
+    const ax=(A.x-me.x)*SC,ay=(A.y-me.y)*SC,bx=(B.x-me.x)*SC,by=(B.y-me.y)*SC;
+    if(Math.abs(ax)>R&&Math.abs(bx)>R&&Math.abs(ay)>R&&Math.abs(by)>R)continue;
+    g.lineWidth=Math.max(1,sg.l*0.6);
+    g.beginPath();g.moveTo(ax,ay);g.lineTo(bx,by);g.stroke();
+  }
+  // ★목적지까지의 경로를 굵은 초록선으로(축약 경로)
+  const path=navPath(G);
+  if(path&&path.length>1){
+    g.strokeStyle='#28e07a';g.lineWidth=3.2;g.lineCap='round';
+    g.beginPath();
+    for(let i=0;i<path.length;i++){
+      const x=(path[i].x-me.x)*SC,y=(path[i].y-me.y)*SC;
+      i?g.lineTo(x,y):g.moveTo(x,y);
+    }
+    g.stroke();
+  }
+  // 목적지 표시(원 밖이면 테두리에 붙임)
+  let gx=(G.x-me.x)*SC, gy=(G.y-me.y)*SC;
+  const gd=Math.hypot(gx,gy);
+  if(gd>R-6){const k=(R-6)/gd;gx*=k;gy*=k}
+  g.fillStyle='#ff3b30';g.beginPath();g.arc(gx,gy,4.5,0,7);g.fill();
+  g.restore();
+  // 내 차(항상 중앙, 위 방향)
+  g.save();g.translate(cx,cy);
+  g.fillStyle='#ffffff';g.beginPath();
+  g.moveTo(0,-6);g.lineTo(4.5,5);g.lineTo(-4.5,5);g.closePath();g.fill();
+  g.restore();
+}
+/* 경로 계산은 게임 쪽에서 한다(내비 화면을 그리기 위해).
+   차에게 좌표로 알려주지 않는다 — 오직 위 그림으로만 전달된다. */
+let navCache={t:0,path:null,goal:null};
+function navPath(G){
+  G=G||EP.goal;
+  const now=performance.now();
+  if(navCache.path&&navCache.goal===G&&now-navCache.t<1200)return navCache.path;
+  let path=null;
+  if(G){
+    const a=astar(nearestNode(me.x,me.y),nearestNode(G.x,G.y));
+    if(a)path=a.map(i=>({x:nodes[i].x,y:nodes[i].y}));
+  }
+  navCache={t:now,path,goal:G};
+  return path;
+}
+function drawChip(){
+  const x=6,y=6,w=54,h=10;
+  // ★사고 표시등 — 칩 오른쪽. 사고 후 1.2초간 계속 켜져 있어 비전이 샘플링해도 보인다.
+  g.fillStyle=crashLit>0?'#ff2d2d':'rgba(0,0,0,.25)';
+  g.fillRect(x+w+4,y,h,h);
+  g.fillStyle=EP.state==='clear'?'#00d26a':EP.state==='fail'?'#ff2d2d':'#2f7bff';
+  g.fillRect(x,y,h,h);
+  g.fillStyle='rgba(0,0,0,.25)';g.fillRect(x+h+3,y,w-h-3,h);
+  const frac=EP.goal?Math.max(0,1-Math.hypot(EP.goal.x-me.x,EP.goal.y-me.y)/Math.max(1,EP.startD)):0;
+  g.fillStyle='#ffd23f';g.fillRect(x+h+3,y,(w-h-3)*frac,h);   // 목적지 근접도
+}
+
+let last=performance.now(),nt=0;
+function loop(t){
+  streamWorld(false);
+  const dt=Math.min(.05,(t-last)/1000);last=t;
+  if(window.__teach&&window.__teach.auto){ window.__teach.last=window.__teach.drive(dt); }
+  if(auto.on)driveAuto(dt);
+  step(dt);
+  epTick(dt);
+  if(crashLit>0)crashLit-=dt;
+  spawnDespawn(dt);
+  rebuildHash();
+  // 화면 밖 먼 차량은 계산하지 않는다(보이지도 않고 비전에도 안 잡힘)
+  const R2=Math.pow(Math.max(W,H)/cam.z*0.75+220,2);  // 화면 크기에 맞춘 시뮬 반경
+  for(const c of cars){if(!c.alive)continue;
+    if((c.x-cam.x)**2+(c.y-cam.y)**2>R2)continue;
+    stepCar(c,dt)}
+  for(const p of peds){
+    if((p.x-cam.x)**2+(p.y-cam.y)**2>R2)continue;
+    stepPed(p,dt)}
+  /* ★그리기 프레임 제한(2026-09-14 u_4941).
+     WindowServer(화면 합성)가 CPU 47% 를 먹고 있었는데, 캡처를 전혀 안 해도
+     동일했다 — 즉 캡처 탓이 아니라 게임이 60fps 로 캔버스를 계속 다시 그리는 탓이다.
+     (Chrome 을 완전히 종료하면 WindowServer 가 상위에서 사라지는 것으로 확정)
+     물리는 매 프레임 돌려 주행 품질을 유지하고, 그리기만 30fps 로 낮춘다.
+     비전 모델도 58fps 로 읽으므로 30fps 렌더면 충분하다. */
+  if(t - lastDraw >= DRAW_MS){ lastDraw = t; draw(); }
+  const sp=document.getElementById('sp');if(sp)sp.textContent=KMH(Math.abs(me.v));
+  const ac=document.getElementById('ac');if(ac)ac.textContent=auto.on?auto.act:'수동 주행';
+  if(t-nt>350){nt=t;const rd=document.getElementById('rd');if(rd)rd.textContent=roadName()}
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ===== 학습 모드 초기화 — 모든 정의가 끝난 뒤 실행(TDZ 방지) ===== */
+function setLearn(v){
+  LEARN=v;
+  if(LEARN){hardReset();epStart();flash('학습 모드 시작')}
+  else{EP.state='idle';flash('학습 모드 종료')}
+}
+addEventListener('keydown',e=>{if(e.key==='l'||e.key==='L')setLearn(!LEARN)});
+if(LEARN){hardReset();epStart()}
+/* ★검증 빌드(교사 OFF)는 LEARN 이 아니라서 hardReset() 이 한 번도 안 불렸고,
+   차가 초기 주차칸(도로 밖 13.3m)에 그대로 서 있었다(실측 readout: road=N d=13.3m).
+   모델이 앞으로 가도 도로가 없으니 당연히 주행이 안 된다. */
+/* ★모든 빌드에서 도로 위 출발(2026-09-14 u_4950 후속).
+   __SPAWN_ON_ROAD 는 --teacher-off 빌드에만 주입돼서, 교사 빌드(수집용)는
+   hardReset() 이 아예 안 불리고 초기 주차칸 위치가 그대로 남았다.
+   실측: 디코더로 읽은 lane=13.0m, on_road=0 — 도로 밖에서 수집하고 있었다. */
+else { hardReset(); }
