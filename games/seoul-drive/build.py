@@ -15,6 +15,14 @@ if '--traffic' in sys.argv:
     _i = sys.argv.index('--traffic')
     if _i + 1 < len(sys.argv) and sys.argv[_i+1] in ('light','medium','heavy'):
         _tf = sys.argv[_i+1]
+# ★목표 주행속도(u_4975): --speed <km/h>. 기본 45.
+#   교사가 이 속도를 맞춰 달리고, 앞이 막히면 안전이 우선이다.
+_kmh = 45
+if '--speed' in sys.argv:
+    _i = sys.argv.index('--speed')
+    if _i + 1 < len(sys.argv):
+        try: _kmh = int(sys.argv[_i+1])
+        except ValueError: pass
 head = open('games/seoul-drive/index.html').read().split('<script>')[0]
 # ★맵 데이터를 저장소 안으로(2026-09-14 u_4960). /tmp 는 재부팅하면 날아간다.
 import os as _os
@@ -22,7 +30,7 @@ _d = 'games/seoul-drive/data/data6.js'
 data = open(_d if _os.path.exists(_d) else '/tmp/data6.js').read()
 gm   = open('games/seoul-drive/game.js').read()
 te   = open('games/seoul-drive/teacher.js').read()
-gm = "window.__TRAFFIC='%s';\n" % _tf + gm
+gm = "window.__TRAFFIC='%s';window.__TARGET_KMH=%d;\n" % (_tf, _kmh) + gm
 if off:
     te = te.replace("let mode='fwd';", "let mode='off';   /* 검증 빌드: 교사 OFF */")
     # 교사가 꺼져 있어도 도로 위에서 출발해야 모델이 길을 볼 수 있다.
@@ -70,4 +78,4 @@ open('games/seoul-drive/index.html','w').write(
     head + '<script>' + data + '</script>\n<script>' + gm + '</script>\n<script>' + te + '</script>\n')
 print('built teacher=' + ('OFF' if off else 'ON')
       + (' dagger=ON' if dag else '') + (' demo=ON' if demo else '')
-      + ' traffic=' + _tf)
+      + ' traffic=' + _tf + ' speed=' + str(_kmh) + 'km/h')

@@ -72,6 +72,27 @@
     // 커브에서 감속
     const bend = Math.min(1, Math.abs(diff)/0.7);
     thr *= (1 - 0.6*bend);
+    /* ★목표 속도 추종(u_4975). 오너: "내가 원하는 주행 속도를 설정하면
+       그 속도에 맞게 끼어들기나 추월을 할 수도 있으니까".
+       기존 교사는 thr=1 고정이라 '늘 최고속'이었고, 그 데이터로 배운 모델은
+       속도 개념 자체가 없었다. 목표속도(km/h)를 빌드로 주고 교사가 거기에 맞춘다.
+       ★앞이 막히거나(d<18) 커브면 위 로직이 우선이다 — 목표속도가 안전보다
+         앞서면 안 된다("뭐 바뀌면 당연히 천천히 가야 되겠지만"). */
+    /* ★목표속도는 '정상상태 속도'로 환산해서 맞춘다(u_4975 수정).
+       처음엔 err 에 비례해 thr 을 깎았는데, 그러면 목표에 가까워질수록
+       thr 이 같이 줄어 훨씬 아래에서 눌러앉는다(droop).
+       실측: 목표 50 → 실제 37km/h 에서 정체(thr 0.79).
+       여기서는 '이 thr 이면 결국 몇 m/s 가 되는가'가 cap*thr 이라는 점을 이용해
+       필요한 thr 을 역산하고, 커브·전방 감속분(thr0)을 상한으로 씌운다. */
+    const TGT = (window.__TARGET_KMH || 45) / 3.6;       // m/s
+    if(brake === 0){
+      const cap = TGT * 1.12;                            // thr=1 일 때 도달 속도
+      const need = Math.max(0, Math.min(1, TGT / cap));  // 목표 유지에 필요한 thr(≈0.89)
+      // 아직 목표보다 느리면 잠깐 더 밟아 가속을 붙인다
+      const boost = me.v < TGT - 0.5 ? 1 : need;
+      thr = Math.min(thr, boost);
+      if(me.v > TGT + 2.0) { thr = 0; brake = Math.min(0.4, (me.v - TGT - 2.0) * 0.15); }
+    }
     /* ★2026-09-14 실브라우저 실측 수정: 기존 조향은 heading-error(diff)만 썼다.
        그래서 차로와 나란히 달리되 옆으로 6m 벗어난 상태에서는 diff≈0 →
        조향 0 → 이탈을 영원히 못 고쳤다(측정: ln 2.4→6.6m 단조 증가).
@@ -100,7 +121,11 @@
     me.steer = a.steer;
     if(a.rev){ me.v += (-3.0 - me.v)*Math.min(1, dt*2.2); }
     else if(a.brake > 0.5){ me.v -= 9.0*dt; if(me.v<0) me.v=0; }
-    else { me.v += (a.thr*14 - me.v)*Math.min(1, dt*1.8); }
+    /* ★thr=1 일 때의 상한을 목표속도에 맞춘다(u_4975).
+       예전엔 14m/s(=50km/h) 고정이라, 커브 감속(thr*0.4~1)이 겹치면
+       목표를 50으로 줘도 실제로는 36km/h 언저리에서 더 못 올라갔다. */
+    else { const cap = (window.__TARGET_KMH || 45)/3.6 * 1.12;
+           me.v += (a.thr*cap - me.v)*Math.min(1, dt*1.8); }
     return a;
   };
 
