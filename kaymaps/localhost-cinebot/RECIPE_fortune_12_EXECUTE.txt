@@ -12,6 +12,7 @@ P0. 서버 up 확인(전부 응답해야 진행):
     curl -s "http://localhost:15000/fortune/progress?date=<DATE>&lang=ko"  → JSON (youtube-top uvicorn, 운세텍스트)
     ★★슬라이드 생성 백엔드도 필수(2026-09-01 ar_2995 실패교훈 — 이거 빠지면 §10 '전체 슬라이드 생성'이 '영상 생성 오류'로 12씬 전부 실패):
     curl -s -o /dev/null -w "%{http_code}" http://localhost:8188   → 200 (ComfyUI 이미지생성, 포트 8000/8188 drift 가능 — ps로 확인)
+    ★★★★★2026-09-14 CORRECTION(supersedes 2026-09-11 note below): comfyui_service.py:69 = COMFYUI_URL = os.environ.get('COMFYUI_URL','http://localhost:8188') → env-override 가능, DEFAULT=8188(≠8000). USE-FIRST: ComfyUI는 8188로 기동(`~/ComfyUI-src/venv/bin/python3 main.py --port 8188`), API서버는 override 없이 기동. USE-BAN: 8000 기동(owner 2026-09-14 u_4964 '8000번 안 쓰기로 했잖아'). 증상: 포트 불일치 시 seg-img 전부 실패→slideshow_service.py:383 PILImage.open(None)→'영상 생성 오류' 다이얼로그. 진단: lsof -nP -iTCP:8188 -sTCP:LISTEN + logs/<YYYYMMDD>_slideshow.log 의 '세그먼트 이미지 생성 실패'.
     ★★2026-09-11 실사고+FIX: youtube-top 백엔드 python-server/services/comfyui_service.py 가 COMFYUI_URL='http://localhost:8000' 하드코딩(env override 불가). ComfyUI가 8188(기본포트)에서 돌면 백엔드 8000 체크 실패→§10 '슬라이드쇼 영상 생성 중 오류' 다이얼로그(즉시). ★반드시 ComfyUI를 8000으로 기동: `~/ComfyUI-src/venv/bin/python3 main.py --port 8000`(8188에 이미 떠있으면 kill 후 8000 재기동). 큐검증도 8000/api/queue. (=8000/8188 drift의 정확한 정체: 백엔드는 항상 8000 기대.)
     curl -s -o /dev/null -w "%{http_code}" http://localhost:15100   → (zodiac)
     curl -s -o /dev/null -w "%{http_code}" http://localhost:18081   → (Qwen MLX)
