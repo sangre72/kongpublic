@@ -8,6 +8,13 @@ import sys
 off = '--teacher-off' in sys.argv or '--dagger' in sys.argv
 dag = '--dagger' in sys.argv
 demo = '--demo' in sys.argv      # 강남역 → 종합운동장 자동주행 데모
+# ★교통량 3단계(u_4972): --traffic light|medium|heavy. 기본 medium.
+#   아티팩트는 샌드박스라 URL 파라미터가 안 들어오므로 빌드에 박아 넣는다.
+_tf = 'medium'
+if '--traffic' in sys.argv:
+    _i = sys.argv.index('--traffic')
+    if _i + 1 < len(sys.argv) and sys.argv[_i+1] in ('light','medium','heavy'):
+        _tf = sys.argv[_i+1]
 head = open('games/seoul-drive/index.html').read().split('<script>')[0]
 # ★맵 데이터를 저장소 안으로(2026-09-14 u_4960). /tmp 는 재부팅하면 날아간다.
 import os as _os
@@ -15,6 +22,7 @@ _d = 'games/seoul-drive/data/data6.js'
 data = open(_d if _os.path.exists(_d) else '/tmp/data6.js').read()
 gm   = open('games/seoul-drive/game.js').read()
 te   = open('games/seoul-drive/teacher.js').read()
+gm = "window.__TRAFFIC='%s';\n" % _tf + gm
 if off:
     te = te.replace("let mode='fwd';", "let mode='off';   /* 검증 빌드: 교사 OFF */")
     # 교사가 꺼져 있어도 도로 위에서 출발해야 모델이 길을 볼 수 있다.
@@ -29,7 +37,10 @@ if demo:
     gm += '''
 ;(function(){
   var FROM={x:0,y:0};                // 강남역
-  var GOAL={x:3842,y:-1225};         // 잠실종합운동장 (약 4km)
+  /* 무역센터(코엑스) 실좌표 37.5115,127.0595 → 게임좌표 (2649,-1225).
+     그 지점 자체는 간선 1개짜리 막다른 노드라 본 도로망과 끊겨 있어서(실측),
+     연결된 가장 가까운 지점(2760,-1360, 무역센터에서 175m)을 목적지로 쓴다. */
+  var GOAL={x:2760,y:-1360};         // 무역센터 앞 (약 3km)
   function start(){
     window.__demoTry=(window.__demoTry||0)+1;
     try{
@@ -58,4 +69,5 @@ if demo:
 open('games/seoul-drive/index.html','w').write(
     head + '<script>' + data + '</script>\n<script>' + gm + '</script>\n<script>' + te + '</script>\n')
 print('built teacher=' + ('OFF' if off else 'ON')
-      + (' dagger=ON' if dag else '') + (' demo=ON' if demo else ''))
+      + (' dagger=ON' if dag else '') + (' demo=ON' if demo else '')
+      + ' traffic=' + _tf)

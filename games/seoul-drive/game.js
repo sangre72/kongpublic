@@ -283,9 +283,10 @@ const rnd=(a,b)=>a+Math.random()*(b-a),pick=a=>a[(Math.random()*a.length)|0];
 
 /* 차로 중심 오프셋: dir=+1 → 진행방향 기준 오른쪽 차로 */
 function laneOffset(s,dir,lane){
+  /* lane 은 실수도 받는다(차선변경 보간용, u_4972) — 정수로 깎지 않는다 */
   if(s.o){ return (lane+0.5)*LW - s.roadW/2; }      // 일방통행: 전 차로 사용
   const halfLanes=Math.max(1,Math.floor(s.l/2));
-  const k=Math.min(lane,halfLanes-1);
+  const k=Math.max(0,Math.min(lane,halfLanes-1));
   return dir>0 ? (k+0.5)*LW : -((k+0.5)*LW);
 }
 const cars=[],peds=[];
@@ -314,7 +315,10 @@ function seed(){
 }
 function placeCar(c){
   const s=segs[c.si],A=nodes[s.a],B=nodes[s.b];
-  const off=laneOffset(s,c.dir,c.lane);
+  /* ★차선변경 중에는 실수 차로(laneF)로 위치를 잡는다(u_4972).
+     정수 lane 으로만 그리면 차가 옆 차선으로 순간이동해 보이고,
+     학습 입력으로도 '끼어드는 과정'이 사라져 버린다. */
+  const off=laneOffset(s,c.dir,(c.laneF!==undefined?c.laneF:c.lane));
   const a=s.ang+(c.dir<0?Math.PI:0);
   c.x=A.x+(B.x-A.x)*c.tp-Math.sin(s.ang)*off;
   c.y=A.y+(B.y-A.y)*c.tp+Math.cos(s.ang)*off;
@@ -728,6 +732,34 @@ function stepCar(c,dt){
     const tv=gp<10*S?0:gp<20*S?c.vmax*.35:c.vmax*.8;
     c.v+=(tv-c.v)*Math.min(1,dt*1.6);
   }
+  /* ★차선변경·끼어들기(u_4972).
+     두 가지로 일어난다:
+       (a) 앞이 막히면 옆 차선으로 피한다 — 실제 정체에서 나오는 자연스러운 끼어들기
+       (b) 낮은 확률로 그냥 차선을 바꾼다 — 교통량 단계에 따라 빈도가 올라간다
+     lane 은 정수라 튀면 순간이동처럼 보이므로 laneF(실수)를 두고 부드럽게 따라가게 한다.
+     ★플레이어 앞으로 파고드는 것도 막지 않는다 — 그게 학습시키려는 상황이다. */
+  const nl = s.o ? s.l : Math.floor(s.l/2);        // 이 방향으로 쓸 수 있는 차로 수
+  if(c.laneF===undefined) c.laneF=c.lane;
+  if(c.chg===undefined && nl>1){
+    const blocked = gp < 14*S;                      // 앞차에 막힘
+    const want = (blocked && Math.random()<0.02) || Math.random()<CUT_P;
+    if(want){
+      const dirs=[];
+      if(c.lane>0) dirs.push(-1);
+      if(c.lane<nl-1) dirs.push(1);
+      if(dirs.length){ c.chg=pick(dirs); c.chgT=0; }
+    }
+  }
+  if(c.chg!==undefined){
+    c.chgT+=dt;
+    const tgt=Math.max(0,Math.min(nl-1, c.lane+c.chg));
+    c.laneF += (tgt-c.laneF)*Math.min(1,dt*1.8);
+    if(Math.abs(tgt-c.laneF)<0.06 || c.chgT>3.0){
+      c.lane=tgt; c.laneF=tgt; c.chg=undefined;
+    }
+  }else{
+    c.laneF += (c.lane-c.laneF)*Math.min(1,dt*3);
+  }
   c.tp+=c.dir*(c.v*S*dt)/s.len;
   if(c.tp>1||c.tp<0){
     const nd=c.tp>1?s.b:s.a;
@@ -1137,7 +1169,18 @@ function respawnTraffic(){
 /* ★오브젝트 동적 등장/퇴장(u_4881)
    전부 미리 깔지 않는다. 화면 가장자리 밖에서 조금씩 나타나고,
    멀어지면 사라진다. 매번 다른 상황이 만들어져 학습 표본이 다양해진다. */
-const WANT_CARS=34, WANT_PEDS=16;
+/* ★교통량 3단계 + 끼어들기 (u_4972).
+   WHY(오너): "실제 운전을 잘 하는지 확인"하려면 한산한 길만 달려선 알 수 없다.
+   빈 도로에서 차선 지키는 것과, 옆차가 끼어드는 상황에서 안 박는 건 다른 능력이다.
+   단계는 빌드 플래그(window.__TRAFFIC)로 고른다 — 아티팩트는 샌드박스라
+   URL 파라미터가 안 들어오기 때문(cf RECIPE DEAD END #1). */
+const TRAFFIC_LV = {
+  light:  {cars:12, peds: 8, cut:0.00020},   // 적당히 — 차선유지 기본기
+  medium: {cars:34, peds:16, cut:0.00060},   // 중간 (기존 기본값)
+  heavy:  {cars:72, peds:30, cut:0.00150},   // 아주 많음 — 정체·끼어들기 빈발
+};
+const _TL = TRAFFIC_LV[window.__TRAFFIC] || TRAFFIC_LV.medium;
+const WANT_CARS=_TL.cars, WANT_PEDS=_TL.peds, CUT_P=_TL.cut;
 let spawnAcc=0;
 function spawnDespawn(dt){
   const viewR=Math.max(W,H)/cam.z*0.62+140;      // 화면 반경
