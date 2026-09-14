@@ -3,55 +3,66 @@
 > 이 파일은 "지금 제일 좋은 게 뭐였지"를 다시 찾지 않기 위한 단일 기준점이다.
 > 새 모델이 아래 수치를 **검증셋 기준으로** 넘을 때만 이 파일을 갱신한다.
 
-## ★ 현재 최고: `bc_hv.pt`  (2026-09-14)
+## ★ 현재 최고: `bc_final.pt`  (2026-09-14)
 
 | 항목 | 값 |
 |---|---|
-| 파일 | `games/seoul-drive/bc_hv.pt` |
-| MD5 | `f91851dab0b116e96d26d389d41bbccf` |
-| 크기 | 816,977 bytes |
-| 커밋 | `d294d1c` |
+| 파일 | `games/seoul-drive/bc_final.pt` |
+| MD5 | `25afcb5becaf2a34b84b364f654850ca` |
 | 파라미터 | 203,139 |
-| 학습 프레임 | 42,716 |
-| **개선율(평균예측 대비)** | **97.2 % → LEARNED** |
-| val MSE | 0.00180 (baseline 0.06491) |
-| steer 예측 표준편차 | 0.382 (상수 출력 아님) |
+| 학습 프레임 | 85,768 (heavy 2회분 병합) |
+| **개선율(평균예측 대비)** | **96.2 % → LEARNED** |
+| val MSE | 0.00224 (baseline 0.05892) |
 
-### 조작별 성능 (held-out 3,000 프레임)
+### 조작별 성능 (held-out 4,000 프레임)
 | 조작 | 개선율 | 상관계수 |
 |---|---|---|
-| steer | 98.9 % | 0.995 |
-| thr   | 98.8 % | 0.995 |
-| brake | 75.9 % | 0.904 |
+| steer | 97.8 % | 0.991 |
+| thr   | 98.6 % | 0.993 |
+| **brake** | **95.3 %** | **0.978** |
+
+### ★긴급제동 — 이전 버전의 최대 약점이 해결됐다
+급제동 상황(brake>0.7) 417프레임에서:
+| 모델 | 실제 | 예측 | 급제동 판정률 |
+|---|---|---|---|
+| `bc_hv.pt`(이전) | 0.98 | 0.35 | 0 % |
+| **`bc_final.pt`** | 0.98 | **0.94** | **100 %** |
+
+해결 방법 두 가지를 같이 썼다(u_4980 오너 지시 "A B 둘 다"):
+- (a) 급제동이 실제로 일어나는 상황을 만들었다 — 무단횡단 돌발(u_4981) + 내 차로 앞차 스폰.
+  급제동 표본 77개 → 417개(5.4배).
+- (b) 학습 시 급제동 프레임을 20배, 감속을 6배 자주 뽑았다(오버샘플링).
+  검증셋에는 가중치를 걸지 않아 점수는 정직하다.
 
 ### 이 모델을 만든 조건 (재현용)
 ```bash
-# 1) 빌드 — heavy 교통량 + 목표속도 50km/h
 python3 games/seoul-drive/build.py --traffic heavy --speed 50
-# 2) 아티팩트 배포 → Chrome 리로드(16초 대기)
-#    창 크기 901x662 (전체화면 금지 — 전처리가 22ms로 뛰어 27fps가 된다)
-# 3) 수집 420초
-python3 games/seoul-drive/collect_screen.py games/seoul-drive/data/t_hv 420
-#    실측: 42,716프레임 / 101.7fps / on_road 99.7% / 사고 2프레임
-# 4) 학습 18에폭
-python3 games/seoul-drive/bc_train2.py games/seoul-drive/data/t_hv games/seoul-drive/bc_hv.pt 18
+# 아티팩트 배포 → Chrome 리로드(16초). 창 901x662 (전체화면 금지)
+python3 games/seoul-drive/collect_screen.py games/seoul-drive/data/t_hv  420
+python3 games/seoul-drive/collect_screen.py games/seoul-drive/data/t_hv2 420
+python3 games/seoul-drive/merge_sets.py games/seoul-drive/data/final \
+        games/seoul-drive/data/t_hv games/seoul-drive/data/t_hv2 --stride 1
+python3 games/seoul-drive/bc_train2.py games/seoul-drive/data/final \
+        games/seoul-drive/bc_final.pt 16
 ```
 
 ### 이 버전에 들어간 핵심 수정 (이게 없으면 재현 안 됨)
-1. `decode.py` — capture 가 주는 **BGR 를 RGB 로 뒤집어** 읽는다. 이게 빠지면 라벨이 전 프레임 미검출.
-2. `teacher.js` — **적신호 정지** 추가. 없으면 '빨간불에 선다'가 데이터에 0프레임.
-3. `game.js` — 차량을 **내 차로·내 앞쪽 우선**으로 스폰. 없으면 heavy 72대여도 앞차를 못 만나 제동 0%.
-4. `teacher.js` — **목표속도 추종**(thr 상한을 목표에 연동). 없으면 늘 최고속이라 속도 개념이 안 생긴다.
-5. 창 901x662 + decode 좌상단 열만 스캔 → **101fps** (전체화면이면 27.9fps).
+1. `decode.py` — capture 의 **BGR 를 RGB 로 뒤집어** 읽는다. 빠지면 라벨 전 프레임 미검출.
+2. `teacher.js` — **적신호 정지**. 없으면 '빨간불에 선다'가 0프레임.
+3. `game.js` — **내 차로·앞쪽 우선 스폰**. 없으면 heavy 72대여도 앞차를 못 만나 제동 0%.
+4. `game.js` — **무단횡단 돌발**. 급제동 표본을 만드는 핵심.
+5. `teacher.js` — **목표속도 추종**. 없으면 늘 최고속이라 속도 개념이 안 생긴다.
+6. `bc_train2.py` — **급제동 오버샘플링**. 없으면 브레이크를 덜 밟는다(0.35).
+7. 창 901x662 + decode 좌상단 열만 스캔 → **102fps** (전체화면이면 27.9fps).
 
-### 알려진 약점 (다음 작업 대상)
-- **긴급제동 부족**: 급제동 상황(brake>0.5) 77프레임에서 실제 0.98 을 **0.53 으로 예측**(덜 밟음).
-  상황 인식은 됨(86%가 0.4 초과, thr 은 정상적으로 0). 원인 = 42,716 중 급제동 표본 77개뿐.
-  → 해결안 (a) 급제동 유발 상황을 늘려 재수집 (b) 급제동 프레임 학습 가중치 상향. 둘 다 필요.
+### 남은 약점
+- 사고 4프레임(85,768 중) — 무단횡단 돌발을 넣은 뒤에도 완전 회피는 아니다.
+- 신호등: 교사는 지키지만, 모델이 '신호를 봐서' 서는지 '앞차를 봐서' 서는지는 미분리.
 
 ## 이전 버전 (참고)
 | 모델 | 프레임 | 개선율 | 비고 |
 |---|---|---|---|
+| `bc_hv.pt` | 42,716 | 97.2 % | heavy+신호, 급제동 예측 0.35 로 약함 |
 | `bc_mix.pt` | 36,688 | 93.6 % | light/medium/heavy 혼합, 신호 미적용 |
 | `bc_v5.pt` | 11,718 | 72.5 % | 단일 밀도, 신호 미적용 |
 | `bc_v4.pt` | — | 99.7 %* | *도로밖 51% 데이터로 학습 — 수치는 높지만 무효 |

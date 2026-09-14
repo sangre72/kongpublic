@@ -905,6 +905,22 @@ function stepPed(p,dt){
       }
     }
   }
+  /* ★무단횡단 — 인도에서 갑자기 뛰어나온다(u_4981).
+     WHY(오너): 실제 위험은 횡단보도가 아니라 '갑자기 튀어나오는 것'이다.
+     기존 보행자는 횡단보도에서만 건너서, 급제동을 배울 상황이 안 만들어졌다.
+     내 차 앞쪽 가까운 거리에서만 발동시킨다 — 멀리서 건너면 그냥 지나가서
+     학습 표본이 안 된다. 뛰는 속도는 평소의 2배로 둬서 '돌발'이 되게 한다. */
+  if(!p.cross && JAY_P>0 && Math.random()<JAY_P){
+    const dx=p.x-me.x, dy=p.y-me.y;
+    const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
+    const f=(dx*fx+dy*fy)/S;                        // 내 앞 거리(m)
+    const lat=Math.abs(-dx*Math.sin(me.ang)+dy*Math.cos(me.ang))/S;
+    if(f>8 && f<34 && lat<12){                      // 반응은 가능하되 급한 거리
+      p.cross=1; p.cx2=0; p.cdir=1; p.jay=1;
+      p.cmax=(s.roadW*.5+SIDEWALK_M*S*.5);
+      p.v*=2.0;                                     // 뛰어나온다
+    }
+  }
 }
 
 /* ---------- 렌더 ---------- */
@@ -1292,6 +1308,8 @@ const _TL = TRAFFIC_LV[window.__TRAFFIC] || TRAFFIC_LV.medium;
 const WANT_CARS=_TL.cars, WANT_PEDS=_TL.peds, CUT_P=_TL.cut;
 /* 앞쪽 우선 스폰 비율 — 밀도가 높을수록 강하게(정체를 만들려면 앞에 있어야 한다) */
 const FRONT_BIAS = {light:0.3, medium:0.6, heavy:0.85}[window.__TRAFFIC] ?? 0.6;
+/* 무단횡단 발생확률(프레임당, 보행자 1명 기준) — 밀도가 높을수록 잦다 */
+const JAY_P = {light:0.0004, medium:0.0010, heavy:0.0022}[window.__TRAFFIC] ?? 0.0010;
 let spawnAcc=0;
 function spawnDespawn(dt){
   const viewR=Math.max(W,H)/cam.z*0.62+140;      // 화면 반경

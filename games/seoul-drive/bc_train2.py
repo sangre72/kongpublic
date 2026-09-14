@@ -21,6 +21,22 @@ from net import DriveNet
 DEV = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
 BS = 64
 
+def sample_weights(Y):
+    """★급제동 프레임 가중치 상향 (u_4980 (b)).
+
+    실측 문제: 42,716프레임 중 brake>0.5 가 77개(0.18%)뿐이라, 평균제곱오차를
+    그냥 최소화하면 '브레이크는 거의 안 밟는다'가 최적해가 된다. 실제로 학습된
+    모델이 실제 0.98 자리에 0.53 을 냈다(상황 인식은 하는데 덜 밟음).
+    → 제동 프레임을 뽑을 확률을 올려 손실에서 차지하는 비중을 키운다.
+      데이터를 조작하는 게 아니라 '자주 보여주는' 것이다(오버샘플링).
+    """
+    b = Y[:, 2]
+    w = np.ones(len(b), np.float64)
+    w[b > 0.35] = 6.0        # 감속
+    w[b > 0.7]  = 20.0       # 급제동 — 드물지만 제일 중요
+    return w / w.sum()
+
+
 def batch(X, Y, ids):
     """ids 가 음수면 '좌우반전본'을 뜻한다(복사 없이 표현)."""
     real = np.abs(ids) - 1
@@ -46,8 +62,13 @@ def main(d, out, epochs=25):
     opt = torch.optim.Adam(net.parameters(), 1e-3, weight_decay=1e-4)
     lossf = nn.MSELoss()
     best = 1e9
+    W = sample_weights(Y)
+    Wtr = W[np.abs(tr) - 1]; Wtr = Wtr / Wtr.sum()
     for ep in range(int(epochs)):
-        net.train(); perm = np.random.permutation(tr); tot = 0.0
+        net.train()
+        # 가중 복원추출: 급제동 프레임이 에폭마다 더 자주 등장한다
+        perm = np.random.choice(tr, size=len(tr), replace=True, p=Wtr)
+        tot = 0.0
         for i in range(0, len(perm), BS):
             b = perm[i:i+BS]
             xb, yb = batch(X, Y, b)
