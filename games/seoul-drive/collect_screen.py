@@ -26,8 +26,9 @@ def main(out, secs):
         while time.time() - t0 < secs:
             f, seq = C.latest(seq)              # 새 프레임만
             if f is None: continue
-            rgb = f[:, :, ::-1]
-            d = decode(rgb)
+            # ★f 는 capture 가 주는 BGR. decode 가 내부에서 뒤집으므로 그대로 넘긴다
+            #   (예전엔 여기서 한 번 뒤집고 decode 가 또 뒤집어 원위치 = 오판독).
+            d = decode(f)
             if d is None:                       # 코드픽셀을 못 읽으면 버린다
                 skipped += 1; continue
             X.append(preprocess(f).cpu().numpy().astype(np.float16))
