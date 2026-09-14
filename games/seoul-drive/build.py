@@ -31,6 +31,20 @@ data = open(_d if _os.path.exists(_d) else '/tmp/data6.js').read()
 gm   = open('games/seoul-drive/game.js').read()
 te   = open('games/seoul-drive/teacher.js').read()
 gm = "window.__TRAFFIC='%s';window.__TARGET_KMH=%d;\n" % (_tf, _kmh) + gm
+# ★차로변경 데모(u_4992): --lanedemo 면 1차로에서 달리다 3차로로 옮긴다.
+#   아티팩트는 샌드박스라 콘솔/URL 로 못 건드린다 → 빌드에 넣는 수밖에 없다.
+if '--lanedemo' in sys.argv:
+    te += '''
+;(function(){
+  /* 12초 뒤 1차로(0) -> 3차로(2) 로 변경. 화면 readout 의 ln 에 진행이 보인다. */
+  function go(){
+    var T=window.__teach; if(!T||!T.setLane){ setTimeout(go,500); return; }
+    T.setLane(0);
+    setTimeout(function(){ T.setLane(2); window.__laneDemo='1->3'; }, 12000);
+  }
+  setTimeout(go, 3000);
+})();
+'''
 if off:
     te = te.replace("let mode='fwd';", "let mode='off';   /* 검증 빌드: 교사 OFF */")
     # 교사가 꺼져 있어도 도로 위에서 출발해야 모델이 길을 볼 수 있다.

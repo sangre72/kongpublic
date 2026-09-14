@@ -1114,6 +1114,17 @@ document.getElementById('md').onclick=()=>{
   sync();
 };
 document.getElementById('rs').onclick=reset;
+/* ★교통량 버튼(u_4997) — 빌드 없이 화면에서 바로 바꾼다 */
+function syncTrafficUI(){
+  document.querySelectorAll('button.tf').forEach(b=>{
+    b.classList.toggle('on', b.dataset.lv===window.__TRAFFIC);
+  });
+}
+document.querySelectorAll('button.tf').forEach(b=>{
+  b.onclick=()=>{ window.setTraffic(b.dataset.lv);
+                  flash('교통량: '+b.textContent+' (차 '+WANT_CARS+'대)'); };
+});
+syncTrafficUI();
 
 /* ★계기판 토글(u_4874) — 주행 중엔 화면을 가리지 않는다 */
 let hudOn=false;
@@ -1195,12 +1206,30 @@ const TRAFFIC_LV = {
   medium: {cars:34, peds:16, cut:0.00060},   // 중간 (기존 기본값)
   heavy:  {cars:72, peds:30, cut:0.00150},   // 아주 많음 — 정체·끼어들기 빈발
 };
-const _TL = TRAFFIC_LV[window.__TRAFFIC] || TRAFFIC_LV.medium;
-const WANT_CARS=_TL.cars, WANT_PEDS=_TL.peds, CUT_P=_TL.cut;
+/* ★런타임 전환(u_4997). 예전엔 빌드 플래그라 밀도를 바꾸려면 매번 다시 빌드하고
+   아티팩트를 재배포해야 했다. 화면 버튼으로 즉시 바꿀 수 있게 let 으로 바꾼다. */
+let _TL = TRAFFIC_LV[window.__TRAFFIC] || TRAFFIC_LV.medium;
+let WANT_CARS=_TL.cars, WANT_PEDS=_TL.peds, CUT_P=_TL.cut;
 /* 앞쪽 우선 스폰 비율 — 밀도가 높을수록 강하게(정체를 만들려면 앞에 있어야 한다) */
-const FRONT_BIAS = {light:0.3, medium:0.6, heavy:0.85}[window.__TRAFFIC] ?? 0.6;
+let FRONT_BIAS = {light:0.3, medium:0.6, heavy:0.85}[window.__TRAFFIC] ?? 0.6;
 /* 무단횡단 발생확률(프레임당, 보행자 1명 기준) — 밀도가 높을수록 잦다 */
-const JAY_P = {light:0.0004, medium:0.0010, heavy:0.0022}[window.__TRAFFIC] ?? 0.0010;
+let JAY_P = {light:0.0004, medium:0.0010, heavy:0.0022}[window.__TRAFFIC] ?? 0.0010;
+
+/* 교통량 전환 — 버튼/외부에서 호출. 즉시 반영되고, 줄일 때는 멀리 있는 차부터 지운다. */
+window.setTraffic = function(lv){
+  if(!TRAFFIC_LV[lv]) return null;
+  window.__TRAFFIC = lv;
+  _TL = TRAFFIC_LV[lv];
+  WANT_CARS=_TL.cars; WANT_PEDS=_TL.peds; CUT_P=_TL.cut;
+  FRONT_BIAS = {light:0.3, medium:0.6, heavy:0.85}[lv];
+  JAY_P      = {light:0.0004, medium:0.0010, heavy:0.0022}[lv];
+  // 초과분은 내게서 먼 것부터 정리한다(눈앞에서 사라지면 부자연스럽다)
+  const far=(a,b)=>((b.x-me.x)**2+(b.y-me.y)**2)-((a.x-me.x)**2+(a.y-me.y)**2);
+  if(cars.length>WANT_CARS){ cars.sort(far); cars.length=WANT_CARS; }
+  if(peds.length>WANT_PEDS){ peds.sort(far); peds.length=WANT_PEDS; }
+  try{ syncTrafficUI(); }catch(e){}
+  return lv;
+};
 let spawnAcc=0;
 function spawnDespawn(dt){
   const viewR=Math.max(W,H)/cam.z*0.62+140;      // 화면 반경
