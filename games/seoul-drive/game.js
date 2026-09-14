@@ -1622,10 +1622,31 @@ else { hardReset(); }
   box.onkeydown = e=>{
     if(e.key==='ArrowDown'){ sel=Math.min(hits.length-1,sel+1); render(); e.preventDefault(); }
     else if(e.key==='ArrowUp'){ sel=Math.max(0,sel-1); render(); e.preventDefault(); }
-    else if(e.key==='Enter'){ pick(); e.preventDefault(); }
+    else if(e.key==='Enter'){
+      /* ★타이핑 직후 Enter 가 눌리면 oninput 디바운스(90ms)가 아직 안 돌아
+         hits 가 비어 있다. 그 경우 여기서 즉시 검색해서 첫 결과로 간다.
+         (자동 타이핑 테스트에서 발견 — 사람이 쳐도 빠르면 같은 일이 생긴다) */
+      if(!hits.length){ hits = search(box.value); sel = 0; }
+      pick(); e.preventDefault();
+    }
     else if(e.key==='Escape'){ res.innerHTML=''; box.blur(); }
     e.stopPropagation();          // 방향키가 주행 조작으로 새지 않게
   };
-  if(go) go.onclick = ()=>{ if(!hits.length) hits=search(box.value); pick(); };
+  /* ★[출발]은 드롭다운 상태에 기대지 않는다(u_5003 실측).
+     자동 타이핑에서는 oninput 이 안 뜨는 경우가 있어 hits 가 빈 채로 남는다.
+     누를 때마다 입력값으로 새로 검색해서 첫 결과로 간다 — 사람이 쳐도 같은 동작. */
+  if(go) go.onclick = ()=>{
+    hits = search(box.value);
+    if(!hits.length){ flash('검색 결과 없음: '+box.value); return; }
+    sel = 0; pick();
+  };
+  /* 입력이 이벤트로 안 잡히는 환경(자동입력 등)을 위해 주기적으로도 확인한다 */
+  let lastV = '';
+  setInterval(()=>{
+    if(document.activeElement !== box) return;
+    if(box.value === lastV) return;
+    lastV = box.value;
+    hits = search(box.value); sel = 0; render();
+  }, 300);
   window.__search = search;       // 검증용
 })();
