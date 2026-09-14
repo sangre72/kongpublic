@@ -63,8 +63,19 @@ if '--lanedemo' in sys.argv:
   /* 12초 뒤 1차로(0) -> 3차로(2) 로 변경. 화면 readout 의 ln 에 진행이 보인다. */
   function go(){
     var T=window.__teach; if(!T||!T.setLane){ setTimeout(go,500); return; }
-    T.setLane(0);
-    setTimeout(function(){ T.setLane(2); window.__laneDemo='1->3'; }, 12000);
+    /* ★목표 차로는 '그 도로에 실제로 있는' 범위여야 한다(u_5001 실측).
+       laneMax 를 보고 마지막 차로로 간다 — 2차로 도로에서 3차로를 찍으면
+       도로 밖을 목표로 삼아 조향이 포화된다. */
+    /* ★시작 차로를 강제하지 않는다(u_5001 실측).
+       T.setLane(0) 을 먼저 걸면, 차가 이미 바깥 차로에 있을 때 큰 횡이동이
+       즉시 요구돼 조향이 시작부터 포화된다. 지금 있는 차로에서 출발한다. */
+    setTimeout(function(){
+      var m = T.laneMax || 1;
+      var cur = Math.round(T.laneF || 0);
+      var tgt = (cur === m-1) ? 0 : m-1;    // 안쪽이면 바깥으로, 바깥이면 안쪽으로
+      T.setLane(tgt);
+      window.__laneDemo = (cur+1) + '->' + (tgt+1);
+    }, 12000);
   }
   setTimeout(go, 3000);
 })();

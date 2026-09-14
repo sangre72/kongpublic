@@ -7,30 +7,67 @@
 (function(){
   const T = {mode:'fwd', log:[], on:false};
 
+  /* ★차로 추종 재작성 (u_5001).
+     이전 구조의 결함: nearestSeg 는 '차에서 가장 가까운 중심선 위 점'을 준다.
+     차가 옆으로 움직이면 그 점도 같이 옆으로 따라온다. 목표점과 cross-track
+     기준이 둘 다 그 점에 매달려 있어서, '지금 있는 자리'가 늘 기준이 됐다.
+     그래서 다른 차로로 옮기려 해도 수렴할 고정 기준선이 없었고, 조향만
+     포화됐다(3회 시도 3회 실패, u_4992~4996).
+
+     여기서는 기준을 바꾼다:
+       1) 세그먼트의 t(진행률)만 nearestSeg 에서 받고,
+       2) 목표 차로의 '중심선'을 세그먼트 기하로 직접 계산한다(차 위치와 무관).
+       3) lookahead 는 그 차로 중심선 위에서 전방으로 잡는다.
+     이러면 차가 옆에 있든 없든 목표선이 고정돼 수렴한다. */
   function laneTarget(){
-    // 현재 위치에서 가장 가까운 도로의 '우측 차로 중앙' 지점과 진행 방향
     const n = nearestSeg(me.x, me.y);
     if(!n) return null;
     const sg = n.s;
-    // 차 진행방향과 세그먼트 방향의 일치도로 dir 결정
     let d = ((me.ang - sg.ang + Math.PI*3) % (Math.PI*2)) - Math.PI;
     const dir = Math.abs(d) < Math.PI/2 ? 1 : -1;
-    /* ★우측 주행차로 유지(2026-09-14 u_4935 지적).
-       laneOffset(sg,dir,0) 의 lane=0 은 중앙선 쪽 1차로다. 한국은 주행차로가
-       가장 바깥(우측)이라 교사가 안쪽으로만 달리고 있었다
-       (실측: 차로중심거리 중앙값 3.12m, 우측차로 안에 있던 비율 48%뿐).
-       가장 바깥 차로를 목표로 잡는다. */
-    /* ★우측차로 목표 시도는 되돌렸다(2026-09-14 실측).
-       lane=바깥차로로 바꾸니 목표점이 옆으로 최대 14m 벌어져 조향이 +1.00 에 박히고
-       차가 제자리 선회했다(lookahead 를 키워도 동일). 원래 lane=0 이 안정적이다.
-       우측차로 유지는 조향 목표가 아니라 별도 보정으로 다뤄야 한다. */
-    const off = laneOffset(sg, dir, 0);
-    const ang = sg.ang + (dir<0 ? Math.PI : 0);
-    // 전방 lookahead 지점
-    const LA = 14*S;
-    const px = n.px + Math.cos(ang)*LA - Math.sin(sg.ang)*off;
-    const py = n.py + Math.sin(ang)*LA + Math.cos(sg.ang)*off;
-    return {x:px, y:py, ang, seg:sg, off, dirSign:dir};
+
+    // 이 방향으로 쓸 수 있는 차로 수 → 목표 차로를 실제 범위로 clamp
+    const nl = sg.o ? sg.l : Math.max(1, Math.floor(sg.l/2));
+    T.laneMax = nl;
+    const want = Math.max(0, Math.min(nl-1, (T.lane|0)));
+    /* ★첫 프레임의 laneF 는 '목표'가 아니라 '차가 지금 실제로 있는 차로'여야 한다
+       (u_5001 실사고). 목표로 초기화하면, 차가 다른 차로에 있을 때 시작부터
+       큰 횡오차가 생겨 조향이 곧바로 포화된다(steer 0.98 고정, 표준편차 0.000). */
+    if(T.laneF === undefined){
+      const lat0 = (-(n.px-me.x)*Math.sin(sg.ang) + (n.py-me.y)*Math.cos(sg.ang)) / S * dir;
+      // lat0: 중심선 기준 부호거리(m) → 차로 인덱스로 환산
+      const guess = sg.o ? (lat0 + (sg.roadW/2)/S)/(LW/S) - 0.5
+                         : Math.abs(lat0)/(LW/S) - 0.5;
+      T.laneF = Math.max(0, Math.min(nl-1, Math.round(guess)));
+      T.lane  = T.laneF;                    // 시작 목표 = 현재 차로(급이동 방지)
+    }
+    T.laneF = Math.max(0, Math.min(nl-1, T.laneF));
+    /* 한 번에 옮기지 않는다 — 실제 차선변경도 2~3초에 걸쳐 한다.
+       프레임당 0.02차로(≈0.065m)면 한 차로 이동에 약 2.5초(30fps 기준). */
+    const step = 0.02;
+    if(T.laneF < want)      T.laneF = Math.min(want, T.laneF + step);
+    else if(T.laneF > want) T.laneF = Math.max(want, T.laneF - step);
+    T.laneMoving = Math.abs(T.laneF - want) > 0.005;
+
+    const off = laneOffset(sg, dir, T.laneF);     // 목표 차로 오프셋(고정)
+    const ang = sg.ang + (dir<0 ? Math.PI : 0);   // 내 진행방향
+
+    /* ★목표 차로 중심선 — 차 위치가 아니라 세그먼트에서 계산한다.
+       nearestSeg 의 t 를 그대로 써서 '도로를 따라 얼마나 왔는가'만 가져온다. */
+    const A = nodes[sg.a], B = nodes[sg.b];
+    const baseX = A.x + (B.x-A.x)*n.t - Math.sin(sg.ang)*off;
+    const baseY = A.y + (B.y-A.y)*n.t + Math.cos(sg.ang)*off;
+
+    /* 차로변경 중에는 멀리 본다. 가까이 보면 같은 횡이동에 큰 각도가 필요해
+       조향이 포화된다(실측). 변경이 끝나면 다시 가깝게 본다. */
+    const LA = (T.laneMoving ? 30 : 14) * S;
+    const px = baseX + Math.cos(ang)*LA;
+    const py = baseY + Math.sin(ang)*LA;
+
+    /* cross-track 도 같은 고정 기준선으로 잰다(부호: 왼쪽 -, 오른쪽 +) */
+    const cross = (-(baseX-me.x)*Math.sin(sg.ang) + (baseY-me.y)*Math.cos(sg.ang)) / S * dir;
+
+    return {x:px, y:py, ang, seg:sg, off, dirSign:dir, cross};
   }
 
   function obstacleAhead(){
@@ -119,16 +156,11 @@
        그래서 차로와 나란히 달리되 옆으로 6m 벗어난 상태에서는 diff≈0 →
        조향 0 → 이탈을 영원히 못 고쳤다(측정: ln 2.4→6.6m 단조 증가).
        Stanley 방식으로 횡방향 오차(cross-track) 항을 더한다. */
+    /* cross-track 은 laneTarget 이 '목표 차로 중심선' 기준으로 이미 계산했다.
+       예전엔 여기서 lane=0 으로 다시 계산해, 목표는 3차로인데 보정은 1차로로
+       끌어당기는 모순이 생겼다(u_4992 실사고). 한 곳에서만 정한다. */
     const ns = nearestSeg(me.x,me.y);
-    let cross = 0;
-    if(ns){
-      const sg = ns.s;                                   // nearestSeg는 {d,s,t,px,py}
-      const off = laneOffset(sg,1,0);                    // 주행차로 중심까지의 오프셋
-      const cx = ns.px - Math.sin(sg.ang)*off;           // 차로 중심점
-      const cy = ns.py + Math.cos(sg.ang)*off;
-      // 도로 진행방향 기준 좌/우 부호 있는 거리(m)
-      cross = (-(cx-me.x)*Math.sin(sg.ang) + (cy-me.y)*Math.cos(sg.ang)) / S;
-    }
+    const cross = lt.cross || 0;
     const spd = Math.max(3, me.v);
     const xt = Math.atan2(0.9*cross, spd);               // 속도가 빠를수록 완만하게
     const steer = Math.max(-1, Math.min(1, diff*1.8 + xt*1.6));
@@ -152,6 +184,9 @@
   };
 
   T.setMode = m => { T.mode = m; return T.mode; };
+  /* 차로 지정 — 0 = 중앙선쪽 1차로, 커질수록 바깥(우측). 화면 readout 에 표시된다 */
+  T.lane = 0;
+  T.setLane = k => { T.lane = Math.max(0, k|0); return T.lane; };
 
   /* ★자율 수집 모드 — AppleScript 없이 페이지 안에서 스스로 돈다(u_4926).
      Chrome이 기본으로 AppleScript JS 실행을 막아두기 때문에 외부 호출 대신
@@ -204,6 +239,9 @@
     const kmh=(me.v*3.6)|0, lane=((nearestSeg(me.x,me.y)||{d:0}).d/S).toFixed(1);
     const logged = (window.__log ? window.__log.n : -1);   // -1 = db 미연결
     g.fillText('KB v='+kmh+' st='+a.steer.toFixed(2)+' th='+a.thr.toFixed(2)
+               +' br='+(a.brake||0).toFixed(2)
+               +' ln'+(T.lane+1)+'->'+(T.laneF!==undefined?(T.laneF+1).toFixed(2):'-')
+               +'/'+(T.laneMax||'?')
                +' br='+(a.brake||0).toFixed(2)
                +' cr='+me.crashes+' ln='+lane+' LOG='+logged, x+2, y-6);
   };
