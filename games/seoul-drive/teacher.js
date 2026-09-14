@@ -182,6 +182,7 @@
     const kmh=(me.v*3.6)|0, lane=((nearestSeg(me.x,me.y)||{d:0}).d/S).toFixed(1);
     const logged = (window.__log ? window.__log.n : -1);   // -1 = db 미연결
     g.fillText('KB v='+kmh+' st='+a.steer.toFixed(2)+' th='+a.thr.toFixed(2)
+               +' br='+(a.brake||0).toFixed(2)
                +' cr='+me.crashes+' ln='+lane+' LOG='+logged, x+2, y-6);
   };
   T.state = () => ({mode:T.mode, v:me.v, crashes:me.crashes, crashHold:crashHold,
