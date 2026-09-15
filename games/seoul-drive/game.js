@@ -876,7 +876,11 @@ function planTo(x,y){
       auto.i=Math.min(auto.i, wp.length-1);
     }
   }
-  auto.goal=wp[wp.length-1];auto.on=1;
+  /* ★경로 설정과 출발을 분리한다(u_5041 오너 지시).
+     예전엔 경로를 만들자마자 auto.on=1 로 바로 달렸다. 이제 경로는 화면에
+     표시만 하고, '목적지 가기'를 눌러야 출발한다. */
+  auto.goal=wp[wp.length-1];
+  auto.on = !!window.__autoStart;          // 기본 false = 표시만
   /* ★출발 시 차를 경로 위에 올려놓는다(u_5039).
      지금까지는 차가 어디 있든 경로만 만들고 '알아서 붙어라'였다. 그런데 차가
      차로 가장자리에 있으면(실측 free_r=1.5m) 경로 쪽으로 틀려는 순간 도로 밖으로
@@ -1197,8 +1201,13 @@ function step(dt){
     }
   }else me.offroad=0;
 
+  /* ★출발 대기 중에는 NPC 추돌을 사고로 세지 않는다(u_5041).
+     경로만 설정하고 서 있는 동안 뒤차가 와서 박으면, 아직 출발도 안 한 주행이
+     사고부터 기록된다(실측: v=0, auto=0 인데 '승용차 추돌').
+     서 있는 건 운전자 과실이 아니므로 대기 상태에서는 제외한다. */
+  const waiting = (!auto.on && auto.wp.length>1 && me.v<0.5);
   for(const c of cars){if(!c.alive)continue;
-    if(obb(me,c)){crash(c.n+' 추돌',c.t==='truck')}}
+    if(obb(me,c)){ if(!waiting) crash(c.n+' 추돌',c.t==='truck'); }}
   for(const p of peds){
     if(obb(me,{x:p.x,y:p.y,ang:me.ang,w:1.4*S,h:1.4*S}))crash('보행자 사고',true)}
 }
@@ -1469,7 +1478,7 @@ function draw(){
      g.restore();
    }}
   // 경로
-  if(auto.on&&auto.wp.length){
+  if(auto.wp.length){                       // ★출발 전에도 경로를 보여준다(u_5041)
     g.strokeStyle=C('--green');g.globalAlpha=.6;g.lineWidth=5;g.setLineDash([4*S,3*S]);
     /* ★경로선은 '경로'만 그린다(u_5031).
        예전엔 nearestSeg(차 위치) 에서 시작해 다음 웨이포인트로 직선을 그었다.
@@ -1717,6 +1726,23 @@ addEventListener('keydown',e=>{
 });
 addEventListener('keyup',e=>K[e.key]=0);
 cv.addEventListener('pointerdown',e=>{
+  /* ★UI 위젯 위의 클릭은 목적지 지정이 아니다(u_5039 실사고).
+     캔버스가 화면 전체를 덮고 있어서 검색창·출발 버튼을 누르면 그 클릭이
+     캔버스까지 내려와 planTo 가 또 불린다. 그러면 방금 만든 경로가 '클릭한
+     화면 좌표'로 덮어써지고 auto.i 도 0으로 리셋된다 —
+     화면 실측 plan=3(경로를 세 번 다시 짬), i=0/104 고정, 경로가 차와 딴 곳.
+     UI 요소 위에서 시작된 클릭이면 무시한다. */
+  if(e.target && e.target!==cv) return;
+  /* ★UI 패널 영역(화면 좌표 기준)은 목적지 지정에서 제외한다.
+     clientY 임계값은 브라우저 크롬 높이에 따라 달라져 신뢰할 수 없다.
+     실제 UI 요소의 화면 사각형과 겹치는지로 판단한다(u_5041 실사고:
+     '목적지 가기' 클릭이 캔버스로 새어 planTo 가 불려 경로가 지워졌다 — wp=0). */
+  for(const id of ['nav','tp','tl','hp','burger']){
+    const el=document.getElementById(id);
+    if(!el || el.hidden) continue;
+    const b=el.getBoundingClientRect();
+    if(e.clientX>=b.left && e.clientX<=b.right && e.clientY>=b.top && e.clientY<=b.bottom) return;
+  }
   const r=cv.getBoundingClientRect();
   planTo((e.clientX-r.left-W/2)/cam.z+cam.x,(e.clientY-r.top-H/2)/cam.z+cam.y);
   flash('목적지 설정');
@@ -2223,7 +2249,9 @@ else { hardReset(); }
       d.innerHTML = '<b></b><span></span>';
       d.querySelector('b').textContent = r.n;
       d.querySelector('span').textContent = KIND[r.k]+' · '+km.toFixed(1)+'km';
-      d.onclick = ()=>{ sel=i; pick(); };
+      d.onclick = ()=>{ sel=i; window.__autoStart=false; pick();
+        const rb=document.getElementById('qrun');
+        if(rb && auto.wp.length>1){ rb.disabled=false; flash('경로 설정됨 — [목적지 가기]를 누르세요'); } };
       res.appendChild(d);
     });
   }
@@ -2259,7 +2287,10 @@ else { hardReset(); }
          hits 가 비어 있다. 그 경우 여기서 즉시 검색해서 첫 결과로 간다.
          (자동 타이핑 테스트에서 발견 — 사람이 쳐도 빠르면 같은 일이 생긴다) */
       if(!hits.length){ hits = search(box.value); sel = 0; }
+      window.__autoStart = false;            // 엔터도 '경로 설정'까지만(u_5041)
       pick(); e.preventDefault();
+      const rb=document.getElementById('qrun');
+      if(rb && auto.wp.length>1){ rb.disabled=false; flash('경로 설정됨 — [목적지 가기]를 누르세요'); }
     }
     else if(e.key==='Escape'){ res.innerHTML=''; box.blur(); }
     e.stopPropagation();          // 방향키가 주행 조작으로 새지 않게
@@ -2267,11 +2298,22 @@ else { hardReset(); }
   /* ★[출발]은 드롭다운 상태에 기대지 않는다(u_5003 실측).
      자동 타이핑에서는 oninput 이 안 뜨는 경우가 있어 hits 가 빈 채로 남는다.
      누를 때마다 입력값으로 새로 검색해서 첫 결과로 간다 — 사람이 쳐도 같은 동작. */
+  const runBtn = document.getElementById('qrun');
   if(go) go.onclick = ()=>{
     window.__goHit = (window.__goHit||0)+1;      // 버튼이 눌렸는지 화면으로 확인
     hits = search(box.value);
     if(!hits.length){ flash('검색 결과 없음: '+box.value); return; }
+    window.__autoStart = false;                  // 경로만 만든다(출발 안 함)
     sel = 0; pick();
+    if(auto.wp.length>1){
+      if(runBtn) runBtn.disabled = false;
+      flash('경로 설정됨 — [목적지 가기]를 누르세요');
+    }
+  };
+  /* ★'목적지 가기' = 실제 출발(u_5041). 경로가 있어야만 동작한다. */
+  if(runBtn) runBtn.onclick = ()=>{
+    if(!auto.wp.length){ flash('먼저 경로를 설정하세요'); return; }
+    auto.on = 1; sync(); flash('목적지로 출발');
   };
   /* 입력이 이벤트로 안 잡히는 환경(자동입력 등)을 위해 주기적으로도 확인한다 */
   let lastV = '';
