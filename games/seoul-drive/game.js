@@ -772,7 +772,13 @@ function planTo(x,y){
     for(const sN of cands){
       if(sN===undefined||sN<0) continue;
       const gp=gAstar(sN, tgt);
-      if(gp){ p=gp; NS=GNODES; break; }
+      if(!gp) continue;
+      /* ★경로는 '내 차가 있는 도로'에서 시작해야 한다(u_5038 오너 지시).
+         출발노드가 차에서 60m 넘게 떨어져 있으면 그건 옆 도로다 — 그런 경로는
+         차가 따라갈 수 없고, 따라가려 하면 길 아닌 데를 가로지른다. 버린다. */
+      const s0=GNODES[gp[0]];
+      if(Math.hypot(s0.x-me.x, s0.y-me.y) > 60*S) continue;
+      p=gp; NS=GNODES; break;
     }
   }
   if(!p){ p=astar(nearestNode(me.x,me.y),nearestNode(x,y)); NS=nodes; }
@@ -882,16 +888,28 @@ function driveAuto(dt){
      실측: 47km/h 로 25초를 달렸는데 진행률이 0.015 에서 1mm도 안 움직였다.
      오너: "실제 차량과 연동이 안 되는 것 같은데". 정확한 지적이었다.
      이제 '가까우면' 또는 '진행방향 기준으로 지나쳤으면' 넘긴다. */
+  /* ★'지나쳤다' 판정은 차 방향이 아니라 '경로 방향' 기준이어야 한다(u_5038 실사고).
+     차 방향으로 재면, 차가 경로와 반대로 달리는 순간 앞에 있는 점들이 전부
+     '등 뒤'로 판정돼 한꺼번에 먹힌다 — 실측: wp_idx 가 단번에 88까지 뛰고
+     차는 경로에서 40m 떨어진 채 방향차 172도(정반대)로 달렸다.
+     경로 방향으로 재면, 차가 어디를 보든 '경로를 따라 얼마나 갔나'만 센다.
+     한 프레임에 여러 개를 먹지 않도록 상한도 1로 둔다. */
   {
-    const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
+    /* 한 프레임에 여러 점을 지날 수 있다(13m/s × dt, 점 간격이 짧은 구간).
+       상한 5개까지만 소비해 폭주는 막는다. */
+    /* ★상한 1. 5로 올렸더니 한 프레임에 여러 점을 먹고 목표가 멀리 튀어
+       경로에서 40m·172도로 다시 벗어났다(실측: 사고 11회). 1이 맞다. */
     let guard=0;
-    while(auto.i < auto.wp.length-1 && guard++ < 50){
-      const w=auto.wp[auto.i];
-      const dx=w.x-me.x, dy=w.y-me.y;
-      const near = Math.hypot(dx,dy) < 8*S;
-      const passed = (dx*fx + dy*fy) < 0;        // 이미 등 뒤
-      if(near || passed) auto.i++;
-      else break;
+    while(auto.i < auto.wp.length-1 && guard++ < 1){
+      const i=auto.i;
+      const a=auto.wp[Math.max(0,i-1)], b=auto.wp[i];
+      let px=b.x-a.x, py=b.y-a.y;
+      const L=Math.hypot(px,py);
+      if(L>1){ px/=L; py/=L; } else { px=Math.cos(me.ang); py=Math.sin(me.ang); }
+      const dx=b.x-me.x, dy=b.y-me.y;
+      const near   = Math.hypot(dx,dy) < 8*S;
+      const passed = (dx*px + dy*py) < 0;        // 경로 진행방향 기준으로 지나침
+      if(near || passed) auto.i++; else break;
     }
   }
   const t=auto.wp[auto.i],d=Math.hypot(t.x-me.x,t.y-me.y);
@@ -1025,13 +1043,21 @@ function crash(label,heavy){
      도로로 복귀시킨 뒤 남은 경로를 계속 따라가게 한다. */
   respawnOnRoad();          // 도로로 복귀시켜 다음 시도를 가능하게
   if(auto.on && auto.wp.length){
-    // 복귀 지점에서 가장 가까운 웨이포인트로 인덱스를 맞춘다(뒤로 돌아가지 않게)
+    /* ★복귀 시 재조준은 '가까운 앞쪽 몇 점'으로 제한한다(u_5038 실사고).
+       예전엔 남은 경로 전체에서 최근접 점을 찾았다. 경로는 되돌아오는 구간이
+       있어서(코엑스 경로는 출발지 근처를 다시 지난다), 한참 뒤쪽 점이
+       '가장 가깝다'고 잡힌다. 사고 한 번에 인덱스가 88까지 순간이동하고,
+       그 점은 반대 방향이라 차가 경로에서 40m·172도 벗어난 채 굳는다 —
+       실측에서 매번 wp_idx=88, 방향차 172도로 고정됐다.
+       앞으로 20점 안에서만, 그리고 30m 안에 있을 때만 재조준한다. */
     let bi=auto.i, bd=1e18;
-    for(let i=auto.i;i<auto.wp.length;i++){
+    const END=Math.min(auto.wp.length, auto.i+20);
+    for(let i=auto.i;i<END;i++){
       const d=(auto.wp[i].x-me.x)**2+(auto.wp[i].y-me.y)**2;
       if(d<bd){bd=d;bi=i}
     }
-    auto.i=bi; sync();
+    if(bd < (30*S)*(30*S)) auto.i=bi;
+    sync();
   }
   sync();
 }
@@ -1507,6 +1533,25 @@ function draw(){
           }
         }
         put(6, n?Math.round(ok/n*255):0, Math.min(255,n), first);
+        /* ★블록7 = 차가 경로를 실제로 따라가고 있나(u_5038 진단).
+           R = 차에서 현재 경로선까지 거리(0~40m)
+           G = 경로 진행방향과 차 진행방향의 차이(0~180도)
+           B = auto.i 를 255 로 정규화(경로 소비 진척) */
+        {
+          let dist=40, angd=180;
+          if(auto.wp && auto.wp.length>1){
+            const i=Math.min(auto.i, auto.wp.length-1);
+            const a=auto.wp[Math.max(0,i-1)], b=auto.wp[i];
+            const vx=b.x-a.x, vy=b.y-a.y, L2=vx*vx+vy*vy;
+            if(L2>1){
+              const u=Math.max(0,Math.min(1,((me.x-a.x)*vx+(me.y-a.y)*vy)/L2));
+              dist=Math.min(40, Math.hypot(a.x+vx*u-me.x, a.y+vy*u-me.y)/S);
+              let dd=((Math.atan2(vy,vx)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+              angd=Math.min(180, Math.abs(dd)*180/Math.PI);
+            }
+          }
+          put(7, enc(dist/40), enc(angd/180), Math.min(255,auto.i));
+        }
       }
     }
   }
