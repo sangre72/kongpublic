@@ -1533,11 +1533,13 @@ function step(dt){
        경로 주행 중이면 경로 위 안전한 지점으로 되돌려 다시 출발시킨다. */
     bldStuck=(bldStuck||0)+dt;
     if(bldStuck>1.5 && auto.on && auto.wp.length>1){
-      const t=auto.wp[Math.min(auto.i, auto.wp.length-1)];
-      const p=auto.wp[Math.max(0,auto.i-1)];
+      const j=Math.min(auto.wp.length-1, auto.i+3);   // 막힌 점을 건너뛴다
+      const t=auto.wp[j], p=auto.wp[Math.max(0,j-1)];
       me.x=t.x; me.y=t.y;
       me.ang=Math.atan2(t.y-p.y, t.x-p.x);
-      me.v=0; me.cool=1.0; bldStuck=0;
+      me.v=0; me.cool=1.2; bldStuck=0;
+      auto.i=j;
+      if(auto.cum && j<auto.cum.length){ auto.s=auto.cum[j]; auto.k=Math.max(1,j); }
       flash('건물 끼임 복구');
     }
   } else bldStuck=0;
@@ -1576,10 +1578,17 @@ function step(dt){
      원인이 안 보인다(세 번 헛짚은 이유).
      규칙을 푸는 게 아니라, 갇히면 합법인 경로 위로 되돌려 다시 출발시킨다. */
   if(blockT>2 && auto.on && auto.wp.length>1){
-    const t=auto.wp[Math.min(auto.i,auto.wp.length-1)];
-    const p=auto.wp[Math.max(0,auto.i-1)];
+    /* ★막힌 그 점이 아니라 '몇 점 앞'으로 보낸다(u_5056).
+       같은 점으로 되돌리면 도착하자마자 같은 구속에 다시 걸려 무한반복이다 —
+       실측: wp45 는 통과했는데 wp64 에서 같은 v=0.2 증상이 재현됐다.
+       구속을 못 넘는 지점은 건너뛰고 그 다음 합법 지점부터 이어간다. */
+    const j=Math.min(auto.wp.length-1, auto.i+3);
+    const t=auto.wp[j];
+    const p=auto.wp[Math.max(0,j-1)];
     me.x=t.x; me.y=t.y; me.ang=Math.atan2(t.y-p.y,t.x-p.x);
-    me.v=0; me.offroad=0; me.cool=1.0; blockT=0;
+    me.v=0; me.offroad=0; me.cool=1.2; blockT=0;
+    auto.i=j;
+    if(auto.cum && j<auto.cum.length){ auto.s=auto.cum[j]; auto.k=Math.max(1,j); }
     flash('경로 복귀');
   }
   const r=onRoad(me.x,me.y);
