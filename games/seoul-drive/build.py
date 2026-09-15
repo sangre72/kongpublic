@@ -235,7 +235,9 @@ if '--collect-recover' in sys.argv:
         T.laneF=undefined; T.laneSet=false;
         window.__rec.st='OFF'; window.__rec.n++;
       }
-    }, 14000);
+    }, 4500);   /* ★14초 -> 4.5초(u_5158). 이탈 유발이 너무 드물어 복구 장면이
+                   240초에 7건(2%)밖에 안 모였다. 교사가 1~2초면 복귀하므로
+                   짧게 반복해야 '벗어남 -> 되돌아옴' 쌍이 충분히 쌓인다. */
   }
   setTimeout(go, 4000);
 })();
