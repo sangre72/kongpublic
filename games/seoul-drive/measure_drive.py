@@ -32,9 +32,20 @@ _out = [v for k, v in _ck.items() if k.endswith('.weight')][-1].shape[0]
 net = DriveNet(out=_out).to(dev); net.load_state_dict(_ck); net.eval()
 # ★rst 카운터로 소프트리셋 — reset:1 은 auto.wp 를 지워버려 경로가 사라지고
 # 차가 parked 로 남는다(__parked 는 auto.on 일 때만 풀린다). dagger.py 와 같은 방식.
-_rst=int(time.time())
-post({'on':1,'force':1,'rst':_rst}); time.sleep(1)
-post({'on':1,'force':1,'rst':_rst+1}); time.sleep(4)
+# ★u_5171: 소프트리셋만으로는 부족하다. 실측 3건 —
+#   (a) prog 가 1.0(완주)에 고착되면 rst 로 안 풀린다(최고지점 1.29억m 오보고)
+#   (b) 새로고침하면 풀리지만 wpLen=0 이 되어 경로가 사라진다
+#   (c) 경로가 없으면 차가 달려도 진행률이 안 오른다(4분간 prog 변화 0)
+#   해법: ?go=1 로 새로고침한다. game.js 가 강남역→시청역 경로를 잡고
+#   자동 출발까지 한다(u_5126, OS 클릭 의존을 없애려고 만든 플래그).
+import subprocess
+_here = __file__.rsplit('/', 1)[0]
+subprocess.run(['bash', _here + '/reload.sh',
+                'http://localhost:8901/index.html?go=1'],
+               capture_output=True, timeout=90)
+time.sleep(6)
+post({'on': 1, 'force': 1})
+time.sleep(2)
 sts=[];rows=[];p0=None;pmax=0
 # ★u_5171: pmax-p0 는 리셋이 늦게 붙어 첫 샘플이 이미 높으면 0 이 나온다
 #   (v14 실측: 속도 3.4 인데 이동 0m). 구간별 증가분을 누적해 실제 주행거리를 잰다.
