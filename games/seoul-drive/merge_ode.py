@@ -30,7 +30,13 @@ def main(out):
     for d in sorted(glob.glob(f'{BASE}/data/ode_*')):
         p = load(d)
         if p and len(p[1]) > 0:
-            parts.append((os.path.basename(d), p, 3))
+            name = os.path.basename(d)
+            # ★결손이 심한 구간일수록 더 많이 반복한다(u_5158 실측).
+            #   3배 균일로는 좌:우 = 1:17.6 에 머물렀다(원래 1:94).
+            #   좌회전·이탈복구는 오드가 못 하는 바로 그 동작이라 가중치를 더 준다.
+            rep = {'ode_left': 12, 'ode_recover': 12,
+                   'ode_overtake': 8, 'ode_lanechg': 8, 'ode_stopgo': 6}.get(name, 3)
+            parts.append((name, p, rep))
 
     if not parts:
         print('no data'); return
