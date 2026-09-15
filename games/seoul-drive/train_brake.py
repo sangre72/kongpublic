@@ -63,13 +63,14 @@ def main(dirs, out, epochs=30):
     best = 1e9
 
     def compute(xb, yb):
-        o = net(xb)
-        # 조향: 그대로 회귀
-        l_st = mse(o[:, 0], yb[:, 0]).mean()
+        # ★raw 로짓으로 받는다. 추론의 tanh/sigmoid 와 학습 손실이 어긋나면
+        #   학습은 로짓을 올리는데 활성화가 반대로 눌러버린다(실사고: 제동 -0.846).
+        o = net(xb, raw=True)
+        l_st = mse(torch.tanh(o[:, 0]), yb[:, 0]).mean()
         # 스로틀: 제동 프레임에서 5배 — 제동만 밟고 스로틀을 안 떼면 소용없다
         wt = torch.where(yb[:, 2] > 0.5, 5.0, 1.0)
-        l_th = (mse(o[:, 1], yb[:, 1]) * wt).mean()
-        # 제동: 이진 결정으로 학습
+        l_th = (mse(torch.sigmoid(o[:, 1]), yb[:, 1]) * wt).mean()
+        # 제동: 이진 결정으로 학습(로짓 그대로 BCE)
         l_br = bce(o[:, 2], (yb[:, 2] > 0.5).float())
         return l_st + l_th + l_br
 
@@ -98,8 +99,7 @@ def main(dirs, out, epochs=30):
     with torch.no_grad():
         for i in range(0, len(X), 256):
             xb = torch.from_numpy(np.ascontiguousarray(X[i:i+256])).float().div_(255.).to(DEV)
-            o = net(xb); o[:, 2] = torch.sigmoid(o[:, 2])
-            P.append(o.cpu().numpy())
+            P.append(net(xb).cpu().numpy())      # 추론 경로 그대로
     P = np.concatenate(P)
     m = brake
     print(json.dumps({

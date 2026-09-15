@@ -48,8 +48,17 @@ class DriveNet(nn.Module):
                                nn.Dropout(0.1), nn.Linear(256, 96), nn.ReLU(),
                                nn.Linear(96, out))
 
-    def forward(self, x):
-        return torch.tanh(self.h(self.f(x)))
+    def forward(self, x, raw=False):
+        """raw=True 면 활성화 전 로짓을 준다(학습에서 제동 채널에 BCE 를 걸 때 필요).
+
+        ★u_5170 실사고: 제동을 BCEWithLogitsLoss 로 학습해 놓고 추론에서 tanh 를
+          태웠다. 학습은 로짓을 올리는데 tanh 가 음수로 눌러버려서, 실주행 제동이
+          -0.846 이 나왔다(제동이 아니라 가속 쪽). 학습·추론 경로를 맞춘다.
+          steer 는 -1~1 이라 tanh, thr/brake 는 0~1 이라 sigmoid 가 맞다."""
+        o = self.h(self.f(x))
+        if raw:
+            return o
+        return torch.cat([torch.tanh(o[:, :1]), torch.sigmoid(o[:, 1:])], dim=1)
 
 def preprocess(canvas_rgb, size=IMG, device=None, bgr=True):
     """캔버스(H,W,3 uint8) → (3,size,size) float32 0~1 (device 텐서).
