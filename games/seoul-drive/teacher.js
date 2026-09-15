@@ -89,11 +89,19 @@
         if((T.ot.t > 1.2 && g > 30) || T.ot.t > 9.0){ T.ot.on = 0; }   // 복귀
         else want = T.ot.lane;
       }else if(lead && lead.gap < 22 && lead.v < me.v*0.85){
-        const tgt = Math.max(0, want - 1);            // 왼쪽 차로(추월차로)
-        if(tgt !== want && laneFree(tgt, dir, sg, nl)){
-          T.ot = {on:1, from:want, lane:tgt, t:0};
-          window.__otN = (window.__otN||0) + 1;    // 추월 횟수 계측(u_5123)
-          want = tgt;
+        /* ★왼쪽이 막혔으면 오른쪽으로 비켜간다(u_5151 오너 지시).
+           "왼쪽 차선이 비었을경우 추월해야하고, 왼쪽이 막혀있고 오른쪽이 비었다면
+            오른쪽차선으로 변경해서 직진해야지"
+           기존엔 왼쪽만 보고, 막히면 그냥 뒤에 서 있었다 — 그게 지금 정체의 원인이다.
+           우선순위: 왼쪽(추월차로가 원칙) → 안 되면 오른쪽(진로 변경). */
+        const cands = [want - 1, want + 1];          // 왼쪽 먼저, 그 다음 오른쪽
+        for(const c of cands){
+          if(c < 0 || c > nl-1 || c === want) continue;
+          if(!laneFree(c, dir, sg, nl)) continue;
+          T.ot = {on:1, from:want, lane:c, t:0, side:(c<want?'L':'R')};
+          window.__otN = (window.__otN||0) + 1;      // 추월/진로변경 횟수 계측
+          want = c;
+          break;
         }
       }
     }
