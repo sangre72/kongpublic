@@ -17,7 +17,10 @@ from capture import find_window as _fw, grab_canvas as _gc, start_background as 
 import Quartz as CG
 from PIL import Image
 
-DEV = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+# ★a_5124 T3: 조용한 CPU 폴백 금지(.claude/rules/gpu-mandatory.md).
+#   예전 코드는 mps 가 없으면 말없이 cpu 로 떨어져, 느린 학습을 '정상'으로 착각하게 했다.
+from gpu_guard import require_gpu, assert_on_gpu
+DEV = require_gpu()
 
 
 KEY = {'up':126,'down':125,'left':123,'right':124}

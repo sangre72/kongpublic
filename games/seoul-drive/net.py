@@ -15,6 +15,9 @@ WHY 256:
 import torch, torch.nn as nn
 
 IMG = 256          # 입력 한 변
+# ★a_5112 P2: 상단 UI 패널(#nav)이 차지하는 비율. 캔버스 763px 기준 180px = 0.236.
+#   이 값만큼 위에서 잘라내고 256 으로 리사이즈한다(학습·추론 공통 경로).
+UI_CROP_TOP = 0.236
 
 class DriveNet(nn.Module):
     """out=3 이면 steer/thr/brake 만. out=5 면 뒤 2개가 주행가능공간(좌/우 여유).
@@ -62,6 +65,13 @@ def preprocess(canvas_rgb, size=IMG, device=None, bgr=True):
     if c.shape[0] > size * 3:          # 레티나 등 큰 입력이면 정수배 고속경로로 먼저 축소
         import cv2
         c = cv2.resize(c, (c.shape[1] // 2, c.shape[0] // 2), interpolation=cv2.INTER_AREA)
+    # ★a_5112 P2: 상단 UI 패널(#nav)을 입력에서 잘라낸다.
+    #   패널을 넓힌 뒤(u_5096) 캔버스 위 ~24%를 덮었고, 그 결과 같은 모델·같은 코드인데
+    #   입력만 바뀌어 steer corr 가 학습프레임 0.992 → 라이브 0.011 로 무너졌다.
+    #   실측 행밝기: 0~180행 0.87~0.97(패널) / 180행 이후 ~0.75(게임화면).
+    #   학습·추론 '양쪽' 경로가 이 함수를 쓰므로 여기서 자르면 둘이 항상 일치하고,
+    #   앞으로 UI 를 어떻게 고쳐도 모델 입력은 영향을 받지 않는다.
+    c = c[int(round(c.shape[0] * UI_CROP_TOP)):, :, :]
     dev = device if device is not None else (
         'mps' if torch.backends.mps.is_available() else 'cpu')
     # ★capture.grab_canvas() 는 BGR view 를 준다(팬시 인덱싱 복사를 피하려고).

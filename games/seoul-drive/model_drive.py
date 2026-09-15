@@ -90,11 +90,11 @@ def main():
             st, th, br = float(o[0]), float(o[1]), float(o[2])
             S.append(st); T.append(th); B.append(br)
             if not a.dry:
-                if post({'on': 1, 'steer': st, 'thr': th, 'brake': br}):
+                if post({'on': 1, 'force': 1, 'steer': st, 'thr': th, 'brake': br}):
                     posted += 1
     finally:
         if not a.dry:
-            post({'on': 0, 'steer': 0, 'thr': 0, 'brake': 0})
+            post({'on': 0, 'steer': 0, 'thr': 0, 'brake': 0})   # 종료 시 모델 해제
 
     if not S:
         print(json.dumps({'err': 'no frames'})); return
