@@ -1926,6 +1926,15 @@ function hardReset(){
 }
 function epTick(dt){
   if(!LEARN||EP.state!=='run')return;
+  /* ★사용자가 목적지를 찍고 주행 중이면 학습 에피소드는 관여하지 않는다(u_5035).
+     이 빌드는 teacher=ON(=LEARN)이라 내비게이션 중에도 에피소드가 같이 돌았다.
+     에피소드는 자기 목표(EP.goal)를 갖고 있어서, 45초간 그쪽으로 못 가까워지면
+     실패 처리하고 hardReset() 을 부른다 — hardReset 은 auto.wp 를 비우고 차를
+     에피소드 출발지로 순간이동시킨다.
+     그래서 경로가 69점 멀쩡히 있는데도 차는 경로에서 40m·172도 떨어진 채
+     굳어 있었다(라벨 블록이 auto.wp.length<=1 분기를 찍은 이유).
+     내비 주행이 우선이다. 에피소드는 멈춰 둔다. */
+  if(auto.on && auto.wp && auto.wp.length>1){ EP.stuck=0; EP.t=0; return; }
   EP.t+=dt;
   if(EP.goal){
     const d=Math.hypot(EP.goal.x-me.x,EP.goal.y-me.y);
@@ -2161,7 +2170,15 @@ else { hardReset(); }
     const r = hits[sel]; if(!r) return;
     /* 건물 중심으로 바로 planTo 하면 '도로가 아닌 곳'을 목적지로 잡는다.
        가장 가까운 도로 위 지점으로 옮긴다. */
-    const n = nearestSeg(r.x*S, r.y*S);
+    /* ★목적지 스냅은 전역 그래프 기준이어야 한다(u_5035 실사고).
+       nearestSeg 는 적재된 청크(차 주변 3x3)만 본다. 코엑스는 3.8km 밖이라
+       그 도로가 안 올라와 있고, 그러면 목적지가 '차 근처 도로'로 스냅된다.
+       결과: 경로가 차 주변을 한 바퀴 도는 짧은 고리가 되고, 차는 경로에서
+       40m·172도 떨어진 채 굳는다(실측 wp_idx=88 고정).
+       gNearestOnRoad 는 전역 도로 간선을 보므로 먼 목적지도 제대로 붙는다. */
+    try{ buildGlobalGraph(); }catch(e){}     // 스냅 전에 전역 그래프가 있어야 한다
+    const n = (typeof gNearestOnRoad==='function' ? gNearestOnRoad(r.x*S, r.y*S) : null)
+              || nearestSeg(r.x*S, r.y*S);
     const gx = n ? n.px : r.x*S, gy = n ? n.py : r.y*S;
     planTo(gx, gy);
     flash(r.n + ' 로 안내 시작');
