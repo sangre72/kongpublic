@@ -13,6 +13,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 TTY_FILE="$REPO_ROOT/logs/.orch_tty_orch"
 
+# ★--model <m>: 지시 주입 전에 오케 세션 모델을 /model <m> 로 먼저 바꾼다(u_5019).
+#   WHY: 검증/보강 버튼이 .env 를 바꿔도 그건 '워커 spawn' 용이라 오케 세션 자신은
+#   그대로였다. 오너 지적 "오딧한 오케도 페이블로 변경이 안 되어 있네".
+#   /model 은 세션 명령이므로 슬래시 메시지로 따로 주입하고, 적용 delay 후 본 지시를 넣는다.
+WAKE_MODEL=""
+if [ "${1:-}" = "--model" ]; then
+  WAKE_MODEL="${2:-}"
+  shift 2
+fi
+
 BASE_MSG="${1:-new u_ received, check now.}"
 # ★K7 리마인더 자동첨부(u_2802/2803/3xxx): 오케 깨울 때 압축영문+기호 사고 + 워커통신(a_)도 EN+기호 명시.
 # u_3444: symbolic-opcode form(수식기호사고). think∈{sym,formula}; ¬KR-think; ¬prose. tg=KR.
@@ -22,6 +32,14 @@ if [[ "$BASE_MSG" == /* ]]; then
   MSG="$BASE_MSG"
 else
   MSG="${BASE_MSG} [think=∑sym/formula ¬prose ¬KR; a_,wkr-msg=sym; out=min; tg-reply=KR; job∈registry→exec(no-delib); wrap-up=short ¬recap(shorter=faster-turn)]"
+fi
+
+# ★모델 전환은 '두 번 깨우기'로 한다(u_5019 오너 지적).
+#   /model 은 세션 명령이라 본 지시와 같은 줄에 섞으면 안 먹는다.
+#   1) /model <m> 만 넣고  2) 적용될 시간을 준 뒤  3) 본 지시를 넣는다.
+if [ -n "$WAKE_MODEL" ]; then
+  bash "$SCRIPT_DIR/$(basename "$0")" "/model $WAKE_MODEL" >/dev/null 2>&1 || true
+  sleep 3
 fi
 
 TARGET_TTY=""

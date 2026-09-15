@@ -61,7 +61,7 @@ _orch_alert_sent_at: float = 0.0
 _ORCH_WAKE_SELF_SCRIPT = _REPO_ROOT / "telegram_bot" / "orchestrator" / "scripts" / "orch_wake_self.sh"
 
 
-def _wake_orch_self(seq: int, text: str = "") -> None:
+def _wake_orch_self(seq: int, text: str = "", model: str = "") -> None:
     """u_ 저장 직후(로컬 수신 시점) 오케 세션을 즉시 깨운다. 실패해도 무해(M1 폴링이 fallback).
 
     ★u_3467: '요청서 왔다' 알림이 아니라 실제 요청내용을 wake에 통째 실어보냄 →
@@ -75,12 +75,13 @@ def _wake_orch_self(seq: int, text: str = "") -> None:
     if len(safe) > 500:
         safe = safe[:500] + "…"
     msg = f"u_{seq:02d}: {safe}" if safe else f"new u_{seq:02d} received, check now."
-    subprocess.run(
-        ["bash", str(_ORCH_WAKE_SELF_SCRIPT), msg],
-        capture_output=True,
-        timeout=5,
-        check=False,
-    )
+    # ★model 이 주어지면 '두 번 깨우기' — 먼저 /model, 그 다음 지시(u_5019).
+    #   버튼이 .env 를 바꾸는 건 워커 spawn 용이라 오케 세션 자신은 안 바뀐다.
+    cmd = ["bash", str(_ORCH_WAKE_SELF_SCRIPT)]
+    if model:
+        cmd += ["--model", model]
+    cmd.append(msg)
+    subprocess.run(cmd, capture_output=True, timeout=15, check=False)
 
 # ---------- 응답지연 감지 (a_224, 2026-08-07) ----------
 # check_orch_alive 는 '세션 죽음'(생존신호 끊김)을 잡지만, 20분 loop 틱마다 신호가 갱신돼
@@ -673,9 +674,12 @@ def _handle_audit_callback(tg: TelegramIO, cq: dict) -> None:
         pass
     try:
         seq = ps.next_seq()
-        ps.write_user_request(chat_id, username or "audit-button",
-                              f"[모델={model}] {body}", seq)
+        req = f"[모델={model}] {body}"
+        ps.write_user_request(chat_id, username or "audit-button", req, seq)
         print(f"[콜백→u_{seq:02d}] {title} / {note}")
+        # ★버튼이 만든 u_ 도 즉시 깨워야 한다(u_5018 실사고).
+        #   안 깨우면 M1 폴링(최대 60s)까지 아무 일도 안 일어나 '버튼이 안 먹는다'로 보인다.
+        _wake_orch_self(seq, req, model=model)   # 오케 세션도 같은 모델로(u_5019)
     except Exception as e:  # noqa: BLE001
         print(f"[경고] audit u_ 기록 실패: {e}")
 
@@ -753,6 +757,7 @@ def _handle_main_menu_callback(tg: TelegramIO, cq: dict) -> None:
             seq = ps.next_seq()
             ps.write_user_request(chat_id, username or "menu-button", label, seq)
             print(f"[콜백→u_{seq:02d}] 메인메뉴 {action}({label})")
+            _wake_orch_self(seq, label)          # 즉시 깨움(u_5018)
         except Exception as e:  # noqa: BLE001
             print(f"[경고] 메인메뉴 u_ 기록 실패: {e}")
 
@@ -808,6 +813,7 @@ def _handle_job_callback(tg: TelegramIO, cq: dict) -> None:
         seq = ps.next_seq()
         req = f"[잡리스트] {label} 실행 요청 (job_id={job_id})"
         ps.write_user_request(chat_id, username or "job-button", req, seq)
+        _wake_orch_self(seq, req)                # 즉시 깨움(u_5018)
         print(f"[콜백→u_{seq:02d}] 잡시작 {job_id}({label})")
     except Exception as e:  # noqa: BLE001
         print(f"[경고] 잡시작 u_ 기록 실패: {e}")
