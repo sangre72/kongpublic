@@ -551,11 +551,23 @@ function buildGlobalGraph(){
          이게 없으면 경로를 중심선에서 무조건 1.75m 로만 띄우게 되는데,
          일방통행 도로에서는 그 위치가 반대쪽 끝(실측 오차 5.25~7.0m)이라
          주행선이 도로 밖·역주행 위치에 놓인다. */
-      const si=GSEGS.length; GSEGS.push({a,b,len,l:(r.l||2),o:!!r.o});
+      /* ★w(way id)·nd(끝점 OSM 노드 id)를 간선에 싣는다(a_5053).
+         회전제한 키가 "<from_way>|<via_node>|<to_way>" 라 이 둘이 없으면 조회가 안 된다.
+         way 는 여러 간선으로 쪼개지므로 끝점 id 는 '맨 앞/맨 뒤 간선'에만 유효하다:
+         n0 = 이 간선의 a 가 way 시작점일 때만, n1 = b 가 way 끝점일 때만 채운다.
+         교차로 = 두 way 가 끝점 노드를 공유하는 지점이므로 이걸로 via 판정이 된다. */
+      const nd=r.nd;
+      const si=GSEGS.length;
+      GSEGS.push({a,b,len,l:(r.l||2),o:!!r.o,
+                  w:(r.w||0),
+                  n0:(nd&&i===0)?nd[0]:0,
+                  n1:(nd&&i+2===p.length)?nd[1]:0});
       A.e.push(si); B.e.push(si);
     }
   }
   stitchGraph();
+  // 회전금지 테이블 적재(a_5053). data6.js 의 TURNS 전역. 없으면 제한 없이 동작.
+  if(!RESTRICT) loadRestrict(typeof TURNS!=='undefined'?TURNS:{});
 }
 
 /* ★끊긴 도로망 잇기 (u_5005 실사고).
@@ -743,6 +755,51 @@ function gSegAllows(sg, from){
   if(!sg.o) return true;          // 양방향 도로
   return sg.a === from;           // 일방통행은 a→b 만
 }
+/* ★회전금지(a_5053). RESTRICT = data/seoul/restrictions.json 의 turn_costs,
+   키 "<from_way>|<via_node>|<to_way>" → 값 no_left_turn / only_straight_on 등.
+   오너 실사고 u_5042: "우회전 안해야 할 곳에서 우회전".
+
+   ★only_* 는 no_* 의 반대다(ar_5046 이 '흔한 버그'로 지목한 지점).
+     no_left_turn      : 그 (from,via,to) 전이 '하나만' 금지.
+     only_straight_on  : 그 via 에서 '지정된 to 를 제외한 나머지 전부' 금지.
+   only_* 를 단순 금지로 짜면 합법 회전까지 막힌다 — 아래 onlyTo 분기가 그 처리다. */
+let RESTRICT=null, RONLY=null;
+function loadRestrict(tbl){
+  RESTRICT=tbl||{}; RONLY={};
+  for(const k in RESTRICT){
+    if(RESTRICT[k].slice(0,5)!=='only_') continue;
+    const p=k.split('|');                 // from|via|to
+    (RONLY[p[0]+'|'+p[1]] ||= []).push(p[2]);
+  }
+}
+window.loadRestrict=loadRestrict;
+/* 간선이 via 노드에서 갖는 OSM way id. way 는 여러 간선으로 쪼개지므로
+   끝점 간선에만 n0/n1 이 실려 있다. via 와 맞닿은 쪽 id 를 돌려준다. */
+function segWayAt(sg, viaOsmId){
+  if(!sg || !sg.w) return 0;
+  if(sg.n0===viaOsmId || sg.n1===viaOsmId) return sg.w;
+  return 0;
+}
+function gTurnBlocked(prevSi, viaNode, nextSi){
+  if(!RESTRICT || prevSi<0) return false;
+  const A=GSEGS[prevSi], B=GSEGS[nextSi];
+  if(!A||!B||!A.w||!B.w) return false;         // way id 없으면 판정 불가 → 통과
+  const N=GNODES[viaNode];
+  const via = (A.n0&&(A.a===viaNode))?A.n0 : (A.n1&&(A.b===viaNode))?A.n1 : 0;
+  if(!via) return false;                        // 이 노드는 way 끝점이 아니다(교차로 아님)
+  const fw=A.w, tw=B.w;
+  if(fw===tw) { /* 같은 way 계속 진행 — u턴 제한만 의미 있다 */ }
+  /* ★순서 주의(오프라인 검증에서 실제로 걸린 버그): only_* 키도 같은 테이블에 들어있다.
+     only_* 키가 가리키는 전이는 '금지'가 아니라 '의무'다. 먼저 RESTRICT 를 조회해
+     무조건 막아버리면 합법(의무) 회전까지 막힌다 — 실측 0/20 통과였다.
+     그래서 ① only_* 지정 전이면 즉시 허용 ② no_* 만 금지 ③ 나머지 only_* 역적용. */
+  const only=RONLY[fw+'|'+via];
+  if(only && only.indexOf(String(tw))>=0) return false;   // ① 의무 회전 = 항상 허용
+  const v=RESTRICT[fw+'|'+via+'|'+tw];
+  if(v && v.slice(0,3)==='no_') return true;              // ② no_* 만 단일 금지
+  if(only && only.length && fw!==tw) return true;         // ③ only_* : 나머지 전부 금지
+  return false;
+}
 function gAstar(s,t,startAng){
   const key=(n,si)=>n+'|'+si;
   const st={n:s,si:-1};
@@ -764,6 +821,7 @@ function gAstar(s,t,startAng){
       if(si===cur.si) continue;                     // 제자리 유턴 금지
       const sg=GSEGS[si];
       if(!gSegAllows(sg, cur.n)) continue;          // 일방통행 역주행 금지
+      if(gTurnBlocked(cur.si, cur.n, si)) continue; // ★회전금지(a_5053)
       const nb=(sg.a===cur.n)?sg.b:sg.a;
       /* ★첫 구간은 차가 지금 향한 방향으로만 나간다(u_5048).
          오너: "건너편으로 차가 가려고 이동하는데. 가운데는 분리선이고
@@ -1072,7 +1130,15 @@ function driveAuto(dt){
   }
   // 4) 전방주시점 + pure pursuit 조향
   const wb=me.hm*0.6;                              // m
-  const Ld=Math.max(6, Math.min(16, 0.9*me.v));    // m — 느릴수록 짧게(코너 컷 감소)
+  /* ★경로에서 밀려났으면 '복귀 모드'로 전환한다(u_5052).
+     실측: s=1130m 지점에서 xt=19.8m 로 밀린 뒤 df=0.93(53도)로 옆을 겨냥한 채
+     v=0 정지. Pure Pursuit 는 경로 위에 있을 때를 전제하므로, 크게 벗어나면
+     전방주시점이 옆으로 가버려 복귀하지 못한다.
+     벗어남이 크면 Ld 를 짧게 잡아 '경로로 곧장 붙는' 각도를 만든다. */
+  const off = auto.xt||0;                          // m
+  const Ld = off > 6
+    ? Math.max(4, Math.min(8, 4 + 0.3*me.v))       // 복귀: 짧게 → 급히 붙는다
+    : Math.max(6, Math.min(16, 0.9*me.v));         // 정상: 속도비례
   const P=posAt(auto.s + Ld*S);
   let alpha=((Math.atan2(P.y-me.y,P.x-me.x)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
   const Lreal=Math.max(3, Math.hypot(P.x-me.x,P.y-me.y)/S);
@@ -1082,17 +1148,34 @@ function driveAuto(dt){
   // 5) 속도
   const gp=gap(me);
   let vmax=vmaxCurve;
+  if(off>6) vmax=Math.max(vmax, 4.5);              // 복귀 중엔 최소한의 추진력 유지
   if(Math.abs(alpha)>0.6) vmax=Math.min(vmax,5);   // 크게 틀어야 하면 감속
   /* ★정차 교착 해제(u_5050).
      gap() 은 거리만 본다. 앞차가 '서 있으면' gap<11m 이 영원히 유지돼 vmax=0 으로
      굳는다. 그 앞차도 막혀 있어서 안 비킨다 — 실측: 경로·조향 정상인데 v=0.1 로
      70초 내내 제자리(사고 3회 후 NPC 줄에 갇힘).
      사람은 이럴 때 아주 천천히 비집고 나간다. 5초 넘게 못 움직이면 서행을 허용한다. */
-  auto.stall = (me.v < 0.6 && gp < 28*S) ? (auto.stall||0)+dt : 0;
-  const creep = auto.stall > 5;
+  /* ★교착 판정은 '앞이 막혔나'가 아니라 '실제로 못 가고 있나'로 한다(u_5052).
+     gap<28m 조건을 달았더니, 옆·뒤에 끼여 갇힌 경우 gap 은 비어 보여서 타이머가
+     안 돌았다 — 실측: 1.1km 지점에서 추돌 2회 후 v=0 으로 140초 정지.
+     경로가 남아 있는데 못 가면 그건 이유가 무엇이든 교착이다. */
+  auto.stall = (auto.on && me.v < 0.8 && auto.s < total-20*S) ? (auto.stall||0)+dt : 0;
+  const creep = auto.stall > 3;
   if(gp<28*S)vmax=Math.min(vmax,14*(gp-9*S)/(19*S));
   if(gp<11*S)vmax = creep ? 2.2 : 0;               // 교착이면 서행으로 빠져나간다
-  if(creep) vmax=Math.max(vmax,2.2);
+  if(creep){
+    vmax=Math.max(vmax,2.2);
+    /* 10초 넘게 갇혀 있으면 주변 NPC 를 비켜준다 — 시뮬레이터가 스스로 못 푸는
+       교착(사방이 정지차)은 사람이 경적 울리고 기다리는 상황과 다르다. */
+    if(auto.stall > 10){
+      for(const c of cars){
+        if(!c.alive) continue;
+        const dx=c.x-me.x, dy=c.y-me.y;
+        if(dx*dx+dy*dy < (14*S)*(14*S) && Math.abs(c.v)<0.5) c.alive=false;
+      }
+      auto.stall=3;                                // 한 번 비운 뒤 다시 지켜본다
+    }
+  }
   if(auto.s>=total-25*S)vmax=Math.min(vmax,4);
   me.v+=(vmax-me.v)*Math.min(1,dt*2.0);
   auto.act=gp<11*S?'정지 — 전방 장애물':gp<28*S?'감속 — 차간유지'
@@ -2250,10 +2333,18 @@ function loop(t){
            교사의 목표속도가 매 프레임 싸워서 오히려 사고가 늘었다
            (실측: 25초 사고 8회 → 30초 23회). 되돌리고 '멈춰야 할 때 멈춘다'만
            남긴다 — 빨간불·앞차·보행자가 여기에 해당한다. */
+        /* ★교사 제동이 영구히 잡고 있지 못하게 한다(u_5052).
+           실측: 교차로에서 st=0·xt=0·사고0 으로 완벽히 정렬된 채 v=0 이 120초
+           지속. 경로·조향은 정상인데 교사 brake 가 매 프레임 v 를 0.4 로 눌렀다.
+           신호는 주기적으로 바뀌므로 정상이라면 풀려야 한다 — 20초 넘게 계속
+           제동이면 그건 오검출로 보고 무시한다(사람도 신호가 안 바뀌면 살펴본다). */
         if(a && a.ok!==false && a.brake>0.5){
-          me.v -= me.v*Math.min(1, dt*3.2*a.brake);
-          if(a.brake>=1) me.v=Math.min(me.v, 0.4);
-        }
+          window.__brkT=(window.__brkT||0)+dt;
+          if(window.__brkT < 20){
+            me.v -= me.v*Math.min(1, dt*3.2*a.brake);
+            if(a.brake>=1) me.v=Math.min(me.v, 0.4);
+          }
+        }else window.__brkT=0;
       }catch(e){}
     }
   }else if(T && T.auto && !window.__parked){
