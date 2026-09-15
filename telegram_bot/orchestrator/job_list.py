@@ -90,7 +90,9 @@ STOP_BUTTON = "■ 중지"
 #   "지금 하던 작업이 목적대로 제대로 구현됐는지" 를 싸고 빠른 모델로 먼저 검증시키고,
 #   그 결과를 파일로 남긴 뒤, 강한 모델로 바꿔 그 파일대로 보강하게 하는 흐름이다.
 #   (u_5010 에서 내가 '주행학습/운세생성/전체점검/정리' 로 잘못 만들었던 것을 대체)
-AUDIT_FILE = "logs/audit_findings.md"
+# ★logs/ 는 .gitignore 에 걸려 있어 커밋이 안 된다(u_5015 실측).
+#   검증 결과는 남아야 하는 산출물이므로 추적되는 경로에 쓴다.
+AUDIT_FILE = "docs/audit_findings.md"
 
 AUDIT_BUTTON = "🔍 검증(fable)"
 APPLY_BUTTON = "🔧 보강 실행(opus)"
