@@ -890,6 +890,25 @@ function driveAuto(dt){
       if(me.v<.3){me.v=0;auto.on=0;flash('목적지 도착');sync()}return}
   }
   let df=((Math.atan2(t.y-me.y,t.x-me.x)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+  /* ★경로'선'을 따라간다 — 다음 점만 보고 조향하면 코너를 가로질러 인도로 올라간다.
+     실측 계산: 웨이포인트 간격 19m·코너 90°면 안쪽으로 9.5m 파고든다.
+     편도2차로 도로 반폭이 약 7m 이므로 그대로 인도 침범이다(화면 확인: road=N).
+     그래서 '이전 점→다음 점' 선분에 대한 횡오차(cross-track)를 같이 없앤다. */
+  const pv=auto.wp[Math.max(0,auto.i-1)];
+  let xt=0;
+  {
+    const vx=t.x-pv.x, vy=t.y-pv.y, L2=vx*vx+vy*vy;
+    if(L2>1){
+      const u=Math.max(0,Math.min(1,((me.x-pv.x)*vx+(me.y-pv.y)*vy)/L2));
+      const px=pv.x+vx*u, py=pv.y+vy*u;
+      // 부호 있는 횡오차: 경로 진행방향 기준 왼쪽(+)/오른쪽(-)
+      xt=((me.x-px)*(-vy)+(me.y-py)*vx)/Math.sqrt(L2);
+      const seg=((Math.atan2(vy,vx)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+      // 경로 방향 + 횡오차 보정(Stanley 식). 속도가 빠를수록 보정을 약하게.
+      df = seg + Math.atan2(-xt*1.6, Math.max(3*S, me.v*S));
+      df = ((df+Math.PI*3)%(Math.PI*2))-Math.PI;
+    }
+  }
   const gp=gap(me),curve=Math.min(1,Math.abs(df)/.8);
   let vmax=14*(1-.62*curve);                       // m/s (≈50km/h)
   if(gp<28*S)vmax=Math.min(vmax,14*(gp-9*S)/(19*S));
@@ -956,12 +975,30 @@ function crash(label,heavy){
     setTimeout(()=>{
       if(el)el.style.opacity=0;
       crashHold=0; crashLit=0;
-      hardReset();
+      /* ★목적지 안내 중이면 처음으로 되돌리지 않는다(u_5024 P2).
+         hardReset() 은 차를 출발지로 순간이동시키고 auto.wp 까지 비운다.
+         내비게이션 중에 그러면 사고 한 번에 경로가 사라진다 — 사람이 쓰는
+         내비는 그렇게 동작하지 않는다. 학습 에피소드일 때만 전체 리셋한다. */
+      if(auto.on && auto.wp.length){ respawnOnRoad(); me.v=0; }
+      else hardReset();
     }, 600);
   }
   flash('💥 '+label);
-  if(auto.on){auto.on=0;sync()}
+  /* ★사고가 나도 목적지는 유지한다(u_5024 P2).
+     예전엔 여기서 auto.on=0 으로 경로를 버렸다. 그러면 초반에 한 번만 부딪혀도
+     안내가 통째로 사라지고, 차는 길잡이 없이 표류한다 — 화면에서 wp=0·auto=0 으로
+     확인했다. 사람도 접촉사고가 났다고 목적지를 잊지는 않는다.
+     도로로 복귀시킨 뒤 남은 경로를 계속 따라가게 한다. */
   respawnOnRoad();          // 도로로 복귀시켜 다음 시도를 가능하게
+  if(auto.on && auto.wp.length){
+    // 복귀 지점에서 가장 가까운 웨이포인트로 인덱스를 맞춘다(뒤로 돌아가지 않게)
+    let bi=auto.i, bd=1e18;
+    for(let i=auto.i;i<auto.wp.length;i++){
+      const d=(auto.wp[i].x-me.x)**2+(auto.wp[i].y-me.y)**2;
+      if(d<bd){bd=d;bi=i}
+    }
+    auto.i=bi; sync();
+  }
   sync();
 }
 
