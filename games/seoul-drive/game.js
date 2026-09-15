@@ -1490,7 +1490,17 @@ function step(dt){
   const waiting = (!auto.on && auto.wp.length>1 && me.v<0.5)
               || (auto.stall > 5 && me.v < 3);        // 교착 탈출 서행 중(u_5050)
   for(const c of cars){if(!c.alive)continue;
-    if(obb(me,c)){ if(!waiting) crash(c.n+' 추돌',c.t==='truck'); }}
+    if(obb(me,c)){
+      /* ★내가 들이받은 것만 내 사고다(u_5061 F1-2).
+         정지해 있는데 뒤차가 와서 박는 건 내 과실이 아니다. 그런데 그것도
+         사고로 집계돼 '사고=실패' 판정이 부당하게 실패 처리됐다.
+         판정: 내 차가 상대보다 빠르고, 상대가 내 '앞'에 있을 때만 내 추돌. */
+      const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
+      const ahead = ((c.x-me.x)*fx + (c.y-me.y)*fy) > 0;
+      const iAmFaster = me.v > (c.v||0) + 0.5;
+      if(!waiting && ahead && iAmFaster) crash(c.n+' 추돌',c.t==='truck');
+      else if(!waiting){ me.v=Math.min(me.v, Math.max(0,(c.v||0))); }  // 밀리지만 사고 아님
+    }}
   for(const p of peds){
     if(obb(me,{x:p.x,y:p.y,ang:me.ang,w:1.4*S,h:1.4*S}))crash('보행자 사고',true)}
 }
