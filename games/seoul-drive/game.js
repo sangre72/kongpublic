@@ -585,7 +585,7 @@ function stitchGraph(){
     const k=gk(GNODES[i].x,GNODES[i].y);
     let a=g.get(k); if(!a){a=[];g.set(k,a);} a.push(i);
   }
-  let joined=0;
+  let joined=0, rejected=0;
   for(let c=0;c<nc;c++){
     if(c===main) continue;
     let bi=-1,bj=-1,bd=R*R;
@@ -601,13 +601,35 @@ function stitchGraph(){
       }
     }
     if(bi>=0){
-      const len=Math.hypot(GNODES[bj].x-GNODES[bi].x, GNODES[bj].y-GNODES[bi].y);
-      const si=GSEGS.length; GSEGS.push({a:bi,b:bj,len});
-      GNODES[bi].e.push(si); GNODES[bj].e.push(si);
-      joined++;
+      /* ★중간점이 실제 도로 위가 아니면 잇지 않는다(u_5024).
+         무조건 이으면 건물·강·철로를 가로지르는 '없는 길'이 생긴다.
+         실측(강남 3x3): 이렇게 만든 6개 간선의 중간점이 6/6 모두 도로 밖
+         (median 7.2m·max 12.3m) — 이것이 '길 없는 곳으로 간다'의 원인이었다. */
+      const mx=(GNODES[bi].x+GNODES[bj].x)/2, my=(GNODES[bi].y+GNODES[bj].y)/2;
+      const on=onRoad(mx,my);
+      if(on.ok){
+        const len=Math.hypot(GNODES[bj].x-GNODES[bi].x, GNODES[bj].y-GNODES[bi].y);
+        const si=GSEGS.length; GSEGS.push({a:bi,b:bj,len,v:1});   /* v=가상간선 */
+        GNODES[bi].e.push(si); GNODES[bj].e.push(si);
+        joined++;
+      }else rejected++;
     }
   }
-  window.__stitch = nc+'->'+(nc-joined);
+  window.__stitch = nc+'->'+(nc-joined)+' (기각 '+rejected+')';
+}
+/* 전역 그래프의 실제 도로 간선 중 (x,y) 에 가장 가까운 지점. 가상간선은 제외한다. */
+function gNearestOnRoad(x,y){
+  if(!GSEGS) return null;
+  let best=null;
+  for(const sg of GSEGS){
+    if(sg.v) continue;                       // 가상간선 = 실제 도로 아님
+    const A=GNODES[sg.a],B=GNODES[sg.b];
+    const vx=B.x-A.x,vy=B.y-A.y,L=vx*vx+vy*vy;
+    let t=L?((x-A.x)*vx+(y-A.y)*vy)/L:0; t=Math.max(0,Math.min(1,t));
+    const px=A.x+vx*t,py=A.y+vy*t,d=(px-x)**2+(py-y)**2;
+    if(!best||d<best.d2) best={d2:d,px,py};
+  }
+  return best;
 }
 function gNearest(x,y){
   let bi=0,bd=1e18;
@@ -626,7 +648,11 @@ function gAstar(s,t){
     if(c===t){const p=[c];let k=c;while(came[k]!==undefined){k=came[k];p.unshift(k)}return p}
     seen.add(c);
     for(const si of GNODES[c].e){
-      const sg=GSEGS[si], nb=(sg.a===c)?sg.b:sg.a, ng=G[c]+sg.len;
+      /* ★가상간선(stitch)은 실제 도로가 아니다 — 통행비용 40배로 최후수단화(u_5024).
+         없으면 '길 없는 곳을 가로지르는' 경로가 최단경로로 선택된다(실측: 6/6 중간점이
+         도로에서 median 7.2m·max 12.3m 벗어남). */
+      const sg=GSEGS[si], nb=(sg.a===c)?sg.b:sg.a,
+            ng=G[c]+sg.len*(sg.v?40:1);
       if(G[nb]===undefined||ng<G[nb]){came[nb]=c;G[nb]=ng;F[nb]=ng+h(nb,t);
         if(!seen.has(nb))open.push(nb)}
     }
@@ -652,7 +678,10 @@ function planTo(x,y){
   }
   /* ★마지막 지점은 반드시 '도로 위'로 스냅한다(u_4896).
      POI 원점은 건물 안/뒤라서 그대로 두면 경로 마지막 구간이 길이 아닌 곳을 가로지른다. */
-  const nn=nearestSeg(x,y);
+  /* ★목적지 스냅은 전역 그래프(GSEGS) 기준으로 한다(u_5024).
+     nearestSeg 는 로컬 segs(적재된 청크)만 본다 → 먼 목적지는 '차 근처 도로'로
+     스냅돼 마지막 구간이 아무것도 없는 곳을 직선으로 가로질렀다. */
+  const nn=gNearestOnRoad(x,y) || nearestSeg(x,y);
   wp.push(nn?{x:nn.px,y:nn.py}:{x,y});
   auto.wp=wp;auto.i=0;auto.goal=wp[wp.length-1];auto.on=1;sync();
 }
