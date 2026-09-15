@@ -36,6 +36,9 @@ _rst=int(time.time())
 post({'on':1,'force':1,'rst':_rst}); time.sleep(1)
 post({'on':1,'force':1,'rst':_rst+1}); time.sleep(4)
 sts=[];rows=[];p0=None;pmax=0
+# ★u_5171: pmax-p0 는 리셋이 늦게 붙어 첫 샘플이 이미 높으면 0 이 나온다
+#   (v14 실측: 속도 3.4 인데 이동 0m). 구간별 증가분을 누적해 실제 주행거리를 잰다.
+travel=0.0; prev_p=None; resets=0
 t0=time.time()
 while time.time()-t0<float(sys.argv[1] if len(sys.argv)>1 else 60):
     try:
@@ -44,6 +47,11 @@ while time.time()-t0<float(sys.argv[1] if len(sys.argv)>1 else 60):
         p=(d.get('prog') or 0)*11372
         if p0 is None: p0=p
         pmax=max(pmax,p)
+        if prev_p is not None:
+            dp = p - prev_p
+            if dp >= 0: travel += dp          # 전진분만 더한다
+            elif dp < -0.01: resets += 1      # 에피소드 리셋(사고)
+        prev_p = p
         f=C.grab_canvas()
         if f is not None:
             x=preprocess(f,device=dev)[None]
@@ -55,9 +63,10 @@ while time.time()-t0<float(sys.argv[1] if len(sys.argv)>1 else 60):
                 rows.append((float(t['ct']),t['g2'],float(d.get('v') or 0)))
     except Exception: pass
 a=np.array(sts)
-print('%s: %d샘플 속도%.1f | 직진%.0f%% 포화%.0f%% | cross%.2f off%.2f | 이동 %.0fm'%(
+print('%s: %d샘플 속도%.1f | 직진%.0f%% 포화%.0f%% | cross%.2f off%.2f | 주행 %.0fm'%(
   sys.argv[2] if len(sys.argv)>2 else '?',len(a),
   st.mean(r[2] for r in rows) if rows else 0,
   100*(abs(a)<0.2).mean(),100*(abs(a)>=0.99).mean(),
   st.mean(abs(r[0]) for r in rows) if rows else 0,
-  st.mean(abs(r[1]['off']) for r in rows) if rows else 0, pmax-p0))
+  st.mean(abs(r[1]['off']) for r in rows) if rows else 0, travel*11372))
+print('   최고지점 %.0fm  리셋(사고) %d회'%(pmax*11372, resets))
