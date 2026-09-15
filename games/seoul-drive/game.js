@@ -1184,7 +1184,8 @@ function driveAuto(dt){
   auto.act=gp<11*S?'정지 — 전방 장애물':gp<28*S?'감속 — 차간유지'
     :auto.curv>0.05?'선회 중':(auto.s>=total-25*S)?'목적지 접근':'주행 중';
   window.__da={st:me.steer, df:alpha, i:auto.i, n:N,
-               d:Lreal, xt:auto.xt||0, s:auto.s/S, tot:total/S, vc:vmaxCurve};
+               d:Lreal, xt:auto.xt||0, s:auto.s/S, tot:total/S, vc:vmaxCurve,
+               gp:gp/S, vmax:vmax, stall:auto.stall||0, brk:window.__brkT||0};
 }
 
 /* ---------- 충돌 ---------- */
@@ -1843,7 +1844,9 @@ function draw(){
       g.fillStyle='#ffd23f';
       g.fillText('AUTO st='+_da.st.toFixed(2)+' df='+_da.df.toFixed(2)
                  +' s='+(_da.s||0).toFixed(0)+'/'+(_da.tot||0).toFixed(0)+'m xt='+_da.xt.toFixed(1)
-                 +' vc='+(_da.vc||0).toFixed(0)+' plan='+(window.__ptCnt||0),
+                 +' vc='+(_da.vc||0).toFixed(0)+' gp='+(_da.gp||0).toFixed(0)
+                 +' vmax='+(_da.vmax||0).toFixed(1)+' stl='+(_da.stall||0).toFixed(0)
+                 +' brk='+(_da.brk||0).toFixed(0)+' plan='+(window.__ptCnt||0),
                  12, H-52);
     }
     g.fillStyle='#8bffb0';
