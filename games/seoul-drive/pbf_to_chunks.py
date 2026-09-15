@@ -50,10 +50,13 @@ class Conv(osmium.SimpleHandler):
         hw = t.get('highway'); bl = t.get('building')
         if hw not in ROAD and bl is None: return
         try:
-            pts = [(n.lat, n.lon) for n in w.nodes if n.location.valid()]
+            # 노드 id 도 같이 모은다(a_5053). location 무효인 노드를 거르므로 좌표와
+            # id 를 반드시 같은 루프에서 뽑아야 인덱스가 어긋나지 않는다.
+            kept = [(n.lat, n.lon, n.ref) for n in w.nodes if n.location.valid()]
         except Exception:
             return
-        if len(pts) < 2: return
+        if len(kept) < 2: return
+        pts = [(la, lo) for la, lo, _ in kept]
         if not self._in(pts[0][0], pts[0][1]): return
         xy = [to_xy(la, lo) for la, lo in pts]
         cx = sum(p[0] for p in xy)/len(xy); cy = sum(p[1] for p in xy)/len(xy)
@@ -61,8 +64,15 @@ class Conv(osmium.SimpleHandler):
         if hw in ROAD:
             try: lanes = int(t.get('lanes'))
             except (TypeError, ValueError): lanes = LANES_DEF.get(hw, 2)
+            # 'w' = OSM way id (a_5046). 회전제한 테이블(data/seoul/restrictions.json)의
+            # 키가 "<from_way>|<via_node>|<to_way>" 라서, 이 id 없이는 청크 도로와 제한을
+            # 이어붙일 수 없다(cf ar_5034 Q3).
+            # 'nd' = [첫 노드 id, 끝 노드 id] (a_5053). 회전제한 키의 via 는 '노드 id' 라
+            # way id 만으로는 조회가 안 된다. 교차로는 두 way 가 끝점 노드를 공유하는
+            # 지점이므로 끝점 두 개만 있으면 via 판정이 된다.
             self._put(k, 'r', {'n': t.get('name',''), 'l': max(1,min(10,lanes)),
-                               'o': t.get('oneway') in ('yes','true','1'), 'p': xy})
+                               'o': t.get('oneway') in ('yes','true','1'), 'p': xy,
+                               'w': w.id, 'nd': [kept[0][2], kept[-1][2]]})
             self.nroad += 1
         else:
             self._put(k, 'b', {'n': t.get('name',''), 'p': xy}); self.nbld += 1

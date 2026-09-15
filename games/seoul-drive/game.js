@@ -728,6 +728,7 @@ function gStartNode(x,y,ang){
   GNODES[sg.a].e.push(s1); GNODES[pi].e.push(s1);
   GNODES[pi].e.push(s2);  GNODES[sg.b].e.push(s2);
   sg.v=1;                                      // 원본 간선은 이제 쓰지 않는다
+  (window.__gSplit=window.__gSplit||[]).push(bsi);   // 복구용 기록(planTo 가 되돌린다)
   return pi;
 }
 /* ★실제로 쓰이는 경로탐색은 이 gAstar 다(astar 는 전역그래프 실패시 대체).
@@ -816,6 +817,28 @@ window.parkCar=parkCar;
 function planTo(x,y){
   window.__ptCnt=(window.__ptCnt||0)+1;
   buildGlobalGraph();
+  /* ★이전 경로에서 gStartNode 가 주입한 노드/간선을 되돌린다(ar_5051 경고).
+     gStartNode 는 차 투영점을 실제 노드로 끼워넣어 매칭 정확도를 확보한다
+     (실측 p95 131m→7.7m). 대신 호출의 57%가 그래프를 키운다. 경로를 여러 번
+     잡으면 GNODES/GSEGS 가 무한히 자란다. 매 plan 시작 시 원래 크기로 자른다. */
+  if(GNODES && window.__gBase){
+    const b=window.__gBase;
+    if(GNODES.length>b.n){
+      for(let si=b.s; si<GSEGS.length; si++){       // 주입 간선을 노드 인접목록에서 제거
+        const sg=GSEGS[si];
+        for(const nd of [sg.a,sg.b]){
+          if(nd<b.n && GNODES[nd]){
+            const e=GNODES[nd].e, k=e.indexOf(si);
+            if(k>=0) e.splice(k,1);
+          }
+        }
+      }
+      GNODES.length=b.n; GSEGS.length=b.s;
+      for(const sp of (window.__gSplit||[])) if(GSEGS[sp]) GSEGS[sp].v=0;  // 분할표시 복구
+      window.__gSplit=[];
+    }
+  }
+  if(GNODES && !window.__gBase) window.__gBase={n:GNODES.length, s:GSEGS.length};
   let p=null, NS=nodes;
   if(GNODES){                                  // 장거리: 전역 그래프로
     /* ★출발점 후보를 여러 개 시도한다(u_5036).
