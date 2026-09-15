@@ -1319,7 +1319,12 @@ function driveAuto(dt){
       const dx=p.x-me.x, dy=p.y-me.y;
       const f=(dx*fx+dy*fy)/S;
       if(f<0 || f>25) continue;
-      if(Math.abs(-dx*fy+dy*fx)/S > 4) continue;
+      if(Math.abs(-dx*fy+dy*fx)/S > 2.2) continue;   // 실제 내 차로 폭만
+      /* ★인도 위 보행자는 무시한다(u_5056 실측).
+         교차로에서 횡방향 4m 로 잡으니 건너편 인도에 서 있는 사람까지 걸려서
+         ped=21 로 vmax 가 계속 3.5 로 눌렸다. 교차로엔 항상 누가 있으므로
+         영원히 안 풀린다. 차도(횡단 중)에 있는 사람만 본다. */
+      if(!p.cross && !onRoad(p.x,p.y).ok) continue;
       if(f<pedD) pedD=f;
     }
   }
