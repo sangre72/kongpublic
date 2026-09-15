@@ -3111,7 +3111,12 @@ function loop(t){
        경로 vs 교사가 정확히 그렇게 싸워 사고가 8→23회로 늘었다).
        단 진행률·웨이포인트 추적은 계속 돌아야 평가가 되므로 auto 상태는 둔다. */
     driveModel(dt);
-    if(T && T.auto){ try{ T.last = T.compute(); }catch(e){} }   // 라벨은 계속 생산
+    /* ★모델이 몰 때는 교사가 '몰지 않아도' 정답은 계속 계산한다(u_5158 DAgger).
+       T.last 는 T.auto 가 true 일 때만 갱신됐는데, parkCar() 가 T.auto=false 로
+       꺼놓고 아무도 되돌리지 않는다. 그래서 수집이 '교사 라벨 없음'으로 중단됐다.
+       DAgger 의 정의가 '모델이 몰고 교사는 정답만 말한다' 이므로,
+       모는 것(T.auto)과 답하는 것(T.compute)을 분리한다. */
+    try{ if(T) T.last = T.compute(); }catch(e){}   // 라벨은 항상 생산
   }else if(auto.on && auto.wp.length){
     /* ★내비 경로와 자율주행을 실제로 연결한다(u_5026).
        예전엔 경로가 있으면 driveAuto 가 전부 몰았다. 그런데 driveAuto 는
