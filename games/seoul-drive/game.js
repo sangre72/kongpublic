@@ -1291,6 +1291,7 @@ function crash(label,heavy){
      고칠 곳이 완전히 다르다. */
   { const k=label.indexOf('추돌')>=0?'추돌'
           : label.indexOf('보행자')>=0?'보행자'
+          : label.indexOf('중앙선')>=0?'중앙선'      // ★F2 분리 측정(u_5061)
           : label.indexOf('차로')>=0?'차로이탈'
           : label.indexOf('충돌')>=0?'건물':'기타';
     window.__crk=window.__crk||{}; window.__crk[k]=(window.__crk[k]||0)+1; }
