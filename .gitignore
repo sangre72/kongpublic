@@ -124,3 +124,21 @@ telegram_bot/orchestrator/protocol/screenshots/
 *.jpg
 *.jpeg
 .melo_venv/
+
+# seoul-drive 학습 데이터·원본 지도 (u_5011) — 로컬 보관, 푸시 금지
+# 실측: final 16G, t_hv 7.8G, t_hv2 7.9G, osm_src 288M, seoul/gyeonggi 청크 227M
+# 오너 지시(u_4960): "학습 데이터는 지우지 말고 로컬에 냅둬" → 지우지 않되 커밋도 안 한다.
+games/seoul-drive/data/final/
+games/seoul-drive/data/t_*/
+games/seoul-drive/data/c*/
+games/seoul-drive/data/mix/
+games/seoul-drive/data/osm_src/
+games/seoul-drive/data/seoul/
+games/seoul-drive/data/gyeonggi/
+games/seoul-drive/data/data6_seoul.js
+games/seoul-drive/data/*.bak
+
+# 대용량 산출물 — 로컬 보관(u_5011 실측: 788MB)
+jobs/demo_recordings/
+jobs/truecrime_gunpo/
+kong-blender-wrap/examples/*.glb

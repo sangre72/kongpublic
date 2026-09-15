@@ -1,0 +1,356 @@
+<title>Autopilot Driving Sim</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap">
+<style>
+:root{
+  --road:#12151c; --panel:#1c2028; --panel2:#252a35; --line:#e8eaed;
+  --amber:#f5b942; --green:#4ade80; --red:#ef4444; --blue:#60a5fa;
+  --ink:#e8eaed; --dim:#9aa3b2; --edge:#333a47;
+  --bg:#0b0d12;
+}
+:root:not([data-theme="light"]){}
+:root[data-theme="light"]{
+  --bg:#eef1f6; --panel:#ffffff; --panel2:#f3f5f9; --ink:#12151c; --dim:#5b6474; --edge:#d3d9e4;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:'Chakra Petch',system-ui,-apple-system,sans-serif;overflow:hidden}
+#wrap{position:relative;width:100vw;height:100vh}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+
+.hud{position:absolute;background:color-mix(in srgb,var(--panel) 88%,transparent);
+  border:1px solid var(--edge);border-radius:14px;padding:14px 16px;
+  backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,.45)}
+#telem{left:18px;bottom:18px;min-width:212px}
+#top{right:18px;top:18px;display:flex;gap:8px;align-items:center;padding:10px}
+#help{left:18px;top:18px;max-width:300px;font-size:13px;line-height:1.65;color:var(--dim)}
+#help b{color:var(--ink)}
+
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:18px;margin:5px 0}
+.k{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim)}
+.v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+.bar{height:5px;border-radius:3px;background:var(--panel2);overflow:hidden;margin-top:9px}
+.bar>i{display:block;height:100%;background:var(--green);width:0;transition:width .12s linear}
+
+button{font:inherit;font-weight:600;color:var(--ink);background:var(--panel2);
+  border:1px solid var(--edge);border-radius:10px;padding:9px 15px;cursor:pointer;
+  transition:background .15s,border-color .15s,transform .1s}
+button:hover{background:#2f3543;border-color:#4b5563}
+button:active{transform:translateY(1px)}
+button.on{background:var(--green);color:#07210f;border-color:var(--green)}
+button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+#mode{font-weight:700}
+.pill{font-size:11px;padding:4px 9px;border-radius:99px;background:var(--panel2);
+  color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
+.pill.live{background:color-mix(in srgb,var(--green) 22%,transparent);color:var(--green)}
+#msg{position:absolute;left:50%;top:46%;transform:translateX(-50%);text-align:center;
+  font-size:26px;font-weight:700;text-shadow:0 3px 18px #000;pointer-events:none;opacity:0;
+  transition:opacity .3s}
+#msg.show{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:640px){#help{display:none}#telem{min-width:170px;padding:11px 13px}}
+</style>
+
+<div id="wrap">
+  <canvas id="cv"></canvas>
+
+  <div class="hud" id="help">
+    <b>수동</b> ↑↓ 가속·후진 / ←→ 조향<br>
+    <b>자율</b> 도로를 클릭해 목적지 지정<br>
+    <b>P</b> 주차칸 표시 · <b>R</b> 리셋
+  </div>
+
+  <div class="hud" id="top">
+    <span class="pill" id="stat">MANUAL</span>
+    <button id="mode">자율주행 켜기</button>
+    <button id="reset">리셋</button>
+  </div>
+
+  <div class="hud" id="telem">
+    <div class="row"><span class="k">속도</span><span class="v" id="spd">0<span style="font-size:12px;color:var(--dim)"> km/h</span></span></div>
+    <div class="row"><span class="k">목적지</span><span class="v" id="dist">—</span></div>
+    <div class="row"><span class="k">상태</span><span class="v" id="act" style="font-size:14px;color:var(--amber)">대기</span></div>
+    <div class="bar"><i id="thr"></i></div>
+  </div>
+
+  <div id="msg"></div>
+</div>
+
+<script>
+const cv=document.getElementById('cv'),cx=cv.getContext('2d');
+let W=0,H=0,DPR=Math.min(devicePixelRatio||1,2);
+function fit(){W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0)}
+addEventListener('resize',fit);fit();
+
+/* ---------- 도로망: 노드 + 간선(차로수 지정) ---------- */
+const LW=46;                       // 차로 폭
+const N={
+  a:[160,160], b:[820,160], c:[1500,160],
+  d:[160,620], e:[820,620], f:[1500,620],
+  g:[160,1080],h:[820,1080],i:[1500,1080],
+  j:[2150,620], k:[2150,1080]
+};
+// [n1,n2,차로수] — 2/3/4차로 혼재
+const E=[['a','b',2],['b','c',3],['a','d',2],['b','e',4],['c','f',2],
+         ['d','e',4],['e','f',3],['d','g',2],['e','h',3],['f','i',2],
+         ['g','h',2],['h','i',3],['f','j',2],['i','k',2],['j','k',3]];
+const PARK=[];                     // 주차칸
+for(let i=0;i<6;i++)PARK.push({x:1760+i*84,y:1080+96,w:64,h:120,ang:0});
+for(let i=0;i<5;i++)PARK.push({x:160+120,y:250+i*96,w:120,h:64,ang:0});
+
+function adj(){const m={};for(const k in N)m[k]=[];
+  for(const[a,b]of E){m[a].push(b);m[b].push(a)}return m}
+const ADJ=adj();
+const dist2=(p,q)=>Math.hypot(p[0]-q[0],p[1]-q[1]);
+
+/* 선분 위 최근접점 */
+function closestOnSeg(p,a,b){
+  const vx=b[0]-a[0],vy=b[1]-a[1],L=vx*vx+vy*vy;
+  let t=L?((p[0]-a[0])*vx+(p[1]-a[1])*vy)/L:0;t=Math.max(0,Math.min(1,t));
+  return{x:a[0]+vx*t,y:a[1]+vy*t,t};
+}
+function nearestEdge(p){
+  let best=null;
+  for(const[a,b,l]of E){
+    const c=closestOnSeg([p.x,p.y],N[a],N[b]);
+    const d=Math.hypot(c.x-p.x,c.y-p.y);
+    if(!best||d<best.d)best={d,a,b,lanes:l,...c};
+  }return best;
+}
+/* A* 경로 */
+function route(sa,ga){
+  const open=[sa],came={},g={[sa]:0},f={[sa]:dist2(N[sa],N[ga])};
+  const seen=new Set();
+  while(open.length){
+    open.sort((p,q)=>f[p]-f[q]);const cur=open.shift();
+    if(cur===ga){const path=[cur];let c=cur;while(came[c]){c=came[c];path.unshift(c)}return path}
+    seen.add(cur);
+    for(const nb of ADJ[cur]){
+      const ng=g[cur]+dist2(N[cur],N[nb]);
+      if(g[nb]===undefined||ng<g[nb]){came[nb]=cur;g[nb]=ng;f[nb]=ng+dist2(N[nb],N[ga]);
+        if(!seen.has(nb))open.push(nb)}
+    }
+  }return null;
+}
+
+/* ---------- 차량 ---------- */
+function mkCar(x,y,ang,col,ai){return{x,y,ang,v:0,steer:0,col,ai,w:38,h:66}}
+const me=mkCar(160,620,0,'#e8eaed',false);
+const traffic=[];
+function seedTraffic(){
+  traffic.length=0;
+  const cols=['#60a5fa','#f5b942','#ef4444','#4ade80','#c084fc','#fb923c'];
+  E.forEach(([a,b],i)=>{
+    for(let k=0;k<2;k++){
+      const t=.25+.5*k+ .1*((i+k)%3);
+      const x=N[a][0]+(N[b][0]-N[a][0])*t, y=N[a][1]+(N[b][1]-N[a][1])*t;
+      const ang=Math.atan2(N[b][1]-N[a][1],N[b][0]-N[a][0]);
+      const off=(k%2?1:-1)*LW*.5;
+      const c=mkCar(x-Math.sin(ang)*off,y+Math.cos(ang)*off,ang,cols[(i+k)%cols.length],true);
+      c.v=1.1+((i*7+k*3)%5)*.22; c.a=a; c.b=b; c.t=t; c.dir=1; c.off=off;
+      traffic.push(c);
+    }
+  });
+}
+seedTraffic();
+
+/* 주차 차량 몇 대 */
+const parked=[];
+[0,2,3].forEach(i=>{const p=PARK[i];parked.push(mkCar(p.x,p.y,Math.PI/2,'#94a3b8',false))});
+
+/* ---------- 자율주행: 경로 → 차선중앙 추종 + 전방 차간거리 ---------- */
+const auto={on:false,goal:null,path:null,wp:[],idx:0,act:'대기'};
+function planTo(px,py){
+  const s=nearestEdge({x:me.x,y:me.y}), t=nearestEdge({x:px,y:py});
+  if(!s||!t)return;
+  // 시작/목표 노드 중 가까운 쪽 선택
+  const sN=dist2([me.x,me.y],N[s.a])<dist2([me.x,me.y],N[s.b])?s.a:s.b;
+  const tN=dist2([px,py],N[t.a])<dist2([px,py],N[t.b])?t.a:t.b;
+  const p=route(sN,tN); if(!p)return;
+  // 웨이포인트 = 노드열 + 최종 목적지. 우측 차로로 오프셋
+  const wp=[];
+  for(let i=0;i<p.length;i++){
+    const cur=N[p[i]];
+    if(i<p.length-1){
+      const nx=N[p[i+1]];const ang=Math.atan2(nx[1]-cur[1],nx[0]-cur[0]);
+      const ox=-Math.sin(ang)*LW*.5, oy=Math.cos(ang)*LW*.5;
+      wp.push({x:cur[0]+ox,y:cur[1]+oy});
+    }else wp.push({x:cur[0],y:cur[1]});
+  }
+  wp.push({x:px,y:py});
+  auto.path=p;auto.wp=wp;auto.idx=0;auto.goal={x:px,y:py};auto.on=true;
+  syncUI();
+}
+function gapAhead(c,range=190){
+  let best=range;
+  for(const o of traffic.concat(parked)){
+    if(o===c)continue;
+    const dx=o.x-c.x,dy=o.y-c.y;
+    const fwd=dx*Math.cos(c.ang)+dy*Math.sin(c.ang);
+    const lat=-dx*Math.sin(c.ang)+dy*Math.cos(c.ang);
+    if(fwd>0&&fwd<best&&Math.abs(lat)<34)best=fwd;
+  }return best;
+}
+function driveAuto(dt){
+  if(!auto.wp.length){auto.act='대기';return}
+  const tgt=auto.wp[auto.idx];
+  const d=Math.hypot(tgt.x-me.x,tgt.y-me.y);
+  if(d<38){ if(auto.idx<auto.wp.length-1){auto.idx++}
+    else{ me.v*=.86; auto.act='도착'; if(me.v<.05){me.v=0;auto.on=false;flash('목적지 도착');syncUI()} return } }
+  // 조향: 목표 방위각 차이
+  let want=Math.atan2(tgt.y-me.y,tgt.x-me.x);
+  let diff=((want-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+  const gap=gapAhead(me);
+  // 커브(조향 큼)에서는 감속 — 어제 로직의 '위험시 조향억제'를 속도제어로 전환
+  const curve=Math.min(1,Math.abs(diff)/0.9);
+  let vmax=3.5*(1-0.55*curve);
+  if(gap<150){vmax=Math.min(vmax,3.5*(gap-45)/105)}     // 앞차 거리 비례 감속
+  if(gap<60)vmax=0;
+  const last=auto.idx>=auto.wp.length-1;
+  if(last&&d<150)vmax=Math.min(vmax,1.1);                // 목적지 접근 서행(주차)
+  me.steer=Math.max(-.045,Math.min(.045,diff*.9))*Math.min(1,Math.abs(me.v)/.7);
+  me.v+= (vmax-me.v)*Math.min(1,dt*3.2);
+  auto.act = gap<60?'정지 — 전방 차량' : gap<150?'감속 — 차간유지'
+           : curve>.45?'선회 중' : last&&d<150?'주차 접근':'주행 중';
+}
+
+/* ---------- 물리 ---------- */
+function step(c,dt,manual){
+  if(manual){
+    if(keys.ArrowUp)c.v+=7*dt; else if(keys.ArrowDown)c.v-=7*dt; else c.v*=(1-2.2*dt);
+    c.v=Math.max(-2.2,Math.min(5,c.v));
+    const s=(keys.ArrowLeft?-1:0)+(keys.ArrowRight?1:0);
+    c.steer=s*.042*Math.min(1,Math.abs(c.v)/.7);
+  }
+  c.ang+=c.steer*c.v*1.15;
+  c.x+=Math.cos(c.ang)*c.v*2.1;
+  c.y+=Math.sin(c.ang)*c.v*2.1;
+}
+function stepTraffic(c,dt){
+  const A=N[c.a],B=N[c.b];
+  const L=Math.hypot(B[0]-A[0],B[1]-A[1]);
+  c.t+=c.dir*(c.v*2.1)/L*dt*60/60;
+  if(c.t>1||c.t<0){c.dir*=-1;c.t=Math.max(0,Math.min(1,c.t));}
+  const ang=Math.atan2(B[1]-A[1],B[0]-A[0])+(c.dir<0?Math.PI:0);
+  const px=A[0]+(B[0]-A[0])*c.t, py=A[1]+(B[1]-A[1])*c.t;
+  c.ang=ang; c.x=px-Math.sin(ang)*c.off; c.y=py+Math.cos(ang)*c.off;
+  const g=gapAhead(c,140);
+  c.v += ((g<70?0:g<120?.8:1.5)-c.v)*dt*2;
+}
+
+/* ---------- 렌더 ---------- */
+const cam={x:0,y:0,z:.92};
+function draw(){
+  cx.fillStyle=getC('--bg');cx.fillRect(0,0,W,H);
+  cam.x+=((me.x)-cam.x)*.09; cam.y+=((me.y)-cam.y)*.09;
+  cx.save();
+  cx.translate(W/2,H/2);cx.scale(cam.z,cam.z);cx.translate(-cam.x,-cam.y);
+
+  // 도로
+  for(const[a,b,lanes]of E){
+    const A=N[a],B=N[b],w=LW*lanes;
+    cx.strokeStyle=getC('--road');cx.lineWidth=w+16;cx.lineCap='round';
+    cx.beginPath();cx.moveTo(A[0],A[1]);cx.lineTo(B[0],B[1]);cx.stroke();
+    cx.strokeStyle='#20242e';cx.lineWidth=w;
+    cx.beginPath();cx.moveTo(A[0],A[1]);cx.lineTo(B[0],B[1]);cx.stroke();
+    // 차선
+    const ang=Math.atan2(B[1]-A[1],B[0]-A[0]);
+    for(let i=1;i<lanes;i++){
+      const off=(i-lanes/2)*LW;
+      const ox=-Math.sin(ang)*off, oy=Math.cos(ang)*off;
+      cx.strokeStyle=i===lanes/2?getC('--amber'):'#6b7280';
+      cx.lineWidth=i===lanes/2?3:2;
+      cx.setLineDash(i===lanes/2?[]:[22,20]);
+      cx.beginPath();cx.moveTo(A[0]+ox,A[1]+oy);cx.lineTo(B[0]+ox,B[1]+oy);cx.stroke();
+      cx.setLineDash([]);
+    }
+  }
+  // 주차칸
+  if(showPark)for(const p of PARK){
+    cx.strokeStyle=getC('--line');cx.globalAlpha=.5;cx.lineWidth=2;
+    cx.strokeRect(p.x-p.w/2,p.y-p.h/2,p.w,p.h);cx.globalAlpha=1;
+  }
+  // 경로
+  if(auto.on&&auto.wp.length){
+    cx.strokeStyle=getC('--green');cx.lineWidth=4;cx.globalAlpha=.55;
+    cx.setLineDash([14,12]);cx.beginPath();cx.moveTo(me.x,me.y);
+    for(let i=auto.idx;i<auto.wp.length;i++)cx.lineTo(auto.wp[i].x,auto.wp[i].y);
+    cx.stroke();cx.setLineDash([]);cx.globalAlpha=1;
+    const g=auto.goal;
+    cx.fillStyle=getC('--green');cx.beginPath();cx.arc(g.x,g.y,9,0,7);cx.fill();
+    cx.strokeStyle=getC('--green');cx.globalAlpha=.4;cx.lineWidth=3;
+    cx.beginPath();cx.arc(g.x,g.y,18+Math.sin(performance.now()/260)*4,0,7);cx.stroke();
+    cx.globalAlpha=1;
+  }
+  parked.forEach(c=>car(c));
+  traffic.forEach(c=>car(c));
+  car(me,true);
+  cx.restore();
+}
+function car(c,mine){
+  cx.save();cx.translate(c.x,c.y);cx.rotate(c.ang+Math.PI/2);
+  cx.fillStyle='rgba(0,0,0,.4)';rr(-c.w/2+3,-c.h/2+5,c.w,c.h,9);cx.fill();
+  cx.fillStyle=c.col;rr(-c.w/2,-c.h/2,c.w,c.h,9);cx.fill();
+  cx.fillStyle='rgba(10,14,20,.75)';rr(-c.w/2+5,-c.h/2+12,c.w-10,20,4);cx.fill();
+  cx.fillStyle='rgba(10,14,20,.5)';rr(-c.w/2+5,c.h/2-26,c.w-10,15,4);cx.fill();
+  if(mine){cx.fillStyle=getC('--amber');cx.fillRect(-c.w/2+3,-c.h/2-3,7,5);
+           cx.fillRect(c.w/2-10,-c.h/2-3,7,5);}
+  cx.restore();
+}
+function rr(x,y,w,h,r){cx.beginPath();cx.moveTo(x+r,y);cx.arcTo(x+w,y,x+w,y+h,r);
+  cx.arcTo(x+w,y+h,x,y+h,r);cx.arcTo(x,y+h,x,y,r);cx.arcTo(x,y,x+w,y,r);cx.closePath()}
+function getC(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+
+/* ---------- 입력 ---------- */
+const keys={};let showPark=true;
+addEventListener('keydown',e=>{
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){keys[e.key]=1;e.preventDefault();
+    if(auto.on){auto.on=false;syncUI();flash('수동 전환')}}
+  if(e.key==='p'||e.key==='P')showPark=!showPark;
+  if(e.key==='r'||e.key==='R')reset();
+});
+addEventListener('keyup',e=>keys[e.key]=0);
+cv.addEventListener('pointerdown',e=>{
+  const r=cv.getBoundingClientRect();
+  const wx=(e.clientX-r.left-W/2)/cam.z+cam.x, wy=(e.clientY-r.top-H/2)/cam.z+cam.y;
+  planTo(wx,wy);flash('목적지 설정 — 자율주행');
+});
+document.getElementById('mode').onclick=()=>{
+  if(auto.on){auto.on=false;flash('수동 전환')}
+  else if(auto.goal){auto.on=true;flash('자율주행 재개')}
+  else flash('도로를 클릭해 목적지를 정하세요');
+  syncUI();
+};
+document.getElementById('reset').onclick=reset;
+function reset(){me.x=160;me.y=620;me.ang=0;me.v=0;auto.on=false;auto.goal=null;auto.wp=[];
+  seedTraffic();syncUI();flash('리셋')}
+let msgT=0;
+function flash(t){const m=document.getElementById('msg');m.textContent=t;m.classList.add('show');
+  clearTimeout(msgT);msgT=setTimeout(()=>m.classList.remove('show'),1200)}
+function syncUI(){
+  const b=document.getElementById('mode'),s=document.getElementById('stat');
+  b.textContent=auto.on?'수동으로':'자율주행 켜기';b.classList.toggle('on',auto.on);
+  s.textContent=auto.on?'AUTOPILOT':'MANUAL';s.classList.toggle('live',auto.on);
+}
+syncUI();
+
+/* ---------- 루프 ---------- */
+let last=performance.now();
+function loop(t){
+  const dt=Math.min(.05,(t-last)/1000);last=t;
+  if(auto.on)driveAuto(dt);
+  step(me,dt,!auto.on);
+  traffic.forEach(c=>stepTraffic(c,dt));
+  draw();
+  document.getElementById('spd').innerHTML=Math.round(Math.abs(me.v)*24)+
+    '<span style="font-size:12px;color:var(--dim)"> km/h</span>';
+  document.getElementById('dist').textContent=
+    auto.goal?Math.round(Math.hypot(auto.goal.x-me.x,auto.goal.y-me.y))+' m':'—';
+  document.getElementById('act').textContent=auto.on?auto.act:'수동 주행';
+  document.getElementById('thr').style.width=Math.min(100,Math.abs(me.v)/5*100)+'%';
+  document.getElementById('thr').style.background=
+    auto.act.includes('정지')?getC('--red'):auto.act.includes('감속')?getC('--amber'):getC('--green');
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
