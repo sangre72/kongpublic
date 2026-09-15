@@ -1131,8 +1131,16 @@ function planTo(x,y){
         off=+1.75 -> 중심선 -1.75m = 왼쪽 반대차로(틀림)
      laneOffset() 의 일방통행 식이 맞다. 부호를 '고치려다' 오히려 반대차로로
      보낼 뻔했다 — 계산해보고 되돌렸다. */
+  /* ★a_5111: 일방통행 식을 laneOffset()(game.js:291)과 일치시킨다.
+     a_5092 에서 laneOffset 의 일방 분기를 (lane+.5)*LW 로 고쳤는데(중심선 '오른쪽'),
+     주행선 계산은 이 복사본이라 옛 식 0.5*LW-(lanes*LW)/2(중심선 '왼쪽')을 그대로 썼다.
+     => NPC 는 오른쪽, 주행선은 왼쪽. 규칙이 정반대가 됐다.
+     실측(테헤란로 일방3차로, roadW 9.75m): 주행선 -3.25m → 차가 맞은편 차도 쪽으로
+     붙고, onRoad() 의 nearestSeg 가 '맞은편 간선'을 집어 차로이탈이 발생했다.
+     기록: {n:테헤란로,l:3,o:1,roadW:9.75,xt:3.25,margin:4.88,rOff:-3.25} — xt<margin
+     인데도(자기 차도 안인데도) 사고가 났다 = 다른 간선 기준으로 판정된 것. */
   const laneOff=(lanes,oneway)=>{
-    if(oneway) return 0.5*LW - (lanes*LW)/2;   // 일방: 가장 오른쪽 차로
+    if(oneway) return 0.5*LW;                   // 일방: 중심선 오른쪽 1차로(laneOffset 과 동일)
     return 0.5*LW;                              // 왕복: 진행방향 1차로
   };
   const edgeOf=(i,j)=>{                         // 두 노드를 잇는 간선 찾기
@@ -1406,6 +1414,7 @@ function mdlPoll(dt){
   try{
     _tq='?tel='+encodeURIComponent(JSON.stringify({
       crk: window.__crk||{}, cr: me.crashes|0,
+      lde: (window.__lde||[]).slice(-12),      // a_5111 T1: 차로이탈 기하 기록
       v: +me.v.toFixed(2), prog: +((auto.cum&&auto.cum.length? (auto.s||0)/(auto.cum[auto.cum.length-1]||1) : 0)).toFixed(4),
       drv: MDL.on?'MODEL':(auto.on&&auto.wp.length?'GEOM':'TEACH'),
       st:+MDL.steer.toFixed(3), thr:+MDL.thr.toFixed(3), brk:+MDL.brake.toFixed(3),
@@ -1441,6 +1450,17 @@ function setModel(on){
   if(!MDL.on) window.__brkT = 0;
   const b = document.getElementById('mdlBtn');
   if(b){ b.classList.toggle('on', MDL.on); b.textContent = MDL.on ? '모델 ON' : '모델'; }
+  /* ★모델 주행 중에는 경로 패널을 숨긴다(ar_5106 실측 근거).
+     #nav 패널은 학습 프레임에 단 한 장도 없는데 실시간 화면에서는 상단을 덮는다.
+     패널 영역 밝기: 학습 평균 0.546(0.85 초과 0%) vs 실시간 0.916(100%).
+     실시간 최솟값 0.870 > 학습 최댓값 — 분포가 겹치지 않는다(완전한 OOD).
+     그래서 실시간 조향 상관이 0.011(잡음)까지 떨어졌다.
+     ★자르는 건 해법이 아니다: 전처리에서 상단을 크롭하면 학습 프레임의 기하까지
+       바뀌어 스로틀이 0.808 -> 0.381~0.470 으로 무너진다.
+       실시간 화면을 학습 때와 같게 만드는 것이 맞다 — 패널을 없앤다.
+     실측: 패널만 가리면 조향 -0.066 -> +0.298 로 학습값에 붙는다. */
+  const nav = document.getElementById('nav');
+  if(nav) nav.style.visibility = MDL.on ? 'hidden' : '';
   if(typeof flash==='function') flash(MDL.on ? '모델 주행 ON' : '모델 주행 OFF');
   return MDL.on;
 }
@@ -1682,7 +1702,25 @@ function crash(label,heavy){
           : label.indexOf('중앙선')>=0?'중앙선'      // ★F2 분리 측정(u_5061)
           : label.indexOf('차로')>=0?'차로이탈'
           : label.indexOf('충돌')>=0?'건물':'기타';
-    window.__crk=window.__crk||{}; window.__crk[k]=(window.__crk[k]||0)+1; }
+    window.__crk=window.__crk||{}; window.__crk[k]=(window.__crk[k]||0)+1;
+    /* ★a_5111 T1: 차로이탈이 '어떤 도로에서' 나는지 기하를 통째로 남긴다.
+       roadW/차로수/일방여부/실제 횡오차/주행선 오프셋을 같이 찍어야
+       좁은길·일방오독·게인 중 무엇인지 구분된다. 추정 금지, 측정. */
+    try{
+      const ns=nearestSeg(me.x,me.y);
+      if(ns&&ns.s){
+        const sg=ns.s, lanes=sg.l||2;
+        const rOff=sg.o ? (0.5*LW-(lanes*LW)/2) : 0.5*LW;   // planTo laneOff 와 동일식
+        (window.__lde=window.__lde||[]).push({
+          k:k, n:sg.n||'', l:lanes, o:sg.o?1:0,
+          roadW:+(sg.roadW/S).toFixed(2),
+          xt:+(ns.d/S).toFixed(2),                 // 실제 중심선 횡거리
+          margin:+((sg.roadW*.5)/S).toFixed(2),    // 이탈 임계
+          rOff:+(rOff/S).toFixed(2),               // 주행선이 노린 오프셋
+          v:+me.v.toFixed(2), i:(auto.i|0)});
+      }
+    }catch(e){}
+  }
   me.dmg=Math.min(100,me.dmg+(heavy?22:14));
   me.v*=-.25;
   const el=document.getElementById('crash');
@@ -1878,10 +1916,20 @@ function step(dt){
     if(r0.ok){
       /* 직전엔 도로 위였다 → 이번 이동이 도로를 벗어나게 했다. 무효화한다.
          진행방향 성분만 죽이고 도로를 따라 미끄러지게 해서 그 자리에 붙어버리지 않게. */
-      me.x=px0; me.y=py0;
-      me.v*=0.55;
+      /* ★수집 모드(__COLLECT_RECOVER)에서는 되돌리지 않는다(u_5115 승인).
+         평소엔 도로 밖으로 나가려는 이동을 무효화한다 — 그래서 학습 데이터의
+         on_road 가 85,768 프레임 전부 1.00 이었다. 수집 운이 나빴던 게 아니라
+         차가 물리적으로 도로 밖에 나갈 수 없었다.
+         모델은 '이탈했을 때 어떻게 돌아오는지'를 시연받은 적이 없고,
+         그래서 한 번 벗어나면 복구를 못 한다(실측: 사고 100% 가 차로이탈).
+         수집 모드에서만 이탈을 허용하고, 교사가 도로로 되돌아오는 과정을 녹화한다. */
+      if(!window.__COLLECT_RECOVER){
+        me.x=px0; me.y=py0;
+        me.v*=0.55;
+      }
       me.offroad+=dt;
-      if(me.offroad>.9){ me.offroad=0; crash('차로 이탈 시도',false); }
+      const lim = window.__COLLECT_RECOVER ? 6.0 : 0.9;   // 수집 중엔 복귀할 시간을 준다
+      if(me.offroad>lim){ me.offroad=0; crash('차로 이탈 시도',false); }
       blockT=(blockT||0)+dt;
     }else{
       /* 이미 도로 밖(사고 직후 등) → 복귀 유도. 여기선 종전대로 감속·기록. */
@@ -3190,6 +3238,13 @@ setTimeout(()=>{
       me.v=0; me.steer=0; me.offroad=0; me.cool=0.8;
       auto.cum=null; auto.s=0; auto.k=1; auto.i=0; auto.stall=0;
     }
+    /* ★출발 직후 월드를 차 위치 기준으로 다시 스트리밍한다(u_5111 실사고).
+       위에서 차를 경로 시작점으로 순간이동시키는데, 그 지점이 다른 청크면
+       다음 프레임의 streamWorld 가 그래프를 통째로 다시 만든다. 그때 경로가
+       날아가서 [목적지 가기]를 누르는 순간 wp=0·auto=0 이 됐다
+       (실측: 누르기 전 wp_len=59 -> 누른 뒤 wp=0, DRV 가 MODEL 에서 TEACH 로 떨어짐).
+       여기서 먼저 스트리밍해 두면 프레임 루프가 다시 만들 일이 없다. */
+    try{ if(typeof streamWorld==='function') streamWorld(true); }catch(e){}
     auto.on = 1; sync(); flash('목적지로 출발');
   };
   /* 입력이 이벤트로 안 잡히는 환경(자동입력 등)을 위해 주기적으로도 확인한다 */

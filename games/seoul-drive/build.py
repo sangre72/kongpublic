@@ -87,6 +87,175 @@ if '--lanedemo' in sys.argv:
   setTimeout(go, 3000);
 })();
 '''
+# ★수집 모드(u_5108): 차로변경·추월·정지출발을 교사가 실제로 시연한다.
+#   --lanedemo 는 12초 타이머로 무작정 차로를 바꾼다 — 그건 추월이 아니다.
+#   여기서는 '앞차가 느리면 옆차로를 확인하고 나갔다가 돌아온다'는 실제 판단을 넣는다.
+#   ★모드다. 기본 주행 동작은 건드리지 않는다(이 블록이 없으면 예전 그대로).
+if '--collect-ot' in sys.argv:
+    te += r"""
+;(function(){
+  /* 추월/차로변경/정지출발 수집 모드.
+     상태기계: KEEP -> (앞차 느림 & 옆차로 빔) -> OUT -> PASS -> BACK -> KEEP */
+  function go(){
+    var T=window.__teach;
+    if(!T||!T.setLane||typeof cars==='undefined'){ setTimeout(go,500); return; }
+
+    /* 옆차로가 비었나 — gap() 은 '내 진행방향 앞'만 본다.
+       차로를 옮길지 판단하려면 옆으로 dx 만큼 떨어진 가상의 지점에서
+       앞뒤를 같이 봐야 한다(뒤에서 오는 차를 놓치면 사고가 난다). */
+    function laneClear(dx, fwdM, backM){
+      var ca=Math.cos(me.ang), sa=Math.sin(me.ang);
+      /* 내 차 기준 좌우 dx(m) 이동한 가상 위치 */
+      var ox=me.x - Math.sin(me.ang)*dx*S, oy=me.y + Math.cos(me.ang)*dx*S;
+      for(var i=0;i<cars.length;i++){
+        var o=cars[i]; if(!o.alive||o===me) continue;
+        var ddx=o.x-ox, ddy=o.y-oy;
+        var f=(ddx*ca+ddy*sa)/S;        // 전방 성분(m)
+        var l=(-ddx*sa+ddy*ca)/S;       // 횡 성분(m)
+        if(Math.abs(l) > 2.2) continue; // 그 차로에 없음
+        if(f < fwdM && f > -backM) return false;
+      }
+      return true;
+    }
+    /* 앞차(같은 차로, 전방 40m 이내) */
+    function lead(){
+      var ca=Math.cos(me.ang), sa=Math.sin(me.ang), best=null, bd=1e9;
+      for(var i=0;i<cars.length;i++){
+        var o=cars[i]; if(!o.alive||o===me) continue;
+        var dx=o.x-me.x, dy=o.y-me.y;
+        var f=(dx*ca+dy*sa)/S, l=(-dx*sa+dy*ca)/S;
+        if(f<=0||f>40) continue;
+        if(Math.abs(l)>2.0) continue;
+        if(f<bd){bd=f;best=o;}
+      }
+      return best?{car:best,d:bd}:null;
+    }
+
+    var st='KEEP', t0=0, home=null, passT=0;
+    window.__ot={st:st,n:0};
+    setInterval(function(){
+      var now=Date.now()/1000;
+      var L=lead();
+      var nl=T.laneMax||1;
+      var cur=Math.round(T.laneF!==undefined?T.laneF:0);
+
+      if(st==='KEEP'){
+        /* 추월 판단: 앞차가 있고, 나보다 느리고, 간격이 좁혀졌다 */
+        if(L && L.d<22 && L.car.v < me.v*0.85 && nl>=2){
+          /* 옆차로 선택: 안쪽(추월차로)이 우선, 없으면 바깥 */
+          var tgt = (cur>0)? cur-1 : cur+1;
+          if(tgt>=0 && tgt<nl){
+            var dx = (tgt-cur)*3.25;      // 차로폭(m), 부호 포함
+            if(laneClear(dx, 45, 18)){
+              home=cur; T.setLane(tgt); st='OUT'; t0=now;
+              window.__ot={st:st,n:(window.__ot.n||0)+1};
+            }
+          }
+        }
+      } else if(st==='OUT'){
+        /* 차로 이동이 끝났나 */
+        if(!T.laneMoving || now-t0>4){ st='PASS'; t0=now; passT=now; }
+      } else if(st==='PASS'){
+        /* 추월당한 차를 실제로 지나쳤나 — 뒤로 보내야 복귀한다 */
+        var done = true;
+        if(L && L.d<30) done=false;       // 아직 앞에 뭔가 있으면 더 간다
+        if(done && now-passT>1.5){ st='BACK'; t0=now; }
+        if(now-t0>8){ st='BACK'; t0=now; } // 안전장치
+      } else if(st==='BACK'){
+        /* 원래 차로로 복귀 — 비었을 때만 */
+        if(home!==null && laneClear((home-cur)*3.25, 30, 14)){
+          T.setLane(home); st='KEEP'; home=null;
+          window.__ot={st:st,n:window.__ot.n};
+        } else if(now-t0>6){ st='KEEP'; home=null; }
+      }
+      window.__ot.st=st;
+    }, 250);
+  }
+  setTimeout(go, 3000);
+})();
+"""
+
+# ★정지-출발 + 이탈복구 수집 모드(u_5108).
+#   왜 따로 두나: 현재 데이터는 v<0.5 가 0프레임, on_road=0 이 0.29% 다.
+#   '멈춘 차'와 '차로를 벗어난 차'를 모델이 한 번도 본 적이 없다.
+#   주기적으로 (a) 완전정지 후 재출발, (b) 차를 비스듬히/차로 밖으로 밀어놓고
+#   교사가 스스로 되돌아오게 한다. 그 복구 장면이 라벨로 남는다.
+if '--collect-recover' in sys.argv:
+    te += r"""
+;(function(){
+  function go(){
+    var T=window.__teach;
+    if(!T||typeof me==='undefined'||typeof nearestSeg!=='function'){ setTimeout(go,500); return; }
+    window.__rec={n:0,st:'-'};
+    var busy=false;
+    setInterval(function(){
+      if(busy) return;
+      /* 사고 직후에는 건드리지 않는다(복구 로직과 충돌) */
+      if(typeof crashHold!=='undefined' && crashHold) return;
+      var r=Math.random();
+      if(r<0.18){
+        /* ★정지는 경로주행 중에도 안전하다 — 위치를 옮기지 않기 때문이다.
+           단 정지 자체가 길어지면 driveAuto 의 정체복구가 끼어드니 2.5초로 짧게 끊는다. */
+        /* (a) 완전 정지 -> 2.5초 대기 -> 재출발.
+           ★me.v=0 를 한 번만 찍으면 heavy 교통에서 앞차에 막혀 그대로 눌러앉는다
+             (실측: 의도한 2.5초 대신 10초 정지가 나왔다). 정지 구간 동안만
+             매 프레임 0 으로 눌러두고, 끝나면 확실히 놓아준다. */
+        busy=true; window.__rec.st='STOP';
+        var hold=setInterval(function(){ me.v=0; }, 30);
+        setTimeout(function(){ clearInterval(hold); busy=false;
+                               window.__rec.st='GO'; window.__rec.n++; }, 2500);
+      } else {
+        /* (b) 차로 밖으로 밀어낸다 — 횡으로 2.5~4.5m + 각도 12~25도.
+           교사의 cross-track 보정이 스스로 되돌아오는 장면을 만든다.
+           도로에서 너무 멀리 내보내면 nearestSeg 가 엉뚱한 도로를 잡으므로
+           한 차로 반 정도까지만 민다. */
+        var n=nearestSeg(me.x,me.y); if(!n) return;
+        /* ★경로주행 중에는 밀어내지 않는다(u_5108 실측).
+           driveAuto 는 웨이포인트 인덱스를 들고 있어서, 차를 옆으로 순간이동시키면
+           경로에서 벗어났다고 판단해 복구/재계획에 들어간다. 실측: 이 모드를 켜면
+           진행률이 0.18 에서 더 안 오르고 v<0.5 가 77% 였다(끄면 0.91 까지 간다).
+           이탈복구 장면은 '경로 없이 교사가 직접 모는' 구간에서만 만든다. */
+        if(typeof auto!=='undefined' && auto.on && auto.wp && auto.wp.length) return;
+        var side=Math.random()<0.5?-1:1;
+        var dx=(2.5+Math.random()*2.0)*side;
+        me.x += -Math.sin(me.ang)*dx*S;
+        me.y +=  Math.cos(me.ang)*dx*S;
+        me.ang += side*(0.21+Math.random()*0.23);
+        /* 목표 차로 추종 상태를 초기화해 '현재 위치에서' 다시 수렴하게 한다 */
+        T.laneF=undefined; T.laneSet=false;
+        window.__rec.st='OFF'; window.__rec.n++;
+      }
+    }, 14000);
+  }
+  setTimeout(go, 4000);
+})();
+"""
+
+# ★수집 빌드는 교사를 반드시 켠 상태로 시작한다(u_5108 실사고).
+#   T.last 는 T.auto 가 true 일 때만 갱신된다(game.js 2882/2930). 꺼져 있으면
+#   steer/thr/brake 코드픽셀이 첫 프레임 값에 얼어붙은 채로 수집된다 —
+#   실측: 145프레임 내내 steer=-0.034 단일값(v 만 정상 변동).
+#   localStorage 의 kb_teach 가 'off' 로 남아 있으면(모델 검증 작업 뒤) 그대로
+#   꺼진 채 수집되므로, 빌드에서 강제로 덮어쓴다.
+if '--collect-ot' in sys.argv or '--collect-recover' in sys.argv:
+    # 문자열 치환은 공백 한 칸에도 깨진다(실측: 치환 실패로 라벨이 계속 얼어 있었다).
+    # 로드 후 실행되는 블록으로 확실하게 켠다.
+    te += r"""
+;(function(){
+  try{ localStorage.setItem('kb_teach','fwd'); }catch(e){}
+  function on(){
+    var T=window.__teach;
+    if(!T){ setTimeout(on,300); return; }
+    T.auto=true; if(!T.mode||T.mode==='off') T.mode='fwd';
+  }
+  on();
+  /* teacher.js 의 300ms 폴러가 localStorage 를 다시 읽어 끄지 않도록 계속 눌러둔다 */
+  setInterval(function(){
+    var T=window.__teach; if(T && !T.auto){ T.auto=true; if(T.mode==='off') T.mode='fwd'; }
+  }, 500);
+})();
+"""
+
 if off:
     te = te.replace("let mode='fwd';", "let mode='off';   /* 검증 빌드: 교사 OFF */")
     # 교사가 꺼져 있어도 도로 위에서 출발해야 모델이 길을 볼 수 있다.
