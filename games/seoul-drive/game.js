@@ -841,6 +841,14 @@ function respawnOnRoad(){
 function crash(label,heavy){
   if(me.cool>0)return;
   me.cool=.8;me.crashes++;
+  /* ★무엇에 부딪히는지 종류별로 센다(u_5025 진단용).
+     'cr=8' 만 봐서는 원인을 모른다 — 추돌인지 보행자인지 차로이탈인지에 따라
+     고칠 곳이 완전히 다르다. */
+  { const k=label.indexOf('추돌')>=0?'추돌'
+          : label.indexOf('보행자')>=0?'보행자'
+          : label.indexOf('차로')>=0?'차로이탈'
+          : label.indexOf('충돌')>=0?'건물':'기타';
+    window.__crk=window.__crk||{}; window.__crk[k]=(window.__crk[k]||0)+1; }
   me.dmg=Math.min(100,me.dmg+(heavy?22:14));
   me.v*=-.25;
   const el=document.getElementById('crash');
@@ -1328,7 +1336,9 @@ function draw(){
     g.font='11px ui-monospace,Menlo,monospace';
     g.fillStyle='#000'; g.fillRect(6,H-14,360,13);
     g.fillStyle= on.ok ? '#7CFF9E' : '#ff6b6b';
-    g.fillText('CAR v='+((me.v*3.6)|0)+' cr='+me.crashes
+    const _ck=window.__crk||{};
+    const _cks=Object.keys(_ck).map(k=>k+':'+_ck[k]).join(' ')||'-';
+    g.fillText('CAR v='+((me.v*3.6)|0)+' cr='+me.crashes+'['+_cks+']'
                +' road='+(on.ok?'Y':'N')
                +' d='+(ns?(ns.d/S).toFixed(1):'--')+'m'
                +' hold='+(crashHold?1:0)

@@ -29,7 +29,23 @@
     // 이 방향으로 쓸 수 있는 차로 수 → 목표 차로를 실제 범위로 clamp
     const nl = sg.o ? sg.l : Math.max(1, Math.floor(sg.l/2));
     T.laneMax = nl;
-    const want = Math.max(0, Math.min(nl-1, (T.lane|0)));
+    /* ★내비 경로가 있으면 '경로가 있는 차로'를 목표로 삼는다(u_5025 실측).
+       예전엔 교사가 경로와 무관하게 자기 차로(T.lane, 기본 0차로)를 목표로 잡았다.
+       경로는 가장 오른쪽 차로에 그려지는데 교사는 다른 차로를 원해서, 둘이 서로
+       다른 곳을 가리켰다 — 화면 실측 ct=6.5m(약 2개 차로). 그 결과 차가 차로
+       경계로 계속 밀려 '차로이탈'만 9회 났다(추돌·보행자 0회).
+       주행 중에는 경로가 정답이다. 교사는 그 차로를 따른다. */
+    let want = Math.max(0, Math.min(nl-1, (T.lane|0)));
+    if(typeof auto!=='undefined' && auto.on && auto.wp && auto.wp.length){
+      const w = auto.wp[Math.min(auto.i, auto.wp.length-1)];
+      if(w){
+        // 경로점이 중심선에서 얼마나 떨어져 있나 → 차로 인덱스로 환산
+        const lat = (-(n.px-w.x)*Math.sin(sg.ang) + (n.py-w.y)*Math.cos(sg.ang)) / S * dir;
+        const gi  = sg.o ? (lat + (sg.roadW/2)/S)/(LW/S) - 0.5
+                         : Math.abs(lat)/(LW/S) - 0.5;
+        want = Math.max(0, Math.min(nl-1, Math.round(gi)));
+      }
+    }
     /* ★첫 프레임의 laneF 는 '목표'가 아니라 '차가 지금 실제로 있는 차로'여야 한다
        (u_5001 실사고). 목표로 초기화하면, 차가 다른 차로에 있을 때 시작부터
        큰 횡오차가 생겨 조향이 곧바로 포화된다(steer 0.98 고정, 표준편차 0.000). */
