@@ -58,7 +58,7 @@ var crashLit=0;
 var lastDraw=0; var DRAW_MS=1000/30;   /* 렌더 30fps 제한(u_4941).
   ※60fps 로 올려도 비전 새화면은 92→94fps 로 거의 안 늘고(캡처 API 고정비용이 상한),
     WindowServer 는 10.8%→21.5% 로 2배가 된다. 30fps 가 최적점.(u_4942 실측) */
-var crashHold=0;   // 사고 정지 상태(화면 빨강 고정)   // ★hardReset()가 먼저 호출되므로 var로 호이스팅(TDZ 방지)
+var crashHold=0, crashHoldT=0;   // 사고 정지 상태(화면 빨강 고정)   // ★hardReset()가 먼저 호출되므로 var로 호이스팅(TDZ 방지)
 const CH=(typeof CHUNKS!=='undefined')?CHUNKS:null;
 function chunkKey(x,y){return Math.floor(x/CHUNK)+','+Math.floor(y/CHUNK)}
 let loadedKeys=new Set();
@@ -1328,7 +1328,18 @@ function crash(label,heavy){
 /* ---------- 물리 ---------- */
 const K={};
 function step(dt){
-  if(crashHold){me.v=0;return}   // 사고 정지 중엔 움직이지 않는다
+  /* ★사고 정지가 영구히 latch 되지 않게 한다(u_5056).
+     crashHold 는 600ms 뒤 setTimeout 이 푼다. 그런데 그 사이에 또 사고가 나면
+     타이머가 겹쳐서, 먼저 걸린 타이머가 푼 뒤 나중 것이 다시 세운다. 그러면
+     아무도 못 푸는 상태가 된다 — 실측: 보행자 사고 1회 뒤 vmax=14·gp=40·brk=0
+     (아무도 제동을 안 거는데) v=0 으로 영구 정지, 진행률 0.161 에서 멈춤.
+     2초 이상 지속되면 강제로 푼다. */
+  if(crashHold){
+    crashHoldT=(crashHoldT||0)+dt;
+    if(crashHoldT>2){ crashHold=0; crashLit=0; crashHoldT=0;
+      const _el=document.getElementById('crash'); if(_el)_el.style.opacity=0; }
+    else { me.v=0; return; }
+  } else crashHoldT=0;
   const AC=5.2,BR=9.0,VMAX=17;                    // m/s
   if(!auto.on){
     if(K.ArrowUp)me.v+=AC*dt;
