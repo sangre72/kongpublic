@@ -181,6 +181,11 @@ if '--collect-ot' in sys.argv:
 #   주기적으로 (a) 완전정지 후 재출발, (b) 차를 비스듬히/차로 밖으로 밀어놓고
 #   교사가 스스로 되돌아오게 한다. 그 복구 장면이 라벨로 남는다.
 if '--collect-recover' in sys.argv:
+    # ★이탈 허용 플래그를 실제로 켠다(u_5158 실측: 이 단계에서 이탈 1건뿐이었다).
+    #   game.js 는 __COLLECT_RECOVER 를 읽어 '도로 밖으로 나가려는 이동'의 되돌림을
+    #   끄는데, 그걸 true 로 만드는 곳이 어디에도 없었다. 그래서 차가 물리적으로
+    #   도로를 못 벗어났고, 복구 장면이 라벨에 안 남았다.
+    te += "\n;window.__COLLECT_RECOVER=1;\n"
     te += r"""
 ;(function(){
   function go(){
