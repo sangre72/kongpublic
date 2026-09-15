@@ -71,7 +71,7 @@ COMPACT_LABELS: dict[str, str] = {
 
 # a_3564: 워커 spawn 모델 수동전환 셀렉터(haiku/sonnet/opus). §K7 ask| prefix.
 #   ask|model|{haiku|sonnet|opus} → .env ORCH_WORKER_MODEL upsert → 다음 spawn 이 라이브 반영.
-WORKER_MODEL_OPTIONS: tuple[str, ...] = ("haiku", "sonnet", "opus")
+WORKER_MODEL_OPTIONS: tuple[str, ...] = ("haiku", "fable", "sonnet", "opus")
 
 # u_3296/3297: ReplyKeyboardMarkup(하단고정)이 iOS에서 입력창 탭만으로 접히는 표준동작을
 # is_persistent로도 못 막는 것 확인(리서치+실사용 재현) — 인라인버튼 방식으로 전환.
@@ -85,15 +85,33 @@ CONTINUE_BUTTON = "▶ 계속하기"
 STATUS_BUTTON = "상태"
 STOP_BUTTON = "■ 중지"
 
-# u_5010: 업무 지시 버튼. 자주 시키는 일을 한 번에 보낸다.
-#   실사용 점검에서 나온 문제: 버튼이 '제어'(리포트/중지/모델)만 있고
-#   '무슨 일을 해라'가 없어서 결국 매번 타이핑해야 했다.
-TASK_BUTTONS: list[tuple[str, str]] = [
-    ("🚗 주행 학습", "주행 학습 이어서 진행해. 수집→학습→검증 순서로 하고 수치로 보고해."),
-    ("🔮 운세 생성", "내일자 운세 만들고 슬라이드까지 생성해. 잡 레시피 그대로 따라."),
-    ("📊 전체 점검", "지금 되는 것과 안 되는 것을 실측으로 확인해서 정리해줘. 추측 말고 직접 돌려보고."),
-    ("🧹 정리", "안 쓰는 임시파일·중간 데이터 정리하고 얼마나 확보됐는지 알려줘."),
-]
+# u_5012: 검증→보강 2단계 버튼.
+#   오너 의도(정정): 자주 쓰는 업무를 나열하는 게 아니라,
+#   "지금 하던 작업이 목적대로 제대로 구현됐는지" 를 싸고 빠른 모델로 먼저 검증시키고,
+#   그 결과를 파일로 남긴 뒤, 강한 모델로 바꿔 그 파일대로 보강하게 하는 흐름이다.
+#   (u_5010 에서 내가 '주행학습/운세생성/전체점검/정리' 로 잘못 만들었던 것을 대체)
+AUDIT_FILE = "logs/audit_findings.md"
+
+AUDIT_BUTTON = "🔍 검증(fable)"
+APPLY_BUTTON = "🔧 보강 실행(opus)"
+
+AUDIT_PROMPT = (
+    "지금 진행 중이던 작업이 '목적에 비례해 제대로 구현됐는지' 검증해라.\n"
+    "1) 최근 작업이 뭐였는지 먼저 확인(git log, 최근 u_/ar_).\n"
+    "2) 코드를 읽고 실제로 돌려봐서 확인한다 — 추측 금지, 실측만.\n"
+    "3) 목적 대비 빠진 것 / 잘못된 것 / 보강할 것을 찾는다.\n"
+    f"4) 결과를 {AUDIT_FILE} 에 쓴다. 형식:\n"
+    "   ## 검증일시 / ## 대상 / ## 확인된 것(실측값 포함) / ## 문제점 / ## 보강할 점(우선순위순)\n"
+    "5) 고치지는 마라. 이 단계는 '찾아서 적기'까지다.\n"
+    "끝나면 몇 개 찾았는지 한 줄로 보고."
+)
+
+APPLY_PROMPT = (
+    f"{AUDIT_FILE} 를 읽고 거기 적힌 '보강할 점'을 우선순위대로 실제로 구현해라.\n"
+    "· 하나 고칠 때마다 실측으로 검증하고 수치를 남긴다.\n"
+    "· 못 고치는 게 있으면 왜 못 고치는지 적는다.\n"
+    "· 끝나면 무엇을 고쳤고 무엇이 남았는지 보고."
+)
 
 
 def _model_label(current: str, m: str) -> str:
@@ -141,8 +159,10 @@ def build_main_inline_keyboard() -> list[list[dict[str, Any]]]:
              "callback_data": f"ask|model|{m}"}
             for m in WORKER_MODEL_OPTIONS
         ],
-        *[[{"text": t, "callback_data": f"task|{i}"}]
-          for i, (t, _) in enumerate(TASK_BUTTONS)],
+        [
+            {"text": AUDIT_BUTTON, "callback_data": "audit|check"},
+            {"text": APPLY_BUTTON, "callback_data": "audit|apply"},
+        ],
     ]
 
 
