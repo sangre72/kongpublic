@@ -195,7 +195,7 @@ var crashLit=0;
 var lastDraw=0; var DRAW_MS=1000/30;   /* 렌더 30fps 제한(u_4941).
   ※60fps 로 올려도 비전 새화면은 92→94fps 로 거의 안 늘고(캡처 API 고정비용이 상한),
     WindowServer 는 10.8%→21.5% 로 2배가 된다. 30fps 가 최적점.(u_4942 실측) */
-var crashHold=0, crashHoldT=0;   // 사고 정지 상태(화면 빨강 고정)   // ★hardReset()가 먼저 호출되므로 var로 호이스팅(TDZ 방지)
+var crashHold=0, crashHoldT=0, bldStuck=0;   // 사고 정지 상태(화면 빨강 고정)   // ★hardReset()가 먼저 호출되므로 var로 호이스팅(TDZ 방지)
 const CH=(typeof CHUNKS!=='undefined')?CHUNKS:null;
 function chunkKey(x,y){return Math.floor(x/CHUNK)+','+Math.floor(y/CHUNK)}
 let loadedKeys=new Set();
@@ -1525,7 +1525,22 @@ function step(dt){
     const nm=blds[bi].n?blds[bi].n:'건물';
     me.v=0;
     crash(nm+' 충돌',true);
-  }
+    /* ★건물에 끼면 빠져나온다(u_5056 실측).
+       매 프레임 driveAuto 가 속도를 주면 → 이동이 건물에 막혀 되돌려지고 v=0.
+       무한 반복이라 차가 영원히 멈춘다. 화면상 제동 0·앞차 40m·보행자 없음·
+       사고 카운트도 안 늘어(cool 타이머) 원인이 안 보인다 — 실측으로 이걸
+       찾는 데 세 번 헛짚었다.
+       경로 주행 중이면 경로 위 안전한 지점으로 되돌려 다시 출발시킨다. */
+    bldStuck=(bldStuck||0)+dt;
+    if(bldStuck>1.5 && auto.on && auto.wp.length>1){
+      const t=auto.wp[Math.min(auto.i, auto.wp.length-1)];
+      const p=auto.wp[Math.max(0,auto.i-1)];
+      me.x=t.x; me.y=t.y;
+      me.ang=Math.atan2(t.y-p.y, t.x-p.x);
+      me.v=0; me.cool=1.0; bldStuck=0;
+      flash('건물 끼임 복구');
+    }
+  } else bldStuck=0;
   /* ★차로 밖으로는 '못 나간다' — 물리적 구속(u_5027).
      도로교통법은 절대적이다. 예전엔 인도 침범을 감속+사고기록으로만 처리해서,
      차가 실제로는 인도 위를 계속 굴러다녔다(실측 25초에 사고 8~23회).
