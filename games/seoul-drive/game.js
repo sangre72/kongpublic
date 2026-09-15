@@ -1536,7 +1536,13 @@ function mdlPoll(dt){
                     br:+(+(a.brake||0)).toFixed(4), ok:1,
                     // ★u_5171: 조향 89% 포화. 어느 항이 범인인지 보려면 항별로 봐야 한다.
                     d:g?+(+g.d).toFixed(3):null, x:g?+(+g.x).toFixed(3):null,
-                    ct:g?+(+g.cross).toFixed(2):null} : {ok:0}; })(),
+                    ct:g?+(+g.cross).toFixed(2):null,
+                    // ★u_5171: onroad=1 인데 cross 가 25m 나온다(왕복8차로보다 넓다).
+                    //   기준 세그먼트가 프레임마다 바뀌는지 본다 — 교차로에서 목표가
+                    //   튀면 cross 는 '다른 도로 기준' 거리가 되어 의미가 없어진다.
+                    sw:(window.__teach&&window.__teach.lastSegW)||null,
+                    ln:(window.__teach&&window.__teach.lane),
+                    nl:(window.__teach&&window.__teach.lastNl)||null} : {ok:0}; })(),
       car: {v:+me.v.toFixed(3), x:+(me.x/S).toFixed(2), y:+(me.y/S).toFixed(2),
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
       qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();

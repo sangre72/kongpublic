@@ -158,6 +158,8 @@
 
     /* cross-track 도 같은 고정 기준선으로 잰다(부호: 왼쪽 -, 오른쪽 +) */
     const cross = (-(baseX-me.x)*Math.sin(sg.ang) + (baseY-me.y)*Math.cos(sg.ang)) / S * dir;
+    T.lastSegW = sg.w || null;      // ★u_5171 진단: 기준 세그먼트 id
+    T.lastNl = nl;                  //              그 도로의 차로수
 
     return {x:px, y:py, ang, seg:sg, off, dirSign:dir, cross};
   }
@@ -293,7 +295,22 @@
        조향의 주도권은 목표점 추종(diff)이 갖고, xt 는 보정 역할로 제한한다. */
     const xtK = T.laneMoving ? 0.5 : 1.6;
     const xtTerm = Math.max(-0.6, Math.min(0.6, xt*xtK));
-    const steer = Math.max(-1, Math.min(1, diff*1.8 + xtTerm));
+    let steerRaw = Math.max(-1, Math.min(1, diff*1.8 + xtTerm));
+    /* ★u_5171 실측: 교사 조향이 떨고 있었다(chattering).
+       포화 60%를 보고 '핸들을 끝까지 꺾은 채 유지한다'고 해석했는데 틀렸다.
+       실제 포화 연속구간은 평균 3.3프레임(0.2초)뿐이고,
+       프레임의 29%에서 부호가 반전하며 24%가 한 프레임에 1.0 이상 급변한다.
+       +1.0 → -1.0 을 50ms 만에 오간다.
+
+       그 떨림이 그대로 라벨이 되므로, 직진 구간에서도 라벨이 ±1 로 진동한다.
+       오드가 직진을 못 배우는 진짜 이유가 이것이다(직진 라벨 3~6%).
+
+       실제 차는 조향을 순간이동시킬 수 없다. 물리적 한계를 건다 —
+       사람이 핸들을 돌리는 속도는 대략 2회전/초, 조향비를 감안하면
+       정규화 조향 기준 초당 4.0 정도가 상한이다(프레임당 0.2). */
+    const MAXRATE = 4.0 / 60;                       // 프레임당 최대 변화량
+    const prevS = (T.last && typeof T.last.steer === 'number') ? T.last.steer : steerRaw;
+    const steer = Math.max(prevS - MAXRATE, Math.min(prevS + MAXRATE, steerRaw));
     // 진단(u_5020): 어느 항이 포화를 만드는지 화면으로 본다
     T.dbg = {d: diff*1.8, x: xt*xtK, cross: cross};
     /* ★lane_off 는 '차로 중심'까지의 거리여야 한다(u_5148/5149/5150 오너 지적).
