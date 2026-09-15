@@ -831,9 +831,14 @@ function gStartNode(x,y,ang){
     // 진행방향 일치도(-1~1). 일방통행이면 a→b 만, 양방향이면 절대값.
     const dot=(vx*fx+vy*fy)/L;
     const align = sg.o ? dot : Math.abs(dot);
-    if(align < 0.55) continue;                 // 45도 이상 어긋난 도로는 내 도로가 아니다
-    // 가까울수록·방향이 맞을수록 높은 점수
-    const score = align*2.2 - d/(6*S);
+    /* ★하드 컷 대신 소프트 페널티(ar_5034: GraphHopper heading_penalty 패턴).
+       예전엔 align<0.55 를 그냥 버렸는데, 조건에 맞는 간선이 하나도 없으면
+       경로 자체가 안 만들어졌다(실측: 일방통행 진행방향 끝점의 3.1%가 막다른 곳).
+       업계 표준(Valhalla heading_tolerance 기본 60도 ≈ cos 0.5)을 기준선으로 쓰되,
+       벗어나면 탈락이 아니라 점수를 깎는다. 후보가 아예 없어지는 일이 없다. */
+    const TOL = 0.5;                           // cos(60도) — Valhalla 기본값
+    const penalty = align < TOL ? (TOL - align) * 6.0 : 0;
+    const score = align*2.2 - d/(6*S) - penalty;
     if(score>bs){
       bs=score;
       /* ★진행방향 '앞'에 있는 끝점을 고른다(u_5033).
@@ -1152,6 +1157,23 @@ function driveAuto(dt){
       }
       auto.i=bi;
     }
+  }
+  /* ★목표점은 '차에서 가장 가까운 앞쪽 경로점'으로 매 프레임 다시 고른다(u_5043).
+     인덱스를 누적해서 올리는 방식은 어디선가 0으로 되돌려지면 영영 복구되지
+     않았다 — 실측 i=0/92 고정, 목표까지 36.1m, 그래서 길을 못 따라갔다.
+     상태를 안 쌓으면 리셋돼도 즉시 정상 동작한다. */
+  {
+    const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
+    let bi=-1, bd=1e18;
+    for(let i=0;i<auto.wp.length;i++){
+      const w=auto.wp[i];
+      const dx=w.x-me.x, dy=w.y-me.y;
+      const dd=dx*dx+dy*dy;
+      if(dd > (200*S)*(200*S)) continue;          // 너무 먼 점은 후보 아님
+      if(i<auto.wp.length-1 && (dx*fx+dy*fy) < 0) continue;   // 등 뒤는 제외(목적지는 예외)
+      if(dd < bd){ bd=dd; bi=i; }
+    }
+    if(bi>=0) auto.i=bi;
   }
   const t=auto.wp[auto.i],d=Math.hypot(t.x-me.x,t.y-me.y);
   if(auto.i>=auto.wp.length-1 && d<8*S){
@@ -1887,17 +1909,15 @@ addEventListener('keydown',e=>{
 });
 addEventListener('keyup',e=>K[e.key]=0);
 cv.addEventListener('pointerdown',e=>{
-  /* ★UI 위젯 위의 클릭은 목적지 지정이 아니다(u_5039 실사고).
-     캔버스가 화면 전체를 덮고 있어서 검색창·출발 버튼을 누르면 그 클릭이
-     캔버스까지 내려와 planTo 가 또 불린다. 그러면 방금 만든 경로가 '클릭한
-     화면 좌표'로 덮어써지고 auto.i 도 0으로 리셋된다 —
-     화면 실측 plan=3(경로를 세 번 다시 짬), i=0/104 고정, 경로가 차와 딴 곳.
-     UI 요소 위에서 시작된 클릭이면 무시한다. */
+  /* ★지도 클릭으로 목적지를 잡는 건 '더블클릭'으로만 한다(u_5042/5043).
+     캔버스가 화면 전체를 덮고 있어서, UI 버튼을 눌러도 그 클릭이 캔버스까지
+     내려와 planTo 가 다시 불렸다. UI 사각형을 제외하는 방식으로 막아봤지만
+     여전히 샜다 — 실측 plan=8(경로를 여덟 번 다시 짬), 그래서 차가 엉뚱한 데서
+     우회전하고 길을 못 따라갔다.
+     단발 클릭으로는 절대 경로를 바꾸지 않게 해서 원천 차단한다.
+     지도에서 목적지를 찍고 싶으면 빈 도로를 더블클릭한다. */
+  if(e.detail < 2) return;                 // 더블클릭만 허용
   if(e.target && e.target!==cv) return;
-  /* ★UI 패널 영역(화면 좌표 기준)은 목적지 지정에서 제외한다.
-     clientY 임계값은 브라우저 크롬 높이에 따라 달라져 신뢰할 수 없다.
-     실제 UI 요소의 화면 사각형과 겹치는지로 판단한다(u_5041 실사고:
-     '목적지 가기' 클릭이 캔버스로 새어 planTo 가 불려 경로가 지워졌다 — wp=0). */
   for(const id of ['nav','tp','tl','hp','burger']){
     const el=document.getElementById(id);
     if(!el || el.hidden) continue;
@@ -1905,7 +1925,10 @@ cv.addEventListener('pointerdown',e=>{
     if(e.clientX>=b.left && e.clientX<=b.right && e.clientY>=b.top && e.clientY<=b.bottom) return;
   }
   const r=cv.getBoundingClientRect();
+  window.__autoStart=false;                // 지도 클릭도 '경로 설정'까지만
   planTo((e.clientX-r.left-W/2)/cam.z+cam.x,(e.clientY-r.top-H/2)/cam.z+cam.y);
+  const rb=document.getElementById('qrun');
+  if(rb && auto.wp.length>1){ rb.disabled=false; flash('경로 설정됨 — [목적지 가기]'); }
   flash('목적지 설정');
 });
 cv.addEventListener('wheel',e=>{e.preventDefault();
