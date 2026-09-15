@@ -598,6 +598,38 @@ def _set_worker_model(value: str) -> str:
     return f"✅ 워커모델={value} 저장됨. 다음 spawn 반영{caveat}"
 
 
+# 버튼이 자동 생성하는 문구들 — '직전 지시' 를 찾을 때 이건 건너뛴다(u_5008).
+_BUTTON_TEXTS = ("리포트", "git commit, push", "계속하기", "계속 진행",
+                 "지금 뭐 하고", "멈추고 현재까지", "컴팩트")
+
+
+def _last_real_request(max_scan: int = 40) -> str:
+    """유저가 실제로 시킨 마지막 요청 1줄. 버튼 자동문구는 건너뛴다.
+
+    WHY(u_5008): [계속하기] 가 고정 문장만 보내면 '무엇을' 이어갈지가 빠진다.
+    직전 지시를 같이 실어야 오케가 추측 없이 이어서 할 수 있다.
+    """
+    try:
+        files = sorted(ps.U_DIR.glob("u_*.txt"), reverse=True)[:max_scan]
+    except Exception:  # noqa: BLE001
+        return ""
+    for f in files:
+        try:
+            txt = f.read_text(encoding="utf-8")
+        except Exception:  # noqa: BLE001
+            continue
+        if "## 원문" not in txt:
+            continue
+        body = txt.split("## 원문", 1)[1].strip()
+        if not body:
+            continue
+        first = body.splitlines()[0].strip()
+        if any(first.startswith(b) or b in first[:14] for b in _BUTTON_TEXTS):
+            continue                      # 버튼이 만든 u_ → 건너뛴다
+        return first[:180]
+    return ""
+
+
 def _handle_main_menu_callback(tg: TelegramIO, cq: dict) -> None:
     """메인 인라인메뉴(리포트/git/잡목록/워커깨우기) 클릭 처리(u_3296/3297 — ReplyKeyboardMarkup을
     인라인버튼으로 전환, iOS에서 하단고정키보드가 입력창 탭만으로 접히는 표준동작을 못 피해서)."""
@@ -650,7 +682,17 @@ def _handle_main_menu_callback(tg: TelegramIO, cq: dict) -> None:
         "stop": "지금 하던 것 멈추고 현재까지 상태만 정리해서 보고해.",
     }
     label = label_map.get(action)
-    toast_map = {"continue": "▶ 계속 진행", "status": "상태 확인 중",
+    if action == "continue":
+        # ★'계속'은 그 자체로 뭘 이어갈지를 말해주지 않는다(u_5008).
+        #   고정 문장만 보내면 오케가 직전 맥락을 추측해야 한다 —
+        #   버튼이 만든 u_(리포트/계속/상태 같은 자동문구)는 건너뛰고,
+        #   유저가 실제로 시킨 마지막 요청을 찾아 함께 실어 보낸다.
+        prev = _last_real_request()
+        if prev:
+            label = (f"계속하기. 직전 지시는 이거였다: 「{prev}」\n"
+                     "그 작업을 이어서 하고, 이미 끝났으면 다음 단계로 넘어가라. "
+                     "막히면 막힌 지점을 보고해.")
+    toast_map = {"continue": "▶ 계속하기", "status": "상태 확인 중",
                  "stop": "■ 중지 요청", "report": "▶ 리포트", "git": "▶ git"}
     try:
         tg.answer_callback_query(cq.get("id"), text=toast_map.get(action, f"▶ {label or action}"))

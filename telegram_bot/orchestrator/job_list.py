@@ -81,7 +81,7 @@ WORKER_MODEL_OPTIONS: tuple[str, ...] = ("haiku", "sonnet", "opus")
 # u_5004: 오케에게 '그대로 계속 진행' 을 시키는 버튼.
 #   WHY: 리포트를 보고 '진행해'를 매번 타이핑하는 게 반복이라 버튼으로 뺀다.
 #   report/git 과 같은 경로 — u_ 로 기록되면 오케가 평소처럼 읽고 이어서 한다.
-CONTINUE_BUTTON = "▶ 계속 진행"
+CONTINUE_BUTTON = "▶ 계속하기"
 STATUS_BUTTON = "상태"
 STOP_BUTTON = "■ 중지"
 
