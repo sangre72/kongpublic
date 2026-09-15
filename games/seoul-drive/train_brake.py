@@ -50,14 +50,21 @@ def main(dirs, out, epochs=30):
     tr = np.concatenate([tr_r + 1, -(tr_r + 1)])
     va = np.concatenate([va_r + 1, -(va_r + 1)])
 
-    # 오버샘플링: 제동 프레임을 자주 보여준다
-    w = np.ones(n); w[brake] = 12.0
+    # 오버샘플링: 제동 프레임을 자주 보여준다.
+    # ★u_5171 실사고: 12배 + pos_weight 를 같이 걸었더니 오드가 '안 움직이면
+    #   안 박는다'를 배웠다. 90초 내내 사고 0건인데 진행률 0.001 인 에피소드가
+    #   12개 중 3개. 서 있으니 앞차가 계속 앞에 있고, 교사는 정당하게 '서라'고
+    #   라벨한다 → 그걸로 또 학습하면 더 선다(자기강화). 교사 제동요구가
+    #   7.0% → 28.2% 로 4배 뛴 게 그 증거다.
+    #   ⇒ 가중치를 4배로 낮추고, '정지 상태에서의 제동' 프레임은 제외한다.
+    #     움직이다 서는 건 배워야 하지만, 이미 선 채로 계속 밟는 건 배우면 안 된다.
+    w = np.ones(n); w[brake] = 4.0
     Wtr = w[np.abs(tr) - 1]; Wtr = Wtr / Wtr.sum()
 
     net = DriveNet(out=3).to(DEV)
     opt = torch.optim.Adam(net.parameters(), 1e-3, weight_decay=1e-4)
     # 희소 클래스 보정. 오버샘플링 후의 실효 비율 기준으로 잡는다.
-    pw = torch.tensor([min(8.0, (1 - pos) / max(pos, 1e-3) / 12.0)], device=DEV)
+    pw = torch.tensor([min(3.0, (1 - pos) / max(pos, 1e-3) / 4.0)], device=DEV)
     bce = nn.BCEWithLogitsLoss(pos_weight=pw)
     mse = nn.MSELoss(reduction='none')
     best = 1e9
