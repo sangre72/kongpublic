@@ -866,7 +866,7 @@ function gSegAllows(sg, from){
   if(!sg.o) return true;          // 양방향 도로
   return sg.a === from;           // 일방통행은 a→b 만
 }
-function gAstar(s,t){
+function gAstar(s,t,startAng){
   const key=(n,si)=>n+'|'+si;
   const st={n:s,si:-1};
   const G={[key(s,-1)]:0}, came={}, open=[st], seen=new Set();
@@ -888,6 +888,19 @@ function gAstar(s,t){
       const sg=GSEGS[si];
       if(!gSegAllows(sg, cur.n)) continue;          // 일방통행 역주행 금지
       const nb=(sg.a===cur.n)?sg.b:sg.a;
+      /* ★첫 구간은 차가 지금 향한 방향으로만 나간다(u_5048).
+         오너: "건너편으로 차가 가려고 이동하는데. 가운데는 분리선이고
+         건너편은 역주행이라 가면 안 되는 곳".
+         왕복도로는 양방향 통행이 합법이라, A* 가 출발하자마자 같은 도로를
+         반대 방향으로 되짚는 경로를 만들 수 있다. 그러면 웨이포인트가 맞은편
+         차도에 놓이고, 차는 중앙선을 넘어야만 그 경로에 올라탈 수 있다.
+         출발 순간만 방향을 강제하면 이 경로 자체가 안 만들어진다. */
+      if(cur.si===-1 && startAng!==undefined){
+        const A=GNODES[cur.n], B=GNODES[nb];
+        const ea=Math.atan2(B.y-A.y, B.x-A.x);
+        let dd=((ea-startAng+Math.PI*3)%(Math.PI*2))-Math.PI;
+        if(Math.abs(dd) > Math.PI/2) continue;      // 뒤로 나가는 첫 구간 금지
+      }
       /* 가상간선(stitch)은 실제 도로가 아니다 — 비용 40배로 최후수단화(u_5024). */
       const ng=G[ck]+sg.len*(sg.v?40:1);
       const nk=key(nb,si);
@@ -938,7 +951,7 @@ function planTo(x,y){
     const cands=[gStartNode(me.x,me.y,me.ang), gNearest(me.x,me.y)];
     for(const sN of cands){
       if(sN===undefined||sN<0) continue;
-      const gp=gAstar(sN, tgt);
+      const gp=gAstar(sN, tgt, me.ang);
       if(!gp) continue;
       /* ★경로는 '내 차가 있는 도로'에서 시작해야 한다(u_5038 오너 지시).
          출발노드가 차에서 60m 넘게 떨어져 있으면 그건 옆 도로다 — 그런 경로는
@@ -1162,18 +1175,43 @@ function driveAuto(dt){
      인덱스를 누적해서 올리는 방식은 어디선가 0으로 되돌려지면 영영 복구되지
      않았다 — 실측 i=0/92 고정, 목표까지 36.1m, 그래서 길을 못 따라갔다.
      상태를 안 쌓으면 리셋돼도 즉시 정상 동작한다. */
+  /* ★'가장 가까운 점'이 아니라 '경로를 순서대로' 따라간다(u_5047).
+     오너: "도로로 표현된 데에서 회전을 하라는거지. 직진만 잘하네".
+     최근접 방식은 직선에서는 맞지만 코너에서 틀린다 — 굽은 길에서는 모퉁이
+     '너머'의 점이 더 가까워서, 차가 코너를 따라 돌지 않고 가로질러 버린다.
+     경로에 이미 도로의 굽은 모양이 그대로 들어 있으므로, 순서대로 하나씩
+     소비하면 그 모양대로 돈다. 다만 리셋돼도 복구되도록, 현재 목표가 너무
+     멀면(40m) 한 번만 최근접으로 다시 붙는다. */
   {
-    const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
-    let bi=-1, bd=1e18;
-    for(let i=0;i<auto.wp.length;i++){
-      const w=auto.wp[i];
-      const dx=w.x-me.x, dy=w.y-me.y;
-      const dd=dx*dx+dy*dy;
-      if(dd > (200*S)*(200*S)) continue;          // 너무 먼 점은 후보 아님
-      if(i<auto.wp.length-1 && (dx*fx+dy*fy) < 0) continue;   // 등 뒤는 제외(목적지는 예외)
-      if(dd < bd){ bd=dd; bi=i; }
+    const cur=auto.wp[Math.min(auto.i,auto.wp.length-1)];
+    if(Math.hypot(cur.x-me.x,cur.y-me.y) > 40*S){
+      const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
+      let bi=-1,bd=1e18;
+      for(let i=0;i<auto.wp.length;i++){
+        const w=auto.wp[i], dx=w.x-me.x, dy=w.y-me.y, dd=dx*dx+dy*dy;
+        if(i<auto.wp.length-1 && (dx*fx+dy*fy)<0) continue;
+        if(dd<bd){bd=dd;bi=i}
+      }
+      if(bi>=0) auto.i=bi;
+    }else{
+      /* 순서대로 소비 — '가까이 왔거나' 또는 '경로 진행방향 기준으로 지나쳤으면'.
+         ★거리 조건만 두면 코너에서 크게 돌 때 7m 안에 못 들어와 그 자리에
+           멈춰 좌우로 흔들린다(실측: 방향이 307→14→67→29→62→32도로 진동,
+           진행률이 0.161→0.011 로 오히려 뒷걸음질, 사고 8회).
+           지나친 점은 놓아줘야 다음 점으로 넘어가 코너를 끝까지 돈다. */
+      let guard=0;
+      while(auto.i<auto.wp.length-1 && guard++<3){
+        const w=auto.wp[auto.i];
+        const p=auto.wp[Math.max(0,auto.i-1)];
+        let vx=w.x-p.x, vy=w.y-p.y;
+        const L=Math.hypot(vx,vy);
+        if(L>1){ vx/=L; vy/=L; } else { vx=Math.cos(me.ang); vy=Math.sin(me.ang); }
+        const dx=w.x-me.x, dy=w.y-me.y;
+        const near   = Math.hypot(dx,dy) < 7*S;
+        const passed = (dx*vx + dy*vy) < 0;
+        if(near || passed) auto.i++; else break;
+      }
     }
-    if(bi>=0) auto.i=bi;
   }
   const t=auto.wp[auto.i],d=Math.hypot(t.x-me.x,t.y-me.y);
   if(auto.i>=auto.wp.length-1 && d<8*S){
@@ -1201,7 +1239,21 @@ function driveAuto(dt){
       df = ((df+Math.PI*3)%(Math.PI*2))-Math.PI;
     }
   }
-  const gp=gap(me),curve=Math.min(1,Math.abs(df)/.8);
+  /* ★앞의 코너를 미리 보고 감속한다(u_5047).
+     굽은 길을 직선 속도로 들어가면 아무리 조향해도 못 돈다. 앞쪽 경로점들의
+     방향 변화량을 합쳐서 코너 크기를 재고, 크면 미리 속도를 낮춘다. */
+  let bend=0;
+  {
+    const j=auto.i;
+    for(let k=j;k<Math.min(j+4,auto.wp.length-1);k++){
+      const a=auto.wp[k], b=auto.wp[k+1];
+      const c=auto.wp[Math.max(0,k-1)];
+      const a1=Math.atan2(a.y-c.y,a.x-c.x), a2=Math.atan2(b.y-a.y,b.x-a.x);
+      let dd=((a2-a1+Math.PI*3)%(Math.PI*2))-Math.PI;
+      bend+=Math.abs(dd);
+    }
+  }
+  const gp=gap(me),curve=Math.min(1,Math.max(Math.abs(df)/.8, bend/1.2));
   let vmax=14*(1-.62*curve);                       // m/s (≈50km/h)
   if(gp<28*S)vmax=Math.min(vmax,14*(gp-9*S)/(19*S));
   if(gp<11*S)vmax=0;
@@ -1364,6 +1416,26 @@ function step(dt){
      이제 도로 밖으로 나가는 이동 자체를 무효로 만든다 — 벽과 같은 취급.
      이렇게 하면 어떤 컨트롤러(경로주행·교사·학습모델)를 쓰든 물리적으로
      차로를 벗어날 수 없다. 규칙을 지키길 '기대'하는 대신 못 어기게 만든다. */
+  /* ★중앙선을 넘는 이동은 막는다(u_5048).
+     오너: "가운데는 분리선으로 사고고, 건너편길은 역주행이라 가면 안 되는 곳".
+     도로 밖은 이미 하드 구속인데 중앙선은 자유라, 차가 반대 차도로 넘어갔다.
+     왕복도로에서 진행방향 기준 중앙선 너머로 나가는 이동을 되돌린다. */
+  {
+    const ns=nearestSeg(me.x,me.y);
+    if(ns && ns.s && !ns.s.o){
+      const sg=ns.s;
+      let dd=((me.ang - sg.ang + Math.PI*3)%(Math.PI*2))-Math.PI;
+      const dir = Math.abs(dd) < Math.PI/2 ? 1 : -1;
+      // 중심선 기준 부호거리(진행방향 오른쪽이 +)
+      const lat = (-(ns.px-me.x)*Math.sin(sg.ang) + (ns.py-me.y)*Math.cos(sg.ang)) * dir;
+      if(lat < -0.6*S){                       // 중앙선 너머(반대 차도)
+        me.x=px0; me.y=py0; me.ang=pa0;
+        me.v*=0.5;
+        me.offroad+=dt;
+        if(me.offroad>.9){ me.offroad=0; crash('중앙선 침범',false); }
+      }
+    }
+  }
   const r=onRoad(me.x,me.y);
   const inPark=PARK.bays.length&&Math.hypot(me.x-PARK.cx,me.y-PARK.cy)<12*S;
   if(!r.ok&&!inPark){
