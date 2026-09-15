@@ -912,6 +912,19 @@ function planTo(x,y){
          차가 따라갈 수 없고, 따라가려 하면 길 아닌 데를 가로지른다. 버린다. */
       const s0=GNODES[gp[0]];
       if(Math.hypot(s0.x-me.x, s0.y-me.y) > 60*S) continue;
+      /* ★경로는 '도로'로 정의한다(u_5035 오너 지시).
+         후보 경로의 앞부분이 실제 도로 위인지 검사해서, 아니면 그 경로를 쓰지
+         않는다. 도로가 아닌 곳을 지나는 경로는 애초에 경로가 아니다. */
+      {
+        let ok=0,n=0;
+        for(let k=0;k<gp.length && n<25;k++){
+          const nd=GNODES[gp[k]];
+          if(Math.hypot(nd.x-me.x,nd.y-me.y) > 1200*S) break;  // 미적재 청크는 판정 불가
+          if(onRoad(nd.x,nd.y).ok) ok++;
+          n++;
+        }
+        if(n>=3 && ok/n < 0.8) continue;      // 5개 중 1개꼴로 도로 밖이면 버린다
+      }
       p=gp; NS=GNODES; break;
     }
   }
@@ -1044,6 +1057,23 @@ function driveAuto(dt){
       const near   = Math.hypot(dx,dy) < 8*S;
       const passed = (dx*px + dy*py) < 0;        // 경로 진행방향 기준으로 지나침
       if(near || passed) auto.i++; else break;
+    }
+  }
+  /* ★경로에서 크게 벗어났으면 '가장 가까운 경로점'으로 다시 붙는다(u_5035).
+     인덱스가 앞서 나가면 차 뒤의 점을 조준하게 되고, 그러면 조향이 0에 가까워져
+     영영 못 돌아온다 — 실측: wp_idx=88 인데 범위 내 경로점은 69개뿐,
+     경로에서 40m·172도로 굳어 steer=-0.04(사실상 직진)였다.
+     30m 넘게 벌어지면 앞뒤 상관없이 최근접점으로 재조준한다. */
+  {
+    const cur=auto.wp[Math.min(auto.i,auto.wp.length-1)];
+    if(Math.hypot(cur.x-me.x,cur.y-me.y) > 30*S){
+      let bi=auto.i, bd=1e18;
+      for(let i=0;i<auto.wp.length;i++){
+        const w=auto.wp[i];
+        const dd=(w.x-me.x)**2+(w.y-me.y)**2;
+        if(dd<bd){bd=dd;bi=i}
+      }
+      auto.i=bi;
     }
   }
   const t=auto.wp[auto.i],d=Math.hypot(t.x-me.x,t.y-me.y);

@@ -46,19 +46,45 @@ def batch(X, Y, ids):
     if flip.any():
         xb[flip] = torch.flip(xb[flip], dims=[3])
         yb[flip, 0] *= -1
+        # 도로 경계 보조목표: 좌우반전하면 중심선 기준 반대편이 된다
+        if yb.shape[1] > 3:
+            yb[flip, 3] = 1.0 - yb[flip, 3]
     return xb.to(DEV), torch.from_numpy(yb).to(DEV)
 
 def main(d, out, epochs=25):
     X = np.load(f'{d}/X.npy', mmap_mode='r')
     Yr = np.load(f'{d}/Y.npy')
+    """★도로 인식을 보조목표로 넣는다(u_5035 오너 지시).
+
+    오너: "중요한 건 도로만, 도로로 인식할 수 있는 것만 주행하면 문제없는 것 아닌가".
+    맞는 정리다. 인도/건물을 따로 구분할 필요가 없다 — '도로인가 아닌가'만 있으면 된다.
+
+    ★왜 지금까지 못 배웠나(실측): M.npy 의 on_road 평균이 1.00 이다. 85,768프레임
+      전부 도로 위다. 반례가 하나도 없으니 '도로를 벗어나면 안 된다'는 학습 자체가
+      불가능했다. 라벨도 steer/thr/brake/rev 뿐이라 도로에 관한 신호가 없었다.
+
+    ★해결: 반례를 만드는 대신, '도로 경계까지 남은 거리'를 같이 맞히게 한다.
+      그러면 특징추출부가 도로 경계를 표현하도록 강제된다(auxiliary task).
+      lane(중심선까지 거리)은 이미 M.npy 에 있다 — 실측 0.84~7.83m.
+      좌우반전하면 부호가 뒤집히므로 중심 기준 정규화해서 넣는다.
+    """
     Y = np.stack([Yr[:,0], Yr[:,1], Yr[:,2]], 1).astype(np.float32)   # steer,thr,brake
+    try:
+        M = np.load(f'{d}/M.npy', mmap_mode='r')
+        lane = np.asarray(M[:, 1], np.float32)
+        # 중심선 거리 → -1~1 (도로 반폭 7m 기준). 반전 시 부호가 뒤집히는 양이다.
+        laneN = np.clip(lane / 7.0, 0, 1).astype(np.float32)
+        Y = np.concatenate([Y, laneN[:, None]], 1)
+        print(f'[aux] road-boundary target on: lane {lane.min():.2f}~{lane.max():.2f}m')
+    except Exception as e:
+        print('[aux] lane target unavailable:', e)
     n = len(X)
     idx = np.random.permutation(n); cut = int(n*0.85)
     tr_r, va_r = idx[:cut], idx[cut:]
     # +1 오프셋: 0 은 부호가 없어 반전 표현이 불가능하므로 1-based 로 쓴다
     tr = np.concatenate([tr_r + 1, -(tr_r + 1)])
     va = np.concatenate([va_r + 1, -(va_r + 1)])
-    net = DriveNet().to(DEV)
+    net = DriveNet(out=Y.shape[1]).to(DEV)
     opt = torch.optim.Adam(net.parameters(), 1e-3, weight_decay=1e-4)
     lossf = nn.MSELoss()
     best = 1e9
