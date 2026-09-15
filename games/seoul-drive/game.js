@@ -1076,6 +1076,7 @@ function gap(c,range){
 const KMH=v=>Math.round(v*3.6);
 function driveAuto(dt){
   window.__daCnt=(window.__daCnt||0)+1;
+  if(auto.on) window.__parked=0;   // 주행 중엔 주차 플래그가 남아있으면 안 된다
   if(!auto.wp.length){auto.act='대기';return}
   /* ★★ 호길이 기반 Pure Pursuit (u_5049, fable 재설계).
      docs/driving_unsolved.md 의 실패 6건은 전부 '어느 웨이포인트를 목표로 삼나'를
@@ -2385,9 +2386,13 @@ function loop(t){
         }else window.__brkT=0;
       }catch(e){}
     }
-  }else if(T && T.auto && !window.__parked){
+  }else if(T && T.auto && !(window.__parked && !auto.on)){
     T.last = T.drive(dt);                           // 경로 없음 = 교사가 조종
-  }else if(window.__parked){
+  }else if(window.__parked && !auto.on){
+    /* ★주행 중(auto.on)이면 주차 상태로 빠지지 않는다(u_5056 실사고).
+       parkCar() 가 __parked=1 을 세우는데, 사고 복귀 경로에서 이게 남으면
+       경로 주행 중에도 이 분기로 들어와 매 프레임 me.v 를 0 으로 깎는다 —
+       실측: vmax=14·gp=40·brk=0·cr=0·hold=0 으로 모든 지표가 '가라'인데 v=0. */
     /* ★주차 상태: 아무도 몰지 않는다(u_5041).
        예전엔 페이지를 열자마자 교사가 곧바로 차를 몰았다(T.auto=true 기본).
        오너: "시작하면 바로 차가 주행을 하는데". 이제 주차로 시작하고,
