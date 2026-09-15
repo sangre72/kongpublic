@@ -568,7 +568,7 @@ function reset(){
   }
   me.v=0;me.dmg=0;me.crashes=0;me.offroad=0;
   resetTeacherLane();
-  auto.on=0;auto.goal=null;auto.wp=[];seed();sync();flash('리셋');
+  _autoOff('reset'); auto.on=0;auto.goal=null;auto.wp=[];seed();sync();flash('리셋');
 }
 
 /* ---------- 도로 판정(인도 침범 감지) ---------- */
@@ -1034,7 +1034,7 @@ function gAstar(s,t,startAng){
 /* ★갓길 주차(u_5041 오너 지시). 지금 있는 도로의 가장 바깥 차로 바깥쪽으로
    붙여 세운다. 주행을 완전히 멈추고(교사 포함) 경로도 해제한다. */
 function parkCar(){
-  auto.on=0; auto.wp=[]; auto.i=0; auto.goal=null;
+  _autoOff('parkCar'); auto.on=0; auto.wp=[]; auto.i=0; auto.goal=null;
   const T=window.__teach; if(T) T.auto=false;     // 교사도 정지
   /* ★parkCar 는 '지금 위치의 도로'로만 붙어야 한다(u_5079 실사고).
      hardReset 이 테헤란로@13m 로 올려놨는데 parkCar 가 그 뒤에 돌면서
@@ -1477,6 +1477,10 @@ const KMH=v=>Math.round(v*3.6);
      사람이 [모델] 버튼을 눌러 끄기 전까지 v=0 이었다(HUD DRV=MODEL 로 확정).
      userOff=true 로 시작하면 mdlPoll 의 `if(d.on && !MDL.userOff)` 가 막아준다.
    사람이 쓰는 기본 동작은 그대로다(파라미터 없으면 종전과 동일). */
+addEventListener('error',e=>{window.__jsErr=(e.message||'')+' @'+(e.filename||'').slice(-24)+':'+e.lineno;},true);
+addEventListener('unhandledrejection',e=>{window.__jsErr='promise:'+String(e.reason&&e.reason.message||e.reason);},true);
+function _autoOff(tag){ (window.__autoOffLog=window.__autoOffLog||[]).push(tag+'@'+Math.round(performance.now())); if(window.__autoOffLog.length>16) window.__autoOffLog.shift(); }
+function runBtnEl(){return document.getElementById('qrun')}
 const MDL = {on:false, steer:0, thr:0, brake:0, t:0, seq:-1, err:0, rx:0, ms:0,
              userOff: /[?&]nomodel=1/.test(location.search)};
 function mdlPoll(dt){
@@ -1491,6 +1495,27 @@ function mdlPoll(dt){
     _tq='?tel='+encodeURIComponent(JSON.stringify({
       crk: window.__crk||{}, cr: me.crashes|0,
       lde: (window.__lde||[]).slice(-12),      // a_5111 T1: 차로이탈 기하 기록
+      /* ★GO_NOT_ENGAGED 추적(u_5126). 버튼은 auto.wp.length 로 막히는데
+         디코더는 wp_len=234 를 보여준다 — 둘이 다르면 경로가 지워진 것이다. */
+      wpLen: auto.wp.length, autoOn: auto.on|0, parked: window.__parked|0,
+      /* ★누가 모는지를 계측으로 노출한다(u_5129). 화면 글자를 눈으로 읽지 않는다. */
+      mdlOn: MDL.on?1:0, mdlUserOff: MDL.userOff?1:0, drv: (MDL.on?'MODEL':(auto.on&&auto.wp.length?'GEOM':'TEACH')),
+      /* ★DAgger 라벨원(u_5139). 모델이 모는 동안 교사가 계산한 '정답'을 그대로 노출한다.
+         모델이 실제로 가는 상황(차선 벗어남·사고 직전)의 정답이 있어야 DAgger 가 성립한다.
+         기존 dagger_run.py 는 라벨을 아예 저장하지 않아 쓸모없는 프레임만 쌓았다. */
+      tch: (function(){ const T=window.__teach, a=T&&T.last;
+        return a ? {st:+(+a.steer).toFixed(4), th:+(+a.thr).toFixed(4),
+                    br:+(+(a.brake||0)).toFixed(4), ok:1} : {ok:0}; })(),
+      car: {v:+me.v.toFixed(3), x:+(me.x/S).toFixed(2), y:+(me.y/S).toFixed(2),
+            ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
+      qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();
+        return {l:Math.round(r.left),t:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height),
+                cx:Math.round(r.left+r.width/2),cy:Math.round(r.top+r.height/2),
+                sy:Math.round(r.top+r.height/2)+(window.screenY||0)+(outerHeight-innerHeight)};})(),
+      scrY: window.screenY, outH: outerHeight, innH: innerHeight,
+      jsErr: window.__jsErr||'', loopErrN: window.__loopErrN|0,
+      now: Math.round(performance.now()), daCnt: window.__daCnt|0,
+      runHit: window.__runHit|0, runRet: window.__runRet||'', mdlOn: MDL.on?1:0,
       /* ★추월 상태를 계측에 노출한다(u_5123). 교사가 실제로 추월을 시연하는지
          화면 추측이 아니라 숫자로 확인해야 한다. ot.on=1 인 구간이 곧 학습 라벨이다. */
       ot: (window.__teach && window.__teach.ot) || null,
@@ -1507,7 +1532,23 @@ function mdlPoll(dt){
     MDL.steer = +d.steer||0; MDL.thr = +d.thr||0; MDL.brake = +d.brake||0;
     /* on 은 페이지 버튼이 주도권을 갖는다. 파이썬이 on=1 을 보내면 켜지지만,
        사람이 화면에서 끄면 그게 이긴다(안전: 폭주하면 손으로 끌 수 있어야 한다). */
+    /* ★force=1 이면 사람이 꺼둔 것도 무시하고 켠다(u_5133).
+       userOff 는 '폭주하면 손으로 끌 수 있어야 한다'는 안전장치인데,
+       자동 학습 루프에서는 그게 한 번 켜지면 모델이 영영 안 돌아온다.
+       실측: userOff=1 로 굳어서 /ctl on=1 을 보내도 drv=GEOM 유지.
+       학습 하네스가 명시적으로 force 를 보낼 때만 해제한다. */
+    if(d.force){ MDL.userOff = false; }
     if(d.on && !MDL.userOff) MDL.on = true;
+    /* ★force 는 '켜기'에만 쓴다(u_5133 실사고).
+       model_drive.py 가 매 프레임 force:1 을 보내는데, 여기서 on 이 falsy 한
+       프레임 하나만 섞여도 모델이 꺼져버렸다 — 실측: 출발 누르면 drv=TEACH 로 추락.
+       끄는 건 사람(버튼·M키)만 한다. 자동 루프가 자기 모드를 끄면 학습이 끊긴다. */
+    /* ★rst 카운터가 바뀌면 소프트리셋 1회(u_5126). 리로드 없이 에피소드만 새로 시작. */
+    if(typeof d.rst==='number'){
+      if(MDL.rst===undefined) MDL.rst = d.rst;              // 첫 폴링은 기준만 잡는다
+      else if(d.rst !== MDL.rst){ MDL.rst = d.rst;
+        try{ window.__softReset && window.__softReset(); }catch(e){} }
+    }
   }).catch(e=>{ MDL.err++; });
 }
 /* 모델 출력 → 차. teacher.js T.drive 와 같은 물리 규약을 쓴다(일관성). */
@@ -1614,7 +1655,7 @@ function driveAuto(dt){
     const g=W[N-1], dg=Math.hypot(g.x-me.x,g.y-me.y);
     if(auto.s>=total-10*S && dg<8*S){
       me.v*=.82;auto.act='도착';
-      if(me.v<.3){me.v=0;auto.on=0;flash('목적지 도착');sync()}
+      if(me.v<.3){_autoOff('arrive');me.v=0;auto.on=0;flash('목적지 도착');sync()}
       return;
     }
   }
@@ -1646,6 +1687,19 @@ function driveAuto(dt){
   const Ld = off > 6
     ? Math.max(4, Math.min(8, 4 + 0.3*me.v))       // 복귀: 짧게 → 급히 붙는다
     : Math.max(6, Math.min(16, 0.9*me.v));         // 정상: 속도비례
+  /* ★gp/otOff 는 여기서 계산한다(u_5126 실사고 수정).
+     추월 오프셋을 쓰는 조향 코드가 선언보다 42줄 위에 삽입돼 있어서
+     `const otOff` 의 TDZ(temporal dead zone)에 걸렸다 — driveAuto 가 매 프레임
+     "Cannot access 'otOff' before initialization" 을 던졌고, loop() 이 그대로
+     터져 requestAnimationFrame 재등록이 안 돼 게임이 통째로 멈췄다
+     (실측: [목적지 가기] 직후 performance.now() 6197ms 고정, daCnt=0, v=0).
+     그래서 autoOn=1 인데 차가 1cm 도 못 움직였다. */
+  const gp=gap(me);
+  /* ★추월은 driveAuto 에 두지 않는다(u_5138 오너 지적).
+     driveAuto 는 '수식 주행'이고, 여기에 기능을 넣으면 모델이 아니라 루틴이 잘 가게 된다.
+     추월 판단은 teacher.js 에만 있다 — 교사가 시연하고, 그게 라벨이 되고, 모델이 배운다.
+     (모델 주행 중에는 driveAuto 자체가 호출되지 않으므로 여기 코드는 학습과 무관하다.) */
+  const otOff = 0;
   const P=posAt(auto.s + Ld*S);
   if(otOff){                                   // 추월 중이면 목표를 옆 차로로 민다
     P.x += -Math.sin(me.ang)*otOff;
@@ -1664,7 +1718,6 @@ function driveAuto(dt){
      복사한 사본이 있었고 교사본과 달라서, 내비 주행 중 두 제어기가 매 프레임
      다른 판단을 냈다. 사본을 없애야 그 갈라짐이 다시 안 생긴다. */
   const pedD=pedBrakeDist();
-  const gp=gap(me);
   let vmax=vmaxCurve;
   if(pedD<PED_STOP_M) vmax=0;
   else if(pedD<PED_SLOW_M) vmax=Math.min(vmax, 3.5);
@@ -1688,8 +1741,8 @@ function driveAuto(dt){
   auto.stall = (auto.on && me.v < 0.8 && !queued && auto.s < total-20*S)
                  ? (auto.stall||0)+dt : 0;
   const creep = auto.stall > 3;
-  /* ★추월 판단이 먼저다(u_5121). 비켜갈 수 있으면 서지 않는다. */
-  const otOff = overtakeOffset(dt, gp);
+  /* ★추월 판단이 먼저다(u_5121). 비켜갈 수 있으면 서지 않는다.
+     otOff/gp 는 조향(4번)에서 이미 쓰므로 그 위에서 계산해 둔다. */
   if(otOff){
     /* 추월 중에는 앞차 정지 규칙을 완화한다 — 옆 차로로 나가는 중이므로
        앞차가 가까워도 멈추면 안 된다. 대신 옆 차로 안전은 laneClear 가 이미 봤다. */
@@ -1805,7 +1858,11 @@ function crash(label,heavy){
       const ns=nearestSeg(me.x,me.y);
       if(ns&&ns.s){
         const sg=ns.s, lanes=sg.l||2;
-        const rOff=sg.o ? (0.5*LW-(lanes*LW)/2) : 0.5*LW;   // planTo laneOff 와 동일식
+        /* ★여기에 planTo laneOff 의 '옛날 식'이 복사돼 남아 있었다(u_5137).
+           본체는 이미 일방=0.5*LW 로 고쳤는데 이 계측 코드만 구식이라,
+           rOff 가 -3.25/-6.50 으로 찍혀 '경로가 반대차로를 노린다'고 오독했다.
+           오늘만 네 번째 '한쪽만 고친 복사본' 이다. 같은 식을 쓴다. */
+        const rOff=0.5*LW;                                  // planTo laneOff 와 동일식
         (window.__lde=window.__lde||[]).push({
           k:k, n:sg.n||'', l:lanes, o:sg.o?1:0,
           roadW:+(sg.roadW/S).toFixed(2),
@@ -2588,7 +2645,7 @@ addEventListener('keydown',e=>{
   const ae = document.activeElement;
   if(ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
   if(e.key.startsWith('Arrow')){K[e.key]=1;e.preventDefault();
-    if(auto.on){auto.on=0;sync();flash('수동 전환')}}
+    if(auto.on){_autoOff('arrowkey');auto.on=0;sync();flash('수동 전환')}}
   if(e.key==='r'||e.key==='R')reset();
   if(e.key==='h'||e.key==='H')flash('🔊 빵!');
   if(e.key==='+'||e.key==='=')cam.z=Math.min(2.2,cam.z*1.18);
@@ -2621,7 +2678,7 @@ cv.addEventListener('pointerdown',e=>{
 cv.addEventListener('wheel',e=>{e.preventDefault();
   cam.z=Math.max(.45,Math.min(2.2,cam.z*(e.deltaY<0?1.1:1/1.1)))},{passive:false});
 document.getElementById('md').onclick=()=>{
-  if(auto.on){auto.on=0;flash('수동 전환')}
+  if(auto.on){_autoOff('mdclick');auto.on=0;flash('수동 전환')}
   else if(auto.goal){auto.on=1;flash('자율주행 재개')}
   else flash('지도를 클릭해 목적지를 정하세요');
   sync();
@@ -2895,7 +2952,7 @@ function hardReset(){
   }else if(PARK.bays.length){const b=PARK.bays[2];me.x=b.x;me.y=b.y;me.ang=PARK.ang}
   me.v=0;me.dmg=0;me.crashes=0;me.offroad=0;me.cool=0;
   resetTeacherLane();
-  auto.on=0;auto.wp=[];auto.i=0;
+  _autoOff('spawn'); auto.on=0;auto.wp=[];auto.i=0;
   streamWorld(true);
 }
 function epTick(dt){
@@ -3101,9 +3158,19 @@ function loop(t){
   const sp=document.getElementById('sp');if(sp)sp.textContent=KMH(Math.abs(me.v));
   const ac=document.getElementById('ac');if(ac)ac.textContent=auto.on?auto.act:'수동 주행';
   if(t-nt>350){nt=t;const rd=document.getElementById('rd');if(rd)rd.textContent=roadName()}
-  requestAnimationFrame(loop);
+  window.__rafN=(window.__rafN|0)+1;
+  requestAnimationFrame(_loopSafe);
 }
-requestAnimationFrame(loop);
+/* ★loop 이 한 번이라도 던지면 rAF 재등록이 안 돼 게임이 영원히 멈춘다(u_5126 실측:
+   [목적지 가기] 직후 performance.now() 가 6197ms 에 고정, daCnt=0).
+   던져도 다음 프레임을 반드시 예약한다 — 한 프레임 손해가 정지보다 낫다. */
+function _loopSafe(t){
+  try{ loop(t); }
+  catch(e){ window.__jsErr='loop:'+(e&&e.message||e)+' @'+((e&&e.stack||'').split('\n')[1]||'').trim();
+            window.__loopErrN=(window.__loopErrN|0)+1;
+            requestAnimationFrame(_loopSafe); }
+}
+requestAnimationFrame(_loopSafe);
 
 /* ===== 학습 모드 초기화 — 모든 정의가 끝난 뒤 실행(TDZ 방지) ===== */
 function setLearn(v){
@@ -3284,7 +3351,7 @@ setTimeout(()=>{
     me.crashes=0; me.dmg=0; me.offroad=0; me.cool=1.0;
     crashHold=0; crashHoldT=0; bldStuck=0; blockT=0;
     resetTeacherLane();
-    auto.on=0; auto.wp=[]; auto.i=0; auto.goal=null; window.__parked=1;
+    _autoOff('setStart'); auto.on=0; auto.wp=[]; auto.i=0; auto.goal=null; window.__parked=1;
     const T=window.__teach; if(T) T.auto=false;
     try{ streamWorld(true); }catch(e){}
     const rb2=document.getElementById('qrun'); if(rb2) rb2.disabled=true;
@@ -3310,6 +3377,15 @@ setTimeout(()=>{
       sel=0; window.__autoStart=false; pick();  // 경로만 만든다(출발은 사람이)
       const rb=document.getElementById('qrun');
       if(rb && auto.wp.length>1){ rb.disabled=false; flash('강남역→시청역 경로 준비됨 — [목적지 가기]'); }
+      /* ★?go=1 이면 경로가 잡힌 직후 자동으로 출발한다(u_5126).
+         RL 하네스는 OS 클릭에 의존하면 안 된다 — 손쉬운사용 권한이 한 번
+         끊기면(TCC) 클릭·키가 통째로 무시되어 모든 에피소드가
+         GO_NOT_ENGAGED 로 끝난다(실측: mousedown 은 #qrun 에 정확히 꽂히는데
+         mouseup 이 안 와서 click 이 합성되지 않음 → runHit=0).
+         사람이 쓰는 기본 동작은 그대로다(파라미터 없으면 종전과 동일). */
+      if(/[?&]go=1/.test(location.search) && auto.wp.length>1){
+        startDrive();
+      }
     }catch(e){ console.warn('auto-route', e); }
   }, 1500);
   if(setBtn) setBtn.onclick = ()=>setStart(sBox?sBox.value:'');
@@ -3323,8 +3399,23 @@ setTimeout(()=>{
     if(runBtn) runBtn.disabled = true;      // 경로가 해제되므로 다시 설정해야 한다
   };
   /* ★'목적지 가기' = 실제 출발(u_5041). 경로가 있어야만 동작한다. */
-  if(runBtn) runBtn.onclick = ()=>{
-    if(!auto.wp.length){ flash('먼저 경로를 설정하세요'); return; }
+  /* ★출발을 'click' 이벤트에만 의존하지 않는다(u_5126 실측 근거).
+     자동 하네스(CGEvent)로 이 버튼을 누르면 mousedown 은 #qrun 에 정확히
+     꽂히는데 mouseup 이 오지 않아 click 이 합성되지 않는다 — 실측 evLog:
+       pointerdown:224,131>qrun  mousedown:224,131>qrun  (그 다음이 없다)
+     같은 패널의 형제 버튼(#qpark)은 down/up/click 이 전부 온다. 즉 좌표도
+     히트테스트도 정상이고(4모서리+중앙 전부 elementFromPoint=qrun),
+     핸들러도 정상이다(b.click() 은 runHit=1·autoOn=1 로 즉시 성공).
+     고장난 것은 이 한 요소의 mouseup 전달뿐이다.
+     → click 을 기다리지 않고 pointerdown 에서도 출발시킨다. 사람 조작은
+       종전과 똑같고(둘 다 와도 __runBusy 로 한 번만 실행), 자동 하네스는
+       up 이 없어도 출발한다. */
+  function startDrive(){
+    if(window.__runBusy) return;             // click+pointerdown 중복 방지
+    window.__runBusy = 1; setTimeout(()=>{ window.__runBusy = 0; }, 300);
+    window.__runHit=(window.__runHit||0)+1;   // 핸들러 진입 카운터(u_5126 진단)
+    if(runBtn && runBtn.disabled){ window.__runRet='disabled'; return; }
+    if(!auto.wp.length){ window.__runRet='nowp'; flash('먼저 경로를 설정하세요'); return; }
     window.__parked=0;                       // 주차 해제
     /* ★차를 경로 위에 올리는 건 '출발하는 순간'이어야 한다(u_5050).
        예전엔 planTo(=경로 설정) 안에서 했다. 그런데 경로 설정과 출발 사이에
@@ -3338,6 +3429,13 @@ setTimeout(()=>{
       me.x=a.x; me.y=a.y; me.ang=ang;
       me.v=0; me.steer=0; me.offroad=0; me.cool=0.8;
       auto.cum=null; auto.s=0; auto.k=1; auto.i=0; auto.stall=0;
+      /* ★사고 상태도 같이 턴다(u_5126 소프트리셋).
+         이게 남아 있으면 출발하자마자 crashHold 로 다시 굳는다. */
+      me.crashes=0; me.dmg=0;
+      crashHold=0; crashHoldT=0; crashLit=0; bldStuck=0; blockT=0;
+      const _ce=document.getElementById('crash'); if(_ce) _ce.style.opacity=0;
+      resetTeacherLane();
+      window.__crk={}; window.__lde=[]; window.__otN=0;
     }
     /* ★출발 직후 월드를 차 위치 기준으로 다시 스트리밍한다(u_5111 실사고).
        위에서 차를 경로 시작점으로 순간이동시키는데, 그 지점이 다른 청크면
@@ -3346,8 +3444,34 @@ setTimeout(()=>{
        (실측: 누르기 전 wp_len=59 -> 누른 뒤 wp=0, DRV 가 MODEL 에서 TEACH 로 떨어짐).
        여기서 먼저 스트리밍해 두면 프레임 루프가 다시 만들 일이 없다. */
     try{ if(typeof streamWorld==='function') streamWorld(true); }catch(e){}
-    auto.on = 1; sync(); flash('목적지로 출발');
+    auto.on = 1; window.__runRet='ok'; window.__runOnAt=performance.now(); sync(); flash('목적지로 출발');
+  }
+  window.__startDrive = startDrive;          // 하네스가 직접 부를 수 있는 경로
+  /* ★소프트 리셋(u_5126). 페이지를 다시 안 띄우고 에피소드만 새로 시작한다.
+     리로드는 맵·검색인덱스(10MB)를 매번 다시 파싱해 ~50초가 든다 —
+     130초 에피소드의 38%. 경로(auto.wp)는 그대로 두고 차만 출발점으로
+     되돌리면 되므로, startDrive 가 이미 하는 일이 곧 리셋이다.
+     반환값으로 하네스가 성공 여부를 바로 확인한다. */
+  window.__softReset = function(){
+    /* ★리셋은 '반드시 붙는다'로 만든다(u_5126). 연속 리셋에서 3번째가 실패했는데
+       원인은 (a) __runBusy 300ms 창에 걸리거나 (b) 직전 에피소드가 도착 판정으로
+       auto.on=0 이 된 직후라 startDrive 가 한 프레임 늦게 먹히는 것이었다.
+       둘 다 '한 번 더 부르면 붙는' 성질이라 여기서 확인 후 재시도한다. */
+    window.__runBusy = 0;                    // 직전 호출의 중복방지 창을 연다
+    window.__runRet = '';
+    if(!auto.wp.length) return {ok:0, why:'nowp', wp:0};
+    startDrive();
+    if(!auto.on){                            // 한 번 더(위 두 원인 모두 1회 재시도로 해소)
+      window.__runBusy = 0;
+      startDrive();
+    }
+    return {ok: auto.on?1:0, why: window.__runRet||'', wp: auto.wp.length,
+            t: Math.round(performance.now())};
   };
+  if(runBtn){
+    runBtn.onclick = startDrive;
+    runBtn.addEventListener('pointerdown', e=>{ if(e.button===0) startDrive(); });
+  }
   /* 입력이 이벤트로 안 잡히는 환경(자동입력 등)을 위해 주기적으로도 확인한다 */
   let lastV = '';
   setInterval(()=>{
