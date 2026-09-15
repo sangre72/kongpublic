@@ -1,0 +1,46 @@
+RECIPE: Monitor(백그라운드 감시) 생명주기 — 누수 방지
+GATE: verified 2026-09-15 (u_5020 오너 지적 "14개 쉘이 다 필요한건가")
+REG: Monitor 도구를 쓰는 모든 작업(세션 공통)
+WHY: 한 세션에서 버려진 Monitor 11개가 쌓였다. 전부 `until [ -f <완료파일> ]`
+     형태로 22~23시간 동안 sleep 20~60 을 반복하고 있었다. CPU 는 0.0% 라
+     성능 피해는 없었지만, 쉘 목록이 오염되고 세션 끝까지 남는 누수다.
+
+=== 왜 생기나 (실제 원인 3가지, 빈도순) ===
+1. ★결과를 다른 경로로 얻고 Monitor 를 잊는다 ← 가장 잦다
+   Monitor 를 걸어두고 기다리기 답답해서 Bash 로 직접 확인 → 결과 얻음 →
+   그대로 다음 작업. Monitor 는 그대로 남는다.
+2. 조건이 영영 안 오는 Monitor
+   감시 대상 작업이 실패하거나 도중에 방법을 바꿔서 완료파일이 안 생긴다.
+   until 조건이 거짓이니 무한히 돈다.
+3. TaskStop 을 안 쓴다
+   타임아웃으로 알아서 죽길 기다린다. persistent:true 나 긴 timeout 은 그마저 안 된다.
+
+=== 규칙 (MUST) ===
+R1. Monitor 를 건 뒤 **다른 방법으로 결과를 확인했으면 그 자리에서 TaskStop**.
+    "이따 정리하지"는 안 된다 — 다음 작업으로 넘어가면 잊는다.
+R2. 감시 대상이 실패/변경돼 조건이 무의미해지면 **즉시 TaskStop**.
+R3. until 루프에는 **성공조건 + 실패조건을 같이** 넣는다. 프로세스가 죽었는데
+    완료파일이 없으면 영원히 돈다.
+      나쁨:  until [ -f $OUT ]; do sleep 30; done
+      좋음:  until [ -f $OUT ] || ! pgrep -f "<작업명>" >/dev/null; do sleep 30; done
+    (도구 설명의 "silence is not success" 와 같은 취지 — 실패 신호도 잡아야 한다)
+R4. 단발 알림이면 Monitor 말고 **Bash run_in_background** 를 쓴다.
+    Monitor 는 '여러 번 알림'용이다. 한 번만 알면 되는 건 종료하는 명령이 맞다.
+R5. 작업 묶음이 끝나면 **남은 Monitor 를 점검**한다(아래 VERIFY).
+
+=== VERIFY (점검 명령) ===
+# 내 세션이 남긴 유휴 쉘 찾기 — sleep 만 물고 있으면 버려진 Monitor 다
+for p in $(pgrep -f "claude.*<세션ID>|/bin/zsh -c source"); do
+  kids=$(pgrep -P $p 2>/dev/null)
+  for k in $kids; do
+    case "$(ps -p $k -o command= 2>/dev/null)" in
+      sleep*) echo "$p → $(ps -p $p -o etime= | tr -d ' ') 유휴(자식=sleep)";;
+    esac
+  done
+done
+# 정리: 위에 나온 PID 를 kill (또는 TaskStop 으로 정상 종료)
+
+=== 실측 (2026-09-15) ===
+· 누수 11개 / 경과 22:52 ~ 23:10 / 각 CPU 0.0%
+· 전부 `until [ -f .../frames/index.json ]` — 그 캡처 작업은 이미 다른 방법으로 대체됐다
+· 정리 후 남긴 필수 3개: orch_monitor_loop / worker1_watch2_loop / worker1_monitor_loop
