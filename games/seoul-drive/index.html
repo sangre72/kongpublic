@@ -1343,11 +1343,18 @@ function driveAuto(dt){
      gap<28m 조건을 달았더니, 옆·뒤에 끼여 갇힌 경우 gap 은 비어 보여서 타이머가
      안 돌았다 — 실측: 1.1km 지점에서 추돌 2회 후 v=0 으로 140초 정지.
      경로가 남아 있는데 못 가면 그건 이유가 무엇이든 교착이다. */
-  auto.stall = (auto.on && me.v < 0.8 && auto.s < total-20*S) ? (auto.stall||0)+dt : 0;
+  /* ★앞차가 있으면 교착으로 치지 않는다(u_5059 실사고).
+     예전엔 '못 가고 있으면 무조건 교착'이라 앞차 뒤에 정상적으로 줄 서 있는
+     상황에서도 서행이 발동해, 앞차를 그대로 들이받았다 — 강남→시청 촬영에서
+     램프 합류 대기 중 gp=7m 인데 creep 이 2.2m/s 를 강제해 추돌.
+     줄 서서 기다리는 건 교착이 아니라 정상 주행이다. */
+  const queued = gp < 14*S;                        // 앞차 대기 중
+  auto.stall = (auto.on && me.v < 0.8 && !queued && auto.s < total-20*S)
+                 ? (auto.stall||0)+dt : 0;
   const creep = auto.stall > 3;
   if(gp<28*S)vmax=Math.min(vmax,14*(gp-9*S)/(19*S));
-  if(gp<11*S)vmax = creep ? 2.2 : 0;               // 교착이면 서행으로 빠져나간다
-  if(creep){
+  if(gp<11*S)vmax = 0;                             // ★앞차 앞에서는 무조건 정지
+  if(creep && !queued){
     vmax=Math.max(vmax,2.2);
     /* 10초 넘게 갇혀 있으면 주변 NPC 를 비켜준다 — 시뮬레이터가 스스로 못 푸는
        교착(사방이 정지차)은 사람이 경적 울리고 기다리는 상황과 다르다. */
