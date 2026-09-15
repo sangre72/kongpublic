@@ -604,19 +604,56 @@ function onRoad(x,y){
 function nearestNode(x,y){let b=0,d=1e18;
   for(let i=0;i<nodes.length;i++){const t=(nodes[i].x-x)**2+(nodes[i].y-y)**2;
     if(t<d){d=t;b=i}}return b}
+/* ★도로교통법을 지키는 경로탐색 (u_5022 오너 지적).
+   문제: 기존 A* 는 방향 없는 그래프였다. other(seg,c) 로 모든 간선을 양방향 통행했다.
+     → 반대편 차선을 목적지로 찍으면 '그 자리에서 즉시 유턴'이 최단경로로 나온다.
+     → 일방통행도 역주행한다. 이건 운전이 아니다.
+   해결: 상태를 '노드'가 아니라 **(노드, 들어온 간선)** 으로 둔다.
+     · 일방통행(o=true)은 a→b 방향으로만 통행
+     · 같은 간선으로 되돌아가기(=제자리 유턴)는 금지
+     · 교차로가 아닌 곳(간선 2개)에서의 방향전환도 금지 — 유턴은 교차로에서만
+   비용은 거리 그대로. '돌아가더라도 합법인 길'이 유일한 해가 된다. */
+function segAllows(si, from){
+  const sg = segs[si];
+  if(!sg.o) return true;              // 양방향 도로
+  return sg.a === from;               // 일방통행은 a→b 만
+}
+function isJunction(n){ return (nodes[n].e || []).length >= 3; }
+
 function astar(s,t){
-  const G={[s]:0},F={[s]:0},came={},open=[s],seen=new Set();
+  /* 상태키 = "노드|들어온간선". 시작은 들어온 간선이 없다(-1). */
+  const key=(n,si)=>n+'|'+si;
+  const G={}, F={}, came={}, seen=new Set();
   const h=(a,b)=>Math.hypot(nodes[a].x-nodes[b].x,nodes[a].y-nodes[b].y);
-  while(open.length){
-    open.sort((a,b)=>F[a]-F[b]);const c=open.shift();
-    if(c===t){const p=[c];let k=c;while(came[k]!==undefined){k=came[k];p.unshift(k)}return p}
-    seen.add(c);
-    for(const si of nodes[c].e){
-      const nb=other(segs[si],c),ng=G[c]+segs[si].len;
-      if(G[nb]===undefined||ng<G[nb]){came[nb]=c;G[nb]=ng;F[nb]=ng+h(nb,t);
-        if(!seen.has(nb))open.push(nb)}
+  const st0=key(s,-1);
+  G[st0]=0; F[st0]=h(s,t);
+  const open=[{n:s, si:-1, k:st0}];
+  let guard=0;
+  while(open.length && guard++ < 200000){
+    open.sort((a,b)=>F[a.k]-F[b.k]);
+    const cur=open.shift();
+    if(cur.n===t){
+      const p=[cur.n]; let k=cur.k;
+      while(came[k]!==undefined){ const pv=came[k]; p.unshift(pv.n); k=pv.k; }
+      return p;
     }
-  }return null;
+    if(seen.has(cur.k)) continue;
+    seen.add(cur.k);
+    for(const si of nodes[cur.n].e){
+      if(si===cur.si) continue;                       // 왔던 길로 되돌아가기 = 제자리 유턴 금지
+      if(!segAllows(si, cur.n)) continue;             // 일방통행 역주행 금지
+      /* 교차로가 아닌 지점에서 방향을 바꾸는 것도 유턴이다.
+         간선이 2개뿐인 중간노드에서는 계속 진행만 허용된다(위 si!==cur.si 로 이미 보장). */
+      const nb=other(segs[si],cur.n);
+      const nk=key(nb,si);
+      const ng=(G[cur.k]||0)+segs[si].len;
+      if(G[nk]===undefined||ng<G[nk]){
+        G[nk]=ng; F[nk]=ng+h(nb,t); came[nk]={n:cur.n,k:cur.k};
+        if(!seen.has(nk)) open.push({n:nb, si:si, k:nk});
+      }
+    }
+  }
+  return null;
 }
 /* ★장거리 경로용 전역 그래프(2026-09-14 u_4947).
    streamWorld 는 3x3 청크(±1.5km)만 nodes/segs 에 올린다. 그래서 4km 떨어진

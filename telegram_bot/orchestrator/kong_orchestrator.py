@@ -125,7 +125,29 @@ def _load_env() -> None:
 
 # 하단 고정 ReplyKeyboard 는 채팅당 1회만 보내면 client-side 로 계속 남는다(sticky).
 #   → 프로세스 최초 outbound 때 persistent-kbd 로 보내고, 이후는 인라인만 부착(스팸 방지).
-_persistent_kb_sent: set[int] = set()
+# ★메모리 set 이면 봇을 재시작할 때마다 '고정했어요' 안내가 다시 나간다(u_5023 오너 지적).
+#   오늘만 봇을 여러 번 재시작해서 그때마다 반복 발송됐다. 파일로 남겨 한 번만 보낸다.
+_PERSIST_KB_FILE = _REPO_ROOT / "logs" / ".persistent_kb_sent"
+
+
+def _load_persistent_kb_sent() -> set[int]:
+    try:
+        return {int(x) for x in _PERSIST_KB_FILE.read_text(encoding="utf-8").split() if x.strip()}
+    except Exception:  # noqa: BLE001
+        return set()
+
+
+def _mark_persistent_kb_sent(chat_id: int) -> None:
+    _persistent_kb_sent.add(chat_id)
+    try:
+        _PERSIST_KB_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _PERSIST_KB_FILE.write_text("\n".join(str(c) for c in sorted(_persistent_kb_sent)),
+                                    encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+_persistent_kb_sent: set[int] = _load_persistent_kb_sent()
 
 
 def _send_status(tg: TelegramIO, chat_id: int, text: str, parse_mode: str | None = None) -> None:
@@ -140,7 +162,7 @@ def _send_status(tg: TelegramIO, chat_id: int, text: str, parse_mode: str | None
             tg.send_message_persistent_kb(
                 chat_id, text, jl.build_persistent_keyboard_rows(), parse_mode=parse_mode
             )
-            _persistent_kb_sent.add(chat_id)
+            _mark_persistent_kb_sent(chat_id)
             # 같은 메시지에 reply-kbd + inline 을 동시에 못 붙이므로, 인라인 행은 별도 짧은 메시지로.
             tg.send_message_kb(chat_id, "⌨️", jl.build_control_inline_row())
         else:
@@ -942,7 +964,7 @@ def handle_message(tg: TelegramIO, chat_id: int, username: str, text: str) -> No
             tg.send_message_persistent_kb(
                 chat_id, "⌨️ 컴팩트/모델 버튼을 하단에 고정했어요.", jl.build_persistent_keyboard_rows()
             )
-            _persistent_kb_sent.add(chat_id)
+            _mark_persistent_kb_sent(chat_id)
         except Exception as e:  # noqa: BLE001
             print(f"[경고] 고정키보드 초기부착 실패(chat {chat_id}): {e}")
     tg.send_message_kb(
