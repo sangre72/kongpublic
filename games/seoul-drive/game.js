@@ -85,6 +85,7 @@ function collectBlds(cx,cy){
 }
 let ROADS_ACTIVE=collectRoads(0,0);
 let BLDS_ACTIVE =collectBlds(0,0);
+let BLDS_ALL=[];   /* 전 청크 건물(전역 그래프 stitch 검사용) */
 
 /* ---------- 그래프 (청크가 바뀌면 다시 짓는다) ---------- */
 const nodes=[],segs=[];let nmap=new Map();
@@ -529,7 +530,11 @@ let GNODES=null, GSEGS=null, GIDX=null;
 function buildGlobalGraph(){
   if(GNODES||!CH) return;
   const all=[];
-  for(const k in CH){ const c=CH[k]; if(c&&c.r) all.push(...c.r); }
+  BLDS_ALL=[];
+  for(const k in CH){ const c=CH[k]; if(!c) continue;
+    if(c.r) all.push(...c.r);
+    if(c.b) BLDS_ALL.push(...c.b);            // 가상간선이 건물을 뚫는지 검사용
+  }
   const map=new Map(); GNODES=[]; GSEGS=[];
   const key=(x,y)=>Math.round(x*10)+','+Math.round(y*10);
   const nid=(x,y)=>{ const k=key(x,y); let i=map.get(k);
@@ -605,9 +610,10 @@ function stitchGraph(){
          무조건 이으면 건물·강·철로를 가로지르는 '없는 길'이 생긴다.
          실측(강남 3x3): 이렇게 만든 6개 간선의 중간점이 6/6 모두 도로 밖
          (median 7.2m·max 12.3m) — 이것이 '길 없는 곳으로 간다'의 원인이었다. */
-      const mx=(GNODES[bi].x+GNODES[bj].x)/2, my=(GNODES[bi].y+GNODES[bj].y)/2;
-      const on=onRoad(mx,my);
-      if(on.ok){
+      /* ★전역 그래프 기준으로 판정해야 한다. onRoad()/nearestSeg() 는 적재된 청크
+         (차 주변)만 보기 때문에, 멀리 있는 섬은 무조건 '도로 아님'이 되어
+         전부 기각된다 → 경로탐색 자체가 실패한다(실측: wp=0, 화면 '도로 이탈'). */
+      if(gapOK(GNODES[bi].x,GNODES[bi].y,GNODES[bj].x,GNODES[bj].y)){
         const len=Math.hypot(GNODES[bj].x-GNODES[bi].x, GNODES[bj].y-GNODES[bi].y);
         const si=GSEGS.length; GSEGS.push({a:bi,b:bj,len,v:1});   /* v=가상간선 */
         GNODES[bi].e.push(si); GNODES[bj].e.push(si);
@@ -618,6 +624,28 @@ function stitchGraph(){
   window.__stitch = nc+'->'+(nc-joined)+' (기각 '+rejected+')';
 }
 /* 전역 그래프의 실제 도로 간선 중 (x,y) 에 가장 가까운 지점. 가상간선은 제외한다. */
+/* 두 점을 잇는 가상 간선이 통행 가능한가.
+   ★'중간점이 도로 위인가'로 물으면 안 된다 — 섬 사이 간격은 정의상 도로가 없는
+   곳이라 정상적인 연결까지 전부 기각된다(실제로 그렇게 짰다가 경로탐색이 통째로
+   실패했다: wp=0·화면 '도로 이탈').
+   실제로 막아야 하는 건 '건물을 관통하는 연결'이다. */
+function gapOK(ax,ay,bx,by){
+  for(const g of BLDS_ALL){
+    const p=g.p; if(!p||p.length<3) continue;
+    for(let i=0;i<p.length;i++){
+      const q=p[i], r=p[(i+1)%p.length];
+      if(segInt(ax,ay,bx,by, q[0]*S,q[1]*S, r[0]*S,r[1]*S)) return false;
+    }
+  }
+  return true;
+}
+function segInt(x1,y1,x2,y2,x3,y3,x4,y4){
+  const d=(x2-x1)*(y4-y3)-(y2-y1)*(x4-x3);
+  if(Math.abs(d)<1e-9) return false;
+  const t=((x3-x1)*(y4-y3)-(y3-y1)*(x4-x3))/d;
+  const u=((x3-x1)*(y2-y1)-(y3-y1)*(x2-x1))/d;
+  return t>0&&t<1&&u>0&&u<1;
+}
 function gNearestOnRoad(x,y){
   if(!GSEGS) return null;
   let best=null;
