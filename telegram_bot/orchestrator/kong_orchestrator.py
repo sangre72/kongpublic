@@ -410,6 +410,9 @@ def _process_update(tg: TelegramIO, upd: dict, allowed_ids: set[int]) -> None:
             elif data.startswith("menu|"):
                 # u_3296/3297: 메인메뉴(리포트/git/잡목록/워커깨우기) 인라인버튼
                 _handle_main_menu_callback(tg, cq)
+            elif data.startswith("task|"):
+                # u_5010: 업무 지시 버튼 — 정해둔 문장을 u_ 로 기록해 오케가 바로 착수한다.
+                _handle_task_callback(tg, cq)
             elif data.startswith("job|"):
                 # u_3280/3281: 잡리스트 버튼 클릭
                 _handle_job_callback(tg, cq)
@@ -628,6 +631,37 @@ def _last_real_request(max_scan: int = 40) -> str:
             continue                      # 버튼이 만든 u_ → 건너뛴다
         return first[:180]
     return ""
+
+
+def _handle_task_callback(tg: TelegramIO, cq: dict) -> None:
+    """업무 지시 버튼(u_5010) — task|{index} → 정해둔 지시문을 u_ 로 기록.
+
+    WHY: 실사용 점검에서 버튼이 제어(리포트/중지/모델)뿐이라 '무슨 일을 해라'는
+    매번 타이핑해야 했다. 자주 시키는 일을 버튼 하나로 보낸다.
+    """
+    data = cq.get("data") or ""
+    msg = cq.get("message") or {}
+    chat_id = (msg.get("chat") or {}).get("id")
+    username = (cq.get("from") or {}).get("username", "")
+    try:
+        i = int(data.split("|", 1)[1])
+        title, body = jl.TASK_BUTTONS[i]
+    except (ValueError, IndexError):
+        try:
+            tg.answer_callback_query(cq.get("id"), text="⚠ 알 수 없는 업무")
+        except Exception:  # noqa: BLE001
+            pass
+        return
+    try:
+        tg.answer_callback_query(cq.get("id"), text=f"▶ {title}")
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        seq = ps.next_seq()
+        ps.write_user_request(chat_id, username or "task-button", body, seq)
+        print(f"[콜백→u_{seq:02d}] 업무버튼 {title}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[경고] 업무버튼 u_ 기록 실패: {e}")
 
 
 def _handle_main_menu_callback(tg: TelegramIO, cq: dict) -> None:

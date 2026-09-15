@@ -85,6 +85,39 @@ CONTINUE_BUTTON = "▶ 계속하기"
 STATUS_BUTTON = "상태"
 STOP_BUTTON = "■ 중지"
 
+# u_5010: 업무 지시 버튼. 자주 시키는 일을 한 번에 보낸다.
+#   실사용 점검에서 나온 문제: 버튼이 '제어'(리포트/중지/모델)만 있고
+#   '무슨 일을 해라'가 없어서 결국 매번 타이핑해야 했다.
+TASK_BUTTONS: list[tuple[str, str]] = [
+    ("🚗 주행 학습", "주행 학습 이어서 진행해. 수집→학습→검증 순서로 하고 수치로 보고해."),
+    ("🔮 운세 생성", "내일자 운세 만들고 슬라이드까지 생성해. 잡 레시피 그대로 따라."),
+    ("📊 전체 점검", "지금 되는 것과 안 되는 것을 실측으로 확인해서 정리해줘. 추측 말고 직접 돌려보고."),
+    ("🧹 정리", "안 쓰는 임시파일·중간 데이터 정리하고 얼마나 확보됐는지 알려줘."),
+]
+
+
+def _model_label(current: str, m: str) -> str:
+    """현재 선택된 모델에 표시를 붙인다(u_5010).
+
+    문제였던 것: 세 버튼이 똑같이 보여서 지금 무슨 모델인지 알 수 없었다.
+    """
+    return ("✅ " if m == current else "") + m
+
+
+def current_worker_model() -> str:
+    """.env 의 ORCH_WORKER_MODEL — 버튼 라벨에 현재값을 비추기 위해 읽는다."""
+    import os
+    from pathlib import Path
+    p = Path(__file__).resolve().parent / ".env"
+    try:
+        for ln in p.read_text(encoding="utf-8").splitlines():
+            ln = ln.strip()
+            if ln.startswith("ORCH_WORKER_MODEL="):
+                return ln.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return os.environ.get("ORCH_WORKER_MODEL", "haiku")
+
 
 def build_main_inline_keyboard() -> list[list[dict[str, Any]]]:
     """메인 인라인메뉴 = [계속진행][리포트/상태][git][잡목록][워커깨우기] + 컴팩트 3종 + 모델전환 3종."""
@@ -104,9 +137,12 @@ def build_main_inline_keyboard() -> list[list[dict[str, Any]]]:
             {"text": COMPACT_BOTH_BUTTON, "callback_data": "ask|compact|both"},
         ],
         [
-            {"text": f"모델:{m}", "callback_data": f"ask|model|{m}"}
+            {"text": f"모델:{_model_label(current_worker_model(), m)}",
+             "callback_data": f"ask|model|{m}"}
             for m in WORKER_MODEL_OPTIONS
         ],
+        *[[{"text": t, "callback_data": f"task|{i}"}]
+          for i, (t, _) in enumerate(TASK_BUTTONS)],
     ]
 
 
@@ -125,7 +161,8 @@ def build_control_inline_row() -> list[list[dict[str, Any]]]:
             {"text": COMPACT_BOTH_BUTTON, "callback_data": "ask|compact|both"},
         ],
         [
-            {"text": f"모델:{m}", "callback_data": f"ask|model|{m}"}
+            {"text": f"모델:{_model_label(current_worker_model(), m)}",
+             "callback_data": f"ask|model|{m}"}
             for m in WORKER_MODEL_OPTIONS
         ],
     ]
