@@ -1012,7 +1012,16 @@ function gAstar(s,t,startAng){
         if(Math.abs(dd) > Math.PI/2) continue;      // 뒤로 나가는 첫 구간 금지
       }
       /* 가상간선(stitch)은 실제 도로가 아니다 — 비용 40배로 최후수단화(u_5024). */
-      const ng=G[ck]+sg.len*(sg.v?40:1);
+      /* ★좁은 도로는 비용을 올려 우회시킨다(u_5117 실측).
+         실측: 사고 9건 중 9건이 전부 같은 1차로 도로(폭 3.25m)에서 났다.
+           rOff=0 — 경로선은 중심선 위로 완벽하다. 더 개선할 여지가 없다.
+           그런데 허용 반경 1.63m 에 차폭이 1.8m 라 실질 여유가 0.72m 뿐이고,
+           실제 이탈거리는 2.30m 였다(여유의 3배).
+         제어기를 아무리 조여도 0.72m 안에서 코너를 도는 건 무리다.
+         사람도 골목을 피해 큰길로 가듯, 경로 단계에서 좁은 길을 피한다.
+         금지가 아니라 가중치다 — 좁은 길밖에 없으면 여전히 쓴다. */
+      const narrow = (sg.l||2) <= 1 ? 12 : ((sg.l||2) <= 2 ? 2.5 : 1);
+      const ng=G[ck]+sg.len*(sg.v?40:1)*narrow;
       const nk=key(nb,si);
       if(G[nk]===undefined||ng<G[nk]){
         came[nk]={n:cur.n,si:cur.si}; G[nk]=ng; F[nk]=ng+h(nb);
@@ -1375,6 +1384,73 @@ function gap(c,range){
   }
   return b;
 }
+/* ═══════════ 추월 (u_5121 오너 지시) ═══════════════════════════════
+   오너: "다른 차량 추월은 아직 못하나. 방해하는차도 피해가야하는데."
+   기존 driveAuto 는 앞차가 있으면 gp<11m 에서 vmax=0 으로 **서기만** 했다.
+   비켜갈 생각 자체가 없어서, 느린 차 뒤에 붙으면 영원히 못 간다.
+
+   판단은 사람이 하는 순서 그대로:
+     1) 앞차가 가깝고(22m 이내) 나보다 느린가(0.85배 미만)
+     2) 옆 차로가 비었나 — 앞 45m, 뒤 18m 를 본다(뒤를 봐야 추월해오는 차 앞에 안 낀다)
+     3) 그 차로가 도로 안인가
+   셋 다 맞으면 횡방향 목표를 한 차로 옮긴다. 조향은 Pure Pursuit 가 그대로 한다.
+   추월이 끝나면(앞차를 지나치면) 원래 차로로 돌아온다. */
+function laneClear(side){
+  /* side=+1 오른쪽, -1 왼쪽. 내 진행방향 기준 한 차로 옆을 훑는다. */
+  const ca=Math.cos(me.ang), sa=Math.sin(me.ang);
+  const ox=-Math.sin(me.ang)*LW*side, oy=Math.cos(me.ang)*LW*side;   // 옆 차로 중심
+  const px=me.x+ox, py=me.y+oy;
+  const i0=(px/HG)|0, j0=(py/HG)|0, r=Math.ceil((45*S)/HG);
+  for(let i=i0-r;i<=i0+r;i++)for(let j=j0-r;j<=j0+r;j++){
+    const arr=hgrid.get(i+'|'+j); if(!arr) continue;
+    for(const o of arr){
+      if(o===me) continue;
+      const dx=o.x-px, dy=o.y-py;
+      const f=dx*ca+dy*sa;            // 전후 거리
+      const l=-dx*sa+dy*ca;           // 횡 거리
+      if(Math.abs(l) > LW*0.70) continue;
+      if(f < 18*S && f > -45*S) return false;   // 뒤 18m ~ 앞 45m 안에 차가 있으면 불가
+    }
+  }
+  return onRoad(px,py).ok;            // 옆 차로가 도로 안이어야 한다
+}
+const OT={on:0, side:0, t:0};
+function overtakeOffset(dt, gp){
+  /* 반환값 = 경로선에서 옆으로 밀 거리(m*S). 0 이면 추월 안 함. */
+  if(OT.on){
+    OT.t+=dt;
+    // 앞이 트이고 충분히 지났으면 복귀
+    if(OT.t>1.2 && gap(me) > 30*S) { OT.on=0; OT.side=0; OT.t=0; return 0; }
+    if(OT.t>9.0) { OT.on=0; OT.side=0; OT.t=0; return 0; }   // 안전장치
+    return -Math.sin(0)*0 + LW*OT.side;
+  }
+  if(gp > 22*S) return 0;                       // 앞차가 멀면 추월 불필요
+  const lead=gapCar(me);
+  if(!lead || lead.v >= me.v*0.85) return 0;    // 나보다 느리지 않으면 추월 안 함
+  const sg=(nearestSeg(me.x,me.y)||{}).s;
+  const lanes = sg ? (sg.o ? (sg.l||1) : Math.max(1,Math.floor((sg.l||2)/2))) : 1;
+  if(lanes < 2) return 0;                       // 편도 1차로면 추월 불가(법규)
+  for(const side of [-1, 1]){                   // 좌측 우선(추월차로)
+    if(laneClear(side)){ OT.on=1; OT.side=side; OT.t=0; return LW*side; }
+  }
+  return 0;
+}
+function gapCar(c,range){
+  /* gap() 과 같은 규칙으로 '앞차 객체'를 돌려준다(속도 비교용) */
+  range=range||40*S; let b=range, best=null;
+  const ca=Math.cos(c.ang),sa=Math.sin(c.ang);
+  const i0=(c.x/HG)|0,j0=(c.y/HG)|0,r=Math.ceil(range/HG);
+  for(let i=i0-r;i<=i0+r;i++)for(let j=j0-r;j<=j0+r;j++){
+    const arr=hgrid.get(i+'|'+j);if(!arr)continue;
+    for(const o of arr){
+      if(o===c)continue;
+      const dx=o.x-c.x,dy=o.y-c.y, f=dx*ca+dy*sa;
+      if(f<=0||f>=b)continue;
+      if(Math.abs(-dx*sa+dy*ca)<LW*.62){ b=f; best=o; }
+    }
+  }
+  return best;
+}
 const KMH=v=>Math.round(v*3.6);
 /* ═══════════ 모델 주행 (a_5085) ═══════════════════════════════════════
    학습된 CNN(bc_final.pt)이 실제로 차를 몬다.
@@ -1415,6 +1491,10 @@ function mdlPoll(dt){
     _tq='?tel='+encodeURIComponent(JSON.stringify({
       crk: window.__crk||{}, cr: me.crashes|0,
       lde: (window.__lde||[]).slice(-12),      // a_5111 T1: 차로이탈 기하 기록
+      /* ★추월 상태를 계측에 노출한다(u_5123). 교사가 실제로 추월을 시연하는지
+         화면 추측이 아니라 숫자로 확인해야 한다. ot.on=1 인 구간이 곧 학습 라벨이다. */
+      ot: (window.__teach && window.__teach.ot) || null,
+      otN: window.__otN || 0,                  // 누적 추월 횟수
       v: +me.v.toFixed(2), prog: +((auto.cum&&auto.cum.length? (auto.s||0)/(auto.cum[auto.cum.length-1]||1) : 0)).toFixed(4),
       drv: MDL.on?'MODEL':(auto.on&&auto.wp.length?'GEOM':'TEACH'),
       st:+MDL.steer.toFixed(3), thr:+MDL.thr.toFixed(3), brk:+MDL.brake.toFixed(3),
@@ -1567,6 +1647,10 @@ function driveAuto(dt){
     ? Math.max(4, Math.min(8, 4 + 0.3*me.v))       // 복귀: 짧게 → 급히 붙는다
     : Math.max(6, Math.min(16, 0.9*me.v));         // 정상: 속도비례
   const P=posAt(auto.s + Ld*S);
+  if(otOff){                                   // 추월 중이면 목표를 옆 차로로 민다
+    P.x += -Math.sin(me.ang)*otOff;
+    P.y +=  Math.cos(me.ang)*otOff;
+  }
   let alpha=((Math.atan2(P.y-me.y,P.x-me.x)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
   const Lreal=Math.max(3, Math.hypot(P.x-me.x,P.y-me.y)/S);
   const delta=Math.atan2(2*wb*Math.sin(alpha), Lreal);   // rad
@@ -1604,8 +1688,16 @@ function driveAuto(dt){
   auto.stall = (auto.on && me.v < 0.8 && !queued && auto.s < total-20*S)
                  ? (auto.stall||0)+dt : 0;
   const creep = auto.stall > 3;
-  if(gp<28*S)vmax=Math.min(vmax,14*(gp-9*S)/(19*S));
-  if(gp<11*S)vmax = 0;                             // ★앞차 앞에서는 무조건 정지
+  /* ★추월 판단이 먼저다(u_5121). 비켜갈 수 있으면 서지 않는다. */
+  const otOff = overtakeOffset(dt, gp);
+  if(otOff){
+    /* 추월 중에는 앞차 정지 규칙을 완화한다 — 옆 차로로 나가는 중이므로
+       앞차가 가까워도 멈추면 안 된다. 대신 옆 차로 안전은 laneClear 가 이미 봤다. */
+    if(gp<7*S) vmax = Math.min(vmax, 3.0);
+  }else{
+    if(gp<28*S)vmax=Math.min(vmax,14*(gp-9*S)/(19*S));
+    if(gp<11*S)vmax = 0;                             // ★앞차 앞에서는 무조건 정지
+  }
   if(creep && !queued){
     vmax=Math.max(vmax,2.2);
     /* 10초 넘게 갇혀 있으면 주변 NPC 를 비켜준다 — 시뮬레이터가 스스로 못 푸는
@@ -1701,7 +1793,10 @@ function crash(label,heavy){
           : label.indexOf('보행자')>=0?'보행자'
           : label.indexOf('중앙선')>=0?'중앙선'      // ★F2 분리 측정(u_5061)
           : label.indexOf('차로')>=0?'차로이탈'
-          : label.indexOf('충돌')>=0?'건물':'기타';
+          : label.indexOf('충돌')>=0?'건물'
+          /* ★'도로 이탈'·'인도 침범'(game.js:1948)이 어느 갈래에도 안 걸려
+             전부 '기타'로 뭉쳤다(실측: 사고 12건 전부 기타). 원인을 못 가린다. */
+          : (label.indexOf('도로')>=0||label.indexOf('인도')>=0)?'차로이탈':'기타';
     window.__crk=window.__crk||{}; window.__crk[k]=(window.__crk[k]||0)+1;
     /* ★a_5111 T1: 차로이탈이 '어떤 도로에서' 나는지 기하를 통째로 남긴다.
        roadW/차로수/일방여부/실제 횡오차/주행선 오프셋을 같이 찍어야
@@ -2253,8 +2348,14 @@ function draw(){
   for(const l of lamps){
     if(!inView(l.x,l.y,0))continue;
     /* ★가로등도 진하게(u_4945) — 연한 노랑 후광이 흰 배경에 묻혔다 */
-    g.fillStyle='rgba(255,190,60,.55)';g.beginPath();g.arc(l.x,l.y,2.4*S,0,7);g.fill();
-    g.fillStyle=C('--lamp');g.beginPath();g.arc(l.x,l.y,.9*S,0,7);g.fill();
+    /* ★후광을 2.4m -> 1.0m 로 줄인다(u_5118/5119 오너 지적).
+       가로등은 충돌 대상이 아니다(충돌 코드 없음). 위치도 도로 밖이다 —
+       1차로 도로 기준 중심선에서 3.00m, 도로 절반폭은 1.62m 이므로 인도 위다.
+       그런데 후광 반지름이 2.4m 라 도로(1.62m) 위를 덮어서 '차가 가로등에
+       부딪히는 것처럼' 보였다. 실제로는 통과한다 — 보이는 것과 판정이 달랐다.
+       학습 입력이기도 하므로 노란 원이 도로를 가리면 모델 시야도 오염된다. */
+    g.fillStyle='rgba(255,190,60,.35)';g.beginPath();g.arc(l.x,l.y,1.0*S,0,7);g.fill();
+    g.fillStyle=C('--lamp');g.beginPath();g.arc(l.x,l.y,.55*S,0,7);g.fill();
   }
   // 보행자
   for(const p of peds){

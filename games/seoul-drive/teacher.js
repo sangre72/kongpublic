@@ -25,6 +25,32 @@
        2) 목표 차로의 '중심선'을 세그먼트 기하로 직접 계산한다(차 위치와 무관).
        3) lookahead 는 그 차로 중심선 위에서 전방으로 잡는다.
      이러면 차가 옆에 있든 없든 목표선이 고정돼 수렴한다. */
+  /* 앞차 정보(거리 m, 속도). gap() 과 같은 규칙. */
+  function leadCar(){
+    let best=null, bd=40;
+    const ca=Math.cos(me.ang), sa=Math.sin(me.ang);
+    for(const o of (typeof cars!=='undefined'?cars:[])){
+      const dx=o.x-me.x, dy=o.y-me.y;
+      const f=(dx*ca+dy*sa)/S;
+      if(f<=0||f>=bd) continue;
+      if(Math.abs((-dx*sa+dy*ca)/S) < LW/S*0.62){ bd=f; best={gap:f, v:o.v}; }
+    }
+    return best;
+  }
+  function leadGap(){ const l=leadCar(); return l?l.gap:99; }
+  /* 목표 차로가 비었는지 — 앞 45m, 뒤 18m */
+  function laneFree(laneIdx, dir, sg, nl){
+    const off = laneOffset(sg, dir, laneIdx);
+    const px = me.x - Math.sin(sg.ang)*off, py = me.y + Math.cos(sg.ang)*off;
+    const ca=Math.cos(me.ang), sa=Math.sin(me.ang);
+    for(const o of (typeof cars!=='undefined'?cars:[])){
+      const dx=o.x-px, dy=o.y-py;
+      const f=(dx*ca+dy*sa)/S, l=(-dx*sa+dy*ca)/S;
+      if(Math.abs(l) > LW/S*0.70) continue;
+      if(f < 18 && f > -45) return false;
+    }
+    return onRoad(px,py).ok;
+  }
   function laneTarget(){
     const n = nearestSeg(me.x, me.y);
     if(!n) return null;
@@ -42,6 +68,35 @@
        경계로 계속 밀려 '차로이탈'만 9회 났다(추돌·보행자 0회).
        주행 중에는 경로가 정답이다. 교사는 그 차로를 따른다. */
     let want = Math.max(0, Math.min(nl-1, (T.lane|0)));
+
+    /* ★추월 판단은 교사가 한다(u_5123 오너 지시).
+       처음에 driveAuto(기하 제어기)에만 넣었는데, 그건 모델이 배우지 못한다.
+       교사가 시연해야 라벨로 남고, 그 라벨로 학습해야 모델이 스스로 추월한다.
+       "추월도 모댈로 학습되야한다고" — 맞는 지적이다.
+
+       사람이 판단하는 순서 그대로:
+         1) 앞차가 22m 안이고 나보다 느린가(0.85배 미만)
+         2) 옆 차로가 비었나 — 앞 45m / 뒤 18m (뒤를 봐야 추월해오는 차 앞에 안 낀다)
+         3) 추월차로는 왼쪽(차로 인덱스가 작은 쪽)이 원칙
+         4) 편도 1차로면 추월 불가(법규)
+       앞이 트이면 원래 차로로 돌아온다. */
+    if(nl >= 2){
+      const lead = leadCar();
+      if(!T.ot) T.ot = {on:0, from:0, t:0};
+      if(T.ot.on){
+        T.ot.t += 1/60;
+        const g = leadGap();
+        if((T.ot.t > 1.2 && g > 30) || T.ot.t > 9.0){ T.ot.on = 0; }   // 복귀
+        else want = T.ot.lane;
+      }else if(lead && lead.gap < 22 && lead.v < me.v*0.85){
+        const tgt = Math.max(0, want - 1);            // 왼쪽 차로(추월차로)
+        if(tgt !== want && laneFree(tgt, dir, sg, nl)){
+          T.ot = {on:1, from:want, lane:tgt, t:0};
+          window.__otN = (window.__otN||0) + 1;    // 추월 횟수 계측(u_5123)
+          want = tgt;
+        }
+      }
+    }
     if(typeof auto!=='undefined' && auto.on && auto.wp && auto.wp.length){
       const w = auto.wp[Math.min(auto.i, auto.wp.length-1)];
       if(w){
@@ -303,13 +358,15 @@
     /* ★기계 판독용 코드픽셀(2026-09-14): OCR·막대길이 추정은 불안정했다.
        조작값을 8비트 색으로 직접 찍는다 → 파이썬이 픽셀 하나만 읽으면 정확한 값.
        좌상단 (0,0)~(5,0): [마커, steer, thr, brake, rev, speed] */
-    const enc=(v)=>Math.max(0,Math.min(255,Math.round(v*255)));
-    const CY=y-30, CX=6;   // 라벨 막대 바로 위(가시영역 확인됨)
-    const put=(i,r,gg,b)=>{ g.fillStyle='rgb('+r+','+gg+','+b+')'; g.fillRect(CX+i*6,CY,6,6); };
-    put(0, 0xA5, 0x5A, 0xC3);                                  // 고정 마커
-    put(1, enc((a.steer+1)/2), enc(a.thr), enc(a.brake));      // 조향·스로틀·브레이크
-    put(2, enc(a.rev), enc(Math.min(1,me.v/40)), enc(Math.min(1,(a.lane_off||0)/12)));
-    put(3, me.crashes&255, crashHold?255:0, enc(Math.min(1,(a.obst||99)/40)));
+    /* ★a_5112 P1: 교사의 중복 코드픽셀을 제거했다(라벨 오염의 원인).
+       game.js:2300 이 이미 같은 마커(0xA5,0x5A,0xC3)로 16px 블록을 (0,0)에 찍는데,
+       여기서 6px 블록을 (6, y-30)에 또 찍었다. 스케일도 달랐다 — game.js 는 v/20,
+       교사는 v/40. decode.py 는 (0,0)에서 16px 블록을 읽으므로 보통은 game.js 가
+       이기지만, 교사 막대가 판독영역에 걸치면 값이 섞인다.
+       실측 증거(data/final/Y.npy 85768행): rev 는 항상 0 이어야 하는데
+         corr(rev, speed) = 0.9996,  median(rev/v) = 0.0251 ≈ 1/40
+       = 교사의 v/40 슬롯이 rev 자리로 새어 들어왔다. Y[:,3](aux)는 무의미하다.
+       ⇒ 기록자는 game.js 하나로 통일한다. 교사는 사람이 읽는 텍스트만 그린다. */
 
     g.font='11px ui-monospace,Menlo,monospace';
     g.fillStyle='#000'; g.fillRect(x, y-16, 210, 13);
