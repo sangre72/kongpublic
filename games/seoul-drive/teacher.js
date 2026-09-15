@@ -288,8 +288,21 @@
     const steer = Math.max(-1, Math.min(1, diff*1.8 + xtTerm));
     // 진단(u_5020): 어느 항이 포화를 만드는지 화면으로 본다
     T.dbg = {d: diff*1.8, x: xt*xtK, cross: cross};
+    /* ★lane_off 는 '차로 중심'까지의 거리여야 한다(u_5148/5149/5150 오너 지적).
+       기존엔 ns.d = **도로 중심선**까지의 거리를 넣고 있었다. 그래서 오드는
+       '도로 안에만 있으면 된다'로 배웠고, 차선을 물고 달려도 라벨상 정상이었다.
+       실측: xt=0.85m — 편도2차로(차로중심 1.75m)에서 중앙선 쪽으로 붙어 있다.
+       도로교통법상 차선을 걸치고 달리는 건 위반이다. 학습 신호부터 고친다.
+       aux 헤드(bc_train2)가 이 값을 쓰므로, 여기가 바뀌면 오드가 차로를 배운다. */
+    let laneOff = (ns?ns.d:0)/S;
+    if(ns && ns.s){
+      const sg=ns.s, nl = sg.o ? (sg.l||1) : Math.max(1, Math.floor((sg.l||2)/2));
+      const li = Math.max(0, Math.min(nl-1, Math.round(T.laneF!==undefined?T.laneF:0)));
+      const want = Math.abs(laneOffset(sg, 1, li))/S;     // 내 차로 중심의 중앙선 거리
+      laneOff = Math.abs(laneOff - want);                  // 차로 중심에서 벗어난 양
+    }
     return {steer, thr, brake, rev:0, ok:true,
-            lane_off: (ns?ns.d:0)/S, obst:d};
+            lane_off: laneOff, obst:d};
   };
 
   /* 교사가 직접 차를 몬다(키 입력 없이 물리에 직접 반영) */
