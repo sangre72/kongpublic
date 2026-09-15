@@ -2121,6 +2121,27 @@ function step(dt){
         me.v*=0.55;
       }
       me.offroad+=dt;
+      /* ★경계에 붙어 멈춘 차를 사고로 세지 않는다(u_5169 실측).
+         되돌림이 차를 경계선에 정확히 고정시키고(xt≈margin), 속도가 0 으로
+         죽으면 스스로 빠져나올 수 없다. 그 상태로 0.9초가 지나면 사고가 나고,
+         복귀시켜도 같은 자리라 또 난다 — 실측: 사고 4건 중 3건이
+         xt=1.62/margin=1.63, 6.50/6.50, 4.87/4.88 에 v≈0.1 이었다.
+         '차를 못 몬 것'이 아니라 '끼인 것'이다. 둘은 다른 문제다.
+         거의 정지 상태면 타이머를 세우고, 대신 도로 안쪽으로 조금 밀어 꺼내준다. */
+      if(me.v < 0.5){
+        me.offroad = Math.max(0, me.offroad - dt);       // 타이머 정지
+        const rr = onRoad(me.x, me.y);
+        if(rr.s){                                         // 도로 중심 쪽으로 살짝
+          const sg = rr.s, A = nodes[sg.a], B = nodes[sg.b];
+          const vx = B.x-A.x, vy = B.y-A.y, L2 = vx*vx+vy*vy;
+          let t = L2 ? ((me.x-A.x)*vx + (me.y-A.y)*vy)/L2 : 0;
+          t = Math.max(0, Math.min(1, t));
+          const cx = A.x+vx*t, cy = A.y+vy*t;
+          const d = Math.hypot(me.x-cx, me.y-cy) || 1;
+          me.x += (cx-me.x)/d * 0.6*S*dt*10;
+          me.y += (cy-me.y)/d * 0.6*S*dt*10;
+        }
+      }
       const lim = window.__COLLECT_RECOVER ? 6.0 : 0.9;   // 수집 중엔 복귀할 시간을 준다
       if(me.offroad>lim){ me.offroad=0; crash('차로 이탈 시도',false); }
       blockT=(blockT||0)+dt;
@@ -2130,6 +2151,13 @@ function step(dt){
       me.v*=(1-2.6*dt);
       if(me.offroad>.28){me.offroad=0;
         crash(r.edge>SIDEWALK_M*S?'도로 이탈':'인도 침범',false)}
+      /* ★이 가지도 교착 카운터를 올린다(a_5170 실사고).
+         여기엔 blockT 증가가 없어서, 차가 도로 '밖'에 떨어지면 위의 경로복귀
+         (blockT>1.0)가 영영 안 걸렸다. 실측: 교사(GEOM)가 doneM=65, wp13 에서
+         xt=2.3 > margin=1.63 인 폭 3.25m 구간에 붙어 '인도침범'을 172회까지
+         반복하며 10분 내내 한 발짝도 못 나갔다. 교사가 못 가면 DAgger 라벨도
+         그 지점에서 통째로 오염된다 — 되돌림 가지와 같은 탈출구를 준다. */
+      blockT=(blockT||0)+dt;
     }
   }else me.offroad=0;
 
