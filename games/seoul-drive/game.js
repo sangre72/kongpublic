@@ -58,7 +58,7 @@ var crashLit=0;
 var lastDraw=0; var DRAW_MS=1000/30;   /* 렌더 30fps 제한(u_4941).
   ※60fps 로 올려도 비전 새화면은 92→94fps 로 거의 안 늘고(캡처 API 고정비용이 상한),
     WindowServer 는 10.8%→21.5% 로 2배가 된다. 30fps 가 최적점.(u_4942 실측) */
-var crashHold=0, crashHoldT=0, bldStuck=0;   // 사고 정지 상태(화면 빨강 고정)   // ★hardReset()가 먼저 호출되므로 var로 호이스팅(TDZ 방지)
+var crashHold=0, crashHoldT=0, bldStuck=0, blockT=0;   // 사고 정지 상태(화면 빨강 고정)   // ★hardReset()가 먼저 호출되므로 var로 호이스팅(TDZ 방지)
 const CH=(typeof CHUNKS!=='undefined')?CHUNKS:null;
 function chunkKey(x,y){return Math.floor(x/CHUNK)+','+Math.floor(y/CHUNK)}
 let loadedKeys=new Set();
@@ -1428,8 +1428,22 @@ function step(dt){
         me.v*=0.5;
         me.offroad+=dt;
         if(me.offroad>.9){ me.offroad=0; crash('중앙선 침범',false); }
-      }
+        blockT=(blockT||0)+dt;                // 얼마나 계속 막히고 있나
+      } else blockT=0;
     }
+  }
+  /* ★하드 구속(중앙선·차로밖)에 오래 갇히면 경로 위로 복귀한다(u_5056).
+     두 구속 모두 '위치 되돌림 + me.v 감쇠'를 매 프레임 한다. 경로점이 임계선
+     바로 너머에 있으면 차는 그쪽으로 갈 수 없는데 계속 가려고 해서, 속도가
+     0.2 로 수렴한 채 영원히 멈춘다 — 사고도 안 나고 제동도 0이라 화면상
+     원인이 안 보인다(세 번 헛짚은 이유).
+     규칙을 푸는 게 아니라, 갇히면 합법인 경로 위로 되돌려 다시 출발시킨다. */
+  if(blockT>2 && auto.on && auto.wp.length>1){
+    const t=auto.wp[Math.min(auto.i,auto.wp.length-1)];
+    const p=auto.wp[Math.max(0,auto.i-1)];
+    me.x=t.x; me.y=t.y; me.ang=Math.atan2(t.y-p.y,t.x-p.x);
+    me.v=0; me.offroad=0; me.cool=1.0; blockT=0;
+    flash('경로 복귀');
   }
   const r=onRoad(me.x,me.y);
   const inPark=PARK.bays.length&&Math.hypot(me.x-PARK.cx,me.y-PARK.cy)<12*S;
@@ -1442,6 +1456,7 @@ function step(dt){
       me.v*=0.55;
       me.offroad+=dt;
       if(me.offroad>.9){ me.offroad=0; crash('차로 이탈 시도',false); }
+      blockT=(blockT||0)+dt;
     }else{
       /* 이미 도로 밖(사고 직후 등) → 복귀 유도. 여기선 종전대로 감속·기록. */
       me.offroad+=dt;
