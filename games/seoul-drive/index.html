@@ -818,41 +818,53 @@ function gNearest(x,y){
 function gStartNode(x,y,ang){
   if(!GSEGS||!GSEGS.length) return gNearest(x,y);
   const fx=Math.cos(ang), fy=Math.sin(ang);
-  let bi=-1, bs=-1e18;
+  /* ★a_5051 실측으로 원인을 특정했다(추정 아님). 오프라인 300표본×무작위 heading:
+       - 간선 선택은 이미 정확하다: '차→선택간선 투영점' 거리 p95=0.4m, max=3.5m.
+       - 그런데 반환값이 '끝점'이라 실제 출발점 거리 p95=48.7m, max=100.7m 로 튄다.
+       - 먼 사례의 간선 길이 중앙값 34.9m(전체 20.2m), 투영 t 중앙값 0.43 = 간선 한복판.
+     즉 xt=31.6m 은 '엉뚱한 도로를 골라서'가 아니라 '맞는 도로의 먼 끝점을 줘서' 생긴다.
+     반경(26m)·점수식은 주범이 아니었다. → 투영점에 노드를 만들어 그 자리에서 출발한다. */
+  let bsi=-1, bem=-1, bt=0, bal=0;
   for(let si=0;si<GSEGS.length;si++){
     const sg=GSEGS[si]; if(sg.v) continue;
     const A=GNODES[sg.a], B=GNODES[sg.b];
     const vx=B.x-A.x, vy=B.y-A.y, L=Math.hypot(vx,vy); if(L<1) continue;
-    // 점-선분 거리
     const L2=vx*vx+vy*vy;
     let t=((x-A.x)*vx+(y-A.y)*vy)/L2; t=Math.max(0,Math.min(1,t));
     const d=Math.hypot(A.x+vx*t-x, A.y+vy*t-y);
-    if(d>26*S) continue;                       // 너무 먼 도로는 후보 아님
-    // 진행방향 일치도(-1~1). 일방통행이면 a→b 만, 양방향이면 절대값.
+    if(d>50*S) continue;                       // Valhalla search_radius 기본 50m
     const dot=(vx*fx+vy*fy)/L;
     const align = sg.o ? dot : Math.abs(dot);
-    /* ★하드 컷 대신 소프트 페널티(ar_5034: GraphHopper heading_penalty 패턴).
-       예전엔 align<0.55 를 그냥 버렸는데, 조건에 맞는 간선이 하나도 없으면
-       경로 자체가 안 만들어졌다(실측: 일방통행 진행방향 끝점의 3.1%가 막다른 곳).
-       업계 표준(Valhalla heading_tolerance 기본 60도 ≈ cos 0.5)을 기준선으로 쓰되,
-       벗어나면 탈락이 아니라 점수를 깎는다. 후보가 아예 없어지는 일이 없다. */
-    const TOL = 0.5;                           // cos(60도) — Valhalla 기본값
-    const penalty = align < TOL ? (TOL - align) * 6.0 : 0;
-    const score = align*2.2 - d/(6*S) - penalty;
-    if(score>bs){
-      bs=score;
-      /* ★진행방향 '앞'에 있는 끝점을 고른다(u_5033).
-         예전엔 t<0.5 로 가까운 쪽을 골랐는데, 그러면 출발노드가 차 뒤에 놓인다
-         (실측 48%). 경로 첫 점이 뒤에 있으면 차는 그 자리에서 돌아선다 — 이게
-         오너가 본 '그 자리에서 바로 유턴'이다. 그래프 규칙으로는 못 막는다,
-         애초에 경로를 뒤로 시작시켰기 때문이다. */
-      const fa=(GNODES[sg.a].x-x)*fx+(GNODES[sg.a].y-y)*fy;
-      const fb=(GNODES[sg.b].x-x)*fx+(GNODES[sg.b].y-y)*fy;
-      if(sg.o) bi = sg.b;                       // 일방통행은 진행방향 끝점
-      else bi = (fa>fb ? sg.a : sg.b);          // 양방향은 더 앞쪽
-    }
+    /* fmm calc_ep(ar_5034 Q1) = exp(-0.5*(d/σ)²). 우리는 GPS가 아니라 '진짜 heading'을
+       알기 때문에 cos(Δθ)² 을 곱한다. 하드컷 없음(GraphHopper 원칙) — 후보가 0이 되는
+       일이 없고, 방향이 반대인 간선은 cos<0 → 0 으로 자연히 탈락한다. */
+    const c = Math.max(0, align);
+    const em = Math.exp(-0.5*Math.pow(d/(8*S),2)) * c*c;
+    if(em>bem){ bem=em; bsi=si; bt=t; bal=align; }
   }
-  return bi>=0 ? bi : gNearest(x,y);
+  if(bsi<0) return gNearest(x,y);              // hard-fail 금지
+  const sg=GSEGS[bsi], A=GNODES[sg.a], B=GNODES[sg.b];
+  const vx=B.x-A.x, vy=B.y-A.y;
+  const px=A.x+vx*bt, py=A.y+vy*bt;
+  /* 진행방향 '앞' 끝점이 이미 충분히 가까우면(8m) 그걸 쓴다 — 매번 노드를 만들면
+     그래프가 계속 커진다(실측 300표본 중 129건이 이 경우). */
+  const fa=(A.x-x)*fx+(A.y-y)*fy, fb=(B.x-x)*fx+(B.y-y)*fy;
+  const fwd = sg.o ? sg.b : (fa>fb ? sg.a : sg.b);
+  const F=GNODES[fwd];
+  const fd=Math.hypot(F.x-x,F.y-y);
+  if(fd<=8*S && ((F.x-x)*fx+(F.y-y)*fy)>0) return fwd;
+  /* ★투영점을 그래프에 끼워넣는다. 간선을 A-P-B 로 쪼개고 원래 간선은 막는다(v=1).
+     이렇게 해야 A* 가 '차가 서 있는 그 지점'에서 출발한다. 끝점을 주면 차는 최대
+     100m 떨어진 데서 시작하는 경로를 받고, 거기로 가려다 길 아닌 데로 튼다(s=0 고정). */
+  const pi=GNODES.length;
+  GNODES.push({x:px,y:py,e:[]});
+  const la=Math.hypot(px-A.x,py-A.y), lb=Math.hypot(B.x-px,B.y-py);
+  const s1=GSEGS.length; GSEGS.push({a:sg.a,b:pi,len:la,l:sg.l,o:sg.o});
+  const s2=GSEGS.length; GSEGS.push({a:pi,b:sg.b,len:lb,l:sg.l,o:sg.o});
+  GNODES[sg.a].e.push(s1); GNODES[pi].e.push(s1);
+  GNODES[pi].e.push(s2);  GNODES[sg.b].e.push(s2);
+  sg.v=1;                                      // 원본 간선은 이제 쓰지 않는다
+  return pi;
 }
 /* ★실제로 쓰이는 경로탐색은 이 gAstar 다(astar 는 전역그래프 실패시 대체).
    u_5022 에서 도로교통법을 astar 에만 넣었더니 실제 경로에는 하나도 적용되지
@@ -1061,22 +1073,6 @@ function planTo(x,y){
   auto.goal=wp[wp.length-1];
   auto.cum=null; auto.s=0; auto.k=1;      // 호길이 진행 리셋
   auto.on = !!window.__autoStart;          // 기본 false = 표시만
-  /* ★출발 시 차를 경로 위에 올려놓는다(u_5039).
-     지금까지는 차가 어디 있든 경로만 만들고 '알아서 붙어라'였다. 그런데 차가
-     차로 가장자리에 있으면(실측 free_r=1.5m) 경로 쪽으로 틀려는 순간 도로 밖으로
-     나가려는 이동이 되고, 하드 구속이 그걸 막는다 — 차가 가장자리에 낀 채
-     핸들만 -0.65로 꺾고 제자리에서 사고만 반복했다(오너: "제자리 사고만 남").
-     내비를 시작하는 순간은 '출발'이므로, 첫 경로점 위치·방향으로 정렬해준다.
-     주행 중에는 절대 손대지 않는다(순간이동은 출발 1회뿐). */
-  {
-    const i=Math.min(auto.i, wp.length-1);
-    const a=wp[i], b=wp[Math.min(i+1, wp.length-1)];
-    const ang=Math.atan2(b.y-a.y, b.x-a.x);
-    if(Math.hypot(a.x-me.x, a.y-me.y) < 120*S){   // 너무 멀면 건드리지 않는다
-      me.x=a.x; me.y=a.y; me.ang=ang; me.v=Math.min(me.v, 6);
-      me.offroad=0; me.cool=0.6;
-    }
-  }
   sync();
 }
 /* ★공간 해시 — 전수 비교(O(n^2), 2628대에서 182ms)를 근처만 비교(O(n))로 바꾼다 */
@@ -1200,8 +1196,16 @@ function driveAuto(dt){
   const gp=gap(me);
   let vmax=vmaxCurve;
   if(Math.abs(alpha)>0.6) vmax=Math.min(vmax,5);   // 크게 틀어야 하면 감속
+  /* ★정차 교착 해제(u_5050).
+     gap() 은 거리만 본다. 앞차가 '서 있으면' gap<11m 이 영원히 유지돼 vmax=0 으로
+     굳는다. 그 앞차도 막혀 있어서 안 비킨다 — 실측: 경로·조향 정상인데 v=0.1 로
+     70초 내내 제자리(사고 3회 후 NPC 줄에 갇힘).
+     사람은 이럴 때 아주 천천히 비집고 나간다. 5초 넘게 못 움직이면 서행을 허용한다. */
+  auto.stall = (me.v < 0.6 && gp < 28*S) ? (auto.stall||0)+dt : 0;
+  const creep = auto.stall > 5;
   if(gp<28*S)vmax=Math.min(vmax,14*(gp-9*S)/(19*S));
-  if(gp<11*S)vmax=0;
+  if(gp<11*S)vmax = creep ? 2.2 : 0;               // 교착이면 서행으로 빠져나간다
+  if(creep) vmax=Math.max(vmax,2.2);
   if(auto.s>=total-25*S)vmax=Math.min(vmax,4);
   me.v+=(vmax-me.v)*Math.min(1,dt*2.0);
   auto.act=gp<11*S?'정지 — 전방 장애물':gp<28*S?'감속 — 차간유지'
@@ -1407,7 +1411,8 @@ function step(dt){
      경로만 설정하고 서 있는 동안 뒤차가 와서 박으면, 아직 출발도 안 한 주행이
      사고부터 기록된다(실측: v=0, auto=0 인데 '승용차 추돌').
      서 있는 건 운전자 과실이 아니므로 대기 상태에서는 제외한다. */
-  const waiting = (!auto.on && auto.wp.length>1 && me.v<0.5);
+  const waiting = (!auto.on && auto.wp.length>1 && me.v<0.5)
+              || (auto.stall > 5 && me.v < 3);        // 교착 탈출 서행 중(u_5050)
   for(const c of cars){if(!c.alive)continue;
     if(obb(me,c)){ if(!waiting) crash(c.n+' 추돌',c.t==='truck'); }}
   for(const p of peds){
@@ -2533,6 +2538,19 @@ setTimeout(()=>{ try{ parkCar(); }catch(e){} }, 400);
   if(runBtn) runBtn.onclick = ()=>{
     if(!auto.wp.length){ flash('먼저 경로를 설정하세요'); return; }
     window.__parked=0;                       // 주차 해제
+    /* ★차를 경로 위에 올리는 건 '출발하는 순간'이어야 한다(u_5050).
+       예전엔 planTo(=경로 설정) 안에서 했다. 그런데 경로 설정과 출발 사이에
+       차가 계속 굴러가므로, 출발할 때는 이미 경로에서 멀어져 있다 —
+       실측 s=0/4115m, xt=99.9m, df=-155도(경로가 등 뒤). 그러면 아무리
+       조향이 맞아도 도달할 수 없고 차는 좌우로 헌팅만 한다(방향 반전 18회).
+       출발 버튼을 누른 그 프레임에 경로 시작점·방향으로 정렬한다. */
+    if(auto.wp.length>1){
+      const a=auto.wp[0], b=auto.wp[1];
+      const ang=Math.atan2(b.y-a.y, b.x-a.x);
+      me.x=a.x; me.y=a.y; me.ang=ang;
+      me.v=0; me.steer=0; me.offroad=0; me.cool=0.8;
+      auto.cum=null; auto.s=0; auto.k=1; auto.i=0; auto.stall=0;
+    }
     auto.on = 1; sync(); flash('목적지로 출발');
   };
   /* 입력이 이벤트로 안 잡히는 환경(자동입력 등)을 위해 주기적으로도 확인한다 */
