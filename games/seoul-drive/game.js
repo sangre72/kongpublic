@@ -1589,8 +1589,19 @@ let last=performance.now(),nt=0;
 function loop(t){
   streamWorld(false);
   const dt=Math.min(.05,(t-last)/1000);last=t;
-  if(window.__teach&&window.__teach.auto){ window.__teach.last=window.__teach.drive(dt); }
-  if(auto.on)driveAuto(dt);
+  /* ★한 프레임에 한 컨트롤러만 차를 몬다(P1, u_5020).
+     예전엔 교사와 자율주행이 매 프레임 둘 다 실행돼 me.steer/me.v 를 서로 덮어썼다.
+     서로 다른 방향을 요구하면 조향이 ±1 로 튀어 포화됐다(실측 97~99%).
+     경로가 있으면 자율주행이 몰고, 없으면 교사가 몬다.
+     ★교사는 여전히 매 프레임 '정답'을 계산한다(T.compute) — 학습 라벨은 계속 나와야
+       하므로, 모는 것만 멈추고 라벨 생산은 유지한다. */
+  const T = window.__teach;
+  if(auto.on && auto.wp.length){
+    driveAuto(dt);                                  // 경로 주행 = 자율주행이 조종
+    if(T && T.auto){ try{ T.last = T.compute(); }catch(e){} }   // 라벨만 계산
+  }else if(T && T.auto){
+    T.last = T.drive(dt);                           // 경로 없음 = 교사가 조종
+  }
   step(dt);
   epTick(dt);
   if(crashLit>0)crashLit-=dt;

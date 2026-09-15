@@ -175,8 +175,26 @@
        과하게 작용해 제어기가 스스로와 싸운다(실측: 폭 0.7m 에 그치고 속도가
        45→14→1km/h 로 주저앉았다). 변경 중에는 목표점 추종(diff)에 맡기고,
        끝나면 원래 세기로 돌아와 차로 중심을 잡는다. */
+    /* ★cross-track 이 크면 그 자체로 조향을 포화시킨다(P1 재진단, u_5020).
+       실측: ct=9.7m 인 상태에서 xt항 1.54 + diff항 1.09 → 합 2.6 → ±1 로 잘림.
+       포화되면 '얼마나 꺾을지'가 사라지고 항상 최대조향이 되어, 학습 라벨이
+       상수가 된다(조향 포화 97%).
+       원인은 목표 차로와 실제 위치가 멀리 벌어진 채 유지되는 것 —
+       laneF 가 목표에 도달해 laneMoving=false 가 되면 감쇠도 풀려 더 세게 당긴다.
+       → 오차가 한 차로(3.25m)를 넘으면 '지금 있는 차로'로 목표를 재설정한다.
+         사람도 3차로를 목표로 잡았다가 못 가면 지금 차로에서 다시 판단한다. */
+    if(Math.abs(cross) > 3.25 && !T.laneMoving){
+      const nl2 = lt.seg.o ? lt.seg.l : Math.max(1, Math.floor(lt.seg.l/2));
+      const cur = Math.max(0, Math.min(nl2-1, Math.round(Math.abs(lt.off)/(LW/S) - 0.5)));
+      T.lane = cur; T.laneF = cur;      // 현재 차로에서 다시 시작
+    }
+    /* 큰 횡오차에서 xt 항이 단독으로 포화시키지 않게 상한을 둔다.
+       조향의 주도권은 목표점 추종(diff)이 갖고, xt 는 보정 역할로 제한한다. */
     const xtK = T.laneMoving ? 0.5 : 1.6;
-    const steer = Math.max(-1, Math.min(1, diff*1.8 + xt*xtK));
+    const xtTerm = Math.max(-0.6, Math.min(0.6, xt*xtK));
+    const steer = Math.max(-1, Math.min(1, diff*1.8 + xtTerm));
+    // 진단(u_5020): 어느 항이 포화를 만드는지 화면으로 본다
+    T.dbg = {d: diff*1.8, x: xt*xtK, cross: cross};
     return {steer, thr, brake, rev:0, ok:true,
             lane_off: (ns?ns.d:0)/S, obst:d};
   };
@@ -257,6 +275,9 @@
                +'/'+(T.laneMax||'?')
                +' D='+(window.__laneDemo||'-')
                +' GO='+(window.__goHit||0)+'/'+(window.__planFail||0)
+               +' | diff='+(T.dbg?T.dbg.d.toFixed(2):'-')
+               +' xt='+(T.dbg?T.dbg.x.toFixed(2):'-')
+               +' ct='+(T.dbg?T.dbg.cross.toFixed(1):'-')
                +' br='+(a.brake||0).toFixed(2)
                +' cr='+me.crashes+' ln='+lane+' LOG='+logged, x+2, y-6);
   };
