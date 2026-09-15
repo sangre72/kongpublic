@@ -872,8 +872,11 @@ function gStartNode(x,y,ang){
   const pi=GNODES.length;
   GNODES.push({x:px,y:py,e:[]});
   const la=Math.hypot(px-A.x,py-A.y), lb=Math.hypot(B.x-px,B.y-py);
-  const s1=GSEGS.length; GSEGS.push({a:sg.a,b:pi,len:la,l:sg.l,o:sg.o});
-  const s2=GSEGS.length; GSEGS.push({a:pi,b:sg.b,len:lb,l:sg.l,o:sg.o});
+  /* ★w/n0/n1 을 새 간선에 승계한다(ar_5053 지적).
+     간선을 쪼갤 때 way id 를 안 넘기면, 그 간선에 걸린 회전금지가 조회되지 않아
+     출발 직후 첫 교차로에서만 제한이 빠진다. */
+  const s1=GSEGS.length; GSEGS.push({a:sg.a,b:pi,len:la,l:sg.l,o:sg.o,w:sg.w,n0:sg.n0,n1:sg.n1});
+  const s2=GSEGS.length; GSEGS.push({a:pi,b:sg.b,len:lb,l:sg.l,o:sg.o,w:sg.w,n0:sg.n0,n1:sg.n1});
   GNODES[sg.a].e.push(s1); GNODES[pi].e.push(s1);
   GNODES[pi].e.push(s2);  GNODES[sg.b].e.push(s2);
   sg.v=1;                                      // 원본 간선은 이제 쓰지 않는다
