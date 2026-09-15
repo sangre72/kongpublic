@@ -923,6 +923,7 @@ function planTo(x,y){
      예전엔 경로를 만들자마자 auto.on=1 로 바로 달렸다. 이제 경로는 화면에
      표시만 하고, '목적지 가기'를 눌러야 출발한다. */
   auto.goal=wp[wp.length-1];
+  auto.cum=null; auto.s=0; auto.k=1;      // 호길이 진행 리셋
   auto.on = !!window.__autoStart;          // 기본 false = 표시만
   /* ★출발 시 차를 경로 위에 올려놓는다(u_5039).
      지금까지는 차가 어디 있든 경로만 만들고 '알아서 붙어라'였다. 그런데 차가
@@ -979,155 +980,98 @@ const KMH=v=>Math.round(v*3.6);
 function driveAuto(dt){
   window.__daCnt=(window.__daCnt||0)+1;
   if(!auto.wp.length){auto.act='대기';return}
-  /* ★웨이포인트는 '지나쳤으면' 넘긴다(u_5037 실사고).
-     예전엔 4m 안에 들어와야만 넘어갔다. 그런데 경로는 차로 중앙에 놓이고 차는
-     자기 차로로 달리므로, 옆으로 5~10m 비껴 지나가면 영영 안 닿는다.
-     그러면 이미 등 뒤로 간 점을 계속 조준한다 —
-     실측: 47km/h 로 25초를 달렸는데 진행률이 0.015 에서 1mm도 안 움직였다.
-     오너: "실제 차량과 연동이 안 되는 것 같은데". 정확한 지적이었다.
-     이제 '가까우면' 또는 '진행방향 기준으로 지나쳤으면' 넘긴다. */
-  /* ★'지나쳤다' 판정은 차 방향이 아니라 '경로 방향' 기준이어야 한다(u_5038 실사고).
-     차 방향으로 재면, 차가 경로와 반대로 달리는 순간 앞에 있는 점들이 전부
-     '등 뒤'로 판정돼 한꺼번에 먹힌다 — 실측: wp_idx 가 단번에 88까지 뛰고
-     차는 경로에서 40m 떨어진 채 방향차 172도(정반대)로 달렸다.
-     경로 방향으로 재면, 차가 어디를 보든 '경로를 따라 얼마나 갔나'만 센다.
-     한 프레임에 여러 개를 먹지 않도록 상한도 1로 둔다. */
+  /* ★★ 호길이 기반 Pure Pursuit (u_5049, fable 재설계).
+     docs/driving_unsolved.md 의 실패 6건은 전부 '어느 웨이포인트를 목표로 삼나'를
+     고르는 문제였다 — 가까우면/지나치면/최근접/순서대로. 코너에서는 어떤 규칙도
+     틀린다: 모퉁이 너머 점이 더 가깝고, 7m 안에는 못 들어오고, 세그먼트 방향은
+     90도씩 점프해서 조향이 포화·진동한다(실측 307→14→67→29→62→32도).
+     여기서는 웨이포인트 인덱스를 아예 고르지 않는다.
+       · 진행 = 경로 위 호길이 s(스칼라). 뒤로 갈 수 없다(단조증가).
+       · 목표 = s 에서 Ld 만큼 앞의 '경로 위 보간점'. 연속적으로 움직인다.
+       · 조향 = pure pursuit: δ = atan(2·L·sinα / Ld). 세그먼트 점프가 없다.
+       · 속도 = 앞 25m 의 곡률로 미리 감속. 코너를 직선 속도로 들어가지 않는다. */
+  const W=auto.wp, N=W.length;
+  if(!auto.cum || auto.cum.length!==N){          // 호길이 테이블(경로 바뀔 때만)
+    auto.cum=new Float64Array(N); auto.cum[0]=0;
+    for(let k=1;k<N;k++) auto.cum[k]=auto.cum[k-1]+Math.hypot(W[k].x-W[k-1].x,W[k].y-W[k-1].y);
+    auto.s=0;
+  }
+  const total=auto.cum[N-1];
+  const posAt=(sv)=>{                              // 호길이 → 경로 위 점 + 방향
+    sv=Math.max(0,Math.min(total,sv));
+    let k=Math.max(1, auto.k||1);
+    while(k<N-1 && auto.cum[k]<sv) k++;
+    while(k>1 && auto.cum[k-1]>sv) k--;
+    const a=W[k-1], b=W[k], L=auto.cum[k]-auto.cum[k-1];
+    const u=L>1e-6 ? (sv-auto.cum[k-1])/L : 0;
+    return {x:a.x+(b.x-a.x)*u, y:a.y+(b.y-a.y)*u, ang:Math.atan2(b.y-a.y,b.x-a.x), k};
+  };
+  // 1) 차를 경로에 투영해 s 갱신 — 현재 s 근처 창(뒤 8m, 앞 60m)만 본다
   {
-    /* 한 프레임에 여러 점을 지날 수 있다(13m/s × dt, 점 간격이 짧은 구간).
-       상한 5개까지만 소비해 폭주는 막는다. */
-    /* ★상한 1. 5로 올렸더니 한 프레임에 여러 점을 먹고 목표가 멀리 튀어
-       경로에서 40m·172도로 다시 벗어났다(실측: 사고 11회). 1이 맞다. */
-    let guard=0;
-    while(auto.i < auto.wp.length-1 && guard++ < 2){
-      /* ★i=0 이면 a와 b가 같은 점이 된다(u_5038 실사고).
-         게다가 출발 시 차를 wp[0] 위치에 올려놓으므로, wp[0] 은 '차가 이미
-         서 있는 자리'다. 그 점을 계속 목표로 삼으면 방향이 정의되지 않고
-         (L=0) 인덱스도 영원히 0에 머문다 — 화면 실측 i=0/104, d=3.2m 인데도
-         전진하지 않고 df=-1.57(좌 90도)로 핸들만 꺾였다.
-         오너: "왜 자꾸 좌회전을 하는거야", "경로는 직진으로 되있잖아".
-         wp[0] 은 출발점이므로 즉시 소비하고 wp[1] 부터 따라간다. */
-      if(auto.i===0){ auto.i=1; continue; }
-      const i=auto.i;
-      const a=auto.wp[Math.max(0,i-1)], b=auto.wp[i];
-      let px=b.x-a.x, py=b.y-a.y;
-      const L=Math.hypot(px,py);
-      if(L>1){ px/=L; py/=L; } else { px=Math.cos(me.ang); py=Math.sin(me.ang); }
-      const dx=b.x-me.x, dy=b.y-me.y;
-      const near   = Math.hypot(dx,dy) < 8*S;
-      const passed = (dx*px + dy*py) < 0;        // 경로 진행방향 기준으로 지나침
-      if(near || passed) auto.i++; else break;
+    let bs=auto.s, bd=1e18, bk=auto.k||1;
+    const lo=auto.s-8*S, hi=auto.s+60*S;
+    for(let k=1;k<N;k++){
+      if(auto.cum[k]<lo) continue;
+      if(auto.cum[k-1]>hi) break;
+      const a=W[k-1], b=W[k];
+      const vx=b.x-a.x, vy=b.y-a.y, L2=vx*vx+vy*vy;
+      const u=L2>1e-6 ? Math.max(0,Math.min(1,((me.x-a.x)*vx+(me.y-a.y)*vy)/L2)) : 0;
+      const px=a.x+vx*u, py=a.y+vy*u;
+      const dd=(px-me.x)**2+(py-me.y)**2;
+      if(dd<bd){ bd=dd; bs=auto.cum[k-1]+Math.sqrt(L2)*u; bk=k; }
+    }
+    if(bs > auto.s-3*S) auto.s=Math.max(auto.s, Math.min(bs, auto.s+60*S));   // 단조(3m 여유)
+    auto.k=bk;
+    auto.i=Math.min(N-1, bk);                      // HUD·기존 코드 호환
+    auto.xt=Math.sqrt(bd)/S;                       // 횡오차(m) 진단용
+  }
+  // 2) 도착
+  {
+    const g=W[N-1], dg=Math.hypot(g.x-me.x,g.y-me.y);
+    if(auto.s>=total-10*S && dg<8*S){
+      me.v*=.82;auto.act='도착';
+      if(me.v<.3){me.v=0;auto.on=0;flash('목적지 도착');sync()}
+      return;
     }
   }
-  /* ★경로에서 크게 벗어났으면 '가장 가까운 경로점'으로 다시 붙는다(u_5035).
-     인덱스가 앞서 나가면 차 뒤의 점을 조준하게 되고, 그러면 조향이 0에 가까워져
-     영영 못 돌아온다 — 실측: wp_idx=88 인데 범위 내 경로점은 69개뿐,
-     경로에서 40m·172도로 굳어 steer=-0.04(사실상 직진)였다.
-     30m 넘게 벌어지면 앞뒤 상관없이 최근접점으로 재조준한다. */
+  // 3) 전방 곡률 → 코너 속도
+  let vmaxCurve=14;
   {
-    const cur=auto.wp[Math.min(auto.i,auto.wp.length-1)];
-    if(Math.hypot(cur.x-me.x,cur.y-me.y) > 30*S){
-      let bi=auto.i, bd=1e18;
-      for(let i=0;i<auto.wp.length;i++){
-        const w=auto.wp[i];
-        const dd=(w.x-me.x)**2+(w.y-me.y)**2;
-        if(dd<bd){bd=dd;bi=i}
-      }
-      auto.i=bi;
+    const look=25*S, step=5*S;
+    let maxK=0;
+    for(let sv=auto.s; sv<Math.min(total,auto.s+look); sv+=step){
+      const p0=posAt(sv), p1=posAt(sv+step);
+      let dth=((p1.ang-p0.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+      const kap=Math.abs(dth)/(step/S);            // rad/m
+      if(kap>maxK) maxK=kap;
     }
-  }
-  /* ★목표점은 '차에서 가장 가까운 앞쪽 경로점'으로 매 프레임 다시 고른다(u_5043).
-     인덱스를 누적해서 올리는 방식은 어디선가 0으로 되돌려지면 영영 복구되지
-     않았다 — 실측 i=0/92 고정, 목표까지 36.1m, 그래서 길을 못 따라갔다.
-     상태를 안 쌓으면 리셋돼도 즉시 정상 동작한다. */
-  /* ★'가장 가까운 점'이 아니라 '경로를 순서대로' 따라간다(u_5047).
-     오너: "도로로 표현된 데에서 회전을 하라는거지. 직진만 잘하네".
-     최근접 방식은 직선에서는 맞지만 코너에서 틀린다 — 굽은 길에서는 모퉁이
-     '너머'의 점이 더 가까워서, 차가 코너를 따라 돌지 않고 가로질러 버린다.
-     경로에 이미 도로의 굽은 모양이 그대로 들어 있으므로, 순서대로 하나씩
-     소비하면 그 모양대로 돈다. 다만 리셋돼도 복구되도록, 현재 목표가 너무
-     멀면(40m) 한 번만 최근접으로 다시 붙는다. */
-  {
-    const cur=auto.wp[Math.min(auto.i,auto.wp.length-1)];
-    if(Math.hypot(cur.x-me.x,cur.y-me.y) > 40*S){
-      const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
-      let bi=-1,bd=1e18;
-      for(let i=0;i<auto.wp.length;i++){
-        const w=auto.wp[i], dx=w.x-me.x, dy=w.y-me.y, dd=dx*dx+dy*dy;
-        if(i<auto.wp.length-1 && (dx*fx+dy*fy)<0) continue;
-        if(dd<bd){bd=dd;bi=i}
-      }
-      if(bi>=0) auto.i=bi;
-    }else{
-      /* 순서대로 소비 — '가까이 왔거나' 또는 '경로 진행방향 기준으로 지나쳤으면'.
-         ★거리 조건만 두면 코너에서 크게 돌 때 7m 안에 못 들어와 그 자리에
-           멈춰 좌우로 흔들린다(실측: 방향이 307→14→67→29→62→32도로 진동,
-           진행률이 0.161→0.011 로 오히려 뒷걸음질, 사고 8회).
-           지나친 점은 놓아줘야 다음 점으로 넘어가 코너를 끝까지 돈다. */
-      let guard=0;
-      while(auto.i<auto.wp.length-1 && guard++<3){
-        const w=auto.wp[auto.i];
-        const p=auto.wp[Math.max(0,auto.i-1)];
-        let vx=w.x-p.x, vy=w.y-p.y;
-        const L=Math.hypot(vx,vy);
-        if(L>1){ vx/=L; vy/=L; } else { vx=Math.cos(me.ang); vy=Math.sin(me.ang); }
-        const dx=w.x-me.x, dy=w.y-me.y;
-        const near   = Math.hypot(dx,dy) < 7*S;
-        const passed = (dx*vx + dy*vy) < 0;
-        if(near || passed) auto.i++; else break;
-      }
+    if(maxK>1e-4){
+      const aLat=2.4;                              // m/s² 허용 횡가속
+      vmaxCurve=Math.max(3.5, Math.min(14, Math.sqrt(aLat/maxK)));
     }
+    auto.curv=maxK;
   }
-  const t=auto.wp[auto.i],d=Math.hypot(t.x-me.x,t.y-me.y);
-  if(auto.i>=auto.wp.length-1 && d<8*S){
-    me.v*=.82;auto.act='도착';
-    if(me.v<.3){me.v=0;auto.on=0;flash('목적지 도착');sync()}
-    return;
-  }
-  let df=((Math.atan2(t.y-me.y,t.x-me.x)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
-  /* ★경로'선'을 따라간다 — 다음 점만 보고 조향하면 코너를 가로질러 인도로 올라간다.
-     실측 계산: 웨이포인트 간격 19m·코너 90°면 안쪽으로 9.5m 파고든다.
-     편도2차로 도로 반폭이 약 7m 이므로 그대로 인도 침범이다(화면 확인: road=N).
-     그래서 '이전 점→다음 점' 선분에 대한 횡오차(cross-track)를 같이 없앤다. */
-  const pv=auto.wp[Math.max(0,auto.i-1)];
-  let xt=0;
-  {
-    const vx=t.x-pv.x, vy=t.y-pv.y, L2=vx*vx+vy*vy;
-    if(L2>1){
-      const u=Math.max(0,Math.min(1,((me.x-pv.x)*vx+(me.y-pv.y)*vy)/L2));
-      const px=pv.x+vx*u, py=pv.y+vy*u;
-      // 부호 있는 횡오차: 경로 진행방향 기준 왼쪽(+)/오른쪽(-)
-      xt=((me.x-px)*(-vy)+(me.y-py)*vx)/Math.sqrt(L2);
-      const seg=((Math.atan2(vy,vx)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
-      // 경로 방향 + 횡오차 보정(Stanley 식). 속도가 빠를수록 보정을 약하게.
-      df = seg + Math.atan2(-xt*1.6, Math.max(3*S, me.v*S));
-      df = ((df+Math.PI*3)%(Math.PI*2))-Math.PI;
-    }
-  }
-  /* ★앞의 코너를 미리 보고 감속한다(u_5047).
-     굽은 길을 직선 속도로 들어가면 아무리 조향해도 못 돈다. 앞쪽 경로점들의
-     방향 변화량을 합쳐서 코너 크기를 재고, 크면 미리 속도를 낮춘다. */
-  let bend=0;
-  {
-    const j=auto.i;
-    for(let k=j;k<Math.min(j+4,auto.wp.length-1);k++){
-      const a=auto.wp[k], b=auto.wp[k+1];
-      const c=auto.wp[Math.max(0,k-1)];
-      const a1=Math.atan2(a.y-c.y,a.x-c.x), a2=Math.atan2(b.y-a.y,b.x-a.x);
-      let dd=((a2-a1+Math.PI*3)%(Math.PI*2))-Math.PI;
-      bend+=Math.abs(dd);
-    }
-  }
-  const gp=gap(me),curve=Math.min(1,Math.max(Math.abs(df)/.8, bend/1.2));
-  let vmax=14*(1-.62*curve);                       // m/s (≈50km/h)
+  // 4) 전방주시점 + pure pursuit 조향
+  const wb=me.hm*0.6;                              // m
+  const Ld=Math.max(6, Math.min(16, 0.9*me.v));    // m — 느릴수록 짧게(코너 컷 감소)
+  const P=posAt(auto.s + Ld*S);
+  let alpha=((Math.atan2(P.y-me.y,P.x-me.x)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+  const Lreal=Math.max(3, Math.hypot(P.x-me.x,P.y-me.y)/S);
+  const delta=Math.atan2(2*wb*Math.sin(alpha), Lreal);   // rad
+  const maxSteer=.62;
+  me.steer=Math.max(-.9,Math.min(.9, delta/maxSteer));
+  // 5) 속도
+  const gp=gap(me);
+  let vmax=vmaxCurve;
+  if(Math.abs(alpha)>0.6) vmax=Math.min(vmax,5);   // 크게 틀어야 하면 감속
   if(gp<28*S)vmax=Math.min(vmax,14*(gp-9*S)/(19*S));
   if(gp<11*S)vmax=0;
-  if(auto.i>=auto.wp.length-1&&d<22*S)vmax=Math.min(vmax,4);
-  me.steer=Math.max(-.9,Math.min(.9,df*2.4));
-  window.__da={st:me.steer, df:df, i:auto.i, n:auto.wp.length,
-               d:Math.hypot(t.x-me.x,t.y-me.y)/S, xt:xt/S};
+  if(auto.s>=total-25*S)vmax=Math.min(vmax,4);
   me.v+=(vmax-me.v)*Math.min(1,dt*2.0);
   auto.act=gp<11*S?'정지 — 전방 장애물':gp<28*S?'감속 — 차간유지'
-    :curve>.4?'선회 중':(auto.i>=auto.wp.length-1&&d<22*S)?'목적지 접근':'주행 중';
+    :auto.curv>0.05?'선회 중':(auto.s>=total-25*S)?'목적지 접근':'주행 중';
+  window.__da={st:me.steer, df:alpha, i:auto.i, n:N,
+               d:Lreal, xt:auto.xt||0, s:auto.s/S, tot:total/S, vc:vmaxCurve};
 }
 
 /* ---------- 충돌 ---------- */
@@ -1237,7 +1181,10 @@ function crash(label,heavy){
       const d=(auto.wp[i].x-me.x)**2+(auto.wp[i].y-me.y)**2;
       if(d<bd){bd=d;bi=i}
     }
-    if(bd < (30*S)*(30*S)) auto.i=bi;
+    if(bd < (30*S)*(30*S)){
+      auto.i=bi;
+      if(auto.cum && bi<auto.cum.length){ auto.s=auto.cum[bi]; auto.k=Math.max(1,bi); }  // 호길이 창도 함께 이동
+    }
     sync();
   }
   sync();
@@ -1781,8 +1728,8 @@ function draw(){
     if(_da){
       g.fillStyle='#ffd23f';
       g.fillText('AUTO st='+_da.st.toFixed(2)+' df='+_da.df.toFixed(2)
-                 +' i='+_da.i+'/'+_da.n+' d='+_da.d.toFixed(1)+'m xt='+_da.xt.toFixed(1)
-                 +' plan='+(window.__ptCnt||0),
+                 +' s='+(_da.s||0).toFixed(0)+'/'+(_da.tot||0).toFixed(0)+'m xt='+_da.xt.toFixed(1)
+                 +' vc='+(_da.vc||0).toFixed(0)+' plan='+(window.__ptCnt||0),
                  12, H-52);
     }
     g.fillStyle='#8bffb0';
