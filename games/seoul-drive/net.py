@@ -37,10 +37,19 @@ class DriveNet(nn.Module):
             nn.Conv2d(32, 64, 3, 2), nn.ReLU(),
             nn.Conv2d(64, 96, 3, 2), nn.ReLU(),
             nn.Conv2d(96, 128, 3, 2), nn.ReLU())
-        self.h = nn.Sequential(nn.Linear(128, 96), nn.ReLU(), nn.Linear(96, out))
+        # ★u_5170: global average pool 을 걷어냈다.
+        #   왜: mean(dim=(2,3)) 은 '어디에' 무엇이 있는지를 평균으로 뭉갠다.
+        #   앞차가 8m 앞에 있는지 길이 비었는지는 순수하게 공간 정보라서,
+        #   평균을 내면 표현 자체가 불가능하다. 실측으로 확인됐다 —
+        #   제동 프레임 예측 0.505 vs 비제동 0.476(재현율 12.8%). 손실함수를
+        #   아무리 고쳐도 안 올라간 이유가 이것이었다.
+        #   256 입력 → conv 5단(stride 2) → 6x6 격자가 남는다. 이걸 그대로 편다.
+        self.h = nn.Sequential(nn.Flatten(), nn.Linear(128 * 6 * 6, 256), nn.ReLU(),
+                               nn.Dropout(0.1), nn.Linear(256, 96), nn.ReLU(),
+                               nn.Linear(96, out))
+
     def forward(self, x):
-        z = self.f(x).mean(dim=(2, 3))     # global average pool (MPS 안전)
-        return torch.tanh(self.h(z))
+        return torch.tanh(self.h(self.f(x)))
 
 def preprocess(canvas_rgb, size=IMG, device=None, bgr=True):
     """캔버스(H,W,3 uint8) → (3,size,size) float32 0~1 (device 텐서).
