@@ -308,11 +308,19 @@
        실제 차는 조향을 순간이동시킬 수 없다. 물리적 한계를 건다 —
        사람이 핸들을 돌리는 속도는 대략 2회전/초, 조향비를 감안하면
        정규화 조향 기준 초당 4.0 정도가 상한이다(프레임당 0.2). */
+    /* ★상태는 T.last 가 아니라 전용 변수에 둔다.
+       T.last 는 `T.dagger && !T.auto` 일 때만 갱신되므로(525행), 그걸 기준으로
+       쓰면 값이 얼어붙고 rate limit 이 모든 출력을 그 고정값 쪽으로 붙잡는다.
+       실측: 포화가 4% 예상이었는데 96% 가 나왔다(핸들이 한쪽에 고정). */
     const MAXRATE = 4.0 / 60;                       // 프레임당 최대 변화량
-    const prevS = (T.last && typeof T.last.steer === 'number') ? T.last.steer : steerRaw;
-    const steer = Math.max(prevS - MAXRATE, Math.min(prevS + MAXRATE, steerRaw));
+    if(typeof T.steerPrev !== 'number') T.steerPrev = steerRaw;
+    const steer = Math.max(T.steerPrev - MAXRATE,
+                           Math.min(T.steerPrev + MAXRATE, steerRaw));
+    T.steerPrev = steer;
     // 진단(u_5020): 어느 항이 포화를 만드는지 화면으로 본다
-    T.dbg = {d: diff*1.8, x: xt*xtK, cross: cross};
+    /* ★u_5171: 예전엔 상한 적용 '전' 값(xt*xtK)을 보고해서 x=1.06 처럼
+       불가능한 수치가 찍혔다(실제 xtTerm 은 ±0.6 으로 잘린다). 실제 값을 쓴다. */
+    T.dbg = {d: diff*1.8, x: xtTerm, cross: cross, raw: steerRaw};
     /* ★lane_off 는 '차로 중심'까지의 거리여야 한다(u_5148/5149/5150 오너 지적).
        기존엔 ns.d = **도로 중심선**까지의 거리를 넣고 있었다. 그래서 오드는
        '도로 안에만 있으면 된다'로 배웠고, 차선을 물고 달려도 라벨상 정상이었다.
