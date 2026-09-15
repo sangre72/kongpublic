@@ -22,7 +22,7 @@ PORT = 8901
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 _ctl = {'on': 0, 'steer': 0.0, 'thr': 0.0, 'brake': 0.0, 'seq': 0, 'rst': 0,
-        'teach': '', 'force': 0}   # teach = 교사 모드(fwd|left|right|off), u_5144
+        'teach': '', 'force': 0, 'release': 0}   # teach = 교사 모드(fwd|left|right|off), u_5144
 # ★rst = 소프트리셋 요청 카운터(u_5126). 페이지가 값이 바뀐 걸 보면 한 번 리셋한다.
 #   새 엔드포인트/연결을 만들지 않고 이미 20Hz 로 도는 /ctl 폴링에 얹는다.
 _gets = [0]   # 페이지가 실제로 폴링하는지 확인용(a_5085 검증)
@@ -82,7 +82,7 @@ class H(http.server.SimpleHTTPRequestHandler):
         except Exception:
             self.send_error(400); return
         with _lock:
-            for k in ('on', 'steer', 'thr', 'brake', 'force'):
+            for k in ('on', 'steer', 'thr', 'brake', 'force', 'release'):
                 if k in d:
                     _ctl[k] = float(d[k])
             # ★teach(교사 모드)는 문자열이라 float 변환 대상이 아니다(u_5153).
@@ -93,6 +93,14 @@ class H(http.server.SimpleHTTPRequestHandler):
                 _ctl['teach'] = str(d['teach'])
             if d.get('reset'):
                 _ctl['rst'] = int(_ctl.get('rst', 0)) + 1
+            # ★release 는 1회성 신호다(u_5169 실사고).
+            #   서버에 남아 있으면 페이지가 폴링할 때마다 모델을 꺼버린다 —
+            #   실측: on=1 force=1 인데도 drv=GEOM 이 계속 유지됐다.
+            #   한 번 전달된 뒤에는 스스로 0 으로 돌아간다.
+            if _ctl.get('release'):
+                _ctl['_rel_seen'] = _ctl.get('_rel_seen', 0) + 1
+                if _ctl['_rel_seen'] > 1:
+                    _ctl['release'] = 0; _ctl['_rel_seen'] = 0
             _ctl['seq'] += 1
             return self._json(dict(_ctl))
 

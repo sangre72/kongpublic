@@ -597,11 +597,15 @@ function onRoad(x,y){
   /* 직전 도로가 아직 유효하면(1.5초 이내) 그 도로 기준도 같이 본다 */
   if(_lastSeg && _lastSeg!==n.s && (performance.now()-_lastSegT)<1500){
     const A=nodes[_lastSeg.a], B=nodes[_lastSeg.b];
+    /* ★청크 스트리밍으로 nodes 가 재구성되면 캐시된 _lastSeg 의 인덱스가 죽는다.
+       실측: loop 에서 "Cannot read properties of undefined (reading 'x')" 51회. */
+    if(!A||!B){ _lastSeg=null; }else{
     const vx=B.x-A.x, vy=B.y-A.y, L=vx*vx+vy*vy;
     let t=L?((x-A.x)*vx+(y-A.y)*vy)/L:0; t=Math.max(0,Math.min(1,t));
     const d0=Math.hypot(A.x+vx*t-x, A.y+vy*t-y);
     if(d0<=_lastSeg.roadW*.5){            // 원래 도로 위에 있으면 그게 정답이다
       return{ok:true, d:d0, s:_lastSeg, edge:d0-_lastSeg.roadW*.5};
+    }
     }
   }
   const ok=n.d<=n.s.roadW*.5;
@@ -1518,6 +1522,9 @@ function mdlPoll(dt){
       /* ★GO_NOT_ENGAGED 추적(u_5126). 버튼은 auto.wp.length 로 막히는데
          디코더는 wp_len=234 를 보여준다 — 둘이 다르면 경로가 지워진 것이다. */
       wpLen: auto.wp.length, autoOn: auto.on|0, parked: window.__parked|0,
+      /* 경로 총길이(m)와 지금까지 간 거리 — 진행률만으로는 '얼마나 먼 길인가'를 모른다 */
+      routeM: (auto.cum&&auto.cum.length)? Math.round(auto.cum[auto.cum.length-1]/S) : 0,
+      doneM: Math.round((auto.s||0)/S),
       /* ★누가 모는지를 계측으로 노출한다(u_5129). 화면 글자를 눈으로 읽지 않는다. */
       mdlOn: MDL.on?1:0, mdlUserOff: MDL.userOff?1:0, drv: (MDL.on?'MODEL':(auto.on&&auto.wp.length?'GEOM':'TEACH')),
       /* ★DAgger 라벨원(u_5139). 모델이 모는 동안 교사가 계산한 '정답'을 그대로 노출한다.
@@ -1565,6 +1572,11 @@ function mdlPoll(dt){
       try{ if(window.__teach.mode!==d.teach) window.__teach.setMode(d.teach); }catch(e){}
     }
     if(d.on && !MDL.userOff) MDL.on = true;
+    /* ★하네스가 명시적으로 놓아줄 수 있어야 한다(a_5170).
+       끄는 건 사람만' 규칙은 폭주 방지용인데, 그 탓에 GEOM 기준선을 재려고
+       on=0 을 보내도 drv=MODEL 로 굳어 3 에피소드가 통째로 무효가 됐다.
+       release=1 은 학습 하네스만 보내는 명시적 해제 신호다(사람 버튼과 무관). */
+    if(d.release){ MDL.on = false; MDL.userOff = false; }
     /* ★force 는 '켜기'에만 쓴다(u_5133 실사고).
        model_drive.py 가 매 프레임 force:1 을 보내는데, 여기서 on 이 falsy 한
        프레임 하나만 섞여도 모델이 꺼져버렸다 — 실측: 출발 누르면 drv=TEACH 로 추락.
@@ -1614,6 +1626,37 @@ function setModel(on){
 window.__setModel = setModel;
 addEventListener('keydown', e=>{ if(e.key==='m'||e.key==='M') setModel(!MDL.on); });
 
+/* ★진행률 추적을 주행제어에서 분리한다(a_5170 실사고).
+   기존엔 호길이 테이블(auto.cum) 생성과 s 갱신이 driveAuto() 안에만 있었다.
+   그런데 모델이 몰면 driveAuto 는 호출되지 않는다 — 그래서 auto.cum 이 영원히
+   null 이고 /tel 의 prog 가 항상 정확히 0 이었다. 실측: 모델 주행 60초 2회에서
+   prog 0.0000 고정(차는 실제로 움직였고 사고도 났다).
+   ⇒ '얼마나 갔는가'는 '누가 모는가'와 무관한 측정이므로 밖으로 뺀다. */
+function trackProgress(){
+  const W=auto.wp, N=W.length;
+  if(N<2) return;
+  if(!auto.cum || auto.cum.length!==N){
+    auto.cum=new Float64Array(N); auto.cum[0]=0;
+    for(let k=1;k<N;k++) auto.cum[k]=auto.cum[k-1]+Math.hypot(W[k].x-W[k-1].x,W[k].y-W[k-1].y);
+    auto.s=0; auto.k=1;
+  }
+  let bs=auto.s, bd=1e18, bk=auto.k||1;
+  const lo=auto.s-20*S, hi=auto.s+250*S;
+  for(let k=1;k<N;k++){
+    if(auto.cum[k]<lo) continue;
+    if(auto.cum[k-1]>hi) break;
+    const a=W[k-1], b=W[k];
+    const vx=b.x-a.x, vy=b.y-a.y, L2=vx*vx+vy*vy;
+    const u=L2>1e-6 ? Math.max(0,Math.min(1,((me.x-a.x)*vx+(me.y-a.y)*vy)/L2)) : 0;
+    const px=a.x+vx*u, py=a.y+vy*u;
+    let ph=((Math.atan2(vy,vx) - me.ang + Math.PI*3)%(Math.PI*2))-Math.PI;
+    if(L2>1e-6 && Math.abs(ph) > 75*Math.PI/180) continue;
+    const dd=(px-me.x)**2+(py-me.y)**2;
+    if(dd<bd){ bd=dd; bs=auto.cum[k-1]+Math.sqrt(L2)*u; bk=k; }
+  }
+  if(bs > auto.s-3*S) auto.s=Math.max(auto.s, Math.min(bs, auto.s+60*S));
+  auto.k=bk; auto.i=Math.min(N-1,bk); auto.xt=Math.sqrt(bd)/S;
+}
 function driveAuto(dt){
   window.__daCnt=(window.__daCnt||0)+1;
   if(auto.on) window.__parked=0;   // 주행 중엔 주차 플래그가 남아있으면 안 된다
@@ -1629,11 +1672,7 @@ function driveAuto(dt){
        · 조향 = pure pursuit: δ = atan(2·L·sinα / Ld). 세그먼트 점프가 없다.
        · 속도 = 앞 25m 의 곡률로 미리 감속. 코너를 직선 속도로 들어가지 않는다. */
   const W=auto.wp, N=W.length;
-  if(!auto.cum || auto.cum.length!==N){          // 호길이 테이블(경로 바뀔 때만)
-    auto.cum=new Float64Array(N); auto.cum[0]=0;
-    for(let k=1;k<N;k++) auto.cum[k]=auto.cum[k-1]+Math.hypot(W[k].x-W[k-1].x,W[k].y-W[k-1].y);
-    auto.s=0;
-  }
+  trackProgress();                               // 호길이 테이블 생성도 여기서 한다
   const total=auto.cum[N-1];
   const posAt=(sv)=>{                              // 호길이 → 경로 위 점 + 방향
     sv=Math.max(0,Math.min(total,sv));
@@ -1644,38 +1683,6 @@ function driveAuto(dt){
     const u=L>1e-6 ? (sv-auto.cum[k-1])/L : 0;
     return {x:a.x+(b.x-a.x)*u, y:a.y+(b.y-a.y)*u, ang:Math.atan2(b.y-a.y,b.x-a.x), k};
   };
-  // 1) 차를 경로에 투영해 s 갱신 — 현재 s 근처 창(뒤 8m, 앞 60m)만 본다
-  {
-    let bs=auto.s, bd=1e18, bk=auto.k||1;
-    /* ★창 크기 > 웨이포인트 간격 이어야 한다(u_5056 실사고).
-       경로 8242m 가 135점 = 간격 61m 인데 창이 60m 였다. 다음 구간이 창 밖이라
-       투영 후보에서 빠지고, s 가 그 구간 끝에서 영영 멈췄다 —
-       측정 하네스가 wp_idx=4/135, path_dist=0.0 으로 잡아냈다(1m 차이). */
-    const lo=auto.s-20*S, hi=auto.s+250*S;
-    for(let k=1;k<N;k++){
-      if(auto.cum[k]<lo) continue;
-      if(auto.cum[k-1]>hi) break;
-      const a=W[k-1], b=W[k];
-      const vx=b.x-a.x, vy=b.y-a.y, L2=vx*vx+vy*vy;
-      const u=L2>1e-6 ? Math.max(0,Math.min(1,((me.x-a.x)*vx+(me.y-a.y)*vy)/L2)) : 0;
-      const px=a.x+vx*u, py=a.y+vy*u;
-      /* ★진행방향이 맞는 후보만 받는다(2026-09-15 수정).
-         창이 [s-20m, s+250m] 인데 방향 필터가 없었다. 헤어핀이나 되돌아오는
-         경로(양방향 A* 는 같은 도로를 역방향으로 통과하는 것을 허용한다)에서는
-         '돌아오는 쪽 구간'의 점이 200m 앞인데도 공간상 가장 가깝다.
-         그러면 auto.s 가 한 프레임에 최대 60m 점프하고, posAt(s+Ld) 전방주시점이
-         반대 차도에 찍혀 pure pursuit 이 차를 중앙선 너머로 조향했다.
-         경로 진행방향과 me.ang 차이가 75° 넘으면 그 후보는 버린다. */
-      let ph=((Math.atan2(vy,vx) - me.ang + Math.PI*3)%(Math.PI*2))-Math.PI;
-      if(L2>1e-6 && Math.abs(ph) > 75*Math.PI/180) continue;
-      const dd=(px-me.x)**2+(py-me.y)**2;
-      if(dd<bd){ bd=dd; bs=auto.cum[k-1]+Math.sqrt(L2)*u; bk=k; }
-    }
-    if(bs > auto.s-3*S) auto.s=Math.max(auto.s, Math.min(bs, auto.s+60*S));   // 단조(3m 여유)
-    auto.k=bk;
-    auto.i=Math.min(N-1, bk);                      // HUD·기존 코드 호환
-    auto.xt=Math.sqrt(bd)/S;                       // 횡오차(m) 진단용
-  }
   // 2) 도착
   {
     const g=W[N-1], dg=Math.hypot(g.x-me.x,g.y-me.y);
@@ -1875,7 +1882,15 @@ function crash(label,heavy){
           : label.indexOf('충돌')>=0?'건물'
           /* ★'도로 이탈'·'인도 침범'(game.js:1948)이 어느 갈래에도 안 걸려
              전부 '기타'로 뭉쳤다(실측: 사고 12건 전부 기타). 원인을 못 가린다. */
-          : (label.indexOf('도로')>=0||label.indexOf('인도')>=0)?'차로이탈':'기타';
+          /* ★셋을 갈라서 센다(u_5169 오너 지적).
+             오너: "차로 이탈은 중앙선과 인도로 넘어가지 않는 차선변경이겠지" — 맞다.
+             그런데 지금 코드는 성격이 다른 셋을 '차로이탈' 하나로 뭉쳐 세고 있었다:
+               인도 침범 = 차도 벗어나 인도 쪽 (경계 초과 <= 인도폭 2.5m)
+               도로 이탈 = 그보다 더 멀리 (인도까지 넘어감)
+               중앙선   = 반대 차로 (이미 별도 항목)
+             법규상 무게도 다르고 고칠 지점도 다르다. 분리해야 원인이 보인다. */
+          : label.indexOf('인도')>=0?'인도침범'
+          : label.indexOf('도로')>=0?'도로이탈':'기타';
     window.__crk=window.__crk||{}; window.__crk[k]=(window.__crk[k]||0)+1;
     /* ★a_5111 T1: 차로이탈이 '어떤 도로에서' 나는지 기하를 통째로 남긴다.
        roadW/차로수/일방여부/실제 횡오차/주행선 오프셋을 같이 찍어야
@@ -3111,6 +3126,8 @@ function loop(t){
        경로 vs 교사가 정확히 그렇게 싸워 사고가 8→23회로 늘었다).
        단 진행률·웨이포인트 추적은 계속 돌아야 평가가 되므로 auto 상태는 둔다. */
     driveModel(dt);
+    /* 진행률은 모델이 몰 때도 반드시 갱신한다 — 이게 평가지표 그 자체다. */
+    try{ if(auto.wp.length) trackProgress(); }catch(e){}
     /* ★모델이 몰 때는 교사가 '몰지 않아도' 정답은 계속 계산한다(u_5158 DAgger).
        T.last 는 T.auto 가 true 일 때만 갱신됐는데, parkCar() 가 T.auto=false 로
        꺼놓고 아무도 되돌리지 않는다. 그래서 수집이 '교사 라벨 없음'으로 중단됐다.
