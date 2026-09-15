@@ -82,9 +82,15 @@ class H(http.server.SimpleHTTPRequestHandler):
         except Exception:
             self.send_error(400); return
         with _lock:
-            for k in ('on', 'steer', 'thr', 'brake'):
+            for k in ('on', 'steer', 'thr', 'brake', 'force'):
                 if k in d:
                     _ctl[k] = float(d[k])
+            # ★teach(교사 모드)는 문자열이라 float 변환 대상이 아니다(u_5153).
+            #   기존엔 허용 키 목록에 없어서 POST 가 조용히 무시됐고, 그래서
+            #   '좌회전 수집' 단계인데 좌 25 / 우 350 이 나왔다 — 모드가 안 바뀐 것이다.
+            #   model_drive.py 가 20Hz 로 POST 하므로, teach 를 안 보내면 유지한다.
+            if 'teach' in d:
+                _ctl['teach'] = str(d['teach'])
             if d.get('reset'):
                 _ctl['rst'] = int(_ctl.get('rst', 0)) + 1
             _ctl['seq'] += 1
