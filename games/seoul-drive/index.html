@@ -893,6 +893,7 @@ function gAstar(s,t){
   return null;
 }
 function planTo(x,y){
+  window.__ptCnt=(window.__ptCnt||0)+1;
   buildGlobalGraph();
   let p=null, NS=nodes;
   if(GNODES){                                  // 장거리: 전역 그래프로
@@ -990,7 +991,43 @@ function planTo(x,y){
     while(st<CAP && ((wp[st].x-me.x)*fx + (wp[st].y-me.y)*fy) < 0) st++;
     auto.i=st;
   }
-  auto.goal=wp[wp.length-1];auto.on=1;sync();
+  /* ★같은 자리에 겹친 웨이포인트를 제거한다(u_5039 실사고).
+     전역 그래프는 0.1m 정밀도로 노드를 용접하므로, 아주 짧은 간선이 그대로
+     남아 경로에 '거의 같은 점'이 연달아 들어온다. 그러면 두 점으로 만드는
+     진행방향 벡터의 길이가 0이 되어(L2<=1) 조향 목표가 정의되지 않는다.
+     실측: path_dist 가 계산되지 못해 초기값 40m·172도로 고정되고, auto.i 는
+     88에서 멈춘 채 차가 제자리에서 사고만 반복했다(오너: "제자리 사고만 남").
+     1m 미만으로 붙은 점은 버린다. */
+  {
+    const out=[wp[0]];
+    for(let i=1;i<wp.length;i++){
+      const p=out[out.length-1], q=wp[i];
+      if(Math.hypot(q.x-p.x, q.y-p.y) >= 1.0*S) out.push(q);
+    }
+    if(out.length>=2){
+      if(out[out.length-1]!==wp[wp.length-1]) out.push(wp[wp.length-1]);
+      wp.length=0; for(const q of out) wp.push(q);
+      auto.i=Math.min(auto.i, wp.length-1);
+    }
+  }
+  auto.goal=wp[wp.length-1];auto.on=1;
+  /* ★출발 시 차를 경로 위에 올려놓는다(u_5039).
+     지금까지는 차가 어디 있든 경로만 만들고 '알아서 붙어라'였다. 그런데 차가
+     차로 가장자리에 있으면(실측 free_r=1.5m) 경로 쪽으로 틀려는 순간 도로 밖으로
+     나가려는 이동이 되고, 하드 구속이 그걸 막는다 — 차가 가장자리에 낀 채
+     핸들만 -0.65로 꺾고 제자리에서 사고만 반복했다(오너: "제자리 사고만 남").
+     내비를 시작하는 순간은 '출발'이므로, 첫 경로점 위치·방향으로 정렬해준다.
+     주행 중에는 절대 손대지 않는다(순간이동은 출발 1회뿐). */
+  {
+    const i=Math.min(auto.i, wp.length-1);
+    const a=wp[i], b=wp[Math.min(i+1, wp.length-1)];
+    const ang=Math.atan2(b.y-a.y, b.x-a.x);
+    if(Math.hypot(a.x-me.x, a.y-me.y) < 120*S){   // 너무 멀면 건드리지 않는다
+      me.x=a.x; me.y=a.y; me.ang=ang; me.v=Math.min(me.v, 6);
+      me.offroad=0; me.cool=0.6;
+    }
+  }
+  sync();
 }
 /* ★공간 해시 — 전수 비교(O(n^2), 2628대에서 182ms)를 근처만 비교(O(n))로 바꾼다 */
 const HG=30*S;                       // 격자 한 칸 30m
@@ -1027,6 +1064,7 @@ function gap(c,range){
 }
 const KMH=v=>Math.round(v*3.6);
 function driveAuto(dt){
+  window.__daCnt=(window.__daCnt||0)+1;
   if(!auto.wp.length){auto.act='대기';return}
   /* ★웨이포인트는 '지나쳤으면' 넘긴다(u_5037 실사고).
      예전엔 4m 안에 들어와야만 넘어갔다. 그런데 경로는 차로 중앙에 놓이고 차는
@@ -1047,7 +1085,15 @@ function driveAuto(dt){
     /* ★상한 1. 5로 올렸더니 한 프레임에 여러 점을 먹고 목표가 멀리 튀어
        경로에서 40m·172도로 다시 벗어났다(실측: 사고 11회). 1이 맞다. */
     let guard=0;
-    while(auto.i < auto.wp.length-1 && guard++ < 1){
+    while(auto.i < auto.wp.length-1 && guard++ < 2){
+      /* ★i=0 이면 a와 b가 같은 점이 된다(u_5038 실사고).
+         게다가 출발 시 차를 wp[0] 위치에 올려놓으므로, wp[0] 은 '차가 이미
+         서 있는 자리'다. 그 점을 계속 목표로 삼으면 방향이 정의되지 않고
+         (L=0) 인덱스도 영원히 0에 머문다 — 화면 실측 i=0/104, d=3.2m 인데도
+         전진하지 않고 df=-1.57(좌 90도)로 핸들만 꺾였다.
+         오너: "왜 자꾸 좌회전을 하는거야", "경로는 직진으로 되있잖아".
+         wp[0] 은 출발점이므로 즉시 소비하고 wp[1] 부터 따라간다. */
+      if(auto.i===0){ auto.i=1; continue; }
       const i=auto.i;
       const a=auto.wp[Math.max(0,i-1)], b=auto.wp[i];
       let px=b.x-a.x, py=b.y-a.y;
@@ -1108,6 +1154,8 @@ function driveAuto(dt){
   if(gp<11*S)vmax=0;
   if(auto.i>=auto.wp.length-1&&d<22*S)vmax=Math.min(vmax,4);
   me.steer=Math.max(-.9,Math.min(.9,df*2.4));
+  window.__da={st:me.steer, df:df, i:auto.i, n:auto.wp.length,
+               d:Math.hypot(t.x-me.x,t.y-me.y)/S, xt:xt/S};
   me.v+=(vmax-me.v)*Math.min(1,dt*2.0);
   auto.act=gp<11*S?'정지 — 전방 장애물':gp<28*S?'감속 — 차간유지'
     :curve>.4?'선회 중':(auto.i>=auto.wp.length-1&&d<22*S)?'목적지 접근':'주행 중';
@@ -1715,6 +1763,11 @@ function draw(){
             }
           }
           put(7, enc(dist/40), enc(angd/180), Math.min(255,auto.i));
+          /* ★블록8 = driveAuto 가 도는가·경로 길이(u_5039 진단).
+             R = driveAuto 호출 카운터(프레임마다 +1, 255로 wrap)
+             G = auto.wp.length (255 clamp)
+             B = auto.on */
+          put(8, (window.__daCnt||0)&255, Math.min(255,auto.wp?auto.wp.length:0), auto.on?255:0);
         }
       }
     }
@@ -1730,6 +1783,15 @@ function draw(){
     g.fillStyle= on.ok ? '#7CFF9E' : '#ff6b6b';
     const _ck=window.__crk||{};
     const _cks=Object.keys(_ck).map(k=>k+':'+_ck[k]).join(' ')||'-';
+    const _da=window.__da;
+    if(_da){
+      g.fillStyle='#ffd23f';
+      g.fillText('AUTO st='+_da.st.toFixed(2)+' df='+_da.df.toFixed(2)
+                 +' i='+_da.i+'/'+_da.n+' d='+_da.d.toFixed(1)+'m xt='+_da.xt.toFixed(1)
+                 +' plan='+(window.__ptCnt||0),
+                 12, H-52);
+    }
+    g.fillStyle='#8bffb0';
     g.fillText('CAR v='+((me.v*3.6)|0)+' cr='+me.crashes+'['+_cks+']'
                +' road='+(on.ok?'Y':'N')
                +' d='+(ns?(ns.d/S).toFixed(1):'--')+'m'
@@ -2580,6 +2642,16 @@ else { hardReset(); }
   T.drive = function(dt){
     const a = T.compute();
     if(!a.ok) return a;
+    /* ★내비 경로가 있으면 교사는 조향하지 않는다(u_5036/5037 실사고).
+       오너: "왜 자꾸 좌회전을 하는거야", "경로는 직진으로 되있잖아".
+       화면 실측이 정확히 그랬다 —
+         AUTO(경로주행) st=-0.00 df=-0.00 d=0.7m  ← 경로는 직진, 오차 0
+         KB(교사)       st=1.00                   ← 교사는 좌회전 최대
+       경로주행이 맞게 계산해도 교사가 me.steer 를 덮어써서 차가 좌회전했다.
+       경로가 살아 있는 동안 조향 주도권은 경로에 있다. */
+    if(typeof auto!=='undefined' && auto.on && auto.wp && auto.wp.length>1){
+      return a;                       // 라벨은 그대로 내보내되 차는 건드리지 않는다
+    }
     me.steer = a.steer;
     if(a.rev){ me.v += (-3.0 - me.v)*Math.min(1, dt*2.2); }
     else if(a.brake > 0.5){ me.v -= 9.0*dt; if(me.v<0) me.v=0; }

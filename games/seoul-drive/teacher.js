@@ -219,6 +219,16 @@
   T.drive = function(dt){
     const a = T.compute();
     if(!a.ok) return a;
+    /* ★내비 경로가 있으면 교사는 조향하지 않는다(u_5036/5037 실사고).
+       오너: "왜 자꾸 좌회전을 하는거야", "경로는 직진으로 되있잖아".
+       화면 실측이 정확히 그랬다 —
+         AUTO(경로주행) st=-0.00 df=-0.00 d=0.7m  ← 경로는 직진, 오차 0
+         KB(교사)       st=1.00                   ← 교사는 좌회전 최대
+       경로주행이 맞게 계산해도 교사가 me.steer 를 덮어써서 차가 좌회전했다.
+       경로가 살아 있는 동안 조향 주도권은 경로에 있다. */
+    if(typeof auto!=='undefined' && auto.on && auto.wp && auto.wp.length>1){
+      return a;                       // 라벨은 그대로 내보내되 차는 건드리지 않는다
+    }
     me.steer = a.steer;
     if(a.rev){ me.v += (-3.0 - me.v)*Math.min(1, dt*2.2); }
     else if(a.brake > 0.5){ me.v -= 9.0*dt; if(me.v<0) me.v=0; }
