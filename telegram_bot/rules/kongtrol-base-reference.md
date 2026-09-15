@@ -331,3 +331,19 @@ FIXED; changing it forces re-authorization.
 accept arrow keys" while mouse levels had worked earlier in the session. The real state was that
 ALL input had died mid-session. Rule: when an input stops working, test the OTHER input kind and
 run `see --a11y` BEFORE theorising about the target application.
+
+
+## ★ 입력칸 텍스트 지우기 = 백스페이스 연속 (MUST — u_5002/u_5017, 2회 지적)
+
+`cmd+a` 로 전체선택 후 덮어쓰기 **금지**. 포커스가 입력칸이 아니면 페이지 전체가
+선택돼 화면이 파랗게 물들고(캡처 데이터 오염), 브라우저 주소창에서도 의도치 않게
+동작한다. 실제로 이 세션에서 두 번 지적받았다.
+
+```bash
+KT=kongtrol/target/release/kongtrol
+$KT input click <X> <Y> --yes            # 입력칸 포커스
+$KT input key backspace --repeat 40 --yes  # 기존 내용 지우기(넉넉히)
+$KT input text "새 내용" --yes
+```
+`--repeat` 는 실측 동작 확인됨. 지울 글자 수를 모르면 넉넉히 준다(빈 칸에서 여분의
+백스페이스는 무해).

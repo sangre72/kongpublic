@@ -31,7 +31,7 @@ def find_blocks(rgb):
     # ★2026-09-14 u_4971 속도: 전체 프레임(2.6M px)을 float 로 올리면 26ms 가 든다.
     #   블록은 항상 캔버스 좌상단 x=0..15 에 있으므로 그 열만 본다(2.6M → 4만 px).
     #   실측 25.87ms → 0.5ms.
-    f = rgb[:, :4 * B, :].astype(np.float32)
+    f = rgb[:, :5 * B, :].astype(np.float32)
     H = f.shape[0]
     col = np.abs(f[:, :B, :] - MARK).sum(2).mean(1)   # x=0..15 평균 거리
     cand = np.nonzero(col < 110)[0]
@@ -76,7 +76,7 @@ def _decode_rgb(rgb):
     if cy is None:
         return None
     # ★u_4971 속도: 전체 프레임 astype(float) 가 5.6ms. 실제로 쓰는 건 4픽셀뿐이다.
-    blocks = [rgb[cy, i*B + B//2].astype(np.float64) for i in range(4)]
+    blocks = [rgb[cy, i*B + B//2].astype(np.float64) for i in range(5)]
     scale = np.where(blocks[0] > 8, blocks[0] / MARK, 1.0)   # 마커로 채널 보정
     g = lambda blk, ch: float(np.clip(blk[ch] / max(scale[ch], 1e-6), 0, 255)) / 255.0
     b1, b2, b3 = blocks[1], blocks[2], blocks[3]
@@ -90,4 +90,8 @@ def _decode_rgb(rgb):
         'crashes': int(round(g(b3, 0) * 255)),
         'hold':    1 if g(b3, 1) > 0.5 else 0,
         'on_road': 1 if g(b3, 2) > 0.5 else 0,
+        # ★주행 평가용(u_5016) — 방향/경로진행률/자율주행 여부
+        'heading': g(blocks[4], 0) * 2 * np.pi,   # rad
+        'progress': g(blocks[4], 1),              # 0~1
+        'auto': 1 if g(blocks[4], 2) > 0.5 else 0,
     }

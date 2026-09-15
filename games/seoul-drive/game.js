@@ -1136,6 +1136,16 @@ function draw(){
     put(1, enc((a.steer+1)/2), enc(a.thr), enc(a.brake));
     put(2, enc(a.rev), enc(Math.min(1,me.v/20)), enc(Math.min(1,(ns?ns.d/S:0)/16)));
     put(3, Math.min(255,me.crashes), crashHold?255:0, onRoad(me.x,me.y).ok?255:0);
+    /* ★블록4 = 주행 평가용(u_5016). 오너: '실제 인간 세상처럼 좌/우회전·유턴으로
+       목적지에 가는지'를 평가하려면 방향과 경로 진행률을 밖에서 읽을 수 있어야 한다.
+         R = 차 진행방향(0~2pi 를 0~255)  ← 좌/우회전·유턴 판정의 근거
+         G = 경로 진행률(i/wp)            ← 목적지로 실제로 다가가는지
+         B = 자율주행 on/off              ← 경로주행 중인지 */
+    {
+      const hd = ((me.ang % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+      const prog = (auto.on && auto.wp.length) ? auto.i/auto.wp.length : 0;
+      put(4, Math.round(hd/(Math.PI*2)*255), enc(prog), auto.on?255:0);
+    }
   }
   /* ★항상 켜지는 상태 표시(2026-09-14). 교사가 꺼진 검증 빌드에서는 교사 readout 이
      안 그려져서, 차가 왜 멈췄는지 화면에서 읽을 방법이 없었다.
