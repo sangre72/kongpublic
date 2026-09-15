@@ -762,8 +762,18 @@ function planTo(x,y){
   buildGlobalGraph();
   let p=null, NS=nodes;
   if(GNODES){                                  // 장거리: 전역 그래프로
-    const gp=gAstar(gStartNode(me.x,me.y,me.ang), gNearest(x,y));
-    if(gp){ p=gp; NS=GNODES; }
+    /* ★출발점 후보를 여러 개 시도한다(u_5036).
+       gStartNode 하나만 믿으면, 그 노드가 막다른 곳이거나(일방통행 진행방향
+       끝점의 3.1%가 그렇다) 목적지 방향으로 나가는 길이 없을 때 경로탐색이
+       통째로 실패한다 — 화면에서 auto=0, wp=0 으로 확인했다.
+       방향 맞는 점 → 그냥 최근접 점 순으로 시도해서 첫 성공을 쓴다. */
+    const tgt=gNearest(x,y);
+    const cands=[gStartNode(me.x,me.y,me.ang), gNearest(me.x,me.y)];
+    for(const sN of cands){
+      if(sN===undefined||sN<0) continue;
+      const gp=gAstar(sN, tgt);
+      if(gp){ p=gp; NS=GNODES; break; }
+    }
   }
   if(!p){ p=astar(nearestNode(me.x,me.y),nearestNode(x,y)); NS=nodes; }
   if(!p){ flash('경로 없음'); window.__planFail=(window.__planFail||0)+1; return; }
@@ -1439,6 +1449,31 @@ function draw(){
         return far;
       };
       put(5, enc(probe(-1)/8), enc(probe(1)/8), onRoad(me.x,me.y).ok?255:0);
+      /* ★블록6 = 경로 자체가 도로 위인가(u_5036 진단).
+         '길 없는 데로 경로를 잡는다'는 지적을 화면에서 직접 확인하기 위해,
+         남은 웨이포인트를 훑어 도로 위 비율을 싣는다.
+           R = 도로 위 웨이포인트 비율(0~255)
+           G = 검사한 개수/255
+           B = 첫 웨이포인트가 도로 위면 255 */
+      {
+        /* ★적재된 청크 안의 웨이포인트만 센다(u_5036).
+           onRoad 는 로컬 segs(차 주변 3x3 청크)만 본다. 먼 웨이포인트는 그 도로가
+           아직 안 올라와서 무조건 '도로밖'으로 나온다 — 그대로 세면 53% 같은
+           가짜 수치가 나온다(같은 청크 안에서만 재면 실제로는 0.9%).
+           그래서 차에서 1.2km 안쪽만 검사한다. */
+        let ok=0,n=0,first=0;
+        const LIM=1200*S;
+        if(auto.wp&&auto.wp.length){
+          for(let i=auto.i;i<auto.wp.length && n<60;i+=1){
+            const w=auto.wp[i];
+            if(Math.hypot(w.x-me.x,w.y-me.y)>LIM) break;
+            const r=onRoad(w.x,w.y).ok;
+            if(n===0) first=r?255:0;
+            if(r) ok++; n++;
+          }
+        }
+        put(6, n?Math.round(ok/n*255):0, Math.min(255,n), first);
+      }
     }
   }
   /* ★항상 켜지는 상태 표시(2026-09-14). 교사가 꺼진 검증 빌드에서는 교사 readout 이
