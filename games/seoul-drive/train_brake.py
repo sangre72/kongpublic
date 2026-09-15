@@ -39,7 +39,23 @@ def batch(X, Y, ids):
 
 def main(dirs, out, epochs=30):
     X = np.concatenate([np.load(f'{d}/X.npy') for d in dirs])
-    Y = np.concatenate([np.load(f'{d}/Y.npy') for d in dirs])[:, :3].astype(np.float32)
+    Yall = np.concatenate([np.load(f'{d}/Y.npy') for d in dirs]).astype(np.float32)
+    Y = Yall[:, :3]
+
+    # ★u_5171 핵심 수정: '이미 서 있는데 계속 밟는' 프레임을 버린다.
+    #   실측 — 수집 프레임의 58%가 v<0.5(정지)였다. 서 있는 그림이 데이터의
+    #   절반을 넘으면 가중치를 어떻게 만져도 '서 있기'를 배운다(12배→4배로
+    #   낮췄더니 정지 에피소드가 25%→50%로 오히려 늘었다).
+    #   단, '달리다 서는' 제동은 반드시 배워야 하므로 그건 남긴다.
+    #   판별: 정지 상태(v<0.5)인데 교사도 제동을 요구 → 버린다.
+    #         정지 상태인데 교사가 출발하라고 함(제동<0.5) → 남긴다(출발 학습).
+    if Yall.shape[1] > 3:
+        v = Yall[:, 3]
+        drop = (v < 0.5) & (Y[:, 2] > 0.5)
+        keep = ~drop
+        print(json.dumps({'dropped_idle_brake': int(drop.sum()),
+                          'kept': int(keep.sum())}), flush=True)
+        X, Y = X[keep], Y[keep]
     n = len(X)
     brake = Y[:, 2] > 0.5
     pos = float(brake.mean())
