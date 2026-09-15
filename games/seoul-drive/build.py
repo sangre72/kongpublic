@@ -210,7 +210,11 @@ if '--collect-recover' in sys.argv:
         setTimeout(function(){ clearInterval(hold); busy=false;
                                window.__rec.st='GO'; window.__rec.n++; }, 2500);
       } else {
-        /* (b) 차로 밖으로 밀어낸다 — 횡으로 2.5~4.5m + 각도 12~25도.
+        /* (b) 차로 밖으로 밀어낸다 — ★도로 폭에 비례해서 민다(u_5158 실측).
+           고정 2.5~4.5m 로는 4차로(반폭 6.5m)·6차로(10.5m)에서 **도로 안에 그대로 남는다.**
+           실측: 이탈복구 단계인데 이탈이 352프레임 중 7건(2%)뿐이었다.
+           오드가 실제로 달리는 건 3~5차로라, 이 폭에서 못 나가면 복구 장면이 안 생긴다.
+           ⇒ 반폭보다 확실히 크게(1.15~1.5배) 민다. */
            교사의 cross-track 보정이 스스로 되돌아오는 장면을 만든다.
            도로에서 너무 멀리 내보내면 nearestSeg 가 엉뚱한 도로를 잡으므로
            한 차로 반 정도까지만 민다. */
@@ -222,7 +226,10 @@ if '--collect-recover' in sys.argv:
            이탈복구 장면은 '경로 없이 교사가 직접 모는' 구간에서만 만든다. */
         if(typeof auto!=='undefined' && auto.on && auto.wp && auto.wp.length) return;
         var side=Math.random()<0.5?-1:1;
-        var dx=(2.5+Math.random()*2.0)*side;
+        /* ★도로 반폭에 비례해 민다. 고정값이면 넓은 도로에서 못 나간다. */
+        var _n=nearestSeg(me.x,me.y);
+        var _half=_n&&_n.s ? (_n.s.roadW/S)/2 : 3.5;
+        var dx=_half*(1.15+Math.random()*0.35)*side;   // 반폭의 1.15~1.5배
         me.x += -Math.sin(me.ang)*dx*S;
         me.y +=  Math.cos(me.ang)*dx*S;
         me.ang += side*(0.21+Math.random()*0.23);
