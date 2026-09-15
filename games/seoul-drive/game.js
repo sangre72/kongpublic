@@ -875,11 +875,30 @@ function gap(c,range){
 const KMH=v=>Math.round(v*3.6);
 function driveAuto(dt){
   if(!auto.wp.length){auto.act='대기';return}
+  /* ★웨이포인트는 '지나쳤으면' 넘긴다(u_5037 실사고).
+     예전엔 4m 안에 들어와야만 넘어갔다. 그런데 경로는 차로 중앙에 놓이고 차는
+     자기 차로로 달리므로, 옆으로 5~10m 비껴 지나가면 영영 안 닿는다.
+     그러면 이미 등 뒤로 간 점을 계속 조준한다 —
+     실측: 47km/h 로 25초를 달렸는데 진행률이 0.015 에서 1mm도 안 움직였다.
+     오너: "실제 차량과 연동이 안 되는 것 같은데". 정확한 지적이었다.
+     이제 '가까우면' 또는 '진행방향 기준으로 지나쳤으면' 넘긴다. */
+  {
+    const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
+    let guard=0;
+    while(auto.i < auto.wp.length-1 && guard++ < 50){
+      const w=auto.wp[auto.i];
+      const dx=w.x-me.x, dy=w.y-me.y;
+      const near = Math.hypot(dx,dy) < 8*S;
+      const passed = (dx*fx + dy*fy) < 0;        // 이미 등 뒤
+      if(near || passed) auto.i++;
+      else break;
+    }
+  }
   const t=auto.wp[auto.i],d=Math.hypot(t.x-me.x,t.y-me.y);
-  if(d<4*S){
-    if(auto.i<auto.wp.length-1)auto.i++;
-    else{me.v*=.82;auto.act='도착';
-      if(me.v<.3){me.v=0;auto.on=0;flash('목적지 도착');sync()}return}
+  if(auto.i>=auto.wp.length-1 && d<8*S){
+    me.v*=.82;auto.act='도착';
+    if(me.v<.3){me.v=0;auto.on=0;flash('목적지 도착');sync()}
+    return;
   }
   let df=((Math.atan2(t.y-me.y,t.x-me.x)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
   /* ★경로'선'을 따라간다 — 다음 점만 보고 조향하면 코너를 가로질러 인도로 올라간다.
@@ -930,15 +949,30 @@ function respawnOnRoad(){
   const n=nearestSeg(me.x,me.y);
   if(!n)return;
   const sg=n.s;
-  const off=laneOffset(sg,1,0);
-  // 세그먼트를 따라 조금 뒤로 물린 지점
+  /* ★복귀 방향은 '가던 방향'을 유지한다(u_5037 실사고).
+     예전엔 me.ang=sg.ang 로 세그먼트의 저장 방향을 그대로 썼다. 양방향 도로에서
+     저장 방향은 임의라, 절반의 확률로 차가 뒤를 보고 되살아난다. 그러면 목적지
+     반대로 달리다 즉시 차로를 벗어나고, 또 사고나고, 또 복귀한다 —
+     실측(20초): 속도가 12.6→0.1→12.6→0.2 로 반복되고 진행률이 0.034 를
+     한 번도 못 넘겼다(5/15회 뒤로 감). 오너가 본 '경로가 자꾸 바뀌고 차와
+     연동이 안 된다'가 이것이다.
+     일방통행이면 통행 방향이 정답이고, 양방향이면 내 진행방향에 가까운 쪽이다. */
+  let dir=1;
+  {
+    const d=((me.ang - sg.ang + Math.PI*3) % (Math.PI*2)) - Math.PI;
+    dir = Math.abs(d) < Math.PI/2 ? 1 : -1;
+    if(sg.o) dir = 1;                       // 일방통행은 a→b 만
+  }
+  const off=laneOffset(sg,dir,0);
+  // 세그먼트를 따라(진행방향 기준) 조금 뒤로 물린 지점
   const back=Math.min(0.35,(8*S)/Math.max(1,sg.len));
-  const t2=Math.max(0,Math.min(1,n.t-back));
+  const t2=Math.max(0,Math.min(1, dir>0 ? n.t-back : n.t+back));
   const A=nodes[sg.a],B=nodes[sg.b];
   const px=A.x+(B.x-A.x)*t2, py=A.y+(B.y-A.y)*t2;
-  me.x=px-Math.sin(sg.ang)*off;
-  me.y=py+Math.cos(sg.ang)*off;
-  me.ang=sg.ang;me.v=0;me.offroad=0;me.cool=1.0;
+  const ang = sg.ang + (dir<0 ? Math.PI : 0);
+  me.x=px-Math.sin(ang)*Math.abs(off);
+  me.y=py+Math.cos(ang)*Math.abs(off);
+  me.ang=ang;me.v=0;me.offroad=0;me.cool=1.0;
 }
 function crash(label,heavy){
   if(me.cool>0)return;
