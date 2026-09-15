@@ -21,7 +21,10 @@ import functools, http.server, socketserver, os, json, threading
 PORT = 8901
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-_ctl = {'on': 0, 'steer': 0.0, 'thr': 0.0, 'brake': 0.0, 'seq': 0}
+_ctl = {'on': 0, 'steer': 0.0, 'thr': 0.0, 'brake': 0.0, 'seq': 0, 'rst': 0,
+        'teach': '', 'force': 0}   # teach = 교사 모드(fwd|left|right|off), u_5144
+# ★rst = 소프트리셋 요청 카운터(u_5126). 페이지가 값이 바뀐 걸 보면 한 번 리셋한다.
+#   새 엔드포인트/연결을 만들지 않고 이미 20Hz 로 도는 /ctl 폴링에 얹는다.
 _gets = [0]   # 페이지가 실제로 폴링하는지 확인용(a_5085 검증)
 # ★진단용 텔레메트리(사고 종류별 카운터). 페이지가 /ctl GET 의 쿼리로 올려준다.
 #   HUD 텍스트를 스크린샷에서 읽는 것은 이 프로젝트에서 금지(글자 오독 사고)이므로
@@ -82,6 +85,8 @@ class H(http.server.SimpleHTTPRequestHandler):
             for k in ('on', 'steer', 'thr', 'brake'):
                 if k in d:
                     _ctl[k] = float(d[k])
+            if d.get('reset'):
+                _ctl['rst'] = int(_ctl.get('rst', 0)) + 1
             _ctl['seq'] += 1
             return self._json(dict(_ctl))
 

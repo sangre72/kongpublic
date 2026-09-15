@@ -583,10 +583,30 @@ function nearestSeg(x,y){
   }
   return best;
 }
+/* ★차선변경 중에는 '방금까지 달리던 도로'로 판정한다(u_5146 실사고).
+   onRoad 는 nearestSeg — 가장 가까운 중심선 — 으로 판정한다. 그런데 차선을
+   바꾸는 동안 차는 두 차로에 걸치고, 그 순간 옆 도로가 더 가까워진다.
+   그러면 게임이 '남의 도로' 기준으로 이탈을 계산한다.
+   실측: xt=1.70m 인데 margin=6.50m — 도로 한복판인데 '도로 이탈' 로 찍혔다.
+   차선변경·회피·추월이 정확히 이 상황이라, 그 동작을 할 때마다 게임이 끊겼다.
+   ⇒ 직전 프레임의 도로를 기억해두고, 그 도로 위에 있으면 그걸로 판정한다. */
+let _lastSeg=null, _lastSegT=0;
 function onRoad(x,y){
   const n=nearestSeg(x,y);
   if(!n)return{ok:false,d:1e9,s:null};
-  return{ok:n.d<=n.s.roadW*.5,d:n.d,s:n.s,edge:n.d-n.s.roadW*.5};
+  /* 직전 도로가 아직 유효하면(1.5초 이내) 그 도로 기준도 같이 본다 */
+  if(_lastSeg && _lastSeg!==n.s && (performance.now()-_lastSegT)<1500){
+    const A=nodes[_lastSeg.a], B=nodes[_lastSeg.b];
+    const vx=B.x-A.x, vy=B.y-A.y, L=vx*vx+vy*vy;
+    let t=L?((x-A.x)*vx+(y-A.y)*vy)/L:0; t=Math.max(0,Math.min(1,t));
+    const d0=Math.hypot(A.x+vx*t-x, A.y+vy*t-y);
+    if(d0<=_lastSeg.roadW*.5){            // 원래 도로 위에 있으면 그게 정답이다
+      return{ok:true, d:d0, s:_lastSeg, edge:d0-_lastSeg.roadW*.5};
+    }
+  }
+  const ok=n.d<=n.s.roadW*.5;
+  if(ok){ _lastSeg=n.s; _lastSegT=performance.now(); }
+  return{ok,d:n.d,s:n.s,edge:n.d-n.s.roadW*.5};
 }
 /* ★교차로 근접 판정(2026-09-15).
    교차로에서는 좌/우회전으로 중앙선을 넘는 것이 합법이고, 그 지점에서
@@ -1538,6 +1558,12 @@ function mdlPoll(dt){
        실측: userOff=1 로 굳어서 /ctl on=1 을 보내도 drv=GEOM 유지.
        학습 하네스가 명시적으로 force 를 보낼 때만 해제한다. */
     if(d.force){ MDL.userOff = false; }
+    /* ★교사 모드를 원격으로 바꾼다(u_5144 커리큘럼 수집).
+       좌회전·정지·추월 라벨은 교사에게 '그 상황을 하라'고 시켜야 생긴다.
+       그냥 달리면 실측상 좌회전 108 / 우회전 10,142 로 94배 쏠린다. */
+    if(d.teach && window.__teach && window.__teach.setMode){
+      try{ if(window.__teach.mode!==d.teach) window.__teach.setMode(d.teach); }catch(e){}
+    }
     if(d.on && !MDL.userOff) MDL.on = true;
     /* ★force 는 '켜기'에만 쓴다(u_5133 실사고).
        model_drive.py 가 매 프레임 force:1 을 보내는데, 여기서 on 이 falsy 한
