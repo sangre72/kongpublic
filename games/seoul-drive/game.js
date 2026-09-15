@@ -1531,8 +1531,12 @@ function mdlPoll(dt){
          모델이 실제로 가는 상황(차선 벗어남·사고 직전)의 정답이 있어야 DAgger 가 성립한다.
          기존 dagger_run.py 는 라벨을 아예 저장하지 않아 쓸모없는 프레임만 쌓았다. */
       tch: (function(){ const T=window.__teach, a=T&&T.last;
+        const g=T&&T.dbg;
         return a ? {st:+(+a.steer).toFixed(4), th:+(+a.thr).toFixed(4),
-                    br:+(+(a.brake||0)).toFixed(4), ok:1} : {ok:0}; })(),
+                    br:+(+(a.brake||0)).toFixed(4), ok:1,
+                    // ★u_5171: 조향 89% 포화. 어느 항이 범인인지 보려면 항별로 봐야 한다.
+                    d:g?+(+g.d).toFixed(3):null, x:g?+(+g.x).toFixed(3):null,
+                    ct:g?+(+g.cross).toFixed(2):null} : {ok:0}; })(),
       car: {v:+me.v.toFixed(3), x:+(me.x/S).toFixed(2), y:+(me.y/S).toFixed(2),
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
       qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();
