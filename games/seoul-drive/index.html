@@ -1366,7 +1366,8 @@ function driveAuto(dt){
     :auto.curv>0.05?'선회 중':(auto.s>=total-25*S)?'목적지 접근':'주행 중';
   window.__da={st:me.steer, df:alpha, i:auto.i, n:N,
                d:Lreal, xt:auto.xt||0, s:auto.s/S, tot:total/S, vc:vmaxCurve,
-               gp:gp/S, vmax:vmax, stall:auto.stall||0, brk:window.__brkT||0, ped:pedD};
+               gp:gp/S, vmax:vmax, stall:auto.stall||0, brk:window.__brkT||0, ped:pedD,
+               blk:blockT||0, bst:bldStuck||0, cool:me.cool||0, hold:crashHold||0};
 }
 
 /* ---------- 충돌 ---------- */
@@ -1568,7 +1569,7 @@ function step(dt){
         me.offroad+=dt;
         if(me.offroad>.9){ me.offroad=0; crash('중앙선 침범',false); }
         blockT=(blockT||0)+dt;                // 얼마나 계속 막히고 있나
-      } else blockT=0;
+      } else blockT=Math.max(0,(blockT||0)-dt*0.5);   // 깜빡여도 누적되게 천천히 감소
     }
   }
   /* ★하드 구속(중앙선·차로밖)에 오래 갇히면 경로 위로 복귀한다(u_5056).
@@ -1577,7 +1578,7 @@ function step(dt){
      0.2 로 수렴한 채 영원히 멈춘다 — 사고도 안 나고 제동도 0이라 화면상
      원인이 안 보인다(세 번 헛짚은 이유).
      규칙을 푸는 게 아니라, 갇히면 합법인 경로 위로 되돌려 다시 출발시킨다. */
-  if(blockT>2 && auto.on && auto.wp.length>1){
+  if(blockT>1.0 && auto.on && auto.wp.length>1){
     /* ★막힌 그 점이 아니라 '몇 점 앞'으로 보낸다(u_5056).
        같은 점으로 되돌리면 도착하자마자 같은 구속에 다시 걸려 무한반복이다 —
        실측: wp45 는 통과했는데 wp64 에서 같은 v=0.2 증상이 재현됐다.
@@ -2077,7 +2078,7 @@ function draw(){
                  +' s='+(_da.s||0).toFixed(0)+'/'+(_da.tot||0).toFixed(0)+'m xt='+_da.xt.toFixed(1)
                  +' vc='+(_da.vc||0).toFixed(0)+' gp='+(_da.gp||0).toFixed(0)+' ped='+((_da.ped>900)?'-':(_da.ped||0).toFixed(0))
                  +' vmax='+(_da.vmax||0).toFixed(1)+' stl='+(_da.stall||0).toFixed(0)
-                 +' brk='+(_da.brk||0).toFixed(0)+' tb='+((window.__tbrk===undefined)?'-':window.__tbrk.toFixed(2))+' plan='+(window.__ptCnt||0),
+                 +' brk='+(_da.brk||0).toFixed(0)+' tb='+((window.__tbrk===undefined)?'-':window.__tbrk.toFixed(2))+' blk='+(_da.blk||0).toFixed(1)+' bst='+(_da.bst||0).toFixed(1)+' cool='+(_da.cool||0).toFixed(1)+' hld='+(_da.hold||0)+' plan='+(window.__ptCnt||0),
                  12, H-52);
     }
     g.fillStyle='#8bffb0';
