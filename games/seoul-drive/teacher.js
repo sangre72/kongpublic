@@ -134,8 +134,19 @@
        조향이 포화됐다. clamp 도 한 프레임에 step 만큼만 적용한다. */
     const step = 0.02;
     const hi = nl - 1;
-    if(T.laneF > hi) T.laneF = Math.max(hi, T.laneF - step);
-    if(T.laneF < 0)  T.laneF = Math.min(0,  T.laneF + step);
+    /* ★u_5171 실측으로 이 완만한 clamp 가 원인임이 드러났다.
+       분해 결과: 차는 도로 중심선에서 0.72m 떨어져 정상 주행 중인데,
+       목표 차로 오프셋이 7.88m 였다(도로폭 9.6m). 즉 목표점이 도로 밖이다.
+
+       원인 — 3차로에서 1차로 도로로 들어가면 laneF 2 → 0 으로 가야 하는데
+       step 0.02 로는 100프레임(3.3초)이 걸린다. 그동안 목표는 계속 도로
+       밖을 가리키고, cross 8m, 조향 포화가 유지된다.
+       '한 번에 옮기지 않는다'는 원래 의도는 옳지만, 그건 같은 도로 안에서
+       차선을 바꿀 때 얘기다. 도로가 아예 좁아져 그 차로가 존재하지 않으면
+       천천히 갈 이유가 없다 — 없는 차로에 머무는 것이 곧 도로 이탈이다.
+       ⇒ 도로 밖으로 나가는 방향의 clamp 는 즉시 적용한다. */
+    if(T.laneF > hi) T.laneF = hi;
+    if(T.laneF < 0)  T.laneF = 0;
     // 실제 차선변경도 2~3초에 걸쳐 한다(0.02/프레임 ≈ 한 차로에 2.5초@30fps)
     if(T.laneF < want)      T.laneF = Math.min(want, T.laneF + step);
     else if(T.laneF > want) T.laneF = Math.max(want, T.laneF - step);
@@ -158,8 +169,13 @@
 
     /* cross-track 도 같은 고정 기준선으로 잰다(부호: 왼쪽 -, 오른쪽 +) */
     const cross = (-(baseX-me.x)*Math.sin(sg.ang) + (baseY-me.y)*Math.cos(sg.ang)) / S * dir;
-    T.lastSegW = sg.w || null;      // ★u_5171 진단: 기준 세그먼트 id
-    T.lastNl = nl;                  //              그 도로의 차로수
+    /* ★u_5171 진단: cross 7.3m 의 출처를 분해한다.
+       nd  = 차에서 세그먼트 중심선까지의 순수 거리(투영 오차)
+       off = 목표 차로 오프셋(차로 인덱스가 틀리면 여기가 크다)
+       둘 중 어느 쪽이 cross 를 만드는지 봐야 고칠 곳이 정해진다. */
+    T.dbg2 = {sw: sg.w || null, nl: nl, laneF: +T.laneF.toFixed(2),
+              off: +(off/S).toFixed(2), nd: +(n.d/S).toFixed(2),
+              roadW: +((sg.roadW||0)/S).toFixed(2), o: sg.o?1:0};
 
     return {x:px, y:py, ang, seg:sg, off, dirSign:dir, cross};
   }
