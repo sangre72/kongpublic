@@ -115,6 +115,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
                   border:1px solid var(--edge);background:var(--panel2);color:var(--ink)">
     <button id="qgo">경로 설정</button>
     <button id="qrun" disabled>목적지 가기</button>
+    <button id="qpark">주차</button>
   </div>
   <div id="qr"></div>
 </div>
@@ -893,6 +894,31 @@ function gAstar(s,t){
   }
   return null;
 }
+/* ★갓길 주차(u_5041 오너 지시). 지금 있는 도로의 가장 바깥 차로 바깥쪽으로
+   붙여 세운다. 주행을 완전히 멈추고(교사 포함) 경로도 해제한다. */
+function parkCar(){
+  auto.on=0; auto.wp=[]; auto.i=0; auto.goal=null;
+  const T=window.__teach; if(T) T.auto=false;     // 교사도 정지
+  const n=nearestSeg(me.x,me.y);
+  if(n){
+    const sg=n.s;
+    // 진행방향 유지
+    let d=((me.ang - sg.ang + Math.PI*3)%(Math.PI*2))-Math.PI;
+    const dir = sg.o ? 1 : (Math.abs(d)<Math.PI/2 ? 1 : -1);
+    const ang = sg.ang + (dir<0 ? Math.PI : 0);
+    // 가장 바깥 차로 중앙 = 갓길 쪽
+    const lanes = sg.o ? sg.l : Math.max(1, Math.floor(sg.l/2));
+    const off = Math.abs(laneOffset(sg, dir, lanes-1));
+    me.x = n.px - Math.sin(ang)*off;
+    me.y = n.py + Math.cos(ang)*off;
+    me.ang = ang;
+  }
+  me.v=0; me.steer=0; me.offroad=0; me.cool=1.0;
+  window.__parked=1;
+  flash('갓길 주차');
+  sync();
+}
+window.parkCar=parkCar;
 function planTo(x,y){
   window.__ptCnt=(window.__ptCnt||0)+1;
   buildGlobalGraph();
@@ -2296,8 +2322,15 @@ function loop(t){
         }
       }catch(e){}
     }
-  }else if(T && T.auto){
+  }else if(T && T.auto && !window.__parked){
     T.last = T.drive(dt);                           // 경로 없음 = 교사가 조종
+  }else if(window.__parked){
+    /* ★주차 상태: 아무도 몰지 않는다(u_5041).
+       예전엔 페이지를 열자마자 교사가 곧바로 차를 몰았다(T.auto=true 기본).
+       오너: "시작하면 바로 차가 주행을 하는데". 이제 주차로 시작하고,
+       [목적지 가기]를 눌러야 움직인다. */
+    me.v *= (1 - Math.min(1, dt*4));
+    if(T && T.auto){ try{ T.last=T.compute(); }catch(e){} }   // 라벨은 계속 생산
   }
   step(dt);
   epTick(dt);
@@ -2342,6 +2375,10 @@ if(LEARN){hardReset();epStart()}
    hardReset() 이 아예 안 불리고 초기 주차칸 위치가 그대로 남았다.
    실측: 디코더로 읽은 lane=13.0m, on_road=0 — 도로 밖에서 수집하고 있었다. */
 else { hardReset(); }
+/* ★시작은 '주차' 상태로(u_5041). 페이지를 열자마자 교사가 차를 몰기 시작하면
+   사용자가 경로를 설정할 틈이 없다. 첫 프레임 전에 세워둔다. */
+window.__parked=1;
+setTimeout(()=>{ try{ parkCar(); }catch(e){} }, 400);
 
 /* ===== 목적지 검색 (u_5003) =====
    오너 요구(u_4984): "한글이든 영문이든 주소든 지명이든 상호든 다 가게".
@@ -2445,9 +2482,15 @@ else { hardReset(); }
       flash('경로 설정됨 — [목적지 가기]를 누르세요');
     }
   };
+  const parkBtn = document.getElementById('qpark');
+  if(parkBtn) parkBtn.onclick = ()=>{
+    parkCar();
+    if(runBtn) runBtn.disabled = true;      // 경로가 해제되므로 다시 설정해야 한다
+  };
   /* ★'목적지 가기' = 실제 출발(u_5041). 경로가 있어야만 동작한다. */
   if(runBtn) runBtn.onclick = ()=>{
     if(!auto.wp.length){ flash('먼저 경로를 설정하세요'); return; }
+    window.__parked=0;                       // 주차 해제
     auto.on = 1; sync(); flash('목적지로 출발');
   };
   /* 입력이 이벤트로 안 잡히는 환경(자동입력 등)을 위해 주기적으로도 확인한다 */
