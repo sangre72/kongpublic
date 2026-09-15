@@ -1155,6 +1155,23 @@ function planTo(x,y){
   /* ★경로 설정과 출발을 분리한다(u_5041 오너 지시).
      예전엔 경로를 만들자마자 auto.on=1 로 바로 달렸다. 이제 경로는 화면에
      표시만 하고, '목적지 가기'를 눌러야 출발한다. */
+  /* ★경로점을 25m 간격으로 리샘플한다(u_5056).
+     A* 노드 간격이 최대 61m 라 코너 표현이 거칠고, 추종 창도 그만큼 커야 했다.
+     조밀하게 만들면 코너를 따라 도는 정밀도가 올라가고 창도 작게 유지된다. */
+  {
+    const out=[wp[0]];
+    for(let i=1;i<wp.length;i++){
+      const a=out[out.length-1], b=wp[i];
+      const L=Math.hypot(b.x-a.x, b.y-a.y);
+      const n=Math.floor(L/(25*S));
+      for(let k=1;k<=n;k++){
+        const u=k/(n+1);
+        out.push({x:a.x+(b.x-a.x)*u, y:a.y+(b.y-a.y)*u});
+      }
+      out.push(b);
+    }
+    wp.length=0; for(const q of out) wp.push(q);
+  }
   auto.goal=wp[wp.length-1];
   auto.cum=null; auto.s=0; auto.k=1;      // 호길이 진행 리셋
   auto.on = !!window.__autoStart;          // 기본 false = 표시만
@@ -1226,7 +1243,11 @@ function driveAuto(dt){
   // 1) 차를 경로에 투영해 s 갱신 — 현재 s 근처 창(뒤 8m, 앞 60m)만 본다
   {
     let bs=auto.s, bd=1e18, bk=auto.k||1;
-    const lo=auto.s-8*S, hi=auto.s+60*S;
+    /* ★창 크기 > 웨이포인트 간격 이어야 한다(u_5056 실사고).
+       경로 8242m 가 135점 = 간격 61m 인데 창이 60m 였다. 다음 구간이 창 밖이라
+       투영 후보에서 빠지고, s 가 그 구간 끝에서 영영 멈췄다 —
+       측정 하네스가 wp_idx=4/135, path_dist=0.0 으로 잡아냈다(1m 차이). */
+    const lo=auto.s-20*S, hi=auto.s+250*S;
     for(let k=1;k<N;k++){
       if(auto.cum[k]<lo) continue;
       if(auto.cum[k-1]>hi) break;
