@@ -7,6 +7,13 @@
 (function(){
   const T = {mode:'fwd', log:[], on:false};
 
+  /* ★보행자 제동 파라미터(a_5057). 횡방향 4m 는 gap() 의 LW*0.62=2.02m 보다 넓다 —
+     차로 가장자리로 뛰어드는(무단횡단 JAY_P) 보행자를 그 게이트가 놓쳤다. */
+  const PED_SLOW_M = 25;    // 이 거리 안이면 감속
+  const PED_STOP_M = 12;    // 이 거리 안이면 정지
+  const PED_LAT_M  = 4;     // 횡방향 허용 폭(m)
+  T.PED = {slow:PED_SLOW_M, stop:PED_STOP_M, lat:PED_LAT_M};
+
   /* ★차로 추종 재작성 (u_5001).
      이전 구조의 결함: nearestSeg 는 '차에서 가장 가까운 중심선 위 점'을 준다.
      차가 옆으로 움직이면 그 점도 같이 옆으로 따라온다. 목표점과 cross-track
@@ -98,6 +105,28 @@
     return gap(me, 40*S) / S;
   }
 
+  /* ★보행자 전방거리(a_5057). 왜 별도 함수인가:
+     gap() 은 peds 를 '보기는 한다'(rebuildHash 가 peds 를 hgrid 에 넣는다).
+     하지만 횡방향 게이트가 LW*0.62 = 2.02m 라, 차로 가장자리로 뛰어드는 보행자가
+     그 밖에 있으면 gap 이 아예 못 본다. 게다가 gap 은 '가장 가까운 물체 하나'의
+     거리만 돌려주므로, 앞차가 25m 에 있으면 12m 의 보행자가 그 값에 가려진다.
+     → 보행자만 따로, 더 넓은 횡방향(4m)으로 훑는다.
+     이미 지나친 보행자(f<=0)는 제외 — 뒤에서 걷는 사람 때문에 서면 안 된다. */
+  function pedAhead(){
+    if(typeof peds==='undefined' || !peds || !peds.length) return 1e9;
+    const ca=Math.cos(me.ang), sa=Math.sin(me.ang);
+    let best=1e9;
+    for(const p of peds){
+      const dx=p.x-me.x, dy=p.y-me.y;
+      const f=(dx*ca+dy*sa)/S;                 // 전방거리(m). 음수면 이미 지나쳤다
+      if(f<=0 || f>=PED_SLOW_M) continue;
+      const l=Math.abs(-dx*sa+dy*ca)/S;        // 횡방향 거리(m)
+      if(l>PED_LAT_M) continue;
+      if(f<best) best=f;
+    }
+    return best;
+  }
+
   /* 교사 조작값 산출 — 조향 -1~1, 스로틀 0~1, 브레이크 0~1 */
   T.compute = function(){
     const lt = laneTarget();
@@ -129,6 +158,15 @@
     let brake = 0, thr = 1;
     if(d < 9){ brake = 1; thr = 0; }            // 앞 막힘 → 정지
     else if(d < 18){ brake = 0.4; thr = 0.15; } // 접근 → 감속
+    /* ★보행자 제동(a_5057). 사고 연쇄의 시작점이 보행자 충돌이었다.
+       25m 안이면 감속, 12m 안이면 정지. 차량 제동보다 항상 우선(Math.max)한다 —
+       앞차 기준으로 이미 계산된 brake 를 덮어쓰지 않고 더 강한 쪽을 쓴다. */
+    const pd = pedAhead();
+    if(pd < PED_STOP_M){ brake = 1; thr = 0; }
+    else if(pd < PED_SLOW_M){
+      brake = Math.max(brake, 0.5);
+      thr = Math.min(thr, 0.12);
+    }
     /* ★적신호 정지(u_4978). 신호등은 91개가 깔려 있었지만 교사가 아예 보지
        않아서, 데이터에 '빨간불에 선다'가 한 프레임도 없었다.
        내 진행방향과 같은 방향을 바라보는 신호만 대상으로 한다(맞은편 신호 무시).

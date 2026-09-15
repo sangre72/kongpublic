@@ -1308,8 +1308,25 @@ function driveAuto(dt){
   const maxSteer=.62;
   me.steer=Math.max(-.9,Math.min(.9, delta/maxSteer));
   // 5) 속도
+  /* ★보행자 제동을 경로주행에도 넣는다(ar_5057 지적).
+     워커가 teacher.js 에 넣었지만, 내비 주행 중 실제로 모는 건 driveAuto 다.
+     같은 규칙: 전방 25m·횡 4m 안이면 감속, 12m 안이면 정지. 뒤는 무시.
+     보행자 사고가 crashHold 연쇄의 시작점이었으므로 여기서 막는 게 근본이다. */
+  let pedD=1e9;
+  {
+    const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
+    for(const p of peds){
+      const dx=p.x-me.x, dy=p.y-me.y;
+      const f=(dx*fx+dy*fy)/S;
+      if(f<0 || f>25) continue;
+      if(Math.abs(-dx*fy+dy*fx)/S > 4) continue;
+      if(f<pedD) pedD=f;
+    }
+  }
   const gp=gap(me);
   let vmax=vmaxCurve;
+  if(pedD<12) vmax=0;
+  else if(pedD<25) vmax=Math.min(vmax, 3.5);
   if(off>6) vmax=Math.max(vmax, 4.5);              // 복귀 중엔 최소한의 추진력 유지
   if(Math.abs(alpha)>0.6) vmax=Math.min(vmax,5);   // 크게 틀어야 하면 감속
   /* ★정차 교착 해제(u_5050).
@@ -1344,7 +1361,7 @@ function driveAuto(dt){
     :auto.curv>0.05?'선회 중':(auto.s>=total-25*S)?'목적지 접근':'주행 중';
   window.__da={st:me.steer, df:alpha, i:auto.i, n:N,
                d:Lreal, xt:auto.xt||0, s:auto.s/S, tot:total/S, vc:vmaxCurve,
-               gp:gp/S, vmax:vmax, stall:auto.stall||0, brk:window.__brkT||0};
+               gp:gp/S, vmax:vmax, stall:auto.stall||0, brk:window.__brkT||0, ped:pedD};
 }
 
 /* ---------- 충돌 ---------- */
@@ -2014,7 +2031,7 @@ function draw(){
       g.fillStyle='#ffd23f';
       g.fillText('AUTO st='+_da.st.toFixed(2)+' df='+_da.df.toFixed(2)
                  +' s='+(_da.s||0).toFixed(0)+'/'+(_da.tot||0).toFixed(0)+'m xt='+_da.xt.toFixed(1)
-                 +' vc='+(_da.vc||0).toFixed(0)+' gp='+(_da.gp||0).toFixed(0)
+                 +' vc='+(_da.vc||0).toFixed(0)+' gp='+(_da.gp||0).toFixed(0)+' ped='+((_da.ped>900)?'-':(_da.ped||0).toFixed(0))
                  +' vmax='+(_da.vmax||0).toFixed(1)+' stl='+(_da.stall||0).toFixed(0)
                  +' brk='+(_da.brk||0).toFixed(0)+' plan='+(window.__ptCnt||0),
                  12, H-52);
