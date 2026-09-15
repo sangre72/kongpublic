@@ -22,6 +22,16 @@ def load(d):
 
 
 def main(out):
+    # ★수집 중 '정지' 연출 프레임은 제외한다(u_5163).
+    #   커리큘럼은 차를 일부러 세우거나 밀어냈다 — 그 순간의 급제동은
+    #   '상황 대처'가 아니라 연출이다. 실측: 이탈복구 21.2% / 정지출발 19.7% 가
+    #   brake>0.5 인데 원본은 0.5% 다. 이걸 증폭하면 오드가 '서 있기'를 배운다
+    #   (오드 v2 실주행 thr=0.109 brake=0.790, 진행률 0.0).
+    #   배우게 하려는 건 '어떻게 돌아오는가(조향)'이지 '어떻게 서는가'가 아니다.
+    def drop_stall(X, Y, M):
+        keep = ~((Y[:, 2] > 0.5) & (Y[:, 1] < 0.3))     # 급제동+저스로틀 = 정지 연출
+        return X[keep], Y[keep], M[keep]
+
     parts = []
     base = load(f'{BASE}/data/final_uniq')
     if base: parts.append(('final_uniq', base, 1))
@@ -30,12 +40,21 @@ def main(out):
     for d in sorted(glob.glob(f'{BASE}/data/ode_*')):
         p = load(d)
         if p and len(p[1]) > 0:
+            p = drop_stall(np.asarray(p[0]), p[1], p[2])
             name = os.path.basename(d)
             # ★결손이 심한 구간일수록 더 많이 반복한다(u_5158 실측).
             #   3배 균일로는 좌:우 = 1:17.6 에 머물렀다(원래 1:94).
             #   좌회전·이탈복구는 오드가 못 하는 바로 그 동작이라 가중치를 더 준다.
-            rep = {'ode_left': 12, 'ode_recover': 12,
-                   'ode_overtake': 8, 'ode_lanechg': 8, 'ode_stopgo': 6}.get(name, 3)
+            # ★가중치를 낮춘다(u_5162 실패 분석).
+            #   12배로 불렸더니 커리큘럼의 '제동 편중'까지 12배가 됐다.
+            #   실측 brake>0.5 비율: 기존 0.5% / 이탈복구 21.2% / 정지출발 19.7%
+            #   합치니 7.2%, 스로틀 평균도 0.812 -> 0.643 으로 하락.
+            #   결과: 오드 v2 가 실주행에서 thr=0.109 brake=0.790 -> 안 움직임
+            #   (진행률 0.0, 사고 17). 새 상황 자체는 배웠다
+            #   (그 데이터 조향 상관 v1 0.079 -> v2 0.863).
+            #   문제는 양이 아니라 '제동까지 같이 증폭한 것'이다.
+            rep = {'ode_left': 4, 'ode_recover': 3,
+                   'ode_overtake': 3, 'ode_lanechg': 3, 'ode_stopgo': 1}.get(name, 2)
             parts.append((name, p, rep))
 
     if not parts:
