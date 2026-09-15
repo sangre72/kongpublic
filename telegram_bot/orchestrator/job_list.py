@@ -78,10 +78,23 @@ WORKER_MODEL_OPTIONS: tuple[str, ...] = ("haiku", "sonnet", "opus")
 # 콜백데이터: "menu|report" | "menu|git" | "menu|joblist" | "menu|wake" | "job|{job_id}" | "job|back"
 #   + a_3561/3563: "ask|compact|{orch|worker|both}"  + a_3564: "ask|model|{haiku|sonnet|opus}" (§K7 ask| prefix).
 
+# u_5004: 오케에게 '그대로 계속 진행' 을 시키는 버튼.
+#   WHY: 리포트를 보고 '진행해'를 매번 타이핑하는 게 반복이라 버튼으로 뺀다.
+#   report/git 과 같은 경로 — u_ 로 기록되면 오케가 평소처럼 읽고 이어서 한다.
+CONTINUE_BUTTON = "▶ 계속 진행"
+STATUS_BUTTON = "상태"
+STOP_BUTTON = "■ 중지"
+
+
 def build_main_inline_keyboard() -> list[list[dict[str, Any]]]:
-    """메인 인라인메뉴 = [리포트][git][잡목록][워커깨우기] + 컴팩트 3종 + 모델전환 3종."""
+    """메인 인라인메뉴 = [계속진행][리포트/상태][git][잡목록][워커깨우기] + 컴팩트 3종 + 모델전환 3종."""
     return [
-        [{"text": "리포트", "callback_data": "menu|report"}],
+        [{"text": CONTINUE_BUTTON, "callback_data": "menu|continue"}],
+        [
+            {"text": "리포트", "callback_data": "menu|report"},
+            {"text": STATUS_BUTTON, "callback_data": "menu|status"},
+            {"text": STOP_BUTTON, "callback_data": "menu|stop"},
+        ],
         [{"text": "git commit, push", "callback_data": "menu|git"}],
         [{"text": JOB_LIST_BUTTON, "callback_data": "menu|joblist"}],
         [{"text": WAKE_WORKER_BUTTON, "callback_data": "menu|wake"}],
@@ -99,8 +112,13 @@ def build_main_inline_keyboard() -> list[list[dict[str, Any]]]:
 
 def build_control_inline_row() -> list[list[dict[str, Any]]]:
     """a_3566: 컴팩트 3종 + 모델전환 3종만 담은 인라인 행 — 모든 status/report 메시지에 부착.
-    build_main_inline_keyboard() 의 컴팩트·모델 행만 재사용(중복정의 금지)."""
+    build_main_inline_keyboard() 의 컴팩트·모델 행만 재사용(중복정의 금지).
+    u_5004: 리포트 바로 아래에서 이어서 시킬 수 있게 [계속 진행] 을 맨 위에 붙인다."""
     return [
+        [
+            {"text": CONTINUE_BUTTON, "callback_data": "menu|continue"},
+            {"text": STOP_BUTTON, "callback_data": "menu|stop"},
+        ],
         [
             {"text": COMPACT_WORKER_BUTTON, "callback_data": "ask|compact|worker"},
             {"text": COMPACT_ORCH_BUTTON, "callback_data": "ask|compact|orch"},

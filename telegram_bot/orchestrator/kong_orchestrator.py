@@ -639,11 +639,21 @@ def _handle_main_menu_callback(tg: TelegramIO, cq: dict) -> None:
         return
 
 
-    # report / git = 평문 u_ 로 기록해서 기존 자동배정 경로 그대로 사용
-    label_map = {"report": "리포트", "git": "git commit, push"}
+    # report / git / continue / status / stop = 평문 u_ 로 기록해서 기존 자동배정 경로 그대로 사용.
+    # u_5004: '계속 진행' 은 오케가 하던 일을 이어서 하게 만드는 버튼이다.
+    #   리포트를 보고 매번 '진행해'를 타이핑하던 걸 대신한다 — 같은 u_ 경로라 별도 배선이 없다.
+    label_map = {
+        "report": "리포트",
+        "git": "git commit, push",
+        "continue": "계속 진행해. 하던 작업 이어서 하고, 막히면 막힌 지점을 보고해.",
+        "status": "지금 뭐 하고 있는지 한 줄로 알려줘.",
+        "stop": "지금 하던 것 멈추고 현재까지 상태만 정리해서 보고해.",
+    }
     label = label_map.get(action)
+    toast_map = {"continue": "▶ 계속 진행", "status": "상태 확인 중",
+                 "stop": "■ 중지 요청", "report": "▶ 리포트", "git": "▶ git"}
     try:
-        tg.answer_callback_query(cq.get("id"), text=f"▶ {label or action}")
+        tg.answer_callback_query(cq.get("id"), text=toast_map.get(action, f"▶ {label or action}"))
     except Exception:  # noqa: BLE001
         pass
     if label:
