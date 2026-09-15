@@ -509,6 +509,68 @@ function buildGlobalGraph(){
       A.e.push(si); B.e.push(si);
     }
   }
+  stitchGraph();
+}
+
+/* ★끊긴 도로망 잇기 (u_5005 실사고).
+   OSM 도로는 교차해도 정확히 같은 좌표를 공유하지 않는 경우가 많다. 좌표 일치
+   (0.1 정밀도)로만 노드를 합치면 그래프가 섬으로 쪼개진다.
+   실측: 노드 17,649 / 연결요소 96개. 최대 요소가 86%, 나머지 14%가 고립.
+   차와 목적지가 다른 섬에 있으면 A* 가 반드시 실패한다 — '테헤란로 검색이 안 된다'의
+   진짜 원인이 이것이었다(검색은 정상, 경로탐색이 실패). 실측 GO=1/1 로 확인.
+   → 25m 이내로 가까운 섬끼리 가상 간선으로 잇는다(실측: 95개 중 53개가 연결 가능). */
+function stitchGraph(){
+  const N=GNODES.length; if(!N) return;
+  const comp=new Int32Array(N).fill(-1);
+  let nc=0;
+  for(let i=0;i<N;i++){
+    if(comp[i]>=0) continue;
+    const q=[i]; comp[i]=nc;
+    while(q.length){
+      const u=q.pop();
+      for(const si of GNODES[u].e){
+        const sg=GSEGS[si], v=(sg.a===u)?sg.b:sg.a;
+        if(comp[v]<0){ comp[v]=nc; q.push(v); }
+      }
+    }
+    nc++;
+  }
+  if(nc<2) return;
+  // 요소 크기 → 가장 큰 것이 본토
+  const size=new Int32Array(nc);
+  for(let i=0;i<N;i++) size[comp[i]]++;
+  let main=0; for(let c=1;c<nc;c++) if(size[c]>size[main]) main=c;
+  // 본토 노드를 격자에 담는다(전수비교는 O(n^2) 라 못 쓴다)
+  const R=25*S, g=new Map();
+  const gk=(x,y)=>((x/R)|0)+','+((y/R)|0);
+  for(let i=0;i<N;i++){
+    if(comp[i]!==main) continue;
+    const k=gk(GNODES[i].x,GNODES[i].y);
+    let a=g.get(k); if(!a){a=[];g.set(k,a);} a.push(i);
+  }
+  let joined=0;
+  for(let c=0;c<nc;c++){
+    if(c===main) continue;
+    let bi=-1,bj=-1,bd=R*R;
+    for(let i=0;i<N;i++){
+      if(comp[i]!==c) continue;
+      const x=GNODES[i].x,y=GNODES[i].y,gx=(x/R)|0,gy=(y/R)|0;
+      for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+        const arr=g.get((gx+dx)+','+(gy+dy)); if(!arr) continue;
+        for(const j of arr){
+          const d=(GNODES[j].x-x)**2+(GNODES[j].y-y)**2;
+          if(d<bd){ bd=d; bi=i; bj=j; }
+        }
+      }
+    }
+    if(bi>=0){
+      const len=Math.hypot(GNODES[bj].x-GNODES[bi].x, GNODES[bj].y-GNODES[bi].y);
+      const si=GSEGS.length; GSEGS.push({a:bi,b:bj,len});
+      GNODES[bi].e.push(si); GNODES[bj].e.push(si);
+      joined++;
+    }
+  }
+  window.__stitch = nc+'->'+(nc-joined);
 }
 function gNearest(x,y){
   let bi=0,bd=1e18;
@@ -542,7 +604,7 @@ function planTo(x,y){
     if(gp){ p=gp; NS=GNODES; }
   }
   if(!p){ p=astar(nearestNode(me.x,me.y),nearestNode(x,y)); NS=nodes; }
-  if(!p){flash('경로 없음');return}
+  if(!p){ flash('경로 없음'); window.__planFail=(window.__planFail||0)+1; return; }
   const wp=[];
   for(let i=0;i<p.length;i++){
     const n=NS[p[i]];
@@ -1129,6 +1191,11 @@ function roadName(){const n=nearestSeg(me.x,me.y);return n&&n.s.n?n.s.n:'이름�
 
 /* ---------- 입력/UI ---------- */
 addEventListener('keydown',e=>{
+  /* ★검색창에 포커스가 있으면 주행 조작으로 넘기지 않는다(u_5005 실사고).
+     방향키로 검색 결과를 고르는 순간 '수동 전환'이 돌아 경로(auto.on)가 꺼졌다.
+     실제로 이것 때문에 테헤란로 검색이 wp=0 으로 보였다 — 검색은 정상이었다. */
+  const ae = document.activeElement;
+  if(ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
   if(e.key.startsWith('Arrow')){K[e.key]=1;e.preventDefault();
     if(auto.on){auto.on=0;sync();flash('수동 전환')}}
   if(e.key==='r'||e.key==='R')reset();
@@ -1636,6 +1703,7 @@ else { hardReset(); }
      자동 타이핑에서는 oninput 이 안 뜨는 경우가 있어 hits 가 빈 채로 남는다.
      누를 때마다 입력값으로 새로 검색해서 첫 결과로 간다 — 사람이 쳐도 같은 동작. */
   if(go) go.onclick = ()=>{
+    window.__goHit = (window.__goHit||0)+1;      // 버튼이 눌렸는지 화면으로 확인
     hits = search(box.value);
     if(!hits.length){ flash('검색 결과 없음: '+box.value); return; }
     sel = 0; pick();
@@ -1649,4 +1717,7 @@ else { hardReset(); }
     hits = search(box.value); sel = 0; render();
   }, 300);
   window.__search = search;       // 검증용
+  /* 화면에 검색 상태를 띄운다 — 샌드박스라 콘솔을 못 보니 이게 유일한 진단 수단(u_5005) */
+  window.__sdbg = ()=>({v:box.value, hits:hits.length, sel:sel,
+                        idx:IDX.length, auto:auto.on, wp:auto.wp.length});
 })();

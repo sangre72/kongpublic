@@ -256,6 +256,7 @@
                +' ln'+(T.lane+1)+'->'+(T.laneF!==undefined?(T.laneF+1).toFixed(2):'-')
                +'/'+(T.laneMax||'?')
                +' D='+(window.__laneDemo||'-')
+               +' GO='+(window.__goHit||0)+'/'+(window.__planFail||0)
                +' br='+(a.brake||0).toFixed(2)
                +' cr='+me.crashes+' ln='+lane+' LOG='+logged, x+2, y-6);
   };
