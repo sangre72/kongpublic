@@ -1460,6 +1460,25 @@ function draw(){
       const prog = (auto.on && auto.wp.length) ? auto.i/auto.wp.length : 0;
       put(4, Math.round(hd/(Math.PI*2)*255), enc(prog), auto.on?255:0);
     }
+    /* ★블록5 = 주행가능공간(u_5028). 오너: '다닐 수 있는 길과 없는 길이 구분이
+       안 돼 있나'. 확인해보니 정확했다 — 라벨이 steer/thr/brake 3개뿐이라
+       '도로 위에 있어야 한다'를 가르친 적이 한 번도 없었다. 8.5만 프레임 전부
+       핸들 흉내만 배웠다.
+       색으로는 구분이 된다(도로 vs 인도 색거리 80). 다만 인도 vs 건물은 16.8 이라
+       '못 가는 곳'끼리는 안 뭉개진다 — 어차피 둘 다 못 가는 곳이라 상관없다.
+       그래서 '얼마나 여유가 있나'를 좌/우로 나눠 명시적으로 준다.
+         R = 왼쪽 여유(0~8m)   G = 오른쪽 여유(0~8m)   B = 지금 도로 위인가 */
+    {
+      const probe=(sgn)=>{                       // 옆으로 훑어서 도로 끝까지 거리
+        const nx=-Math.sin(me.ang)*sgn, ny=Math.cos(me.ang)*sgn;
+        let far=0;
+        for(let m=0.5;m<=8;m+=0.5){
+          if(onRoad(me.x+nx*m*S, me.y+ny*m*S).ok) far=m; else break;
+        }
+        return far;
+      };
+      put(5, enc(probe(-1)/8), enc(probe(1)/8), onRoad(me.x,me.y).ok?255:0);
+    }
   }
   /* ★항상 켜지는 상태 표시(2026-09-14). 교사가 꺼진 검증 빌드에서는 교사 readout 이
      안 그려져서, 차가 왜 멈췄는지 화면에서 읽을 방법이 없었다.

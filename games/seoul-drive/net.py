@@ -17,6 +17,15 @@ import torch, torch.nn as nn
 IMG = 256          # 입력 한 변
 
 class DriveNet(nn.Module):
+    """out=3 이면 steer/thr/brake 만. out=5 면 뒤 2개가 주행가능공간(좌/우 여유).
+
+    ★왜 보조출력인가(u_5028): 오너 지적 — "다닐 수 있는 길과 없는 길이 구분이
+      안 돼 있나". 실제로 그랬다. 라벨이 steer/thr/brake 3개뿐이라 8.5만 프레임
+      내내 '핸들 흉내'만 배웠고, '도로 위에 있어야 한다'는 한 번도 안 가르쳤다.
+      좌/우 여유거리를 같이 맞히게 하면, 특징추출부가 '도로 경계'를 표현하도록
+      강제된다(auxiliary task). 추론 때는 앞의 3개만 쓰면 되므로 비용은 0에 가깝다.
+      색 대비 실측: 도로 vs 인도 = 80(구분 쉬움), 인도 vs 건물 = 16.8(안 구분되지만
+      둘 다 '못 가는 곳'이라 문제되지 않는다)."""
     def __init__(self, out=3):
         super().__init__()
         self.f = nn.Sequential(
