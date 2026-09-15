@@ -25,7 +25,11 @@ import torch, capture as C
 from net import DriveNet
 from dagger import preprocess, post
 import gpu_guard; dev=gpu_guard.require_gpu()
-net=DriveNet(out=3).to(dev); net.load_state_dict(torch.load(sys.argv[3] if len(sys.argv)>3 else 'ode_v5.pt',map_location=dev)); net.eval()
+_ck = torch.load(sys.argv[3] if len(sys.argv) > 3 else 'ode_v5.pt', map_location=dev)
+# ★출력 차원은 체크포인트에서 읽는다. lane_off 보조목표를 쓴 모델은 out=4 라
+#   out=3 으로 고정하면 로드가 실패한다(주행에는 앞 3개만 쓴다).
+_out = [v for k, v in _ck.items() if k.endswith('.weight')][-1].shape[0]
+net = DriveNet(out=_out).to(dev); net.load_state_dict(_ck); net.eval()
 # ★rst 카운터로 소프트리셋 — reset:1 은 auto.wp 를 지워버려 경로가 사라지고
 # 차가 parked 로 남는다(__parked 는 auto.on 일 때만 풀린다). dagger.py 와 같은 방식.
 _rst=int(time.time())
