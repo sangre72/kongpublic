@@ -17,7 +17,7 @@ bc_train2.py 의 오버샘플링(20배)만으로는 부족했다. 이유:
   · 제동 프레임의 스로틀 오차에 가중치(스로틀도 같이 0 으로 내려야 한다).
   · pos_weight 로 희소 클래스 보정(오버샘플링과 병행).
 """
-import json, sys, glob
+import json, os, sys, glob
 import numpy as np, torch, torch.nn as nn
 from net import DriveNet
 import gpu_guard
@@ -98,13 +98,13 @@ def main(dirs, out, epochs=30):
     #   7.0% → 28.2% 로 4배 뛴 게 그 증거다.
     #   ⇒ 가중치를 4배로 낮추고, '정지 상태에서의 제동' 프레임은 제외한다.
     #     움직이다 서는 건 배워야 하지만, 이미 선 채로 계속 밟는 건 배우면 안 된다.
-    w = np.ones(n); w[brake] = 4.0
+    w = np.ones(n); w[brake] = float(os.environ.get('BRAKE_W','4.0'))
     Wtr = w[np.abs(tr) - 1]; Wtr = Wtr / Wtr.sum()
 
     net = DriveNet(out=3 if AUX is None else 4).to(DEV)
     opt = torch.optim.Adam(net.parameters(), 1e-3, weight_decay=1e-4)
     # 희소 클래스 보정. 오버샘플링 후의 실효 비율 기준으로 잡는다.
-    pw = torch.tensor([min(3.0, (1 - pos) / max(pos, 1e-3) / 4.0)], device=DEV)
+    pw = torch.tensor([float(os.environ.get('POS_W','3.0'))], device=DEV)
     bce = nn.BCEWithLogitsLoss(pos_weight=pw)
     mse = nn.MSELoss(reduction='none')
     best = 1e9
