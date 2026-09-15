@@ -145,8 +145,8 @@
        차선을 바꿀 때 얘기다. 도로가 아예 좁아져 그 차로가 존재하지 않으면
        천천히 갈 이유가 없다 — 없는 차로에 머무는 것이 곧 도로 이탈이다.
        ⇒ 도로 밖으로 나가는 방향의 clamp 는 즉시 적용한다. */
-    if(T.laneF > hi) T.laneF = hi;
-    if(T.laneF < 0)  T.laneF = 0;
+    if(T.laneF > hi) T.laneF = Math.max(hi, T.laneF - step);
+    if(T.laneF < 0)  T.laneF = Math.min(0,  T.laneF + step);
     // 실제 차선변경도 2~3초에 걸쳐 한다(0.02/프레임 ≈ 한 차로에 2.5초@30fps)
     if(T.laneF < want)      T.laneF = Math.min(want, T.laneF + step);
     else if(T.laneF > want) T.laneF = Math.max(want, T.laneF - step);
