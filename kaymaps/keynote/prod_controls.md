@@ -72,7 +72,7 @@
 - **pre**: 스타일 탭 불투명도 필드
 - **steps**:
   1. click 1999 542 (or click_label on current % value if unique)
-  1. chord cmd a
+  1. key backspace --repeat 40
   1. text <n>
   1. key enter
   1. wait 200
@@ -107,7 +107,7 @@
 - **pre**: 텍스트 탭 크기 필드
 - **steps**:
   1. click 2002 326
-  1. chord cmd a / text <n> / key enter
+  1. key backspace --repeat 40 / text <n> / key enter
 - **wait**: 200ms
 - **result**: pt 값 반영
 
@@ -148,7 +148,7 @@
 - **steps**:
   1. click_label 정렬 (subtab 2013,107)
   1. dump fields: W left @(1903,266) H right @(1992,266) — 실측 라벨 pt 값
-  1. click 1903 266 → chord cmd a → text <w> → key enter
+  1. click 1903 266 → key backspace --repeat 40 → text <w> → key enter
   1. wait 300
 - **wait**: 300ms
 - **result**: 실측 W 1730pt→500pt. H 366pt 유지. 비율 유지 체크 시 연동
@@ -198,7 +198,7 @@
   1. wait 400
   1. ensure popup RGB 슬라이더
   1. dump → HEX field: label 16진수 색상 # · AXTextField cx≈233 cy≈1210 (@(202,1198)[62x24])
-  1. click 202 1198 → chord cmd a → text F6F1EA → key enter
+  1. click 202 1198 → key backspace --repeat 40 → text F6F1EA → key enter
   1. wait 300
 - **wait**: 600ms
 - **result**: 실측 a_249: 필드 147068→F6F1EA, RGB 20/112/104→246/241/234. Colors window title may be 텍스트 색상

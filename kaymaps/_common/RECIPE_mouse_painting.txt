@@ -20,7 +20,7 @@ Symptom that misled: "driver dies/count=0/canvas stuck at partial state" — pro
 
 === DRIVER PATTERN ===
 ★SINGLE PYTHON, no shell pipe. `python generator | while read` BREAKS the pipe when kongtrol calls slow → driver dies mid-run (the original stall). Instead: Python reads plan JSON, applies calibrated map, calls kongtrol via subprocess directly. Launch nohup, poll a DONE sentinel in the log.
-set_color(hex): click(72,172); chord cmd a; text --yes <hex>; click(72,204). set_size(px): drag(72,309, mapped_x,309). brush(): click(72,365).
+set_color(hex): click(72,172); key backspace --repeat 12; text --yes <hex>; click(72,204). set_size(px): drag(72,309, mapped_x,309). brush(): click(72,365).
 CADENCE: 0.03s between fill drags OK; 0.35-0.5s only if mousedowns drop. ★negatives: `input text --yes -- "-2.35"` (bare -2.35 parsed as flag).
 
 === PLAN (cel_plan.py) ===

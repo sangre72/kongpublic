@@ -100,7 +100,7 @@ $ kongtrol input click 1884 158 --yes
 $ kongtrol input click 838 354 --yes
 (3~5초 — 업로드 폼 안정화 대기, 15초 아님)
 
-$ kongtrol input chord cmd a --yes
+$ kongtrol input key backspace --repeat 40 --yes
 (전체 선택)
 
 $ kongtrol input chord cmd v --yes

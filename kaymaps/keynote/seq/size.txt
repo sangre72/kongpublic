@@ -27,14 +27,14 @@ wait 400
 # PLUG W
 click 1903 266
 wait 200
-chord cmd a
+key backspace --repeat 40
 text 500
 key enter
 wait 400
 # PLUG H
 click 1992 266
 wait 200
-chord cmd a
+key backspace --repeat 40
 text 92
 key enter
 wait 400

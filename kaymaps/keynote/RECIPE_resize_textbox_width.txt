@@ -11,7 +11,7 @@ STEPS:
    distinguish field by current displayed value(pt)(left=width, right=height)
 4. click Width field→wait300ms→cmd+a→type new value→enter
    kongtrol input click <x> <y> --yes
-   kongtrol input chord cmd a --yes
+   kongtrol input key backspace --repeat 40 --yes
    kongtrol input text "<value>" --yes
    kongtrol input key enter --yes
 5. 1x screenshot verify(wrap-fixed, value applied)

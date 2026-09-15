@@ -46,7 +46,7 @@ Path: `kaymaps/keynote/seq_<name>.txt`
 | after field enter | 400–500 |
 
 ### Order (hard)
-1. **delete-all once** at start (`click canvas` → `chord cmd a` → `key delete`).
+1. **delete-all once** at start (`click canvas` → `key backspace --repeat 40` → `key delete`).
 2. **BG** = full-slide `slide-rect` (or large rect) at `0,0,W,H` fill **dark HEX first** — not unreliable slide `현재 채우기` alone.
 3. **well-first then HEX** for every fill/text-color (Colors panel). Never HEX-only hoping a free well binds.
 4. **Text**: size field **first** → confirm intent (e.g. 72) → **비율 유지 off** (align tab) → **W/H/X/Y** → re-check size (resize can reset pt).
@@ -56,7 +56,7 @@ Path: `kaymaps/keynote/seq_<name>.txt`
 8. Orch verifies **END shot only**.
 
 ### Field focus
-- **Numeric fields = click → wait 200 → `chord cmd a` → text → enter.** Never dbl-only (dbl does not clear; values concatenate e.g. size→1000pt).
+- **Numeric fields = click → wait 200 → `key backspace --repeat 40` → text → enter.** Never dbl-only (dbl does not clear; values concatenate e.g. size→1000pt).
 - If focus misses, digits land on the **slide as new text** (junk like `"0"`). Treat as drift → fix seq, not silent continue.
 - After bg size: dump-confirm W=1920 H=1080 before more objects; retry fields once if wrong.
 

@@ -74,7 +74,7 @@ $KT input key enter --yes              # confirm (enter, ¬return)
 $KT input chord <mod> <key> --yes      # modifier + key (★--yes MUST, DANGEROUS-tier)
 # Modifiers: cmd, shift, ctrl, alt (only 1 per chord)
 # Examples:
-$KT input chord cmd a --yes            # Cmd+A (select all)
+# ❌ cmd a(전체선택) = 금지. 아래 '입력칸 텍스트 지우기' 절 참고(u_4965/5002/5017/5029)
 $KT input chord cmd c --yes            # Cmd+C (copy)
 $KT input chord shift tab --yes        # Shift+Tab (reverse tab)
 # ❌ WRONG: $KT input chord cmd shift g  (2 modifiers = not supported)
@@ -187,11 +187,11 @@ $KT input click X Y --yes && sleep 0.2
 $KT input click X Y --yes
 ```
 
-### Pattern C: Text input + select
+### Pattern C: Text input + replace  (★cmd a 금지)
 ```bash
 $KT input click X Y --yes                    # focus field
 sleep 0.2
-$KT input chord cmd a --yes                  # select all
+$KT input key backspace --repeat 40 --yes    # 기존 내용 지우기(넉넉히)
 sleep 0.2
 $KT input text "new value" --yes             # replace
 sleep 0.3
@@ -229,7 +229,7 @@ screencapture -x out.png                     # confirm visually
 | Input silent-fails (no-op) | app not frontmost | `open -a "App" && sleep 2` before input |
 | Click goes to wrong element | outdated coord (scroll/resize) | re-query `see --a11y`, don't hardcode coords |
 | Chord fails (e.g. cmd-shift-g) | 2+ modifiers | kongtrol supports 1 mod only; use workaround (e.g. input drag for NSOpenPanel) |
-| Text typed wrong/incomplete | timing issue (field not focused) | add `sleep 0.5` before `input text`, use `input chord cmd a` first |
+| Text typed wrong/incomplete | timing issue (field not focused) | add `sleep 0.5` before `input text`, clear with `input key backspace --repeat N`(¬cmd a) |
 | Drag doesn't work | source/dest not visible | verify via screenshot first, try `--human` flag |
 
 ---
@@ -263,7 +263,7 @@ $KT see --pid $PID --a11y | grep -i "button" | head -5
 
 # Basic input sequence
 $KT input click 1197 867 --yes && sleep 0.5
-$KT input chord cmd a --yes && sleep 0.2
+$KT input key backspace --repeat 40 --yes && sleep 0.2
 $KT input text "value" --yes && sleep 0.3
 $KT input key enter --yes && sleep 1
 

@@ -22,7 +22,7 @@ wait 400
 # PLUG PT
 click 2002 326
 wait 200
-chord cmd a
+key backspace --repeat 40
 text 72
 key enter
 wait 400

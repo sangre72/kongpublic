@@ -9,7 +9,7 @@ STEPS:
 2. dropdown→"설정 열기"(K7 app-label) btn(a11y-coord)→dashboard window.
 3. sidebar "충전 제어"(K7 app-label) click→right-pane "충전 제한: NN %" AXTextField exposed.
 4. ★SET-VALUE(verified): click field→`input chord shift left` x2(existing val usu 2-3 digits)→full-text highlight(blue bg) confirmed→`input text "80"` overwrite→`input key return` confirm.
-   - FAIL(tried, NOT working): `input key backspace`(repeat, no effect on field, buggy-append instead) / `input chord cmd a`(select-all fails, occasional side-effect) / mouse press-drag-release in-field text-select(no highlight generated, coord-sensitive).
+   - FAIL(tried, NOT working): `input key backspace`(repeat, no effect on field, buggy-append instead) / `input key backspace --repeat 40`(select-all fails, occasional side-effect) / mouse press-drag-release in-field text-select(no highlight generated, coord-sensitive).
 4b. ★★PRECISE-PERCENT-ADJUST(REG a_988/989, 2026-08-20, reinforced a_1008, 2026-08-20): field=plain numeric AXTextField(NOT slider/AXIncrementor/spinbox — confirmed no +/- stepper UI exists here, text-entry-only). Digit-count-BEFORE-select is CRITICAL — miscounting by 1 = silent failure(78→780 concat, then clamp to 100).
    - PROCEDURE(STRICT ORDER, no skips):
      (i) click field once.

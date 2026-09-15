@@ -15,7 +15,7 @@ app Keynote
 wait 400
 dump
 # ensure edit focus on selection
-chord cmd a
+key backspace --repeat 40
 wait 200
 # PLUG string
 text Google

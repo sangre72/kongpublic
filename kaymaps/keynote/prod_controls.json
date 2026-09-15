@@ -4627,7 +4627,7 @@
       "pre": "스타일 탭 불투명도 필드",
       "steps": [
         "click 1999 542 (or click_label on current % value if unique)",
-        "chord cmd a",
+        "key backspace --repeat 40",
         "text <n>",
         "key enter",
         "wait 200"
@@ -4671,7 +4671,7 @@
       "pre": "텍스트 탭 크기 필드",
       "steps": [
         "click 2002 326",
-        "chord cmd a / text <n> / key enter"
+        "key backspace --repeat 40 / text <n> / key enter"
       ],
       "wait_ms": 200,
       "result": "pt 값 반영",
@@ -4724,7 +4724,7 @@
       "steps": [
         "click_label 정렬 (subtab 2013,107)",
         "dump fields: W left @(1903,266) H right @(1992,266) — 실측 라벨 pt 값",
-        "click 1903 266 → chord cmd a → text <w> → key enter",
+        "click 1903 266 → key backspace --repeat 40 → text <w> → key enter",
         "wait 300"
       ],
       "wait_ms": 300,
@@ -4788,7 +4788,7 @@
         "wait 400",
         "ensure popup RGB 슬라이더",
         "dump → HEX field: label 16진수 색상 # · AXTextField cx≈233 cy≈1210 (@(202,1198)[62x24])",
-        "click 202 1198 → chord cmd a → text F6F1EA → key enter",
+        "click 202 1198 → key backspace --repeat 40 → text F6F1EA → key enter",
         "wait 300"
       ],
       "wait_ms": 600,

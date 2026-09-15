@@ -2,7 +2,7 @@ RECIPE: clear_layer / fill_with_fg(krita)
 REG: a_971(2026-08-19), verified 1x
 STEPS:
 1. click target layer in layer panel to make active
-2. kongtrol input chord cmd a --yes   (select all)
+2. kongtrol input key backspace --repeat 40 --yes   (select all)
 3. kongtrol input key delete --yes
 RESULT: Delete does NOT clear to transparent — it FILLS the active selection with
 the current FOREGROUND color (confirmed: fg was terracotta/brown, layer became solid

@@ -33,7 +33,7 @@ wait 800
 # HEX field
 click 202 1198
 wait 200
-chord cmd a
+key backspace --repeat 40
 text 202124
 key enter
 wait 400
