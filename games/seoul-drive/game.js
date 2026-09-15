@@ -671,22 +671,47 @@ function gNearest(x,y){
   }
   return bi;
 }
+/* ★실제로 쓰이는 경로탐색은 이 gAstar 다(astar 는 전역그래프 실패시 대체).
+   u_5022 에서 도로교통법을 astar 에만 넣었더니 실제 경로에는 하나도 적용되지
+   않았다 — 오너 실사고: "경부선에서 코엑스 가는데 그자리에서 우회전을 해버린다".
+   고속도로는 데이터상 o:true(일방)인데 양방향으로 훑고 있었고, 아무 노드에서나
+   빠져나갈 수 있었다. 상태를 (노드, 들어온 간선) 으로 바꿔 두 가지를 막는다:
+     · 일방통행 역주행
+     · 왔던 간선으로 되돌아가기(제자리 유턴)
+   ★간선 방향 판정: GSEGS 의 a→b 가 진행 가능 방향이다(일방일 때). */
+function gSegAllows(sg, from){
+  if(!sg.o) return true;          // 양방향 도로
+  return sg.a === from;           // 일방통행은 a→b 만
+}
 function gAstar(s,t){
-  const G={[s]:0},F={[s]:0},came={},open=[s],seen=new Set();
-  const h=(a,b)=>Math.hypot(GNODES[a].x-GNODES[b].x,GNODES[a].y-GNODES[b].y);
+  const key=(n,si)=>n+'|'+si;
+  const st={n:s,si:-1};
+  const G={[key(s,-1)]:0}, came={}, open=[st], seen=new Set();
+  const h=(a)=>Math.hypot(GNODES[a].x-GNODES[t].x,GNODES[a].y-GNODES[t].y);
+  const F={[key(s,-1)]:h(s)};
   let guard=0;
   while(open.length && guard++<400000){
-    open.sort((a,b)=>F[a]-F[b]); const c=open.shift();
-    if(c===t){const p=[c];let k=c;while(came[k]!==undefined){k=came[k];p.unshift(k)}return p}
-    seen.add(c);
-    for(const si of GNODES[c].e){
-      /* ★가상간선(stitch)은 실제 도로가 아니다 — 통행비용 40배로 최후수단화(u_5024).
-         없으면 '길 없는 곳을 가로지르는' 경로가 최단경로로 선택된다(실측: 6/6 중간점이
-         도로에서 median 7.2m·max 12.3m 벗어남). */
-      const sg=GSEGS[si], nb=(sg.a===c)?sg.b:sg.a,
-            ng=G[c]+sg.len*(sg.v?40:1);
-      if(G[nb]===undefined||ng<G[nb]){came[nb]=c;G[nb]=ng;F[nb]=ng+h(nb,t);
-        if(!seen.has(nb))open.push(nb)}
+    open.sort((a,b)=>F[key(a.n,a.si)]-F[key(b.n,b.si)]);
+    const cur=open.shift(), ck=key(cur.n,cur.si);
+    if(cur.n===t){
+      const p=[cur.n]; let k=ck;
+      while(came[k]!==undefined){ const pv=came[k]; p.unshift(pv.n); k=key(pv.n,pv.si); }
+      return p;
+    }
+    if(seen.has(ck)) continue;
+    seen.add(ck);
+    for(const si of GNODES[cur.n].e){
+      if(si===cur.si) continue;                     // 제자리 유턴 금지
+      const sg=GSEGS[si];
+      if(!gSegAllows(sg, cur.n)) continue;          // 일방통행 역주행 금지
+      const nb=(sg.a===cur.n)?sg.b:sg.a;
+      /* 가상간선(stitch)은 실제 도로가 아니다 — 비용 40배로 최후수단화(u_5024). */
+      const ng=G[ck]+sg.len*(sg.v?40:1);
+      const nk=key(nb,si);
+      if(G[nk]===undefined||ng<G[nk]){
+        came[nk]={n:cur.n,si:cur.si}; G[nk]=ng; F[nk]=ng+h(nb);
+        if(!seen.has(nk)) open.push({n:nb,si});
+      }
     }
   }
   return null;
