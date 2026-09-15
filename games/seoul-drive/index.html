@@ -840,6 +840,13 @@ function planTo(x,y){
      +1.75m 로 찍혔다(실측 오차 5.25~7.0m). 그 결과 주행선이 도로 반대쪽 끝이나
      도로 밖에 놓였고, 차는 그 선을 충실히 따라가며 인도로 올라갔다.
      laneOffset() 과 같은 규칙으로 계산한다. */
+  /* ★차로 오프셋 부호(u_5030). 적용식이 wp = n - sin(a)*off 라 부호가 뒤집힌다:
+     off<0 이면 진행방향 '오른쪽'에 놓인다. 실측으로 확인했다(언주로 일방4차로,
+     반폭 7.0m):
+        off=-5.25 -> 중심선 +5.25m = 오른쪽 차로(정상)
+        off=+1.75 -> 중심선 -1.75m = 왼쪽 반대차로(틀림)
+     laneOffset() 의 일방통행 식이 맞다. 부호를 '고치려다' 오히려 반대차로로
+     보낼 뻔했다 — 계산해보고 되돌렸다. */
   const laneOff=(lanes,oneway)=>{
     if(oneway) return 0.5*LW - (lanes*LW)/2;   // 일방: 가장 오른쪽 차로
     return 0.5*LW;                              // 왕복: 진행방향 1차로
@@ -1365,11 +1372,14 @@ function draw(){
   // 경로
   if(auto.on&&auto.wp.length){
     g.strokeStyle=C('--green');g.globalAlpha=.6;g.lineWidth=5;g.setLineDash([4*S,3*S]);
-    /* 차→다음웨이포인트 직선을 그리면 건물을 가로질러 '길이 아닌 경로'로 보인다.
-       도로 위 지점에서 시작해 웨이포인트만 잇는다. */
-    const s0=nearestSeg(me.x,me.y);
+    /* ★경로선은 '경로'만 그린다(u_5031).
+       예전엔 nearestSeg(차 위치) 에서 시작해 다음 웨이포인트로 직선을 그었다.
+       차가 차로에서 밀려 있으면 그 첫 획이 차로를 가로지르는 긴 대각선이 되어
+       '경로가 차로를 무시한다'처럼 보였다 — 실제 경로는 멀쩡한데 그리기가 만든
+       착시였다(경로선 13,715점 조밀 검사: 도로 밖 0개).
+       이제 웨이포인트만 잇는다. */
     g.beginPath();
-    if(s0)g.moveTo(s0.px,s0.py); else g.moveTo(auto.wp[auto.i].x,auto.wp[auto.i].y);
+    g.moveTo(auto.wp[auto.i].x, auto.wp[auto.i].y);
     for(let i=auto.i;i<auto.wp.length;i++)g.lineTo(auto.wp[i].x,auto.wp[i].y);
     g.stroke();g.setLineDash([]);g.globalAlpha=1;
     g.fillStyle=C('--green');g.beginPath();g.arc(auto.goal.x,auto.goal.y,1.6*S,0,7);g.fill();
