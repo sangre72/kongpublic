@@ -115,7 +115,10 @@ def episode(net, dev, secs, ep):
             #   왜 필요한가 — 오드가 '안 움직이면 안 박는다'를 배웠는데,
             #   '움직이다 서는 제동'과 '이미 선 채로 계속 밟는 제동'을
             #   사후에 구분할 방법이 없었다. 속도가 있으면 후자를 걸러낼 수 있다.
-            Y.append([st, th, br, float(d.get('v') or 0)])
+            # 5열: lane_off(차로 중심 이탈량 m). ★사고의 77%가 경계 이탈인데
+            #   교사가 계산해둔 이 값이 저장되지 않아 학습에 쓰인 적이 없었다.
+            Y.append([st, th, br, float(d.get('v') or 0),
+                      float(t.get('lo') if t.get('lo') is not None else -1.0)])
         time.sleep(0.02)
 
     dl = tel() or {}

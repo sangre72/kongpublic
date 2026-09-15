@@ -26,7 +26,7 @@ DEV = gpu_guard.require_gpu()
 BS = 128
 
 
-def batch(X, Y, ids):
+def batch(X, Y, ids, AUX=None):
     real = np.abs(ids) - 1
     xb = torch.from_numpy(np.ascontiguousarray(X[real])).float().div_(255.)
     yb = Y[real].copy()
@@ -34,13 +34,36 @@ def batch(X, Y, ids):
     if flip.any():
         xb[flip] = torch.flip(xb[flip], dims=[3])
         yb[flip, 0] *= -1
-    return xb.to(DEV), torch.from_numpy(yb).to(DEV)
+    out = [xb.to(DEV), torch.from_numpy(yb).to(DEV)]
+    if AUX is not None:
+        out.append(torch.from_numpy(AUX[real].copy()).to(DEV))
+    return out
 
 
 def main(dirs, out, epochs=30):
     X = np.concatenate([np.load(f'{d}/X.npy') for d in dirs])
-    Yall = np.concatenate([np.load(f'{d}/Y.npy') for d in dirs]).astype(np.float32)
+    _ys = [np.load(f'{d}/Y.npy') for d in dirs]
+    _w = max(y.shape[1] for y in _ys)
+    _ys = [y if y.shape[1] == _w else
+           np.hstack([y, np.full((len(y), _w - y.shape[1]), -1.0, y.dtype)])
+           for y in _ys]                      # 옛 라운드는 5열이 없다 → -1(없음)로 채운다
+    Yall = np.concatenate(_ys).astype(np.float32)
     Y = Yall[:, :3]
+
+    # ★u_5171 보조목표: lane_off(차로 중심 이탈량).
+    #   사고의 77%가 도로 경계 이탈(건물27·인도25·도로12·차로13%)인데, 라벨이
+    #   steer/thr/brake 뿐이라 '도로 위에 있어야 한다'를 한 번도 안 가르쳤다.
+    #   같이 맞히게 하면 특징추출부가 도로 경계를 표현하도록 강제된다.
+    #   추론 때는 앞 3개만 쓰므로 비용은 0에 가깝다(net.py 설계 의도).
+    AUX = None
+    if Yall.shape[1] > 4:
+        lo = Yall[:, 4]
+        have = lo >= 0                        # -1 = 그 라운드엔 값이 없음
+        if have.mean() > 0.2:
+            AUX = np.clip(lo / 3.25, 0, 2.0).astype(np.float32)   # 차로폭으로 정규화
+            AUX[~have] = -1.0
+            print(json.dumps({'aux_lane_off_pct': round(100*float(have.mean()), 1)}),
+                  flush=True)
 
     # ★u_5171 핵심 수정: '이미 서 있는데 계속 밟는' 프레임을 버린다.
     #   실측 — 수집 프레임의 58%가 v<0.5(정지)였다. 서 있는 그림이 데이터의
@@ -56,6 +79,7 @@ def main(dirs, out, epochs=30):
         print(json.dumps({'dropped_idle_brake': int(drop.sum()),
                           'kept': int(keep.sum())}), flush=True)
         X, Y = X[keep], Y[keep]
+        if AUX is not None: AUX = AUX[keep]
     n = len(X)
     brake = Y[:, 2] > 0.5
     pos = float(brake.mean())
@@ -77,7 +101,7 @@ def main(dirs, out, epochs=30):
     w = np.ones(n); w[brake] = 4.0
     Wtr = w[np.abs(tr) - 1]; Wtr = Wtr / Wtr.sum()
 
-    net = DriveNet(out=3).to(DEV)
+    net = DriveNet(out=3 if AUX is None else 4).to(DEV)
     opt = torch.optim.Adam(net.parameters(), 1e-3, weight_decay=1e-4)
     # 희소 클래스 보정. 오버샘플링 후의 실효 비율 기준으로 잡는다.
     pw = torch.tensor([min(3.0, (1 - pos) / max(pos, 1e-3) / 4.0)], device=DEV)
@@ -85,7 +109,7 @@ def main(dirs, out, epochs=30):
     mse = nn.MSELoss(reduction='none')
     best = 1e9
 
-    def compute(xb, yb):
+    def compute(xb, yb, ab=None):
         # ★raw 로짓으로 받는다. 추론의 tanh/sigmoid 와 학습 손실이 어긋나면
         #   학습은 로짓을 올리는데 활성화가 반대로 눌러버린다(실사고: 제동 -0.846).
         o = net(xb, raw=True)
@@ -95,21 +119,28 @@ def main(dirs, out, epochs=30):
         l_th = (mse(torch.sigmoid(o[:, 1]), yb[:, 1]) * wt).mean()
         # 제동: 이진 결정으로 학습(로짓 그대로 BCE)
         l_br = bce(o[:, 2], (yb[:, 2] > 0.5).float())
-        return l_st + l_th + l_br
+        loss = l_st + l_th + l_br
+        # 보조목표: 차로 중심 이탈량. -1 은 '값 없음'이라 손실에서 뺀다.
+        if ab is not None and o.shape[1] > 3:
+            m = ab >= 0
+            if m.any():
+                loss = loss + 0.3 * mse(torch.sigmoid(o[:, 3]) * 2.0, ab)[m].mean()
+        return loss
 
     for ep in range(int(epochs)):
         net.train()
         perm = np.random.choice(tr, size=len(tr), replace=True, p=Wtr)
         tot = 0.0
         for i in range(0, len(perm), BS):
-            b = perm[i:i+BS]; xb, yb = batch(X, Y, b)
-            opt.zero_grad(); l = compute(xb, yb); l.backward(); opt.step()
+            b = perm[i:i+BS]
+            bb = batch(X, Y, b, AUX)
+            opt.zero_grad(); l = compute(*bb); l.backward(); opt.step()
             tot += l.item() * len(b)
         net.eval(); vs = 0.0; cnt = 0
         with torch.no_grad():
             for i in range(0, len(va), BS):
-                b = va[i:i+BS]; xb, yb = batch(X, Y, b)
-                vs += compute(xb, yb).item() * len(b); cnt += len(b)
+                b = va[i:i+BS]
+                vs += compute(*batch(X, Y, b, AUX)).item() * len(b); cnt += len(b)
         vl = vs / cnt
         if vl < best:
             best = vl; torch.save(net.state_dict(), out)

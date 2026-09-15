@@ -1540,7 +1540,11 @@ function mdlPoll(dt){
                     // ★u_5171: onroad=1 인데 cross 가 25m 나온다(왕복8차로보다 넓다).
                     //   기준 세그먼트가 프레임마다 바뀌는지 본다 — 교차로에서 목표가
                     //   튀면 cross 는 '다른 도로 기준' 거리가 되어 의미가 없어진다.
-                    g2:(window.__teach&&window.__teach.dbg2)||null} : {ok:0}; })(),
+                    g2:(window.__teach&&window.__teach.dbg2)||null,
+                    // ★u_5171: 사고의 77%가 도로 경계 이탈(건물27%·인도25%·도로12%·차로13%).
+                    //   교사는 lane_off(차로 중심에서 벗어난 양)를 이미 계산하는데
+                    //   저장이 안 돼 학습에 한 번도 쓰인 적이 없다. 보조목표로 쓴다.
+                    lo:(a.lane_off===undefined?null:+(+a.lane_off).toFixed(3))} : {ok:0}; })(),
       car: {v:+me.v.toFixed(3), x:+(me.x/S).toFixed(2), y:+(me.y/S).toFixed(2),
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
       qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();

@@ -25,7 +25,7 @@ import torch, capture as C
 from net import DriveNet
 from dagger import preprocess, post
 import gpu_guard; dev=gpu_guard.require_gpu()
-net=DriveNet(out=3).to(dev); net.load_state_dict(torch.load('ode_v5.pt',map_location=dev)); net.eval()
+net=DriveNet(out=3).to(dev); net.load_state_dict(torch.load(sys.argv[3] if len(sys.argv)>3 else 'ode_v5.pt',map_location=dev)); net.eval()
 # ★rst 카운터로 소프트리셋 — reset:1 은 auto.wp 를 지워버려 경로가 사라지고
 # 차가 parked 로 남는다(__parked 는 auto.on 일 때만 풀린다). dagger.py 와 같은 방식.
 _rst=int(time.time())
