@@ -108,7 +108,17 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   <button class="tf" data-lv="heavy">혼잡</button>
 </div>
 <div class="hud panel" id="nav">
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+    <span style="font-size:11px;color:var(--dim);width:30px;flex:none">출발</span>
+    <input id="qs" placeholder="출발지 (예: 강남역)" value="강남역"
+           autocomplete="off" spellcheck="false"
+           style="flex:1;min-width:0;font:inherit;padding:7px 10px;border-radius:9px;
+                  border:1px solid var(--edge);background:var(--panel2);color:var(--ink)">
+    <button id="qset">출발지 설정</button>
+  </div>
+  <div id="qsr"></div>
   <div style="display:flex;gap:6px;align-items:center">
+    <span style="font-size:11px;color:var(--dim);width:30px;flex:none">도착</span>
     <input id="q" placeholder="목적지 검색 (예: 코엑스, 테헤란로, 도서관)"
            autocomplete="off" spellcheck="false"
            style="flex:1;min-width:0;font:inherit;padding:7px 10px;border-radius:9px;
@@ -258,7 +268,12 @@ function recalcXR(){XR=nodes.map(n=>n.e.length>=3)}
 
 /* 건물 폴리곤(px) */
 let blds=[];
-function mkBlds(src){return src.map(b=>{
+/* ★지하구조물은 충돌 대상이 아니다(u_5077 실사고).
+   강남역지하쇼핑센터는 144x174m 로 강남대로 위를 덮고 있다. 지상 도로를 달리는 차가
+   지하상가와 충돌할 수는 없다. 이것 때문에 강남역에서 출발하면 즉시 '건물 충돌'이 났다. */
+const UNDERGROUND_RE=/지하상가|지하쇼핑|지하도|지하차도|지하주차/;
+function isUnderground(b){ return UNDERGROUND_RE.test(b.n||''); }
+function mkBlds(src){return src.filter(b=>!isUnderground(b)).map(b=>{
   const p=b.p.map(q=>[q[0]*S,q[1]*S]);
   let cx=0,cy=0;for(const q of p){cx+=q[0];cy+=q[1]}
   cx/=p.length;cy/=p.length;
@@ -553,14 +568,69 @@ function flash(t){const m=document.getElementById('msg');if(!m)return;m.textCont
 const auto={on:0,goal:null,wp:[],i:0,act:'대기'};
 const me={x:0,y:0,ang:0,v:0,steer:0,wm:1.8,hm:4.6,w:1.8*S,h:4.6*S,
   dmg:0,crashes:0,cool:0,offroad:0};
-let start=0,_bd=1e18;
-for(let i=0;i<segs.length;i++){
-  const s=segs[i];if(s.len<20*S)continue;
-  const mx=(nodes[s.a].x+nodes[s.b].x)/2,my=(nodes[s.a].y+nodes[s.b].y)/2;
-  const d=mx*mx+my*my;if(d<_bd){_bd=d;start=i}
+/* ★출발지 = 강남역 (u_5073 오너 지시).
+   이전엔 지도원점(0,0)에 가장 가까운 '긴 도로'를 골랐다. 그런데 20m 이상이라는
+   조건만 두니 원점 근처를 지나는 경부고속도로가 뽑혔다 — 고속도로에서 출발하면
+   좌/우회전을 볼 수 없고 진출로까지 묶인다.
+   지도는 이미 강남역 중심이다(강남역지하쇼핑센터 = (11.4,-9.9) ≈ 원점).
+   그래서 원점 근처를 쓰되, 고속도로/자동차전용도로를 빼고 '일반 시가지 도로'만
+   후보로 삼는다. 판정축 = 이름(고속도로·고속화·나들목·분기점)과 차로수. */
+const HWY_RE=/고속도로|고속화|나들목|분기점|램프|JC|IC/;
+function isCityRoad(s){
+  if(HWY_RE.test(s.n||''))return false;
+  /* ★차로수로 거르지 않는다(u_5076). 강남대로가 8차로다 — 넓다고 고속도로가 아니다.
+     이 조건 때문에 강남역 본선이 후보에서 빠졌다. 판정은 이름(고속도로/램프)만 쓴다. */
+  return true;
 }
+/* ★start 는 '지금의 segs 기준'으로 매번 다시 구한다.
+   이전엔 로드 직후 한 번만 계산해 인덱스를 들고 있었다. 그런데 청크가 바뀔 때마다
+   buildGraph() 가 segs 를 통째로 다시 만든다(2120행) — 인덱스가 재배열되므로
+   같은 번호가 전혀 다른 도로를 가리킨다. 그게 강남대로를 골랐는데도 경부고속도로에서
+   출발하던 원인이다(u_5073/u_5074). 실측: 원점 최근접 = 강남대로 16.8m,
+   경부고속도로는 상위 20위 안에도 없다. */
+/* ★출발 기준점 = 강남역 실좌표 (u_5073/5074/5075 오너 지시, 3회 지적).
+   '원점 최근접'은 기준이 아니다 — 원점이 강남역이라는 보장이 없고, 실제로
+   출발 도로가 강남역과 무관하게 잡혔다. 강남역 좌표를 직접 찍는다.
+   출처: 청크의 s(역) 항목, 그리고 검색인덱스 '강남역지하쇼핑센터'(11.4,-9.9). */
+let GANGNAM=null;
+function gangnamXY(){
+  if(GANGNAM)return GANGNAM;
+  /* ★'강남역' 접두 검색은 틀린다(u_5077 실사고).
+     SEARCH 에서 '강남역'으로 시작하는 첫 항목 = 강남역리가스퀘어오피스텔(-286,-370.9),
+     실제 역에서 460m 떨어진 오피스텔이고 바로 옆이 경부고속도로다.
+     그래서 계속 경부고속도로에서 출발했다. 정확한 항목 하나를 지정한다.
+     기준점 = 강남역지하쇼핑센터(11.4,-9.9) = 강남역 그 자체. */
+  if(typeof SEARCH!=='undefined'){
+    for(const r of SEARCH) if(r.n==='강남역지하쇼핑센터'){ GANGNAM={x:r.x,y:r.y}; return GANGNAM; }
+    for(const r of SEARCH) if(r.n==='강남역'){ GANGNAM={x:r.x,y:r.y}; return GANGNAM; }
+  }
+  GANGNAM={x:11.4,y:-9.9};        // 실측 상수(위 항목이 없을 때만)
+  return GANGNAM;
+}
+function pickStart(){
+  const g=gangnamXY(), gx=g.x*S, gy=g.y*S;
+  let si=-1,_bd=1e18;
+  for(let pass=0;pass<2;pass++){
+    for(let i=0;i<segs.length;i++){
+      const s=segs[i];
+      if(s.len<20*S)continue;
+      if(pass===0 && !isCityRoad(s))continue;   // 1차: 시가지 도로만
+      const mx=(nodes[s.a].x+nodes[s.b].x)/2,my=(nodes[s.a].y+nodes[s.b].y)/2;
+      const d=(mx-gx)*(mx-gx)+(my-gy)*(my-gy);  // ★강남역 기준 거리
+      if(d<_bd){_bd=d;si=i}
+    }
+    if(si>=0)break;                             // 찾았으면 2차(무조건) 생략
+  }
+  return si<0?0:si;
+}
+let start=pickStart();
 function reset(){
+  start=pickStart();                 // ★청크 재구축으로 인덱스가 밀렸을 수 있다
   const s=segs[start],A=nodes[s.a],B=nodes[s.b];
+  /* 출발 도로 이름을 남긴다 — 화면만 보고 '경부고속도로 같다'고 추정하지 않기 위해(u_5074) */
+  const _g=gangnamXY();
+  window.__startRoad = (s.n||'(이름없음)')+' '+(s.l||'?')+'차로 강남역에서 '
+                     + Math.round(Math.hypot((A.x+B.x)/2-_g.x*S,(A.y+B.y)/2-_g.y*S)/S)+'m';
   /* ★걸음마 단계에서는 도로 위에서 시작한다(u_4917 실측 근거).
      주차칸 시작은 도로에서 13.3m 떨어져 있어, 직진하면 도로에 닿지 못하고
      5.5초 만에 '도로이탈' 사고가 난다 — 25판 중 19판이 1.6~2.1초에 죽은 원인.
@@ -582,7 +652,8 @@ function reset(){
     me.x=(A.x+B.x)/2-Math.sin(s.ang)*off;
     me.y=(A.y+B.y)/2+Math.cos(s.ang)*off;
     me.ang=s.ang;
-  }me.v=0;me.dmg=0;me.crashes=0;me.offroad=0;
+  }
+  me.v=0;me.dmg=0;me.crashes=0;me.offroad=0;
   auto.on=0;auto.goal=null;auto.wp=[];seed();sync();flash('리셋');
 }
 
@@ -992,7 +1063,17 @@ function gAstar(s,t,startAng){
 function parkCar(){
   auto.on=0; auto.wp=[]; auto.i=0; auto.goal=null;
   const T=window.__teach; if(T) T.auto=false;     // 교사도 정지
+  /* ★parkCar 는 '지금 위치의 도로'로만 붙어야 한다(u_5079 실사고).
+     hardReset 이 테헤란로@13m 로 올려놨는데 parkCar 가 그 뒤에 돌면서
+     경부고속도로로 옮겼다 — 실측 'pick:테헤란로@13m ... START: 경부고속도로 783m'.
+     원인은 nearestSeg 가 차 주변 청크만 보는데 그 청크가 아직 안 바뀌어 있어서다.
+     스냅 전에 월드를 현재 위치 기준으로 다시 스트리밍한다. */
+  try{ if(typeof streamWorld==='function') streamWorld(true); }catch(e){}
   const n=nearestSeg(me.x,me.y);
+  /* 스냅 대상이 터무니없이 멀면(청크 미로딩 등) 차라리 움직이지 않는다. */
+  if(n && n.d > 60*S){
+    me.v=0; me.steer=0; me.offroad=0; me.cool=1.0; window.__parked=1; flash('갓길 주차'); sync(); return;
+  }
   if(n){
     const sg=n.s;
     // 진행방향 유지
@@ -1465,6 +1546,8 @@ function crash(label,heavy){
     }, 600);
   }
   flash('💥 '+label);
+  (window.__trace=window.__trace||[]).push('CRASH:'+label+'@'
+    +Math.round(Math.hypot(me.x-gangnamXY().x*S,me.y-gangnamXY().y*S)/S)+'m');
   /* ★사고가 나도 목적지는 유지한다(u_5024 P2).
      예전엔 여기서 auto.on=0 으로 경로를 버렸다. 그러면 초반에 한 번만 부딪혀도
      안내가 통째로 사라지고, 차는 길잡이 없이 표류한다 — 화면에서 wp=0·auto=0 으로
@@ -2423,21 +2506,51 @@ function hardReset(){
      그대로 갇혔다. 실측: 수집 421초 중 첫 10%만 도로위 93%, 사고 발생 후
      나머지 90%가 전부 lane=13.01m / 도로위 0.3% / 속도 12km/h 로 고정.
      LEARN·플래그와 무관하게 항상 도로 위에서 재시작한다. */
+  /* ★먼저 강남역으로 순간이동한 뒤 그 일대를 스트리밍한다(u_5077).
+     segs 는 '차 주변 3x3 청크'만 담는다. 차가 아직 경부고속도로 근처에 있으면
+     강남역 도로가 아예 안 올라와 있어서, '강남역 최근접'을 구해도 후보 중에
+     고속도로밖에 없다 — 실측 'START: 경부고속도로 / 강남역에서 783m'.
+     좌표를 먼저 옮기고 streamWorld 를 돌려야 강남역 도로가 segs 에 들어온다. */
+  {
+    const g0=gangnamXY();
+    me.x=g0.x*S; me.y=g0.y*S;
+    try{ if(typeof streamWorld==='function') streamWorld(true); }catch(e){ }
+  }
   if(segs.length){
     /* ★사고 지점 근처 청크로 스트리밍이 바뀌면 옛 start 인덱스는 무효다.
        현재 위치에서 가장 가까운 '충분히 긴' 구간을 새로 고른다. */
-    let bs=null,bl=-1;
-    for(const q of segs){
-      if(q.len < 20*S) continue;
-      if(q.len > bl){ bl=q.len; bs=q; }
+    /* ★'가장 긴 구간'이 아니라 '강남역에서 가장 가까운 시가지 도로'다(u_5073~5076).
+       가장 긴 구간을 고르면 그 일대에서 제일 긴 간선대로가 뽑힌다 — 강남역과 무관하다.
+       실측: 강남역(11.4,-9.9) 기준 최근접 = 테헤란로 12.7m. */
+    const g=gangnamXY(), gx=g.x*S, gy=g.y*S;
+    let bs=null,bd=1e18;
+    for(let pass=0;pass<2;pass++){
+      for(const q of segs){
+        if(q.len < 20*S) continue;
+        if(pass===0 && !isCityRoad(q)) continue;
+        const mx=(nodes[q.a].x+nodes[q.b].x)/2, my=(nodes[q.a].y+nodes[q.b].y)/2;
+        const d=(mx-gx)*(mx-gx)+(my-gy)*(my-gy);
+        if(d<bd){ bd=d; bs=q; }
+      }
+      if(bs) break;
     }
     if(!bs) bs=segs[0];
     const A2=nodes[bs.a],B2=nodes[bs.b];
     const off2=laneOffset(bs,1,0);
-    const t0=0.15;
+    /* ★건물 안에서 출발하면 뜨자마자 충돌이다(u_5077 실측: 강남역지하쇼핑센터 충돌).
+       구간을 따라 여러 지점을 훑어 건물에 안 걸리는 곳을 고른다. */
+    let t0=0.15, placed=false;
+    for(const t of [0.15,0.3,0.45,0.6,0.75,0.9,0.05]){
+      const px=A2.x+(B2.x-A2.x)*t-Math.sin(bs.ang)*off2;
+      const py=A2.y+(B2.y-A2.y)*t+Math.cos(bs.ang)*off2;
+      if(bldAt(px,py)<0){ t0=t; placed=true; break; }
+    }
     me.x=A2.x+(B2.x-A2.x)*t0-Math.sin(bs.ang)*off2;
     me.y=A2.y+(B2.y-A2.y)*t0+Math.cos(bs.ang)*off2;
     me.ang=bs.ang;                       // a→b 진행방향과 동일
+    window.__startFree=placed?1:0;
+    window.__startRoad=(bs.n||'(이름없음)')+' '+(bs.l||'?')+'차로 강남역에서 '
+                      +Math.round(Math.sqrt(bd)/S)+'m';
     /* ★멀리 순간이동하면 그 구역 청크가 아직 없어 road=N 이 된다(실측 d=13.2m).
        스폰 직후 강제로 월드를 다시 스트리밍해 도로·신호등을 채운다. */
     try{ if(typeof streamWorld==='function') streamWorld(true); }catch(e){}
@@ -2665,6 +2778,25 @@ else { hardReset(); }
    사용자가 경로를 설정할 틈이 없다. 첫 프레임 전에 세워둔다. */
 window.__parked=1;
 setTimeout(()=>{ try{ parkCar(); }catch(e){} }, 400);
+/* ★출발지를 화면에 박아서 추정을 끝낸다(u_5077). 어느 도로에서 시작했는지 눈으로 확인. */
+setTimeout(()=>{
+  try{
+    const n=nearestSeg(me.x,me.y), g=gangnamXY();
+    const nm=(n&&n.s.n)||'(이름없음)';
+    const dist=Math.round(Math.hypot(me.x-g.x*S, me.y-g.y*S)/S);
+    window.__startRoad = nm+' / 강남역에서 '+dist+'m';
+    const el=document.createElement('div');
+    el.style.cssText='position:fixed;left:8px;bottom:26px;z-index:99999;background:#000;color:#0f0;'
+      +'font:12px monospace;padding:3px 6px;border:1px solid #0f0';
+    el.textContent='START: '+window.__startRoad;
+    document.body.appendChild(el);
+  }catch(e){
+    const el=document.createElement('div');
+    el.style.cssText='position:fixed;left:8px;bottom:26px;z-index:99999;background:#000;color:#f44;font:12px monospace;padding:3px 6px';
+    el.textContent='START ERR: '+e.message;
+    document.body.appendChild(el);
+  }
+}, 1200);
 
 /* ===== 목적지 검색 (u_5003) =====
    오너 요구(u_4984): "한글이든 영문이든 주소든 지명이든 상호든 다 가게".
@@ -2768,6 +2900,76 @@ setTimeout(()=>{ try{ parkCar(); }catch(e){} }, 400);
       flash('경로 설정됨 — [목적지 가기]를 누르세요');
     }
   };
+  /* ===== 출발지 설정 (u_5080 오너 지시: "출발지와 목적지를 선택할 수 있게") =====
+     목적지와 같은 검색 인덱스를 쓰고, 찾은 지점을 '도로 위'로 스냅해 차를 옮긴다.
+     스냅 전에 그 일대를 스트리밍해야 한다 — 안 그러면 차 주변 청크만 보고
+     엉뚱한 도로(경부고속도로)에 붙는다(u_5077~5079 실사고). */
+  const setBtn = document.getElementById('qset');
+  const sBox   = document.getElementById('qs');
+  function setStart(name){
+    const q=(name||'').trim();
+    if(!q){ flash('출발지를 입력하세요'); return false; }
+    const cand=search(q);
+    if(!cand.length){ flash('출발지 없음: '+q); return false; }
+    /* ★'강남역'을 치면 강남역리가스퀘어오피스텔이 먼저 잡힌다(u_5080 실측).
+       역 이름을 넣었으면 역/지하상가를 우선한다: 정확일치 > 역-부속시설 > 나머지. */
+    const nq=norm(q);
+    const rank=r=>{
+      const n=norm(r.n);
+      if(n===nq) return 0;                                  // 정확히 그 이름
+      if(r.k==='poi') return 1;                             // POI(역 등)
+      if(nq.endsWith('역') && n.startsWith(nq)){
+        return /지하상가|지하쇼핑|역사|출구/.test(n) ? 2 : 4;  // 역 부속시설 우선
+      }
+      return 3;
+    };
+    const r=cand.slice().sort((a,b)=>rank(a)-rank(b))[0];
+    // 1) 먼저 그 좌표로 옮기고 월드를 그 일대로 스트리밍한다
+    me.x=r.x*S; me.y=r.y*S;
+    try{ streamWorld(true); }catch(e){}
+    // 2) 이제 로드된 도로 중에서 가장 가까운 '시가지 도로'에 붙인다
+    let bs=null,bd=1e18,bt=0;
+    for(let pass=0;pass<2;pass++){
+      for(const sg of segs){
+        if(sg.len<20*S)continue;
+        if(pass===0 && !isCityRoad(sg))continue;
+        const A=nodes[sg.a],B=nodes[sg.b];
+        const vx=B.x-A.x, vy=B.y-A.y, L=vx*vx+vy*vy;
+        let t=L?((me.x-A.x)*vx+(me.y-A.y)*vy)/L:0; t=Math.max(0,Math.min(1,t));
+        const d=Math.hypot(A.x+vx*t-me.x, A.y+vy*t-me.y);
+        if(d<bd){ bd=d; bs=sg; bt=t; }
+      }
+      if(bs)break;
+    }
+    if(!bs){ flash('출발지 근처에 도로가 없습니다'); return false; }
+    const A=nodes[bs.a],B=nodes[bs.b];
+    const off=laneOffset(bs,1,0);
+    // 건물에 걸리지 않는 지점을 구간을 따라 찾는다
+    let t0=bt;
+    for(const t of [bt,bt+0.1,bt-0.1,bt+0.2,bt-0.2,0.5,0.25,0.75]){
+      const tc=Math.max(0,Math.min(1,t));
+      const px=A.x+(B.x-A.x)*tc-Math.sin(bs.ang)*off;
+      const py=A.y+(B.y-A.y)*tc+Math.cos(bs.ang)*off;
+      if(bldAt(px,py)<0){ t0=tc; break; }
+    }
+    me.x=A.x+(B.x-A.x)*t0-Math.sin(bs.ang)*off;
+    me.y=A.y+(B.y-A.y)*t0+Math.cos(bs.ang)*off;
+    me.ang=bs.ang; me.v=0; me.steer=0;
+    me.crashes=0; me.dmg=0; me.offroad=0; me.cool=1.0;
+    crashHold=0; crashHoldT=0; bldStuck=0; blockT=0;
+    auto.on=0; auto.wp=[]; auto.i=0; auto.goal=null; window.__parked=1;
+    const T=window.__teach; if(T) T.auto=false;
+    try{ streamWorld(true); }catch(e){}
+    const rb2=document.getElementById('qrun'); if(rb2) rb2.disabled=true;
+    window.__startRoad=(bs.n||'(이름없음)')+' / '+r.n;
+    flash('출발지: '+r.n+' ('+(bs.n||'도로')+')');
+    sync();
+    return true;
+  }
+  window.setStart=setStart;
+  if(setBtn) setBtn.onclick = ()=>setStart(sBox?sBox.value:'');
+  if(sBox) sBox.onkeydown = e=>{ if(e.key==='Enter'){ e.preventDefault(); setStart(sBox.value); } };
+
   const parkBtn = document.getElementById('qpark');
   if(parkBtn) parkBtn.onclick = ()=>{
     parkCar();
@@ -3192,19 +3394,15 @@ setTimeout(()=>{ try{ parkCar(); }catch(e){} }, 400);
   const m = (mode==='off') ? null : [null, mode];
   if(m){
     T.auto=true; T.mode=m[1];
-    /* ★교사는 자기 출발 위치를 스스로 잡는다(2026-09-14 실제 브라우저 검증).
-       게임의 hardReset()이 차를 주차칸(도로 밖 13m)에 세워둬서,
-       교사를 켜도 화면에서는 차가 그대로 서 있었다 —
-       시뮬레이터에서는 통과했지만 실제로는 전진이 시작되지 않았다. */
-    let bs=null,bl=0;
-    for(const q of segs){ if(q.len>bl){bl=q.len;bs=q} }
-    if(bs){
-      const A=nodes[bs.a],B=nodes[bs.b], off=laneOffset(bs,1,0), t0=0.12;
-      me.x=A.x+(B.x-A.x)*t0-Math.sin(bs.ang)*off;
-      me.y=A.y+(B.y-A.y)*t0+Math.cos(bs.ang)*off;
-      me.ang=bs.ang; me.v=0; me.crashes=0; me.dmg=0;
-      streamWorld(true);
-    }
+    /* ★교사가 차를 옮기지 않는다(u_5076/5077 실사고, 2026-09-15).
+       예전엔 여기서 '가장 긴 구간'(q.len>bl)을 골라 차를 그리로 순간이동시켰다.
+       거리 조건이 없어서 그 일대 최장 간선 = 경부고속도로가 뽑혔다.
+       실측 추적: hardReset 은 강남역(14,-7)에서 정상 종료하는데, 그 직후
+       이 코드가 (-711,-291) 로 783m 옮겼다. 오너가 "왜 자꾸 경부고속도로로
+       넘어가냐"고 다섯 번 지적한 그 현상이 전부 이것이다.
+       당시 주석의 전제("hardReset 이 차를 주차칸에 세워둬서")는 이미 무효다 —
+       지금 hardReset 은 강남역 최근접 시가지 도로에 정상 배치한다.
+       ⇒ 출발 위치는 게임(hardReset·출발지 설정 UI)이 정한다. 교사는 몰기만 한다. */
   }
 })();
 

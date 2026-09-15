@@ -220,9 +220,18 @@ def main():
     ap.add_argument('--runs', type=int, default=1)
     ap.add_argument('--poll', type=float, default=1.0)
     ap.add_argument('--probe', action='store_true', help='a11y 로 버튼 좌표 재조회')
+    ap.add_argument('--no-resize', action='store_true', help='창 규격화를 건너뛴다')
     a = ap.parse_args()
 
-    if a.probe:
+    # ★창 규격화를 항상 먼저 한다(u_5078 오너 지시).
+    #   창 크기가 바뀌면 캔버스 해상도와 버튼 좌표가 같이 틀어진다. 리사이즈 → 좌표 재조회 순서.
+    if not a.no_resize:
+        import drive_window
+        st = drive_window.ensure()
+        print(json.dumps({'window': st}, ensure_ascii=False), file=sys.stderr)
+        probe_buttons()          # 창이 바뀌었으니 좌표는 반드시 다시 읽는다
+        print(json.dumps({'buttons': BTN}, ensure_ascii=False), file=sys.stderr)
+    elif a.probe:
         probe_buttons()
         print(json.dumps({'buttons': BTN}, ensure_ascii=False), file=sys.stderr)
 

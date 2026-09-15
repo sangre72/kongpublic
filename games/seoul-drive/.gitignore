@@ -1,0 +1,5 @@
+
+# 백업/중간 산출물 — 저장소에 넣지 않는다 (u_5081)
+data/seoul_backup_*/
+data/*.bak
+data/*.bak_*

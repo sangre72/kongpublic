@@ -384,19 +384,15 @@
   const m = (mode==='off') ? null : [null, mode];
   if(m){
     T.auto=true; T.mode=m[1];
-    /* ★교사는 자기 출발 위치를 스스로 잡는다(2026-09-14 실제 브라우저 검증).
-       게임의 hardReset()이 차를 주차칸(도로 밖 13m)에 세워둬서,
-       교사를 켜도 화면에서는 차가 그대로 서 있었다 —
-       시뮬레이터에서는 통과했지만 실제로는 전진이 시작되지 않았다. */
-    let bs=null,bl=0;
-    for(const q of segs){ if(q.len>bl){bl=q.len;bs=q} }
-    if(bs){
-      const A=nodes[bs.a],B=nodes[bs.b], off=laneOffset(bs,1,0), t0=0.12;
-      me.x=A.x+(B.x-A.x)*t0-Math.sin(bs.ang)*off;
-      me.y=A.y+(B.y-A.y)*t0+Math.cos(bs.ang)*off;
-      me.ang=bs.ang; me.v=0; me.crashes=0; me.dmg=0;
-      streamWorld(true);
-    }
+    /* ★교사가 차를 옮기지 않는다(u_5076/5077 실사고, 2026-09-15).
+       예전엔 여기서 '가장 긴 구간'(q.len>bl)을 골라 차를 그리로 순간이동시켰다.
+       거리 조건이 없어서 그 일대 최장 간선 = 경부고속도로가 뽑혔다.
+       실측 추적: hardReset 은 강남역(14,-7)에서 정상 종료하는데, 그 직후
+       이 코드가 (-711,-291) 로 783m 옮겼다. 오너가 "왜 자꾸 경부고속도로로
+       넘어가냐"고 다섯 번 지적한 그 현상이 전부 이것이다.
+       당시 주석의 전제("hardReset 이 차를 주차칸에 세워둬서")는 이미 무효다 —
+       지금 hardReset 은 강남역 최근접 시가지 도로에 정상 배치한다.
+       ⇒ 출발 위치는 게임(hardReset·출발지 설정 UI)이 정한다. 교사는 몰기만 한다. */
   }
 })();
 
