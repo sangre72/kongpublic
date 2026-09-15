@@ -698,7 +698,18 @@ function gStartNode(x,y,ang){
     if(align < 0.55) continue;                 // 45도 이상 어긋난 도로는 내 도로가 아니다
     // 가까울수록·방향이 맞을수록 높은 점수
     const score = align*2.2 - d/(6*S);
-    if(score>bs){ bs=score; bi = (t<0.5? sg.a : sg.b); }
+    if(score>bs){
+      bs=score;
+      /* ★진행방향 '앞'에 있는 끝점을 고른다(u_5033).
+         예전엔 t<0.5 로 가까운 쪽을 골랐는데, 그러면 출발노드가 차 뒤에 놓인다
+         (실측 48%). 경로 첫 점이 뒤에 있으면 차는 그 자리에서 돌아선다 — 이게
+         오너가 본 '그 자리에서 바로 유턴'이다. 그래프 규칙으로는 못 막는다,
+         애초에 경로를 뒤로 시작시켰기 때문이다. */
+      const fa=(GNODES[sg.a].x-x)*fx+(GNODES[sg.a].y-y)*fy;
+      const fb=(GNODES[sg.b].x-x)*fx+(GNODES[sg.b].y-y)*fy;
+      if(sg.o) bi = sg.b;                       // 일방통행은 진행방향 끝점
+      else bi = (fa>fb ? sg.a : sg.b);          // 양방향은 더 앞쪽
+    }
   }
   return bi>=0 ? bi : gNearest(x,y);
 }
@@ -798,7 +809,19 @@ function planTo(x,y){
      스냅돼 마지막 구간이 아무것도 없는 곳을 직선으로 가로질렀다. */
   const nn=gNearestOnRoad(x,y) || nearestSeg(x,y);
   wp.push(nn?{x:nn.px,y:nn.py}:{x,y});
-  auto.wp=wp;auto.i=0;auto.goal=wp[wp.length-1];auto.on=1;sync();
+  /* ★차 뒤에 있는 웨이포인트는 버린다(u_5033).
+     경로 첫 점이 뒤에 있으면 차가 그 자리에서 유턴한다 — 불법이고, 사람이
+     운전하는 방식도 아니다. 진행방향 기준으로 이미 지난 점은 건너뛰고
+     '앞에 있는 첫 점'부터 따라간다. */
+  auto.wp=wp;
+  {
+    const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
+    let st=0;
+    while(st<wp.length-1 &&
+          ((wp[st].x-me.x)*fx + (wp[st].y-me.y)*fy) < 0) st++;
+    auto.i=st;
+  }
+  auto.goal=wp[wp.length-1];auto.on=1;sync();
 }
 /* ★공간 해시 — 전수 비교(O(n^2), 2628대에서 182ms)를 근처만 비교(O(n))로 바꾼다 */
 const HG=30*S;                       // 격자 한 칸 30m
