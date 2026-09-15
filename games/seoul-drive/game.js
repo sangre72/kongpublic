@@ -814,11 +814,17 @@ function planTo(x,y){
      운전하는 방식도 아니다. 진행방향 기준으로 이미 지난 점은 건너뛰고
      '앞에 있는 첫 점'부터 따라간다. */
   auto.wp=wp;
+  /* ★차 뒤의 '첫 몇 점'만 건너뛴다(u_5033, u_5035 수정).
+     목적지가 뒤에 있으면 모든 점이 뒤로 판정돼 st 가 끝까지 가버렸다 →
+     경로가 마지막 한 점만 남아 차가 아무것도 안 했다(오너: "목적지 설정하면
+     아무것도 안 되"). 유턴을 막으려다 경로를 통째로 없앤 것이다.
+     뒤에 있는 건 '출발 직후 몇 점'일 뿐이므로 상한을 둔다. 목적지 자체가
+     뒤라면 그건 건너뛸 게 아니라 정상적으로 돌아서 가야 하는 경로다. */
   {
     const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
+    const CAP=Math.min(3, Math.max(0, wp.length-2));   // 최대 3점까지만
     let st=0;
-    while(st<wp.length-1 &&
-          ((wp[st].x-me.x)*fx + (wp[st].y-me.y)*fy) < 0) st++;
+    while(st<CAP && ((wp[st].x-me.x)*fx + (wp[st].y-me.y)*fy) < 0) st++;
     auto.i=st;
   }
   auto.goal=wp[wp.length-1];auto.on=1;sync();
@@ -1806,7 +1812,9 @@ function drawNav(){
   if(!G)return;
   /* ★위치: 화면 상단 중앙에서 약간 오른쪽. 우측 끝에 붙이면 창 경계에 걸려
      비전 캡처 밖으로 잘려 안 보였다(2026-09-14 실측). */
-  const R=54,cx=Math.min(W-R-10,W*0.72),cy=R+12;
+  /* ★우측으로 더(u_5035 오너 지시). 0.72 는 검색창과 겹쳤다.
+     우측 끝에서 R+14 만큼만 띄워 캡처 안에는 남게 한다. */
+  const R=54,cx=W-R-14,cy=R+12;
   // 배경 원
   g.save();
   g.beginPath();g.arc(cx,cy,R,0,7);
