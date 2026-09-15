@@ -137,6 +137,10 @@ def one_run(dest, timeout, poll=1.0):
     verdict = 'TIMEOUT'
     last = {}
 
+    crash0 = None
+    # ★u_5060: 장거리는 타임아웃으로 끊지 않는다. 목적지 도착이 목표다.
+    #   사고가 나면 그 자리에서 종료(사고 = 실패), 사고가 없으면 도착까지 간다.
+    #   timeout 은 안전장치로만 남긴다(매우 크게).
     while time.time() - t0 < timeout:
         d = sample()
         samples += 1
@@ -146,7 +150,14 @@ def one_run(dest, timeout, poll=1.0):
             p = float(d.get('progress', 0.0))
             v = float(d.get('v', 0.0))
             pmax = max(pmax, p)
-            crashes = max(crashes, int(d.get('crashes', 0)))
+            c_now = int(d.get('crashes', 0))
+            if crash0 is None: crash0 = c_now
+            crashes = max(crashes, c_now)
+            if c_now > crash0:                       # ★사고 발생 → 즉시 종료
+                verdict = 'CRASHED'
+                stuck_at_p = p
+                stuck_at_s = round(time.time() - t0, 1)
+                break
             vsum += v
             vn += 1
             onroad += int(d.get('on_road', 0))
