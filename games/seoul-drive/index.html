@@ -805,6 +805,37 @@ function gNearest(x,y){
   }
   return bi;
 }
+/* ★출발점은 '차가 실제로 달리고 있는 도로'에서 잡는다(u_5032).
+   오너 실사고: "지금 주행중인 차는 경부선인데 그 옆길로 경로를 찾아주냐".
+   gNearest 는 거리만 본다. 고속도로 옆에는 램프·側道가 바로 붙어 있어서
+   (실측: 고속도로 표본 8곳 중 4곳이 20m 이내, 2곳은 0.0m) 옆 도로 노드가
+   최근접으로 잡힌다. 그러면 경로가 '옆길에서 출발'하는 것으로 만들어지고,
+   차는 고속도로 위에서 그 옆길로 가려고 그 자리에서 튼다.
+   해결: 진행방향이 맞는 간선만 후보로 본다 — 그래야 고속도로를 계속 타고
+   가다 '진짜 진출로'에서 빠지는 경로가 나온다. */
+function gStartNode(x,y,ang){
+  if(!GSEGS||!GSEGS.length) return gNearest(x,y);
+  const fx=Math.cos(ang), fy=Math.sin(ang);
+  let bi=-1, bs=-1e18;
+  for(let si=0;si<GSEGS.length;si++){
+    const sg=GSEGS[si]; if(sg.v) continue;
+    const A=GNODES[sg.a], B=GNODES[sg.b];
+    const vx=B.x-A.x, vy=B.y-A.y, L=Math.hypot(vx,vy); if(L<1) continue;
+    // 점-선분 거리
+    const L2=vx*vx+vy*vy;
+    let t=((x-A.x)*vx+(y-A.y)*vy)/L2; t=Math.max(0,Math.min(1,t));
+    const d=Math.hypot(A.x+vx*t-x, A.y+vy*t-y);
+    if(d>26*S) continue;                       // 너무 먼 도로는 후보 아님
+    // 진행방향 일치도(-1~1). 일방통행이면 a→b 만, 양방향이면 절대값.
+    const dot=(vx*fx+vy*fy)/L;
+    const align = sg.o ? dot : Math.abs(dot);
+    if(align < 0.55) continue;                 // 45도 이상 어긋난 도로는 내 도로가 아니다
+    // 가까울수록·방향이 맞을수록 높은 점수
+    const score = align*2.2 - d/(6*S);
+    if(score>bs){ bs=score; bi = (t<0.5? sg.a : sg.b); }
+  }
+  return bi>=0 ? bi : gNearest(x,y);
+}
 /* ★실제로 쓰이는 경로탐색은 이 gAstar 다(astar 는 전역그래프 실패시 대체).
    u_5022 에서 도로교통법을 astar 에만 넣었더니 실제 경로에는 하나도 적용되지
    않았다 — 오너 실사고: "경부선에서 코엑스 가는데 그자리에서 우회전을 해버린다".
@@ -854,7 +885,7 @@ function planTo(x,y){
   buildGlobalGraph();
   let p=null, NS=nodes;
   if(GNODES){                                  // 장거리: 전역 그래프로
-    const gp=gAstar(gNearest(me.x,me.y), gNearest(x,y));
+    const gp=gAstar(gStartNode(me.x,me.y,me.ang), gNearest(x,y));
     if(gp){ p=gp; NS=GNODES; }
   }
   if(!p){ p=astar(nearestNode(me.x,me.y),nearestNode(x,y)); NS=nodes; }
