@@ -55,6 +55,7 @@ def main(dirs, out, epochs=30):
     #   steer/thr/brake 뿐이라 '도로 위에 있어야 한다'를 한 번도 안 가르쳤다.
     #   같이 맞히게 하면 특징추출부가 도로 경계를 표현하도록 강제된다.
     #   추론 때는 앞 3개만 쓰므로 비용은 0에 가깝다(net.py 설계 의도).
+    SPD = Yall[:, 3] if Yall.shape[1] > 3 else None
     AUX = None
     if Yall.shape[1] > 4:
         lo = Yall[:, 4]
@@ -79,6 +80,7 @@ def main(dirs, out, epochs=30):
         print(json.dumps({'dropped_idle_brake': int(drop.sum()),
                           'kept': int(keep.sum())}), flush=True)
         X, Y = X[keep], Y[keep]
+        SPD = v[keep]
         if AUX is not None: AUX = AUX[keep]
     n = len(X)
     brake = Y[:, 2] > 0.5
@@ -99,6 +101,17 @@ def main(dirs, out, epochs=30):
     #   ⇒ 가중치를 4배로 낮추고, '정지 상태에서의 제동' 프레임은 제외한다.
     #     움직이다 서는 건 배워야 하지만, 이미 선 채로 계속 밟는 건 배우면 안 된다.
     w = np.ones(n); w[brake] = float(os.environ.get('BRAKE_W','4.0'))
+    # ★u_5171: 저속 복구 구간이 데이터를 지배하는 것도 막는다.
+    #   r121 실측 — 속도 0~2 구간이 2045프레임(전체의 45%)이고 그 구간의
+    #   조향 포화가 57%로 가장 높다. 사고 직후 기어나오는 장면이 데이터의
+    #   절반이면 모델은 '기어가기'를 배운다(v6 가 정확히 그랬다: 180초 225m).
+    #   버리지 않는다 — 복구는 배워야 한다. 비중만 낮춘다(SLOW_W, 기본 1.0=무효).
+    _sw = float(os.environ.get('SLOW_W', '1.0'))
+    if SPD is not None and _sw != 1.0:
+        slow = (SPD < 2.0) & (~brake)          # 제동 프레임은 위에서 이미 다뤘다
+        w[slow] *= _sw
+        print(json.dumps({'slow_frames_pct': round(100*float(slow.mean()), 1),
+                          'slow_w': _sw}), flush=True)
     Wtr = w[np.abs(tr) - 1]; Wtr = Wtr / Wtr.sum()
 
     net = DriveNet(out=3 if AUX is None else 4).to(DEV)
