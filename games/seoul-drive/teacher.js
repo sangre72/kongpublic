@@ -173,7 +173,7 @@
        nd  = 차에서 세그먼트 중심선까지의 순수 거리(투영 오차)
        off = 목표 차로 오프셋(차로 인덱스가 틀리면 여기가 크다)
        둘 중 어느 쪽이 cross 를 만드는지 봐야 고칠 곳이 정해진다. */
-    T.dbg2 = {sw: sg.w || null, nl: nl, laneF: +T.laneF.toFixed(2),
+    T.dbg2 = {sw: sg.w || null, nl: nl, laneF: +(+(T.laneF||0)).toFixed(2),
               off: +(off/S).toFixed(2), nd: +(n.d/S).toFixed(2),
               roadW: +((sg.roadW||0)/S).toFixed(2), o: sg.o?1:0};
 
