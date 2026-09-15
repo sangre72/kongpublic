@@ -137,7 +137,7 @@ def main(dirs, out, epochs=30):
         if ab is not None and o.shape[1] > 3:
             m = ab >= 0
             if m.any():
-                loss = loss + 0.3 * mse(torch.sigmoid(o[:, 3]) * 2.0, ab)[m].mean()
+                loss = loss + float(os.environ.get('AUX_W','0.3')) * mse(torch.sigmoid(o[:, 3]) * 2.0, ab)[m].mean()
         return loss
 
     for ep in range(int(epochs)):
