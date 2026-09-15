@@ -31,7 +31,14 @@ def find_window(title_hint='드라이브'):
     if best is not None:
         _cache['wid'] = best
         _cache['rect'] = CG.CGRectMake(bounds['X'], bounds['Y'], bounds['Width'], bounds['Height'])
-        _cache['toolbar'] = 75          # 논리해상도 기준 툴바 높이(레티나의 절반)
+        # ★툴바 높이를 창 높이에서 역산한다(2026-09-15 실측 사고).
+        #   예전엔 75 로 못박혀 있었다. 그런데 Chrome 이 '중단한 위치에서 계속하기'
+        #   인포바를 띄우면 브라우저 크롬이 40px 두꺼워진다. 75 로 자르면 인포바가
+        #   프레임 안에 남고 페이지 전체가 40px 아래로 밀린다 — 학습 때 본 적 없는
+        #   기하다. 실측: 그 상태에서 brake 0.903(정상 0.29), 즉 차가 영영 안 나간다.
+        #   캔버스는 정사각(width == height)이므로 창 높이에서 폭을 빼면 크롬 높이다.
+        _cache['win_w'] = float(bounds['Width'])
+        _cache['toolbar'] = max(0, int(round(bounds['Height'] - bounds['Width'])))
     return best
 
 def _to_np(img):
@@ -42,10 +49,50 @@ def _to_np(img):
     #   BGR→RGB 는 GPU 에서 flip 으로 처리한다(net.preprocess).
     return d[:H*bpr].reshape(H, bpr//4, 4)[:, :W, :3]
 
+# ★2026-09-15 실측: CGWindowListCreateImage 가 호출마다 정확히 30.0초를 먹는다
+#   (rect 무관, 프로세스 새로 띄워도 동일 — 전체화면 30032ms / 창 30008ms).
+#   같은 순간 `screencapture -x -o -l <wid>` 는 86ms 다. 즉 API 자체가 죽은 것이지
+#   화면 캡처 권한이나 WindowServer 가 막힌 게 아니다(deprecated 경로의 SCK 폴백 추정).
+#   30초/프레임이면 60초 주행에서 프레임 2장뿐이라 모델 주행 측정이 통째로 무의미해진다.
+#   ⇒ screencapture CLI 를 기본 경로로 쓰고, 실패할 때만 예전 Quartz 경로로 떨어진다.
+_SHOT = '/tmp/kong_grab.png'
+
+def _grab_cli():
+    """screencapture 로 창을 통째로 받는다. 레티나 2배로 오지만
+       net.preprocess 가 큰 입력을 알아서 1/2 로 줄인다(size*3 분기)."""
+    import subprocess, os
+    if 'wid' not in _cache and find_window() is None:
+        return None
+    try:
+        r = subprocess.run(['screencapture', '-x', '-o', '-l', str(_cache['wid']), _SHOT],
+                           capture_output=True, timeout=5)
+        if r.returncode != 0 or not os.path.exists(_SHOT):
+            return None
+        import cv2
+        a = cv2.imread(_SHOT)          # BGR — grab_canvas 규약과 동일
+        if a is None:
+            return None
+        # ★반드시 논리해상도로 되돌린다. decode.py 의 코드블록은 16px 고정이라
+        #   레티나 2배(32px)로 주면 엉뚱한 픽셀을 읽어 progress/v 가 통째로 거짓이 된다
+        #   (실측: 진행도가 0.63->0.32->0.48 로 널뛰고 v 가 4.21 에 굳었다).
+        #   기존 Quartz 경로가 NominalResolution 으로 받던 것과 같은 크기로 맞춘다.
+        W = int(_cache.get('win_w') or a.shape[1])
+        if a.shape[1] != W:
+            H = int(round(a.shape[0] * W / float(a.shape[1])))
+            a = cv2.resize(a, (W, H), interpolation=cv2.INTER_AREA)
+        off = int(_cache.get('toolbar', 0))
+        return a[off:, :, :]
+    except Exception:
+        return None
+
+
 def grab_canvas():
-    """게임 캔버스만 (툴바 제외) 논리해상도로 반환. 실패시 None."""
+    """게임 캔버스만 (툴바 제외) 반환. 실패시 None."""
     if 'rect' not in _cache and find_window() is None:
         return None
+    a = _grab_cli()
+    if a is not None:
+        return a
     img = CG.CGWindowListCreateImage(
         _cache['rect'], CG.kCGWindowListOptionOnScreenOnly,
         CG.kCGNullWindowID, CG.kCGWindowImageNominalResolution)

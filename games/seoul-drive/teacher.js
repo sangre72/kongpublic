@@ -7,12 +7,11 @@
 (function(){
   const T = {mode:'fwd', log:[], on:false};
 
-  /* ★보행자 제동 파라미터(a_5057). 횡방향 4m 는 gap() 의 LW*0.62=2.02m 보다 넓다 —
-     차로 가장자리로 뛰어드는(무단횡단 JAY_P) 보행자를 그 게이트가 놓쳤다. */
-  const PED_SLOW_M = 25;    // 이 거리 안이면 감속
-  const PED_STOP_M = 12;    // 이 거리 안이면 정지
-  const PED_LAT_M  = 4;     // 횡방향 허용 폭(m)
-  T.PED = {slow:PED_SLOW_M, stop:PED_STOP_M, lat:PED_LAT_M};
+  /* ★보행자 제동 파라미터 — game.js 의 공용 상수를 그대로 쓴다.
+     예전엔 여기서 횡 4m 를 따로 들고 있었다. driveAuto 는 2.2m + 차도 점유를
+     봤기 때문에, 내비 주행 중(driveAuto 가 조향·교사는 제동 거부권만) 둘이 매
+     프레임 다르게 판단했다. 상수까지 공용으로 둬야 그 갈라짐이 안 돌아온다. */
+  T.PED = {slow:PED_SLOW_M, stop:PED_STOP_M, lat:PED_CROSS_LAT_M};
 
   /* ★차로 추종 재작성 (u_5001).
      이전 구조의 결함: nearestSeg 는 '차에서 가장 가까운 중심선 위 점'을 준다.
@@ -105,27 +104,12 @@
     return gap(me, 40*S) / S;
   }
 
-  /* ★보행자 전방거리(a_5057). 왜 별도 함수인가:
+  /* ★보행자 전방거리. 왜 gap() 으로 안 되나:
      gap() 은 peds 를 '보기는 한다'(rebuildHash 가 peds 를 hgrid 에 넣는다).
-     하지만 횡방향 게이트가 LW*0.62 = 2.02m 라, 차로 가장자리로 뛰어드는 보행자가
-     그 밖에 있으면 gap 이 아예 못 본다. 게다가 gap 은 '가장 가까운 물체 하나'의
-     거리만 돌려주므로, 앞차가 25m 에 있으면 12m 의 보행자가 그 값에 가려진다.
-     → 보행자만 따로, 더 넓은 횡방향(4m)으로 훑는다.
-     이미 지나친 보행자(f<=0)는 제외 — 뒤에서 걷는 사람 때문에 서면 안 된다. */
-  function pedAhead(){
-    if(typeof peds==='undefined' || !peds || !peds.length) return 1e9;
-    const ca=Math.cos(me.ang), sa=Math.sin(me.ang);
-    let best=1e9;
-    for(const p of peds){
-      const dx=p.x-me.x, dy=p.y-me.y;
-      const f=(dx*ca+dy*sa)/S;                 // 전방거리(m). 음수면 이미 지나쳤다
-      if(f<=0 || f>=PED_SLOW_M) continue;
-      const l=Math.abs(-dx*sa+dy*ca)/S;        // 횡방향 거리(m)
-      if(l>PED_LAT_M) continue;
-      if(f<best) best=f;
-    }
-    return best;
-  }
+     하지만 '가장 가까운 물체 하나'의 거리만 돌려주므로, 앞차가 25m 에 있으면
+     12m 의 보행자가 그 값에 가려진다. → 보행자만 따로 훑어야 한다.
+     그 판정은 game.js 의 pedBrakeDist() 하나뿐이다(driveAuto 와 공용). */
+  function pedAhead(){ return pedBrakeDist(); }
 
   /* 교사 조작값 산출 — 조향 -1~1, 스로틀 0~1, 브레이크 0~1 */
   T.compute = function(){
@@ -289,12 +273,11 @@
      파이썬은 화면만 캡처해서 [픽셀 ↔ 조작] 쌍을 만든다(로직 전달 없음). */
   T.auto = false;
   T.dagger = false;          // 교사=정답만 계산(주행은 모델이). build.py --dagger 로 켠다
-  /* ★교사 순회(2026-09-14 데이터 검사 결과 대응).
-     교사를 그냥 두면 같은 길만 왕복해서 데이터가 한쪽으로 쏠린다
-     (실측: 29,121프레임에 신호등 0개, 브레이크 9개, 조향 좌78%/우2%).
-     일정 시간마다 강제로 다른 도로에 재배치해 골고루 돌게 한다. */
-  /* 교사 순회는 제거했다 — 12초마다 리셋하니 주행이 계속 끊겼다.
-     데이터 편중의 원인은 신호등 데이터 누락이었지 교사 경로가 아니었다. */
+  /* ★교사 순회는 없다(제거됨). 교사는 차를 옮기지 않고 몰기만 한다.
+     한때 일정 시간마다 다른 도로로 강제 재배치해 데이터 편중을 풀려 했다
+     (근거였던 실측: 29,121프레임에 신호등 0개, 브레이크 9개, 조향 좌78%/우2%).
+     하지만 12초마다 리셋하니 주행이 계속 끊겼고, 편중의 진짜 원인은 경로가
+     아니라 신호등 데이터 누락이었다. 배치는 game.js(placeCarNear)가 전담한다. */
   T.last = {steer:0, thr:0, brake:0, rev:0};
   window.__teachAuto = function(on, mode){
     T.auto = !!on; if(mode) T.mode = mode;

@@ -290,7 +290,14 @@ const rnd=(a,b)=>a+Math.random()*(b-a),pick=a=>a[(Math.random()*a.length)|0];
 /* 차로 중심 오프셋: dir=+1 → 진행방향 기준 오른쪽 차로 */
 function laneOffset(s,dir,lane){
   /* lane 은 실수도 받는다(차선변경 보간용, u_4972) — 정수로 깎지 않는다 */
-  if(s.o){ return (lane+0.5)*LW - s.roadW/2; }      // 일방통행: 전 차로 사용
+  /* ★일방통행은 '전 차로 사용'이지만 중심선을 걸치면 안 된다(a_5092).
+     (lane+.5)*LW - roadW/2 는 차로를 중심선 양쪽으로 펼치므로, 4차로 일방통행이면
+     lane0/1 이 -4.88m/-1.62m = 진행방향 기준 **왼쪽**(맞은편 차로)에 놓인다.
+     올림픽대로·강변북로·경부고속도로처럼 방향별로 분리된 차도(divided carriageway)는
+     그 자체가 한쪽 차도이므로, 중심선 왼쪽에 그리면 역주행으로 보인다.
+     실측: 일방통행 296253 케이스 중 165126(55.7%)이 왼쪽에 놓였다.
+     → 진행방향 오른쪽으로 전 차로를 몰아서 배치한다. */
+  if(s.o){ return (lane+0.5)*LW; }                  // 일방통행: 중심선 오른쪽으로 전 차로
   const halfLanes=Math.max(1,Math.floor(s.l/2));
   const k=Math.max(0,Math.min(lane,halfLanes-1));
   return dir>0 ? (k+0.5)*LW : -((k+0.5)*LW);
@@ -460,21 +467,74 @@ function gangnamXY(){
   GANGNAM={x:11.4,y:-9.9};        // 실측 상수(위 항목이 없을 때만)
   return GANGNAM;
 }
-function pickStart(){
-  const g=gangnamXY(), gx=g.x*S, gy=g.y*S;
-  let si=-1,_bd=1e18;
+/* ★출발 배치 정책 = 이 함수 하나 (2026-09-15).
+   왜 합쳤나: 같은 정책(강남역/지정 좌표 최근접 시가지 도로 → 2패스 → 건물 없는 t)이
+   pickStart·hardReset·setStart 세 곳에 손으로 복제돼 있었다. 한 곳을 고쳐도 나머지
+   두 곳은 옛 규칙 그대로 남는다 — teacher.js 가 스폰 로직 사본을 들고 game.js 를
+   덮어써 버린 사고(u_5077)와 정확히 같은 구조다. 지금은 셋이 우연히 일치할 뿐이었다.
+   ⇒ 앞으로 배치 규칙을 고칠 곳은 여기 한 군데다.
+
+   인자: (x,y) = 기준 좌표(월드 단위, m 아님).
+     opt.metric  'mid'  = 세그먼트 중점까지의 거리로 고른다(강남역 기준 배치)
+                 'proj' = 세그먼트 위 수직투영 거리로 고른다(내 위치 스냅)
+     opt.ts      건물 회피로 훑을 t 후보(없으면 metric 별 기본값)
+     opt.place   true 면 me.x/me.y/me.ang 까지 직접 세팅한다
+     opt.any     true 면 길이 20m 하한을 풀어 아무 구간이나 받는다(최후수단)
+   반환: {seg, si, t, x, y, ang, d2, free} / 후보가 없으면 null.
+   ★주의: 좌표 스트리밍(streamWorld)은 호출자 책임이다 — segs 에 올라와 있지 않은
+     도로는 애초에 후보가 될 수 없다(u_5077: 먼저 옮기고 스트리밍해야 한다). */
+function placeCarNear(x,y,opt){
+  opt=opt||{};
+  const metric = opt.metric || 'mid';
+  if(!segs.length) return null;
+  /* 2패스: 1차는 시가지 도로만, 그래도 없으면 2차에서 고속도로까지 받는다.
+     (고속도로에서 출발하면 좌/우회전을 못 배운다 — isCityRoad 주석 참고) */
+  let bs=null, bsi=-1, bd=1e18, bt=0;
   for(let pass=0;pass<2;pass++){
     for(let i=0;i<segs.length;i++){
       const s=segs[i];
-      if(s.len<20*S)continue;
-      if(pass===0 && !isCityRoad(s))continue;   // 1차: 시가지 도로만
-      const mx=(nodes[s.a].x+nodes[s.b].x)/2,my=(nodes[s.a].y+nodes[s.b].y)/2;
-      const d=(mx-gx)*(mx-gx)+(my-gy)*(my-gy);  // ★강남역 기준 거리
-      if(d<_bd){_bd=d;si=i}
+      if(!opt.any && s.len<20*S) continue;
+      if(pass===0 && !isCityRoad(s)) continue;
+      const A=nodes[s.a], B=nodes[s.b];
+      let d2, t=0;
+      if(metric==='proj'){
+        const vx=B.x-A.x, vy=B.y-A.y, L=vx*vx+vy*vy;
+        t = L?((x-A.x)*vx+(y-A.y)*vy)/L:0; t=Math.max(0,Math.min(1,t));
+        const px=A.x+vx*t-x, py=A.y+vy*t-y;
+        d2 = px*px+py*py;
+      }else{
+        const mx=(A.x+B.x)/2-x, my=(A.y+B.y)/2-y;
+        d2 = mx*mx+my*my;
+      }
+      if(d2<bd){ bd=d2; bs=s; bsi=i; bt=t; }
     }
-    if(si>=0)break;                             // 찾았으면 2차(무조건) 생략
+    if(bs) break;
   }
-  return si<0?0:si;
+  if(!bs) return null;
+  const A=nodes[bs.a], B=nodes[bs.b];
+  const off=laneOffset(bs,1,0);
+  const at=t=>({x:A.x+(B.x-A.x)*t-Math.sin(bs.ang)*off,
+                y:A.y+(B.y-A.y)*t+Math.cos(bs.ang)*off});
+  /* ★건물 안에서 출발하면 뜨자마자 충돌이다(u_5077 실측: 강남역지하쇼핑센터 충돌).
+     구간을 따라 여러 지점을 훑어 건물에 안 걸리는 곳을 고른다. */
+  const ts = opt.ts || (metric==='proj'
+             ? [bt,bt+0.1,bt-0.1,bt+0.2,bt-0.2,0.5,0.25,0.75]
+             : [0.15,0.3,0.45,0.6,0.75,0.9,0.05]);
+  let t0 = (metric==='proj') ? bt : 0.15, free=false;
+  for(const t of ts){
+    const tc=Math.max(0,Math.min(1,t));
+    const q=at(tc);
+    if(bldAt(q.x,q.y)<0){ t0=tc; free=true; break; }
+  }
+  const q=at(t0);
+  if(opt.place){ me.x=q.x; me.y=q.y; me.ang=bs.ang; }
+  return {seg:bs, si:bsi, t:t0, x:q.x, y:q.y, ang:bs.ang, d2:bd, free:free};
+}
+function pickStart(){
+  /* 세그먼트 '선택'만 필요하다 — 차는 reset() 이 옮긴다. 배치 계산은 버린다. */
+  const g=gangnamXY();
+  const r=placeCarNear(g.x*S, g.y*S, {metric:'mid'});
+  return r ? r.si : 0;
 }
 let start=pickStart();
 function reset(){
@@ -507,6 +567,7 @@ function reset(){
     me.ang=s.ang;
   }
   me.v=0;me.dmg=0;me.crashes=0;me.offroad=0;
+  resetTeacherLane();
   auto.on=0;auto.goal=null;auto.wp=[];seed();sync();flash('리셋');
 }
 
@@ -526,6 +587,56 @@ function onRoad(x,y){
   const n=nearestSeg(x,y);
   if(!n)return{ok:false,d:1e9,s:null};
   return{ok:n.d<=n.s.roadW*.5,d:n.d,s:n.s,edge:n.d-n.s.roadW*.5};
+}
+/* ★교차로 근접 판정(2026-09-15).
+   교차로에서는 좌/우회전으로 중앙선을 넘는 것이 합법이고, 그 지점에서
+   nearestSeg 는 교차하는 쪽 도로를 집기 쉽다. XR[n]=간선 3개 이상=교차로.
+   구간 sg 의 양 끝 노드 중 교차로인 것에서 roadW*1.5 안쪽이면 참. */
+function nearJunction(x,y,sg){
+  const R=sg.roadW*1.5, R2=R*R;
+  for(const ni of [sg.a, sg.b]){
+    if(!XR[ni]) continue;
+    const n=nodes[ni];
+    if((n.x-x)**2+(n.y-y)**2 <= R2) return true;
+  }
+  return false;
+}
+
+/* ★보행자 제동 판정 — 교사(teacher.js)와 내비주행(driveAuto)이 '같은 하나'를 쓴다.
+   WHY(u_5056 후속): 예전엔 이 규칙이 두 군데 손으로 복사돼 있었고, 서로 달랐다.
+   내비 주행에서는 driveAuto 가 핸들을 쥐고 교사는 제동 거부권만 내므로, 둘이
+   매 프레임 '설지 말지'를 다르게 판단했다. 실측된 두 갈래:
+     · 교사: 횡 4m 고정 + 인도 필터 없음 → 건너편 인도에 서 있는 사람에게도 섰다
+       (u_5056 과브레이크 사고의 원인. 교차로엔 항상 누가 있어 영원히 안 풀린다).
+     · driveAuto: 횡 2.2m + `!p.cross && !onRoad()` → p.cross 가 켜졌다는 이유만으로
+       아직 인도에 서 있는 무단횡단 보행자를 차도에 있는 것으로 쳤다.
+   PED_CROSS_LAT_M 을 왜 안 넓히나: 2.2m 는 u_5056 의 과브레이크 수정값 그 자체다.
+   넓히면 그 사고가 그대로 돌아온다. 그래서 '넓히기'가 아니라 '차도 점유 여부'로 푼다.
+
+   판정 = 차도에 실제로 서 있는가(onRoad). p.cross 플래그는 쓰지 않는다.
+   측정으로 확인한 이유(4차로 roadW=13m, h=8m 기준):
+     · 무단횡단 시작 순간(cross=1, cx2=0) off=8.0m → 아직 인도다. 플래그를 믿으면
+       인도 위 사람에게 제동한다.
+     · 횡단 완료로 cross=0 되는 순간(|cx2|=cmax) off=-8.0m → 이미 건너편 인도다.
+       즉 플래그가 꺼질 때 사람은 차도 밖이므로, 플래그를 버려도 놓치는 구간이 없다.
+   결국 onRoad 하나가 두 경우를 모두 정확히 가른다. */
+const PED_SLOW_M      = 25;    // 이 거리 안이면 감속
+const PED_STOP_M      = 12;    // 이 거리 안이면 정지
+const PED_CROSS_LAT_M = 2.2;   // 차도 위 보행자: 내 차로 폭만(u_5056 과브레이크 수정값)
+function pedBrakeDist(){
+  if(typeof peds==='undefined' || !peds || !peds.length) return 1e9;
+  const ca=Math.cos(me.ang), sa=Math.sin(me.ang);
+  let best=1e9;
+  for(const p of peds){
+    const dx=p.x-me.x, dy=p.y-me.y;
+    const f=(dx*ca+dy*sa)/S;                 // 전방거리(m). 0 이하면 이미 지나쳤다
+    if(f<=0 || f>=PED_SLOW_M) continue;      // 뒤에서 걷는 사람 때문에 서면 안 된다
+    const l=Math.abs(-dx*sa+dy*ca)/S;        // 횡방향 거리(m)
+    if(l>PED_CROSS_LAT_M) continue;
+    if(!onRoad(p.x,p.y).ok) continue;        // 인도 위 사람은 무시(차도 점유만 본다)
+    if(f<best) best=f;
+  }
+  return best;
 }
 
 /* ---------- A* ---------- */
@@ -1032,15 +1143,141 @@ function planTo(x,y){
     }
     return null;
   };
+  /* ★코너 기하 재작성(u_5057 실측).
+     순서를 바꿨다: [리샘플(중심선) → 점마다 자기 국소방향으로 오프셋 → 교차로는 이등분선 호].
+     예전엔 각 노드를 '그 노드를 떠나는 간선' 방향으로만 오프셋했다. 직선에서는
+     이웃 오프셋이 같아 문제가 없었지만(직진 주행은 지금도 완벽), 교차로에서는
+     진입점은 a1, 꼭짓점은 a2 로 오프셋돼 꼭짓점에서 횡방향이 툭 끊겼다.
+     실측(왕복2차로 off=+1.75m, 90도):
+       좌회전 - 꼭짓점 오프셋이 반대 차도(lat=-1.75m)로 들어간다 → 중앙선 하드
+                구속이 위치를 되돌리고 0.9초 뒤 crash('중앙선 침범'). 좌회전마다
+                결정적으로 발생했다(간헐 아님).
+       올바른 차로중앙은 이등분선 위의 off/cos(Δ/2)=2.47m.
+     또 리샘플이 '오프셋 뒤'에 있어서, 교차로 인접 간선은 짧아(L<25m) n=floor(L/25)=0
+     → 가장 급한 코너가 가장 성긴 채로 남았다. 5m 한 칸에 90도 → kap≈0.31 →
+     vmaxCurve 가 하한 3.5m/s 로 눌려, 실재하지도 않는 코너에서 기어갔다. */
+  const RS = 5*S;                                   // 중심선 리샘플 간격 5m
   const wp=[];
-  for(let i=0;i<p.length;i++){
-    const n=NS[p[i]];
-    if(i<p.length-1){
-      const m=NS[p[i+1]],a=Math.atan2(m.y-n.y,m.x-n.x);
+  {
+    const NP=p.length;
+    const nodeAt=i=>NS[p[i]];
+    const segAng=i=>{const a=nodeAt(i),b=nodeAt(i+1);return Math.atan2(b.y-a.y,b.x-a.x)};
+    const segLen=i=>{const a=nodeAt(i),b=nodeAt(i+1);return Math.hypot(b.x-a.x,b.y-a.y)};
+    // 1) 구간별 차로 오프셋(간선 속성)
+    const offs=[];
+    for(let i=0;i<NP-1;i++){
       const sg=edgeOf(p[i],p[i+1]);
-      const off=sg ? laneOff(sg.l||2, sg.o) : LW*.5;
-      wp.push({x:n.x-Math.sin(a)*off,y:n.y+Math.cos(a)*off});
-    }else wp.push({x:n.x,y:n.y});
+      offs.push(sg ? laneOff(sg.l||2, sg.o) : LW*.5);
+    }
+    /* 2) 내부 노드마다 코너 원을 미리 구한다.
+       ★호는 '중심선 코너원(반경 Rc) + 차로 반경(Rl)' 으로 만든다. 중심선에
+       호를 그린 뒤 오프셋을 다시 더하는 방식은 좌회전에서 부호가 뒤집혀
+       반대 차도로 들어갔고(실측: 호 중앙 y=+1.66m → -1.21m), 두 차로선에
+       직접 접하는 원을 쓰는 방식은 좌/우 구분이 없어 좌회전이 안쪽으로
+       파고들었다(실측 minLat: 좌90 -0.13m, 좌120 -1.37m, 좌150 -2.82m).
+       동심원 방식은 두 방식 모두를 고친다(검증: verify_corner_geometry.js). */
+    const RMIN=8*S;                                   // 중심선 기준 코너 반경 8m
+    const corner=[];
+    for(let i=0;i<NP;i++) corner.push(null);
+    for(let i=1;i<NP-1;i++){
+      const a1=segAng(i-1), a2=segAng(i);
+      let d=((a2-a1+Math.PI*3)%(Math.PI*2))-Math.PI;   // 좌회전<0, 우회전>0
+      if(Math.abs(d)<0.12) continue;                   // 거의 직진 = 호 불필요
+      const half=d/2, t=Math.abs(Math.tan(half));
+      const o1=offs[i-1], o2=offs[i], o=(o1+o2)/2;
+      const V=nodeAt(i);
+      /* ★코너는 '중심선 원 하나 + 차로 반경'으로 잡는다(최종형, 실측 도출).
+         중심선에 반경 Rc 로 접하는 원을 그리고, 차로 주행선은 그 원과 동심이되
+         반경만 바꾼다:
+            우회전(Δ>0) : 차로가 회전 '안쪽'  → Rl = Rc - off
+            좌회전(Δ<0) : 차로가 회전 '바깥쪽' → Rl = Rc + off
+         두 차로선에 직접 접하는 원을 쓰던 이전 식은 이 방향 구분이 없어서,
+         좌회전에서 주행선이 안쪽으로 파고들었다(실측 minLat: 좌90 -0.13m,
+         좌120 -1.37m, 좌150 -2.82m — 각도가 급할수록 악화).
+         중심 O 는 이등분선 위 |OV| = Rc/sin(내각/2) 지점(내각 = π-|Δ|). */
+      const interior=Math.PI-Math.abs(d);
+      const sh=Math.sin(interior/2); const shs=Math.abs(sh)<0.05?0.05:sh;
+      /* ★접선길이 상한 = min(다리 45%, 교차로 면제반경).
+         중앙선 하드 구속은 nearJunction(반경 roadW*1.5) 안을 면제하므로
+         (game.js:1771), 호가 그 밖으로 나가면 다시 구속 대상이 된다.
+         급한 각(150도)에서 Rc=6m 면 접선길이가 22.39m 나 돼 면제반경 9.75m 를
+         한참 넘겼다 → 좌150 에서 minLat=-3.15m. 반경을 줄여 호를 교차로 안에
+         가둔다(급한 각일수록 작게 도는 게 실제 주행과도 맞다). */
+      const JR=(LW*2)*1.5;                            // nearJunction 면제 반경
+      const Tcap=Math.min(segLen(i-1)*0.45, segLen(i)*0.45, JR*0.9);
+      let Rc=Math.max(RMIN, LW/(t<0.05?0.05:t));
+      if(Rc*t>Tcap) Rc=Tcap/(t<0.05?0.05:t);
+      const sgnD=d>=0?1:-1;
+      /* ★우회전은 차로 반경이 Rc-off 라 Rc 가 작아지면 0 으로 붕괴한다.
+         바닥(LW*0.3)에 걸리면 호 끝점이 다리와 어긋나 이음매에서 튄다
+         (실측 우150: Rl 이 0.97m 바닥에 걸려 표본당 99.4도). 바닥에 걸리지
+         않도록 Rc 쪽을 먼저 키운다 — 차로 반경이 최소 LW*0.5 는 되게. */
+      const RLMIN=LW*0.5;
+      if(sgnD>0 && Rc-Math.abs(o)<RLMIN) Rc=RLMIN+Math.abs(o);
+      const Rl=Rc - sgnD*Math.abs(o);                     // 차로 반경
+      const bis=a1+half;                                   // 이등분 방향
+      const nx=-Math.sin(bis)*sgnD, ny=Math.cos(bis)*sgnD; // 회전 안쪽 법선
+      const Cox=V.x+nx*(Rc/shs), Coy=V.y+ny*(Rc/shs);
+      // 차로 호의 시작/끝 각도 = 중심선 접점 각도와 동일(동심원)
+      const Tc=Rc*t;                                       // 중심선 접점까지 거리
+      const P0x=V.x-Math.cos(a1)*Tc, P0y=V.y-Math.sin(a1)*Tc;
+      const P2x=V.x+Math.cos(a2)*Tc, P2y=V.y+Math.sin(a2)*Tc;
+      const A0=Math.atan2(P0y-Coy,P0x-Cox), A2=Math.atan2(P2y-Coy,P2x-Cox);
+      // 다리에서 잘라낼 길이 = 중심선 접점까지 거리(차로 호도 같은 지점에서 이어진다)
+      const geom={Cox,Coy,R:Rl,A0,A2,T0:Tc,T2:Tc};
+      corner[i]={a1,a2,d,half,T:Math.max(0,geom.T0),T2:Math.max(0,geom.T2),g:geom};
+    }
+    /* ★'뒤로 가는' 점은 버린다.
+       코너가 안 생기는 완만한 각(Δ<0.12rad)에서는 두 다리가 각자 꼭짓점 점을
+       내는데, 오프셋 방향이 미세하게 달라 두 번째 점이 진행방향 반대로
+       0.1~0.2m 물러난다. 거리로만 걸러내면(0.05m) 통과해 버리고, 헤딩이
+       한 표본에서 180도 뒤집힌다(실측 5도 코너: 표본당 177.5도 → 곡률 폭발).
+       직전 진행방향과 내적이 음수면 그 점은 경로가 아니라 잡음이다. */
+    const push=(x,y)=>{
+      const q=wp[wp.length-1];
+      if(!q){ wp.push({x,y}); return; }
+      const dx=x-q.x, dy=y-q.y;
+      if(Math.hypot(dx,dy) <= 0.05*S) return;          // 같은 자리
+      if(wp.length>=2){
+        const r=wp[wp.length-2];
+        const px=q.x-r.x, py=q.y-r.y;
+        if(px*dx+py*dy < 0) return;                    // 역주행 점
+      }
+      wp.push({x,y});
+    };
+    // 3) 구간을 리샘플해 오프셋하되, 코너의 접선구간(T) 안쪽 점은 호가 대신한다.
+    for(let i=0;i<NP-1;i++){
+      const A=nodeAt(i), B=nodeAt(i+1), a=segAng(i), L=segLen(i), off=offs[i];
+      const t0 = corner[i]   ? corner[i].T2  : 0;      // 시작쪽(앞 코너의 진출접점)에서 자를 길이
+      const t1 = corner[i+1] ? corner[i+1].T : 0;      // 끝쪽(다음 코너의 진입접점)에서 자를 길이
+      const s0=t0, s1=L-t1;
+      if(s1>s0){
+        const n=Math.max(1,Math.round((s1-s0)/RS));
+        for(let k=0;k<=n;k++){
+          const s=s0+(s1-s0)*k/n, u=s/L;
+          push(A.x+(B.x-A.x)*u - Math.sin(a)*off, A.y+(B.y-A.y)*u + Math.cos(a)*off);
+        }
+      }
+      // 4) 이 구간의 끝이 코너면 이등분선 호를 붙인다.
+      const c=corner[i+1];
+      if(c){
+        /* ★코너는 위에서 미리 구한 원(중심 g.Cox,g.Coy · 반경 g.R)의 접점
+           F0→F2 구간 호를 그대로 4등분해 낸다. 접점이 다리 리샘플의 끝점과
+           같으므로 이음매에서 끊김이 없다. */
+        const g=c.g;
+        let dA=((g.A2-g.A0+Math.PI*3)%(Math.PI*2))-Math.PI;
+        const A0=g.A0;
+        /* ★호 분할 수는 각도에 비례시킨다. 4등분 고정이면 급한 각에서 표본당
+           회전이 커져(실측 우150: 108.8도/표본) 곡률 스캔이 다시 폭발한다.
+           20도/표본 이하가 되게 나눈다(최소 4, 최대 10). */
+        const N=Math.max(4, Math.min(10, Math.ceil(Math.abs(dA)/(20*Math.PI/180))));
+        for(let k=0;k<=N;k++){
+          const ang=A0+dA*(k/N);
+          push(g.Cox+Math.cos(ang)*g.R, g.Coy+Math.sin(ang)*g.R);
+        }
+      }
+    }
+    if(!wp.length) push(nodeAt(0).x, nodeAt(0).y);
   }
   /* ★마지막 지점은 반드시 '도로 위'로 스냅한다(u_4896).
      POI 원점은 건물 안/뒤라서 그대로 두면 경로 마지막 구간이 길이 아닌 곳을 가로지른다. */
@@ -1089,23 +1326,9 @@ function planTo(x,y){
   /* ★경로 설정과 출발을 분리한다(u_5041 오너 지시).
      예전엔 경로를 만들자마자 auto.on=1 로 바로 달렸다. 이제 경로는 화면에
      표시만 하고, '목적지 가기'를 눌러야 출발한다. */
-  /* ★경로점을 25m 간격으로 리샘플한다(u_5056).
-     A* 노드 간격이 최대 61m 라 코너 표현이 거칠고, 추종 창도 그만큼 커야 했다.
-     조밀하게 만들면 코너를 따라 도는 정밀도가 올라가고 창도 작게 유지된다. */
-  {
-    const out=[wp[0]];
-    for(let i=1;i<wp.length;i++){
-      const a=out[out.length-1], b=wp[i];
-      const L=Math.hypot(b.x-a.x, b.y-a.y);
-      const n=Math.floor(L/(25*S));
-      for(let k=1;k<=n;k++){
-        const u=k/(n+1);
-        out.push({x:a.x+(b.x-a.x)*u, y:a.y+(b.y-a.y)*u});
-      }
-      out.push(b);
-    }
-    wp.length=0; for(const q of out) wp.push(q);
-  }
+  /* ★25m 후처리 리샘플 제거(u_5057). 오프셋 '뒤'에 돌던 리샘플이라 직선에만
+     점을 늘리고 코너(짧은 간선, L<25m → floor(L/25)=0)에는 한 점도 못 더했다.
+     이제 위에서 중심선을 5m 간격으로 '먼저' 리샘플한다. */
   auto.goal=wp[wp.length-1];
   auto.cum=null; auto.s=0; auto.k=1;      // 호길이 진행 리셋
   auto.on = !!window.__autoStart;          // 기본 false = 표시만
@@ -1145,6 +1368,85 @@ function gap(c,range){
   return b;
 }
 const KMH=v=>Math.round(v*3.6);
+/* ═══════════ 모델 주행 (a_5085) ═══════════════════════════════════════
+   학습된 CNN(bc_final.pt)이 실제로 차를 몬다.
+
+   ★왜 이게 필요했나: 모델 10개와 32GB 학습데이터가 있는데 게임 어디에서도
+     모델을 부르지 않았다. 차를 모는 건 기하(driveAuto=Pure Pursuit) 아니면
+     규칙(teacher.js)뿐이었다. 모델은 만들어놓고 한 번도 핸들을 잡은 적이 없다.
+
+   ★왜 키보드 주입이 아닌가(drive_infer.py 방식 기각):
+     game.js step() 의 키 처리는 `if(!auto.on)` 안에만 있다(실측 game.js:1645).
+     즉 경로가 살아있으면 화살표키가 통째로 무시된다 — 정작 보고 싶은
+     '경로를 따라 모델이 모는' 경우가 안 된다. 게다가 키는 이산값이라
+     steer 가 항상 ±0.85 로 뭉개져 모델의 연속출력을 버린다.
+
+   ★대신 로컬 서버의 /ctl 을 폴링해서 me.steer / me.v 에 직접 넣는다.
+     아티팩트(샌드박스)였다면 못 했겠지만 지금은 로컬 페이지라 fetch 가 된다.
+
+   ON/OFF: 화면의 [모델] 버튼, 또는 키보드 M.
+   기하 제어(driveAuto)·교사(teacher.js) 는 그대로 살아있다 — 끄면 즉시 복귀. */
+/* ★?nomodel=1 이면 모델 주행을 처음부터 잠근다(측정용, 2026-09-15).
+   WHY: /ctl 이 on=1 을 보내면 mdlPoll 이 MDL.on 을 켜 버린다. 기하(GEOM) 주행을
+     측정하려는 자동 하네스 입장에서는, 추론루프가 떠 있기만 해도 측정이 오염된다
+     — 실제로 모델이 steer=0 thr=0 만 내보내 8598m 경로에서 313m 만에 멈췄고,
+     사람이 [모델] 버튼을 눌러 끄기 전까지 v=0 이었다(HUD DRV=MODEL 로 확정).
+     userOff=true 로 시작하면 mdlPoll 의 `if(d.on && !MDL.userOff)` 가 막아준다.
+   사람이 쓰는 기본 동작은 그대로다(파라미터 없으면 종전과 동일). */
+const MDL = {on:false, steer:0, thr:0, brake:0, t:0, seq:-1, err:0, rx:0, ms:0,
+             userOff: /[?&]nomodel=1/.test(location.search)};
+function mdlPoll(dt){
+  MDL.t += dt;
+  if(MDL.t < 0.05) return;            // 20Hz — 추론루프(≈30~60Hz)보다 촘촘할 필요 없다
+  MDL.t = 0;
+  /* ★진단 텔레메트리를 같은 폴링에 실어 보낸다(사고 종류별 카운터).
+     HUD 글자를 스크린샷에서 읽는 건 금지(오독 사고)라 값 자체를 올려 보낸다.
+     새 연결/타이머를 만들지 않으므로 주행 부하에 영향이 없다. */
+  let _tq='';
+  try{
+    _tq='?tel='+encodeURIComponent(JSON.stringify({
+      crk: window.__crk||{}, cr: me.crashes|0,
+      v: +me.v.toFixed(2), prog: +((auto.cum&&auto.cum.length? (auto.s||0)/(auto.cum[auto.cum.length-1]||1) : 0)).toFixed(4),
+      drv: MDL.on?'MODEL':(auto.on&&auto.wp.length?'GEOM':'TEACH'),
+      st:+MDL.steer.toFixed(3), thr:+MDL.thr.toFixed(3), brk:+MDL.brake.toFixed(3),
+      onroad: (typeof onRoad==='function'? (onRoad(me.x,me.y).ok?1:0) : -1),
+      camz: +(cam.z||0).toFixed(4), S: (typeof S!=='undefined'? S : -1)
+    }));
+  }catch(e){ _tq='?tel='+encodeURIComponent(JSON.stringify({err:String(e&&e.message||e)})); }
+  fetch('/ctl'+_tq, {cache:'no-store'}).then(r=>r.json()).then(d=>{
+    if(d.seq !== MDL.seq){ MDL.seq = d.seq; MDL.rx++; }
+    MDL.steer = +d.steer||0; MDL.thr = +d.thr||0; MDL.brake = +d.brake||0;
+    /* on 은 페이지 버튼이 주도권을 갖는다. 파이썬이 on=1 을 보내면 켜지지만,
+       사람이 화면에서 끄면 그게 이긴다(안전: 폭주하면 손으로 끌 수 있어야 한다). */
+    if(d.on && !MDL.userOff) MDL.on = true;
+  }).catch(e=>{ MDL.err++; });
+}
+/* 모델 출력 → 차. teacher.js T.drive 와 같은 물리 규약을 쓴다(일관성). */
+function driveModel(dt){
+  me.steer = Math.max(-0.9, Math.min(0.9, MDL.steer));
+  /* ★브레이크는 '절대 임계'가 아니라 '스로틀과의 비교'로 판단한다(u_5101 실사고).
+     실측: 모델이 thr=0.96 과 brk=0.84 를 동시에 냈고, brk>0.5 하드 게이트가
+     이겨서 차가 영원히 서 있었다(화면 DRV=MODEL v=0).
+     학습 라벨에서는 thr>0.5 와 brk>0.5 가 동시에 나오는 경우가 **0.00%** 다
+     (brk>0.5 자체가 0.49%). 즉 둘이 같이 큰 건 모델이 학습 분포 밖에서
+     두 헤드를 동시에 밀어올린 것이지, '세워라'라는 뜻이 아니다.
+     → 더 강하게 요구하는 쪽을 따른다. 진짜 정지 의도(brk 우세)는 그대로 선다. */
+  if(MDL.brake > 0.5 && MDL.brake > MDL.thr + 0.1){ me.v -= 9.0*dt; if(me.v < 0) me.v = 0; }
+  else { const cap = (window.__TARGET_KMH || 45)/3.6 * 1.12;
+         me.v += (Math.max(0,MDL.thr)*cap - me.v)*Math.min(1, dt*1.8); }
+  window.__mdl = {st:me.steer, thr:MDL.thr, brk:MDL.brake, rx:MDL.rx, err:MDL.err};
+}
+function setModel(on){
+  MDL.on = !!on; MDL.userOff = !on;
+  if(!MDL.on) window.__brkT = 0;
+  const b = document.getElementById('mdlBtn');
+  if(b){ b.classList.toggle('on', MDL.on); b.textContent = MDL.on ? '모델 ON' : '모델'; }
+  if(typeof flash==='function') flash(MDL.on ? '모델 주행 ON' : '모델 주행 OFF');
+  return MDL.on;
+}
+window.__setModel = setModel;
+addEventListener('keydown', e=>{ if(e.key==='m'||e.key==='M') setModel(!MDL.on); });
+
 function driveAuto(dt){
   window.__daCnt=(window.__daCnt||0)+1;
   if(auto.on) window.__parked=0;   // 주행 중엔 주차 플래그가 남아있으면 안 된다
@@ -1190,6 +1492,15 @@ function driveAuto(dt){
       const vx=b.x-a.x, vy=b.y-a.y, L2=vx*vx+vy*vy;
       const u=L2>1e-6 ? Math.max(0,Math.min(1,((me.x-a.x)*vx+(me.y-a.y)*vy)/L2)) : 0;
       const px=a.x+vx*u, py=a.y+vy*u;
+      /* ★진행방향이 맞는 후보만 받는다(2026-09-15 수정).
+         창이 [s-20m, s+250m] 인데 방향 필터가 없었다. 헤어핀이나 되돌아오는
+         경로(양방향 A* 는 같은 도로를 역방향으로 통과하는 것을 허용한다)에서는
+         '돌아오는 쪽 구간'의 점이 200m 앞인데도 공간상 가장 가깝다.
+         그러면 auto.s 가 한 프레임에 최대 60m 점프하고, posAt(s+Ld) 전방주시점이
+         반대 차도에 찍혀 pure pursuit 이 차를 중앙선 너머로 조향했다.
+         경로 진행방향과 me.ang 차이가 75° 넘으면 그 후보는 버린다. */
+      let ph=((Math.atan2(vy,vx) - me.ang + Math.PI*3)%(Math.PI*2))-Math.PI;
+      if(L2>1e-6 && Math.abs(ph) > 75*Math.PI/180) continue;
       const dd=(px-me.x)**2+(py-me.y)**2;
       if(dd<bd){ bd=dd; bs=auto.cum[k-1]+Math.sqrt(L2)*u; bk=k; }
     }
@@ -1244,28 +1555,15 @@ function driveAuto(dt){
   // 5) 속도
   /* ★보행자 제동을 경로주행에도 넣는다(ar_5057 지적).
      워커가 teacher.js 에 넣었지만, 내비 주행 중 실제로 모는 건 driveAuto 다.
-     같은 규칙: 전방 25m·횡 4m 안이면 감속, 12m 안이면 정지. 뒤는 무시.
-     보행자 사고가 crashHold 연쇄의 시작점이었으므로 여기서 막는 게 근본이다. */
-  let pedD=1e9;
-  {
-    const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
-    for(const p of peds){
-      const dx=p.x-me.x, dy=p.y-me.y;
-      const f=(dx*fx+dy*fy)/S;
-      if(f<0 || f>25) continue;
-      if(Math.abs(-dx*fy+dy*fx)/S > 2.2) continue;   // 실제 내 차로 폭만
-      /* ★인도 위 보행자는 무시한다(u_5056 실측).
-         교차로에서 횡방향 4m 로 잡으니 건너편 인도에 서 있는 사람까지 걸려서
-         ped=21 로 vmax 가 계속 3.5 로 눌렸다. 교차로엔 항상 누가 있으므로
-         영원히 안 풀린다. 차도(횡단 중)에 있는 사람만 본다. */
-      if(!p.cross && !onRoad(p.x,p.y).ok) continue;
-      if(f<pedD) pedD=f;
-    }
-  }
+     보행자 사고가 crashHold 연쇄의 시작점이었으므로 여기서 막는 게 근본이다.
+     ★규칙은 pedBrakeDist() 하나로 통일했다(교사와 공용) — 예전엔 여기에 손으로
+     복사한 사본이 있었고 교사본과 달라서, 내비 주행 중 두 제어기가 매 프레임
+     다른 판단을 냈다. 사본을 없애야 그 갈라짐이 다시 안 생긴다. */
+  const pedD=pedBrakeDist();
   const gp=gap(me);
   let vmax=vmaxCurve;
-  if(pedD<12) vmax=0;
-  else if(pedD<25) vmax=Math.min(vmax, 3.5);
+  if(pedD<PED_STOP_M) vmax=0;
+  else if(pedD<PED_SLOW_M) vmax=Math.min(vmax, 3.5);
   if(off>6) vmax=Math.max(vmax, 4.5);              // 복귀 중엔 최소한의 추진력 유지
   if(Math.abs(alpha)>0.6) vmax=Math.min(vmax,5);   // 크게 틀어야 하면 감속
   /* ★정차 교착 해제(u_5050).
@@ -1320,6 +1618,24 @@ function obb(a,b){          // 회전 사각형 근사(반지름 + 축투영)
   const f=Math.abs(dx*c+dy*s),l=Math.abs(-dx*s+dy*c);
   return f<(a.h+b.h)*.46 && l<(a.w+b.w)*.5;
 }
+/* ★순간이동 뒤에는 교사 차로 상태를 반드시 버린다 (2026-09-15).
+   T.laneF(현재 차로 실수값)와 T.laneSet(목표 차로 지정 여부)은 한 번 정해지면
+   다시 지워지지 않았다. 그래서 차가 4차로 도로에서 2차로 도로로 순간이동하면
+   옛 laneF(예: 3)가 그대로 남고, teacher.js 의 clamp 가 그걸 0.02/프레임으로
+   되돌린다 — 한 차로를 넘기는 데 2.5초다. 그 2.5초 동안
+     laneMoving = true  → lookahead 14m → 30m,
+                          cross-track 이득 1.6 → 0.5
+   즉 '차선변경 중 이득'으로 달린다. 차선변경은 하지도 않는데.
+   스폰 직후·사고 복귀 직후가 정확히 그 구간이었다.
+   지우면 laneTarget() 의 첫 프레임 로직이 '차가 지금 실제로 있는 차로'로
+   다시 추정한다(teacher.js 56~68행) — 그게 옳은 초기값이다.
+   ★teacher.js 보다 먼저 도는 경로(hardReset 등)가 있으므로 __teach 부재는 무시한다. */
+function resetTeacherLane(){
+  const T=window.__teach; if(!T) return;
+  T.laneF=undefined;        // 현재 차로 추정을 다음 프레임에 새로 한다
+  T.laneSet=false;          // 옛 도로에서 지시된 목표 차로를 버린다
+  T.laneMoving=false;       // 변경중 이득(lookahead 30m / xt 0.5)을 끈다
+}
 function respawnOnRoad(){
   /* ★사고 후 도로 복귀. 단순히 제자리에 세우면 같은 건물로 다시 직진해
      무한 충돌한다(실측: 같은 건물에 34회). 그래서:
@@ -1353,6 +1669,7 @@ function respawnOnRoad(){
   me.x=px-Math.sin(ang)*Math.abs(off);
   me.y=py+Math.cos(ang)*Math.abs(off);
   me.ang=ang;me.v=0;me.offroad=0;me.cool=1.0;
+  resetTeacherLane();      // 다른 차로수의 도로로 옮겨갔을 수 있다(PART B)
 }
 function crash(label,heavy){
   if(me.cool>0)return;
@@ -1499,11 +1816,28 @@ function step(dt){
      오너: "가운데는 분리선으로 사고고, 건너편길은 역주행이라 가면 안 되는 곳".
      도로 밖은 이미 하드 구속인데 중앙선은 자유라, 차가 반대 차도로 넘어갔다.
      왕복도로에서 진행방향 기준 중앙선 너머로 나가는 이동을 되돌린다. */
+  /* ★단, nearestSeg 가 '내가 달리는 도로'라는 보장이 없다(2026-09-15 수정).
+     nearestSeg() 는 폭·방향 조건 없이 전 구간을 훑어 '가장 가까운 중심선'만 준다.
+     교차로 한복판·램프·나란한 이면도로 옆에서는 그게 교차하는 다른 도로다.
+     그 낯선 구간의 ang 로 dir 을 정하고 lat 을 재면, 직각에 가까운 중심선까지의
+     거리라 lat 이 임의로 음수가 된다 → 위치 되돌림 + me.v*=0.5 가 매 프레임 —
+     교차로에서 합법적으로 좌회전하던 차가 '중앙선 침범'으로 사고 처리됐다.
+     즉 이 구속은 '중앙선을 합법적으로 넘어야 하는 바로 그 지점'에서 제일 못 믿는다.
+     세 가지 관문을 세운다:
+       1) ns.d <= roadW*0.5 — 실제로 그 도로 위에 있을 때만
+       2) |Δheading| < 60° — 그 구간을 따라 달리고 있을 때만
+          (양방향 도로는 저장된 ang 방향이 임의라 180° 접은 값으로 본다)
+       3) 교차로 노드에서 roadW*1.5 안쪽이면 검사 자체를 끈다 — 회전 구간 */
   {
     const ns=nearestSeg(me.x,me.y);
-    if(ns && ns.s && !ns.s.o){
+    if(ns && ns.s && !ns.s.o && ns.d <= ns.s.roadW*0.5 && !nearJunction(me.x,me.y,ns.s)){
       const sg=ns.s;
       let dd=((me.ang - sg.ang + Math.PI*3)%(Math.PI*2))-Math.PI;
+      /* 양방향 구간은 a→b 방향이 임의로 저장돼 있다. 역방향으로 달리는 것이
+         정상(반대 차선)이므로 헤딩 일치 판정은 180° 접어서 본다. */
+      const align = Math.abs(dd) > Math.PI/2 ? Math.PI-Math.abs(dd) : Math.abs(dd);
+      if(align >= Math.PI/3){ blockT=Math.max(0,(blockT||0)-dt*0.5); }
+      else{
       const dir = Math.abs(dd) < Math.PI/2 ? 1 : -1;
       // 중심선 기준 부호거리(진행방향 오른쪽이 +)
       const lat = (-(ns.px-me.x)*Math.sin(sg.ang) + (ns.py-me.y)*Math.cos(sg.ang)) * dir;
@@ -1514,6 +1848,7 @@ function step(dt){
         if(me.offroad>.9){ me.offroad=0; crash('중앙선 침범',false); }
         blockT=(blockT||0)+dt;                // 얼마나 계속 막히고 있나
       } else blockT=Math.max(0,(blockT||0)-dt*0.5);   // 깜빡여도 누적되게 천천히 감소
+      }
     }
   }
   /* ★하드 구속(중앙선·차로밖)에 오래 갇히면 경로 위로 복귀한다(u_5056).
@@ -1621,7 +1956,14 @@ function stepCar(c,dt){
   c.tp+=c.dir*(c.v*S*dt)/s.len;
   if(c.tp>1||c.tp<0){
     const nd=c.tp>1?s.b:s.a;
-    const opts=nodes[nd].e.filter(i=>i!==c.si);
+    /* ★일방통행 역주행 금지(NPC가 좌측통행처럼 보이던 원인).
+       후속 구간을 아무 간선에서나 고르면, 도착 노드가 그 구간의 b 인 일방통행
+       구간을 뒤에서 거슬러 올라가게 된다(dir=-1). 그러면 진행방향 기준 차로
+       오프셋이 통째로 반대편(맞은편 차로)으로 놓여 좌측주행으로 보인다.
+       실측: 청크 60개 90945개 전이 중 2449개(2.7%)가 이 역주행이었다.
+       → 진입 가능한 간선만 후보로 둔다. 후보가 없으면 U턴(else 가지). */
+    let opts=nodes[nd].e.filter(i=>i!==c.si&&segAllows(i,nd));
+    if(!opts.length)opts=nodes[nd].e.filter(i=>segAllows(i,nd));
     if(opts.length){
       const ni=pick(opts),ns=segs[ni];
       c.si=ni;c.dir=(ns.a===nd)?1:-1;c.tp=(ns.a===nd)?0.001:0.999;
@@ -2035,6 +2377,16 @@ function draw(){
                  +' brk='+(_da.brk||0).toFixed(0)+' tb='+((window.__tbrk===undefined)?'-':window.__tbrk.toFixed(2))+' blk='+(_da.blk||0).toFixed(1)+' bst='+(_da.bst||0).toFixed(1)+' cool='+(_da.cool||0).toFixed(1)+' hld='+(_da.hold||0)+' plan='+(window.__ptCnt||0),
                  12, H-52);
     }
+    /* ★누가 모는지 화면에 띄운다(a_5085). 모델/기하 비교가 목적이므로
+       '지금 핸들을 쥔 게 누구인가'가 안 보이면 측정 자체가 무의미하다. */
+    {
+      const _md = window.__mdl;
+      g.fillStyle = MDL.on ? '#ff9f43' : '#7CFF9E';
+      g.fillText('DRV=' + (MDL.on ? 'MODEL' : (auto.on && auto.wp.length ? 'GEOM' : 'TEACH'))
+        + (MDL.on && _md ? ' st=' + _md.st.toFixed(2) + ' thr=' + _md.thr.toFixed(2)
+             + ' brk=' + _md.brk.toFixed(2) + ' rx=' + _md.rx + ' err=' + _md.err : ''),
+        12, H - 66);
+    }
     g.fillStyle='#8bffb0';
     g.fillText('CAR v='+((me.v*3.6)|0)+' cr='+me.crashes+'['+_cks+']'
                +' road='+(on.ok?'Y':'N')
@@ -2346,9 +2698,11 @@ function epEnd(ok){
   setTimeout(()=>{hardReset();epStart()},700);
 }
 function hardReset(){
-  /* ★학습모드는 도로 위에서 재시작한다(u_4917).
-     여기가 주차칸으로 고정돼 있어 reset()을 고쳐도 매 판 주차칸으로 돌아갔다.
-     주차칸은 도로에서 13.3m 떨어져 있어 직진하면 도로에 닿기 전에 이탈 사고. */
+  /* ★항상 도로 위에서 재시작한다(u_4917/u_4953).
+     지금 이 함수에 주차칸 분기는 없다 — PARK.bays 는 segs 가 통째로 비었을 때만
+     쓰는 최후 수단이다(아래 else 절). 과거에 여기가 주차칸으로 고정돼 있어서
+     reset() 만 고쳐도 매 판 주차칸(도로 밖 13.3m)으로 돌아갔고, 직진하면 도로에
+     닿기 전에 이탈 사고가 났다 — 그 분기가 사라졌다는 사실이 이 주석의 요점이다. */
   /* ★검증(교사 OFF) 때도 도로 위에서 출발해야 한다. 주차칸 출발은 도로 밖 13m 지점이라
      모델이 아무리 전진해도 길을 못 찾는다(2026-09-14 검증 실패 원인 중 하나). */
   /* ★hardReset()은 teacher.js 보다 먼저 돈다 → window.__teach 로 판단하면 항상 false 라
@@ -2371,44 +2725,27 @@ function hardReset(){
   }
   if(segs.length){
     /* ★사고 지점 근처 청크로 스트리밍이 바뀌면 옛 start 인덱스는 무효다.
-       현재 위치에서 가장 가까운 '충분히 긴' 구간을 새로 고른다. */
-    /* ★'가장 긴 구간'이 아니라 '강남역에서 가장 가까운 시가지 도로'다(u_5073~5076).
+       배치 규칙은 placeCarNear() 한 곳에 있다(강남역 최근접 시가지 도로 → 건물 회피).
+       ★'가장 긴 구간'이 아니라 '강남역에서 가장 가까운 시가지 도로'다(u_5073~5076).
        가장 긴 구간을 고르면 그 일대에서 제일 긴 간선대로가 뽑힌다 — 강남역과 무관하다.
        실측: 강남역(11.4,-9.9) 기준 최근접 = 테헤란로 12.7m. */
-    const g=gangnamXY(), gx=g.x*S, gy=g.y*S;
-    let bs=null,bd=1e18;
-    for(let pass=0;pass<2;pass++){
-      for(const q of segs){
-        if(q.len < 20*S) continue;
-        if(pass===0 && !isCityRoad(q)) continue;
-        const mx=(nodes[q.a].x+nodes[q.b].x)/2, my=(nodes[q.a].y+nodes[q.b].y)/2;
-        const d=(mx-gx)*(mx-gx)+(my-gy)*(my-gy);
-        if(d<bd){ bd=d; bs=q; }
-      }
-      if(bs) break;
-    }
-    if(!bs) bs=segs[0];
-    const A2=nodes[bs.a],B2=nodes[bs.b];
-    const off2=laneOffset(bs,1,0);
-    /* ★건물 안에서 출발하면 뜨자마자 충돌이다(u_5077 실측: 강남역지하쇼핑센터 충돌).
-       구간을 따라 여러 지점을 훑어 건물에 안 걸리는 곳을 고른다. */
-    let t0=0.15, placed=false;
-    for(const t of [0.15,0.3,0.45,0.6,0.75,0.9,0.05]){
-      const px=A2.x+(B2.x-A2.x)*t-Math.sin(bs.ang)*off2;
-      const py=A2.y+(B2.y-A2.y)*t+Math.cos(bs.ang)*off2;
-      if(bldAt(px,py)<0){ t0=t; placed=true; break; }
-    }
-    me.x=A2.x+(B2.x-A2.x)*t0-Math.sin(bs.ang)*off2;
-    me.y=A2.y+(B2.y-A2.y)*t0+Math.cos(bs.ang)*off2;
-    me.ang=bs.ang;                       // a→b 진행방향과 동일
-    window.__startFree=placed?1:0;
+    const g=gangnamXY();
+    const r=placeCarNear(g.x*S, g.y*S, {metric:'mid', place:true});
+    /* r===null = 20m 이상인 구간이 하나도 없다(청크가 덜 올라왔을 때).
+       그 땐 첫 구간에 같은 규칙(ts 후보 없이 t=0.15)으로라도 세운다. */
+    const r2 = r || placeCarNear(nodes[segs[0].a].x, nodes[segs[0].a].y,
+                                 {metric:'mid', place:true, any:true});
+    const bs = r2 ? r2.seg : segs[0];
+    if(!r2){ me.x=nodes[bs.a].x; me.y=nodes[bs.a].y; me.ang=bs.ang; }
+    window.__startFree=(r2&&r2.free)?1:0;
     window.__startRoad=(bs.n||'(이름없음)')+' '+(bs.l||'?')+'차로 강남역에서 '
-                      +Math.round(Math.sqrt(bd)/S)+'m';
+                      +Math.round(Math.sqrt(r2?r2.d2:0)/S)+'m';
     /* ★멀리 순간이동하면 그 구역 청크가 아직 없어 road=N 이 된다(실측 d=13.2m).
        스폰 직후 강제로 월드를 다시 스트리밍해 도로·신호등을 채운다. */
     try{ if(typeof streamWorld==='function') streamWorld(true); }catch(e){}
   }else if(PARK.bays.length){const b=PARK.bays[2];me.x=b.x;me.y=b.y;me.ang=PARK.ang}
   me.v=0;me.dmg=0;me.crashes=0;me.offroad=0;me.cool=0;
+  resetTeacherLane();
   auto.on=0;auto.wp=[];auto.i=0;
   streamWorld(true);
 }
@@ -2535,7 +2872,15 @@ function loop(t){
      ★교사는 여전히 매 프레임 '정답'을 계산한다(T.compute) — 학습 라벨은 계속 나와야
        하므로, 모는 것만 멈추고 라벨 생산은 유지한다. */
   const T = window.__teach;
-  if(auto.on && auto.wp.length){
+  mdlPoll(dt);                                      // 모델 제어채널 폴링(항상)
+  if(MDL.on){
+    /* ★모델이 핸들을 쥔다. driveAuto 는 호출하지 않는다 — 둘이 매 프레임
+       me.steer 를 서로 덮어쓰면 누가 모는지 측정이 불가능해진다(u_5026 에서
+       경로 vs 교사가 정확히 그렇게 싸워 사고가 8→23회로 늘었다).
+       단 진행률·웨이포인트 추적은 계속 돌아야 평가가 되므로 auto 상태는 둔다. */
+    driveModel(dt);
+    if(T && T.auto){ try{ T.last = T.compute(); }catch(e){} }   // 라벨은 계속 생산
+  }else if(auto.on && auto.wp.length){
     /* ★내비 경로와 자율주행을 실제로 연결한다(u_5026).
        예전엔 경로가 있으면 driveAuto 가 전부 몰았다. 그런데 driveAuto 는
        '다음 점으로 핸들을 꺾는다'가 전부라, 신호등·앞차·보행자·목표속도를
@@ -2619,13 +2964,13 @@ function setLearn(v){
 }
 addEventListener('keydown',e=>{if(e.key==='l'||e.key==='L')setLearn(!LEARN)});
 if(LEARN){hardReset();epStart()}
-/* ★검증 빌드(교사 OFF)는 LEARN 이 아니라서 hardReset() 이 한 번도 안 불렸고,
-   차가 초기 주차칸(도로 밖 13.3m)에 그대로 서 있었다(실측 readout: road=N d=13.3m).
-   모델이 앞으로 가도 도로가 없으니 당연히 주행이 안 된다. */
-/* ★모든 빌드에서 도로 위 출발(2026-09-14 u_4950 후속).
-   __SPAWN_ON_ROAD 는 --teacher-off 빌드에만 주입돼서, 교사 빌드(수집용)는
-   hardReset() 이 아예 안 불리고 초기 주차칸 위치가 그대로 남았다.
-   실측: 디코더로 읽은 lane=13.0m, on_road=0 — 도로 밖에서 수집하고 있었다. */
+/* ★LEARN 여부와 무관하게 모든 빌드가 hardReset() 으로 도로 위에서 출발한다.
+   이 else 가 그 보장이다 — 이제 빠지는 빌드가 없다.
+   왜 생겼나(측정 기록): 예전엔 LEARN 빌드만 hardReset() 을 불렀고, 도로출발은
+   --teacher-off 빌드에만 주입되는 __SPAWN_ON_ROAD 플래그에 매달려 있었다.
+   그래서 교사(수집) 빌드는 초기 주차칸(도로 밖 13.3m)에 그대로 서 있었고
+   — 실측 readout road=N d=13.3m, 디코더 lane=13.0m / on_road=0 —
+   도로 밖에서 수집·검증이 돌았다. 플래그 분기는 제거됐다. */
 else { hardReset(); }
 /* ★시작은 '주차' 상태로(u_5041). 페이지를 열자마자 교사가 차를 몰기 시작하면
    사용자가 경로를 설정할 틈이 없다. 첫 프레임 전에 세워둔다. */
@@ -2780,36 +3125,16 @@ setTimeout(()=>{
     // 1) 먼저 그 좌표로 옮기고 월드를 그 일대로 스트리밍한다
     me.x=r.x*S; me.y=r.y*S;
     try{ streamWorld(true); }catch(e){}
-    // 2) 이제 로드된 도로 중에서 가장 가까운 '시가지 도로'에 붙인다
-    let bs=null,bd=1e18,bt=0;
-    for(let pass=0;pass<2;pass++){
-      for(const sg of segs){
-        if(sg.len<20*S)continue;
-        if(pass===0 && !isCityRoad(sg))continue;
-        const A=nodes[sg.a],B=nodes[sg.b];
-        const vx=B.x-A.x, vy=B.y-A.y, L=vx*vx+vy*vy;
-        let t=L?((me.x-A.x)*vx+(me.y-A.y)*vy)/L:0; t=Math.max(0,Math.min(1,t));
-        const d=Math.hypot(A.x+vx*t-me.x, A.y+vy*t-me.y);
-        if(d<bd){ bd=d; bs=sg; bt=t; }
-      }
-      if(bs)break;
-    }
-    if(!bs){ flash('출발지 근처에 도로가 없습니다'); return false; }
-    const A=nodes[bs.a],B=nodes[bs.b];
-    const off=laneOffset(bs,1,0);
-    // 건물에 걸리지 않는 지점을 구간을 따라 찾는다
-    let t0=bt;
-    for(const t of [bt,bt+0.1,bt-0.1,bt+0.2,bt-0.2,0.5,0.25,0.75]){
-      const tc=Math.max(0,Math.min(1,t));
-      const px=A.x+(B.x-A.x)*tc-Math.sin(bs.ang)*off;
-      const py=A.y+(B.y-A.y)*tc+Math.cos(bs.ang)*off;
-      if(bldAt(px,py)<0){ t0=tc; break; }
-    }
-    me.x=A.x+(B.x-A.x)*t0-Math.sin(bs.ang)*off;
-    me.y=A.y+(B.y-A.y)*t0+Math.cos(bs.ang)*off;
-    me.ang=bs.ang; me.v=0; me.steer=0;
+    /* 2) 이제 로드된 도로 중에서 가장 가까운 '시가지 도로'에 붙인다.
+       고르는 규칙·건물 회피는 placeCarNear() 한 곳에 있다(hardReset·pickStart 와 공용).
+       여기만 기준이 '강남역'이 아니라 '방금 옮긴 내 위치'라서 metric='proj' 다. */
+    const r2=placeCarNear(me.x, me.y, {metric:'proj', place:true});
+    if(!r2){ flash('출발지 근처에 도로가 없습니다'); return false; }
+    const bs=r2.seg;
+    me.v=0; me.steer=0;
     me.crashes=0; me.dmg=0; me.offroad=0; me.cool=1.0;
     crashHold=0; crashHoldT=0; bldStuck=0; blockT=0;
+    resetTeacherLane();
     auto.on=0; auto.wp=[]; auto.i=0; auto.goal=null; window.__parked=1;
     const T=window.__teach; if(T) T.auto=false;
     try{ streamWorld(true); }catch(e){}
@@ -2820,9 +3145,29 @@ setTimeout(()=>{
     return true;
   }
   window.setStart=setStart;
+
+  /* ★로딩하면 강남역→시청역이 자동으로 잡힌다(u_5109/5110 오너 지시).
+     매 리로드마다 출발지·목적지를 손으로 넣는 게 시간 낭비였다.
+     [목적지 가기]는 자동으로 누르지 않는다 — 출발 시점은 사람이 정한다.
+     ?auto=0 으로 끌 수 있다. */
+  if(!/[?&]auto=0/.test(location.search)) setTimeout(()=>{
+    try{
+      const sb=document.getElementById('qs'), db=document.getElementById('q');
+      if(!sb||!db) return;
+      if(!sb.value) sb.value='강남역';
+      if(!db.value) db.value='시청역';
+      if(!setStart(sb.value)) return;          // 출발지 배치 실패면 경로도 잡지 않는다
+      hits=search(db.value); if(!hits.length){ flash('목적지 없음: '+db.value); return; }
+      sel=0; window.__autoStart=false; pick();  // 경로만 만든다(출발은 사람이)
+      const rb=document.getElementById('qrun');
+      if(rb && auto.wp.length>1){ rb.disabled=false; flash('강남역→시청역 경로 준비됨 — [목적지 가기]'); }
+    }catch(e){ console.warn('auto-route', e); }
+  }, 1500);
   if(setBtn) setBtn.onclick = ()=>setStart(sBox?sBox.value:'');
   if(sBox) sBox.onkeydown = e=>{ if(e.key==='Enter'){ e.preventDefault(); setStart(sBox.value); } };
 
+  const mdlBtn = document.getElementById('mdlBtn');
+  if(mdlBtn) mdlBtn.onclick = ()=> setModel(!MDL.on);   // 모델 주행 ON/OFF (a_5085)
   const parkBtn = document.getElementById('qpark');
   if(parkBtn) parkBtn.onclick = ()=>{
     parkCar();
