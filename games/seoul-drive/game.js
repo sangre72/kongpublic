@@ -3749,8 +3749,12 @@ setTimeout(()=>{
     try{
       const sb=document.getElementById('qs'), db=document.getElementById('q');
       if(!sb||!db) return;
-      if(!sb.value) sb.value='강남역';
-      if(!db.value) db.value='시청역';
+      /* ★u_5201: 구간을 바꿔 시험할 수 있어야 한다("시청역에서 노원역도 테스트").
+         ?from=·?to= 로 넘기면 그 구간으로 경로를 잡는다. 없으면 기존 기본값. */
+      const _q=new URLSearchParams(location.search);
+      const _f=_q.get('from'), _t=_q.get('to');
+      if(_f) sb.value=_f; else if(!sb.value) sb.value='강남역';
+      if(_t) db.value=_t; else if(!db.value) db.value='시청역';
       if(!setStart(sb.value)) return;          // 출발지 배치 실패면 경로도 잡지 않는다
       hits=search(db.value); if(!hits.length){ flash('목적지 없음: '+db.value); return; }
       sel=0; window.__autoStart=false; pick();  // 경로만 만든다(출발은 사람이)
