@@ -2480,9 +2480,25 @@ function draw(){
        '경로가 차로를 무시한다'처럼 보였다 — 실제 경로는 멀쩡한데 그리기가 만든
        착시였다(경로선 13,715점 조밀 검사: 도로 밖 0개).
        이제 웨이포인트만 잇는다. */
+    /* ★u_5172 오너 지적: "안내선이 차선 중앙이 아니고 차선에 그려진다".
+       맞다 — auto.wp 는 도로 '중심선'이다. 양방향 도로에서 중심선은 곧
+       중앙선이라, 그 선을 따라가면 차선을 물거나 반대차로로 넘어간다.
+       교사는 이미 차로 오프셋(실측 7.92m)을 따로 잡고 있어서, 화면의
+       안내선과 실제 주행 목표가 달랐다.
+       ⇒ 그릴 때만 주행 차로 쪽으로 밀어준다. auto.wp 자체는 건드리지
+         않는다 — 진행률 계산이 그 배열을 쓰므로 옮기면 진행률이 깨진다. */
     g.beginPath();
-    g.moveTo(auto.wp[auto.i].x, auto.wp[auto.i].y);
-    for(let i=auto.i;i<auto.wp.length;i++)g.lineTo(auto.wp[i].x,auto.wp[i].y);
+    const _lo = (function(){
+      try{
+        const T=window.__teach, a=T&&T.last;
+        if(!a || a.off===undefined || !a.seg) return null;
+        const sg=a.seg, ang=sg.ang;
+        return {dx:-Math.sin(ang)*a.off, dy:Math.cos(ang)*a.off};
+      }catch(e){ return null; }
+    })();
+    const _ox = _lo?_lo.dx:0, _oy = _lo?_lo.dy:0;
+    g.moveTo(auto.wp[auto.i].x+_ox, auto.wp[auto.i].y+_oy);
+    for(let i=auto.i;i<auto.wp.length;i++)g.lineTo(auto.wp[i].x+_ox,auto.wp[i].y+_oy);
     g.stroke();g.setLineDash([]);g.globalAlpha=1;
     g.fillStyle=C('--green');g.beginPath();g.arc(auto.goal.x,auto.goal.y,1.6*S,0,7);g.fill();
   }
