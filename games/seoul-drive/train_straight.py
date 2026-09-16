@@ -25,8 +25,13 @@ DEV = gpu_guard.require_gpu()
 BS = 128
 
 
-def straight_mask(Y, win=5, thr_avg=0.25, thr_now=0.30):
-    """곧은 구간 판별. 이동평균으로 '이어지는' 직선만 잡는다."""
+def straight_mask(Y, win=9, thr_avg=0.12, thr_now=0.15):
+    """곧은 구간 판별. 이동평균으로 '이어지는' 직선만 잡는다.
+
+    ★u_5172 오너 기준: "12초 동안 0도여야 함. 그렇지 않으면 탑승자가 멀미를 함."
+      기존 0.25/0.30 은 너무 느슨했다 — 그 라벨로 배우면 조향 0.104 가 나오고
+      차가 -1도 틀어진다. 직진은 0 이어야 한다.
+      창을 9프레임으로 늘리고(더 오래 곧은 곳만), 임계를 0.12/0.15 로 조인다."""
     s = np.abs(Y[:, 0])
     sm = np.convolve(s, np.ones(win) / win, 'same')
     return (sm < thr_avg) & (s < thr_now)
@@ -95,6 +100,10 @@ def main(dirs, out, epochs=30):
             xf = torch.flip(xb, dims=[3])
             of = net(xf)
             l = l + 0.5 * ((o[:, 0] + of[:, 0]) ** 2).mean()
+            # ★직진 구간에서는 조향이 0 이어야 한다(멀미 방지).
+            #   라벨을 그대로 맞히면 라벨의 잔떨림까지 복제한다 —
+            #   이 구간은 애초에 '곧은 길'로 골라낸 곳이므로 0 이 정답이다.
+            l = l + float(os.environ.get('ZERO_W', '1.0')) * (o[:, 0] ** 2).mean()
             l.backward(); opt.step()
             tot += l.item() * len(perm[i:i+BS])
         net.eval(); vs = 0.0; c = 0

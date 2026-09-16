@@ -42,8 +42,21 @@ def main():
         for s in json.load(open(f, encoding='utf-8')).get('s', []):
             sigs.append({'x': s['x'], 'y': s['y']})
 
+    # 회전금지 테이블(a_5053). 번들에 실린 way id 에 걸린 제한만 담는다 — 전국 4040건을
+    # 다 넣을 필요가 없고, 게임은 loadRestrict(TURNS) 로 읽는다.
+    turns = {}
+    rf = os.path.join(os.path.dirname(SRC), 'restrictions.json')
+    if os.path.exists(rf):
+        tbl = json.load(open(rf, encoding='utf-8')).get('turn_costs', {})
+        ways = {str(r['w']) for c in chunks.values() for r in c['r'] if r.get('w')}
+        for k, v in tbl.items():
+            f, _via, t = k.split('|')
+            if f in ways and t in ways:
+                turns[k] = v
+
     body = ('const CHUNKS=' + json.dumps(chunks, ensure_ascii=False, separators=(',', ':')) + ';\n'
             + 'const SIGNALS=' + json.dumps(sigs, separators=(',', ':')) + ';\n'
+            + 'const TURNS=' + json.dumps(turns, separators=(',', ':')) + ';\n'
             # ROADS/BLDS 는 CHUNKS 가 없을 때의 폴백이지만, 선언 자체가 없으면
             # collectRoads 의 참조에서 ReferenceError 가 난다(실측). 빈 배열로 둔다.
             + 'const ROADS=[];const BLDS=[];const POI=[];const XWALK=[];\n')

@@ -1,0 +1,18 @@
+[
+ {
+  "ep": 1,
+  "frames": 362,
+  "dup": 0,
+  "nodecode": 0,
+  "model_pct": 100.0,
+  "prog_start": 0.0049,
+  "prog_max": 0.0049,
+  "prog_end": 0.0049,
+  "crashes": 0,
+  "crash_types": {
+   "보행자": 2
+  },
+  "arrived": false,
+  "secs": 240.6
+ }
+]
