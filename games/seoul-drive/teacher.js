@@ -181,6 +181,17 @@
         want = Math.max(0, Math.min(nl-1, Math.round(gi)));
         // 회전·차로감소 규칙이 있으면 그쪽이 우선한다(경로점은 직진 기준이다)
         if(ruleWant !== null) want = Math.max(0, Math.min(nl-1, ruleWant));
+        /* ★u_5189 오너 지적 "한번에 두세개 차로씩 변경하는 운전이 없잖아".
+           실측: 8차로에서 2.32 → 6.52 차로, 한 번에 4칸을 건너뛰었다.
+           step=0.02 는 laneF(실제 위치)를 부드럽게 옮기는 값이라
+           목표가 4칸 튀면 차도 4칸을 가로지른다.
+           ⇒ 목표 자체를 현재 차로에서 한 칸 이내로 끊는다. 한 칸을 다 옮기면
+             다음 칸이 열리므로 결과적으로 순차 변경이 된다. */
+        const cur = (T.laneF !== undefined) ? T.laneF : want;
+        if(Math.abs(want - cur) > 1){
+          want = cur + Math.sign(want - cur);
+          want = Math.max(0, Math.min(nl-1, Math.round(want)));
+        }
         T._want = want;   // dbg2 로 넘기기 위한 전달용(스코프가 다르다)
       }
     }
@@ -400,7 +411,11 @@
     if(Math.abs(cross) > 3.25 && !T.laneMoving){
       const nl2 = lt.seg.o ? lt.seg.l : Math.max(1, Math.floor(lt.seg.l/2));
       const cur = Math.max(0, Math.min(nl2-1, Math.round(Math.abs(lt.off)/(LW/S) - 0.5)));
-      T.lane = cur; T.laneF = cur;      // 현재 차로에서 다시 시작
+      /* ★u_5189: 여기서 laneF 를 직접 대입하면 step(0.02/프레임) 제한을
+         건너뛰어 차로가 순간이동한다. 실측 — laneF 변화의 85%가 초당 1.5차로를
+         넘었다(step 상한은 초당 1.2). 8차로에서 2.32→6.52 한 번에 4칸도 이것.
+         목표(T.lane)만 바꾸고 실제 위치(laneF)는 step 으로 따라오게 둔다. */
+      T.lane = cur;                     // 목표만 현재 차로로 재설정
     }
     /* 큰 횡오차에서 xt 항이 단독으로 포화시키지 않게 상한을 둔다.
        조향의 주도권은 목표점 추종(diff)이 갖고, xt 는 보정 역할로 제한한다. */
