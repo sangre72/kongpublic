@@ -1211,11 +1211,24 @@ function planTo(x,y){
      넓은 일방통행 도로일수록 경로선이 차로 중심에서 멀어지고,
      결국 점선 위에 얹힌다.
      ⇒ laneOffset 과 같은 식을 쓴다. roadW 가 필요하므로 간선을 통째로 받는다. */
+  /* ★u_5191 오너 지적 "직진 도로에서 4개 차로 거의 유턴 후 복귀. 경로 설정 개판".
+     실측으로 원인이 잡혔다 — 경로선이 0.88~7.50차로를 오가고 1차로 넘게 튀는
+     곳이 9번이었다. 차는 그 선을 0.26m 오차로 충실히 따라가므로, 차가 아니라
+     경로선이 유턴을 하고 있었다.
+
+     원인: 같은 테헤란로인데 구간마다 차로수가 3→4→3→5 로 다르다.
+     '좌측 가장자리에서 1차로'로 잡으면 도로폭이 바뀔 때마다 기준점이 움직인다.
+       3차로(9.75m) off -3.25 / 4차로(13m) -4.88 / 5차로(16.25m) -6.50
+     3→5차로 전환에서 정확히 3.25m(한 차로)가 점프한다.
+
+     ⇒ 주행차로(가장 오른쪽)를 기준으로 잡는다. 도로가 넓어지든 좁아지든
+       오른쪽 끝에서 반 차로 안쪽이라 위치가 연속이다. 한국 도로교통법의
+       주행차로 원칙과도 맞는다(추월·좌회전이 아니면 오른쪽). */
   const laneOff=(sg)=>{
     if(!sg) return 0.5*LW;
     const rw = sg.roadW || (Math.max(1, sg.l||2) * LW);
-    return sg.o ? (-(rw*0.5) + 0.5*LW)          // 일방: 좌측 가장자리부터 1차로
-                : (0.5*LW);                      // 왕복: 중심선 오른쪽 1차로
+    return sg.o ? (rw*0.5 - 0.5*LW)             // 일방: 오른쪽 끝에서 반 차로 안
+                : (rw*0.5 - 0.5*LW);            // 왕복: 진행방향 차도의 오른쪽 끝
   };
   const edgeOf=(i,j)=>{                         // 두 노드를 잇는 간선 찾기
     if(NS!==GNODES) return null;
@@ -1360,7 +1373,7 @@ function planTo(x,y){
         }
       }
       // 4) 이 구간의 끝이 코너면 이등분선 호를 붙인다.
-      const c=corner[i+1];
+      const c=window.__NOARC?null:corner[i+1];
       if(c){
         /* ★코너는 위에서 미리 구한 원(중심 g.Cox,g.Coy · 반경 g.R)의 접점
            F0→F2 구간 호를 그대로 4등분해 낸다. 접점이 다리 리샘플의 끝점과
@@ -1424,6 +1437,31 @@ function planTo(x,y){
     auto.i=st;
   }
   try{ if(window.__pushDbg) window.__npDbg2 = window.__pushDbg(); }catch(e){}
+  /* ★u_5190 진단: 교사 목표(laneOffset)는 8.12m 로 맞는데 차는 12~15m 를 달린다.
+     GEOM 이 쫓는 건 auto.wp 이므로, wp 가 실제로 어느 차로에 놓였는지 본다. */
+  try{
+    /* ★u_5190/5191: 경로선 여러 점의 차로 위치를 훑는다.
+       차는 경로선을 0.26m 오차로 잘 따라가는데 목표 차로와는 5.85m 차이다 —
+       경로선 자체가 차로를 넘나든다는 뜻("직진 도로에서 4개 차로 유턴"). */
+    const lanes=[];
+    for(let k=10;k<Math.min(400, wp.length);k+=10){
+      const q=wp[k], n=nearestSeg(q.x, q.y);
+      if(!n || !n.s) continue;
+      const rw=n.s.roadW/S;
+      const lat=(-(n.px-q.x)*Math.sin(n.s.ang) + (n.py-q.y)*Math.cos(n.s.ang))/S;
+      lanes.push(+((rw/2+lat)/3.25).toFixed(2));
+      // ★어느 도로로 판정됐는지도 같이 본다 — 경로점마다 다른 도로를 잡으면
+      //   같은 직진 구간인데 차로 번호가 튄다.
+      if(!window.__wpSeg) window.__wpSeg=[];
+      if(window.__wpSeg.length<12) window.__wpSeg.push((n.s.n||'?')+'/'+(n.s.l||0)+'차로');
+    }
+    if(lanes.length){
+      let jump=0;
+      for(let k=1;k<lanes.length;k++) if(Math.abs(lanes[k]-lanes[k-1])>1.0) jump++;
+      window.__wpLane = {n:lanes.length, min:Math.min(...lanes), max:Math.max(...lanes),
+                         jumps:jump, head:lanes.slice(0,12)};
+    }
+  }catch(e){}
   /* ★같은 자리에 겹친 웨이포인트를 제거한다(u_5039 실사고).
      전역 그래프는 0.1m 정밀도로 노드를 용접하므로, 아주 짧은 간선이 그대로
      남아 경로에 '거의 같은 점'이 연달아 들어온다. 그러면 두 점으로 만드는
@@ -1654,6 +1692,9 @@ function mdlPoll(dt){
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
       bldDbg: window.__bldDbg||null,
       wpDbg: window.__wpDbg||null,
+      wpLane: window.__wpLane||null,
+      wpSeg: window.__wpSeg||null,
+      ppXt: (window.__ppXt===undefined?null:window.__ppXt),
       planDbg: window.__planDbg||null,
       npDbg: window.__npDbg||null,
       npDbg2: window.__npDbg2||null,
@@ -1879,7 +1920,36 @@ function driveAuto(dt){
   }
   let alpha=((Math.atan2(P.y-me.y,P.x-me.x)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
   const Lreal=Math.max(3, Math.hypot(P.x-me.x,P.y-me.y)/S);
-  const delta=Math.atan2(2*wb*Math.sin(alpha), Lreal);   // rad
+  let delta=Math.atan2(2*wb*Math.sin(alpha), Lreal);   // rad
+  /* ★u_5190 실사고: 경로선은 3차로 중앙(8.13m)에 정확히 놓였고 교사도 그걸
+     목표로 잡는데(7.28m), 차는 12.17m 를 달렸다 — 4.89m 밖.
+     원인은 이 Pure Pursuit 가 목표점을 auto.s(경로 진행도) 기준으로만 잡는다는 것.
+     차가 옆으로 밀려도 '경로를 따라 얼마나 왔나'만 보므로 횡오차가 조향에
+     들어가지 않는다. 그래서 한 번 밀리면 나란히 달릴 뿐 복귀하지 않는다
+     (실측: 교사는 복귀력 0.372 를 계산하는데 실제 조향은 0.010).
+     ⇒ Stanley 의 횡오차 항을 더한다. 경로선 기준 부호거리를 재서
+       속도로 나눈다(고속에서 과민해지지 않게). */
+  /* ★posAt(auto.s) 는 '경로를 따라 s 만큼 온 점'이라 차 위치와 같게 나온다
+     (실측 xt=0). 경로선 대비 실제 횡오차는 웨이포인트 선분에 직접 투영해야 한다. */
+  try{
+    let bi=-1, bd=1e18, bx=0, by=0, ba=0;
+    const i0=Math.max(0, auto.i-3), i1=Math.min(auto.wp.length-1, auto.i+6);
+    for(let i=i0;i<i1;i++){
+      const A=auto.wp[i], B=auto.wp[i+1];
+      const vx=B.x-A.x, vy=B.y-A.y, L2=vx*vx+vy*vy;
+      if(L2<1e-6) continue;
+      let t=((me.x-A.x)*vx+(me.y-A.y)*vy)/L2; t=Math.max(0,Math.min(1,t));
+      const cx=A.x+vx*t, cy=A.y+vy*t;
+      const d2=(cx-me.x)**2+(cy-me.y)**2;
+      if(d2<bd){ bd=d2; bi=i; bx=cx; by=cy; ba=Math.atan2(vy,vx); }
+    }
+    if(bi>=0){
+      const xt=(-(bx-me.x)*Math.sin(ba) + (by-me.y)*Math.cos(ba))/S;   // m, 부호
+      const k=1.2, spd=Math.max(3, me.v);
+      delta += Math.max(-0.35, Math.min(0.35, Math.atan2(k*xt, spd)));
+      window.__ppXt = +xt.toFixed(2);
+    }
+  }catch(e){}
   const maxSteer=.62;
   me.steer=Math.max(-.9,Math.min(.9, delta/maxSteer));
   // 5) 속도
