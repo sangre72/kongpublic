@@ -81,7 +81,21 @@ def main(dirs, out, epochs=30):
         perm = np.random.permutation(tr)
         for i in range(0, len(perm), BS):
             xb, yb = batch(X, Y, perm[i:i+BS])
-            opt.zero_grad(); l = mse(net(xb), yb); l.backward(); opt.step()
+            opt.zero_grad()
+            o = net(xb)
+            l = mse(o, yb)
+            # ★u_5172 오너 지적 "경로선은 직선인데 차는 우측으로 커브".
+            #   실측: 오드 조향이 100% 양수(평균 +0.046). 학습 데이터는
+            #   좌우 균형(양45%/음46%)인데 모델만 편향돼 있었다.
+            #   원인은 출력 bias(+0.047) — 회색·흰색 같은 무의미한 입력에도
+            #   조향 +0.05 가 나온다. 직진 구간은 시각 단서가 약해 모델이
+            #   bias 쪽으로 수렴하고, 작은 값이 누적돼 완만한 우회전이 된다.
+            #   ⇒ 좌우 대칭을 손실로 강제한다: 뒤집은 그림의 조향은
+            #     원본의 부호 반대여야 한다. 대칭이면 bias 는 0 으로 밀린다.
+            xf = torch.flip(xb, dims=[3])
+            of = net(xf)
+            l = l + 0.5 * ((o[:, 0] + of[:, 0]) ** 2).mean()
+            l.backward(); opt.step()
             tot += l.item() * len(perm[i:i+BS])
         net.eval(); vs = 0.0; c = 0
         with torch.no_grad():
@@ -107,6 +121,9 @@ def main(dirs, out, epochs=30):
         'label_steer_abs_mean': round(float(np.abs(Y[:, 0]).mean()), 4),
         'pred_over_0.3_pct': round(100 * float((np.abs(P[:, 0]) > 0.3).mean()), 1),
         'thr_mean': round(float(P[:, 1].mean()), 3),
+        # ★편향 확인: 양수 비율이 50% 에서 크게 벗어나면 한쪽으로만 꺾는다
+        'pred_positive_pct': round(100 * float((P[:, 0] > 0).mean()), 1),
+        'pred_steer_mean': round(float(P[:, 0].mean()), 4),
     }), flush=True)
 
 
