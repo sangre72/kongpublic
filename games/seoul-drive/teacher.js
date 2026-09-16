@@ -330,8 +330,14 @@
        25m 안이면 감속, 12m 안이면 정지. 차량 제동보다 항상 우선(Math.max)한다 —
        앞차 기준으로 이미 계산된 brake 를 덮어쓰지 않고 더 강한 쪽을 쓴다. */
     const pd = pedAhead();
-    if(pd < PED_STOP_M){ brake = 1; thr = 0; }
-    else if(pd < PED_SLOW_M){
+    /* ★u_5201 주행 중 703m 에서 보행자 사고. 앞차 제동거리는 속도비례로
+       고쳤는데 보행자 기준(12m/25m)은 고정인 채로 뒀다 — 같은 결함이다.
+       45km/h 에서 정지에 28.3m 가 필요한데 12m 에서 밟으면 못 선다.
+       사람은 차보다 우선이므로 앞차보다 여유를 더 둔다(1.3배). */
+    const pStop = Math.max(PED_STOP_M, dStop * 1.3);
+    const pSlow = Math.max(PED_SLOW_M, pStop * 1.6);
+    if(pd < pStop){ brake = 1; thr = 0; }
+    else if(pd < pSlow){
       brake = Math.max(brake, 0.5);
       thr = Math.min(thr, 0.12);
     }
