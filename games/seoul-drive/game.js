@@ -620,6 +620,29 @@ function onRoad(x,y){
   }
   const ok=n.d<=n.s.roadW*.5;
   if(ok){ _lastSeg=n.s; _lastSegT=performance.now(); }
+  /* ★u_5199 오너 지적 "합류도로인데 도로를 벗어났다고 나온다". 실측으로 확인 —
+     이탈 판정 순간 차 주변 도로가
+       (샛길) 2.03m 폭3.25 / 테헤란로 3.25m 폭9.75 ◀도로안 / (샛길) 8.30m
+     였다. 차는 테헤란로 '안'에 있는데, 더 가까운 좁은 샛길을 기준으로 재서
+     이탈로 판정했다. 이탈 7.8~9.9m 인데 도로폭이 6.50m 인 모순도 이것이다.
+     ⇒ '가장 가까운 도로'가 아니라 '차가 실제로 그 안에 있는 도로'를 우선한다.
+       어느 도로 안에도 없을 때만 최근접으로 판정한다. */
+  if(!ok){
+    let best=null;
+    for(const sg2 of segs){
+      const A=nodes[sg2.a], B=nodes[sg2.b];
+      if(!A||!B) continue;
+      const vx=B.x-A.x, vy=B.y-A.y, L2=vx*vx+vy*vy;
+      if(L2<1) continue;
+      let t=((x-A.x)*vx+(y-A.y)*vy)/L2; t=Math.max(0,Math.min(1,t));
+      const dd=Math.hypot(A.x+vx*t-x, A.y+vy*t-y);
+      if(dd <= sg2.roadW*0.5 && (!best || sg2.roadW > best.s.roadW)){
+        best={d:dd, s:sg2, px:A.x+vx*t, py:A.y+vy*t};
+      }
+    }
+    if(best) return{ok:true, d:best.d, s:best.s, px:best.px, py:best.py,
+                    edge:best.d-best.s.roadW*.5};
+  }
   return{ok,d:n.d,s:n.s,edge:n.d-n.s.roadW*.5};
 }
 /* ★교차로 근접 판정(2026-09-15).
@@ -1693,6 +1716,7 @@ function mdlPoll(dt){
       bldDbg: window.__bldDbg||null,
       wpDbg: window.__wpDbg||null,
       wpLane: window.__wpLane||null,
+      ldeNear: window.__ldeNear||null,
       wpSeg: window.__wpSeg||null,
       ppXt: (window.__ppXt===undefined?null:window.__ppXt),
       planDbg: window.__planDbg||null,
@@ -2113,6 +2137,27 @@ function crash(label,heavy){
            rOff 가 -3.25/-6.50 으로 찍혀 '경로가 반대차로를 노린다'고 오독했다.
            오늘만 네 번째 '한쪽만 고친 복사본' 이다. 같은 식을 쓴다. */
         const rOff=0.5*LW;                                  // planTo laneOff 와 동일식
+        /* ★u_5199 오너 지적 "합류도로인데 도로를 벗어났다고 나온다".
+           실측이 뒷받침한다 — 이탈 7.8~9.9m 인데 도로폭이 6.50m 다.
+           도로 하나를 통째로 넘는 거리가 나올 수 없다. 합류·교차 구간에서
+           nearestSeg 가 '내가 달리는 도로'가 아니라 옆 도로를 잡으면
+           그 도로 기준으로 거리를 재서 이런 값이 된다.
+           판정 시점에 '차와 가까운 도로 2개'를 같이 남겨 확인한다. */
+        try{
+          const cands=[];
+          for(const sg2 of segs){
+            const A=nodes[sg2.a], B=nodes[sg2.b];
+            if(!A||!B) continue;
+            const vx=B.x-A.x, vy=B.y-A.y, L2=vx*vx+vy*vy;
+            if(L2<1) continue;
+            let t=((me.x-A.x)*vx+(me.y-A.y)*vy)/L2; t=Math.max(0,Math.min(1,t));
+            const dd=Math.hypot(A.x+vx*t-me.x, A.y+vy*t-me.y)/S;
+            if(dd < 20) cands.push({n:sg2.n||'?', d:+dd.toFixed(2),
+                                    w:+((sg2.roadW||0)/S).toFixed(2), in:dd<=(sg2.roadW*0.5)/S?1:0});
+          }
+          cands.sort((a,b)=>a.d-b.d);
+          window.__ldeNear = cands.slice(0,3);
+        }catch(e){}
         (window.__lde=window.__lde||[]).push({
           k:k, n:sg.n||'', l:lanes, o:sg.o?1:0,
           roadW:+(sg.roadW/S).toFixed(2),
