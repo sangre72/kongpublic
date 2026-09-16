@@ -1490,6 +1490,30 @@ function planTo(x,y){
       const t0 = corner[i]   ? corner[i].T2  : 0;      // 시작쪽(앞 코너의 진출접점)에서 자를 길이
       const t1 = corner[i+1] ? corner[i+1].T : 0;      // 끝쪽(다음 코너의 진입접점)에서 자를 길이
       const s0=t0, s1=L-t1;
+      /* ★u_5236 진단: 짧은 구간에서 앞뒤 코너 접선(t0+t1)이 구간 길이를 넘으면
+         s1<s0 이 되어 이 루프가 점을 하나도 안 만든다 → 그 구간이 통째로 비고
+         앞뒤 호 사이에 큰 점프가 남는다(실측 71.3m). 몇 번 일어나는지 센다. */
+      /* ★u_5236 수정: s1<=s0 이면 이 구간이 통째로 비어 경로가 끊긴다(실측 6곳,
+         최대 71.3m 점프). 짧은 구간이라도 '도로를 따라가는' 점은 남겨야 한다.
+         접선이 구간을 넘어서면 잘라내는 길이를 구간 안에 들어오게 줄인다 —
+         코너 호가 약간 짧아질 뿐, 경로는 도로에 붙어 있게 된다. */
+      if(s1<=s0){
+        window.__wpSkipSeg=(window.__wpSkipSeg||0)+1;
+        const room=Math.max(0, L - RS);            // 최소 한 칸은 남긴다
+        const sc = (t0+t1)>0 ? room/(t0+t1) : 0;
+        const _t0=t0*sc, _t1=t1*sc;
+        const a0=_t0, a1p=L-_t1;
+        if(a1p>a0){
+          const n2=Math.max(1,Math.round((a1p-a0)/RS));
+          for(let k=0;k<=n2;k++){
+            const ss=a0+(a1p-a0)*k/n2, uu=ss/L;
+            push(A.x+(B.x-A.x)*uu - Math.sin(a)*off, A.y+(B.y-A.y)*uu + Math.cos(a)*off);
+          }
+        }else{
+          // 그래도 안 되면 구간 중점 하나라도 넣어 연결을 유지한다
+          push(A.x+(B.x-A.x)*0.5 - Math.sin(a)*off, A.y+(B.y-A.y)*0.5 + Math.cos(a)*off);
+        }
+      }
       if(s1>s0){
         const n=Math.max(1,Math.round((s1-s0)/RS));
         for(let k=0;k<=n;k++){
@@ -1626,7 +1650,14 @@ function planTo(x,y){
                       at:bi, of:wp.length,
                       // 끊긴 지점 앞뒤 좌표(m). 경로가 어디서 튀는지 본다.
                       p0: bi>0?[+(wp[bi-1].x/S).toFixed(0),+(wp[bi-1].y/S).toFixed(0)]:null,
-                      p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null};
+                      p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null,
+                      /* ★경로 '시작점'이 차 근처인지 — 네비가 차를 두고
+                         엉뚱한 데서 시작하면 여기서 바로 보인다(u_5235). */
+                      skipSeg: window.__wpSkipSeg||0,
+                      /* u_5237: 경로 앞부분 진행방향(도) — 차가 가야 할 방향과 맞는지 본다 */
+                      wAng:(wp.length>3)?+(Math.atan2(wp[3].y-wp[0].y, wp[3].x-wp[0].x)*57.2958).toFixed(1):null,
+                      w0:[+(wp[0].x/S).toFixed(0),+(wp[0].y/S).toFixed(0)],
+                      d0:+(Math.hypot(wp[0].x-me.x, wp[0].y-me.y)/S).toFixed(1)};
   }catch(e){}
   /* ★경로 설정과 출발을 분리한다(u_5041 오너 지시).
      예전엔 경로를 만들자마자 auto.on=1 로 바로 달렸다. 이제 경로는 화면에
@@ -1968,6 +1999,14 @@ function trackProgress(){
     auto.s=0; auto.k=1;
   }
   let bs=auto.s, bd=1e18, bk=auto.k||1;
+  /* ★u_5235 오너 지적 "네비 경로부터 제대로 만들어라" — 여기가 그 지점이다.
+     탐색 창이 auto.s(직전 추적 거리) 주변으로만 열려 있고, 게다가 아래에서
+     '진행방향과 75도 넘게 다른 구간'은 건너뛴다. 차가 반대를 보고 있으면
+     근처 경로점이 전부 탈락하고, 창 밖 먼 점 하나만 남는다.
+     실측: 차 (-7262,-4159) 인데 목표점 (3781,7686) — 2,699m 밖.
+     경로 4,929점 중 차 바로 옆 점을 두고 86% 지점을 잡고 있었다.
+     ⇒ 근처에서 후보를 못 찾으면 전 구간을 각도 조건 없이 다시 훑어
+       '차에서 가장 가까운 점'으로 복구한다. 그래야 네비가 차를 따라온다. */
   const lo=auto.s-20*S, hi=auto.s+250*S;
   for(let k=1;k<N;k++){
     if(auto.cum[k]<lo) continue;
@@ -1980,6 +2019,19 @@ function trackProgress(){
     if(L2>1e-6 && Math.abs(ph) > 75*Math.PI/180) continue;
     const dd=(px-me.x)**2+(py-me.y)**2;
     if(dd<bd){ bd=dd; bs=auto.cum[k-1]+Math.sqrt(L2)*u; bk=k; }
+  }
+  /* 근처 후보가 전무하거나(bd 초기값 그대로) 터무니없이 멀면 전역 재탐색 */
+  if(bd>1e17 || Math.sqrt(bd)/S > 80){
+    let gb=1e18, gk=bk, gs=auto.s;
+    for(let k=1;k<N;k++){
+      const a=W[k-1], b=W[k];
+      const vx=b.x-a.x, vy=b.y-a.y, L2=vx*vx+vy*vy;
+      const u=L2>1e-6 ? Math.max(0,Math.min(1,((me.x-a.x)*vx+(me.y-a.y)*vy)/L2)) : 0;
+      const px=a.x+vx*u, py=a.y+vy*u;
+      const dd=(px-me.x)**2+(py-me.y)**2;
+      if(dd<gb){ gb=dd; gk=k; gs=auto.cum[k-1]+Math.sqrt(L2)*u; }
+    }
+    if(gb<bd){ bd=gb; bk=gk; bs=gs; auto.s=gs; window.__wpResync=(window.__wpResync||0)+1; }
   }
   if(bs > auto.s-3*S) auto.s=Math.max(auto.s, Math.min(bs, auto.s+60*S));
   auto.k=bk; auto.i=Math.min(N-1,bk); auto.xt=Math.sqrt(bd)/S;
@@ -2509,7 +2561,33 @@ function step(dt){
        같은 점으로 되돌리면 도착하자마자 같은 구속에 다시 걸려 무한반복이다 —
        실측: wp45 는 통과했는데 wp64 에서 같은 v=0.2 증상이 재현됐다.
        구속을 못 넘는 지점은 건너뛰고 그 다음 합법 지점부터 이어간다. */
-    const j=Math.min(auto.wp.length-1, auto.i+3);
+    /* ★u_5234 오너 지적: "저런 경로가 도로 주행에 없지. 우주선이냐"
+       맞다. 실측: 차 (-7260,-4160) / 목표 경로점 (3781,7686) — 2,699m 떨어져 있었다.
+       원인은 이 +3 이다. 갇힐 때마다 인덱스를 3씩 밀어버리니
+       2,052회 x 3 = 6,156 > 경로점 4,929개 → 인덱스가 끝에 박힌다.
+       그러면 차는 출발점에 있는데 목표점은 수 km 밖이라 영영 복구가 안 된다.
+       ⇒ 건너뛰지 말고 '지금 차 위치에서 가장 가까운 앞쪽 경로점'으로 다시 맞춘다.
+         순간이동이 인덱스를 오염시키던 순환을 끊는다. */
+    let j = auto.i;
+    {
+      let bd = Infinity, bi = auto.i;
+      const lo = Math.max(0, auto.i - 40), hi = Math.min(auto.wp.length-1, auto.i + 40);
+      for(let k=lo; k<=hi; k++){
+        const q = auto.wp[k];
+        const dd = (q.x-me.x)*(q.x-me.x) + (q.y-me.y)*(q.y-me.y);
+        if(dd < bd){ bd = dd; bi = k; }
+      }
+      /* 근처에 경로점이 아예 없으면(이미 오염된 상태) 전 구간에서 다시 찾는다 */
+      if(Math.sqrt(bd)/S > 60){
+        bd = Infinity;
+        for(let k=0; k<auto.wp.length; k++){
+          const q = auto.wp[k];
+          const dd = (q.x-me.x)*(q.x-me.x) + (q.y-me.y)*(q.y-me.y);
+          if(dd < bd){ bd = dd; bi = k; }
+        }
+      }
+      j = Math.min(auto.wp.length-1, bi+1);   // 가장 가까운 점의 '다음'을 목표로
+    }
     const t=auto.wp[j];
     const p=auto.wp[Math.max(0,j-1)];
     me.x=t.x; me.y=t.y; me.ang=Math.atan2(t.y-p.y,t.x-p.x);
@@ -3960,7 +4038,19 @@ setTimeout(()=>{
        조향이 맞아도 도달할 수 없고 차는 좌우로 헌팅만 한다(방향 반전 18회).
        출발 버튼을 누른 그 프레임에 경로 시작점·방향으로 정렬한다. */
     if(auto.wp.length>1){
-      const a=auto.wp[0], b=auto.wp[1];
+      /* ★u_5237 실측: 출발 직후 차 방향 104.1도 vs 경로방향 -1.7도 — 105.8도 어긋남.
+         원인은 인접 두 점(wp[0]→wp[1], 약 5m)으로 방향을 잡는 것이다.
+         5m 는 리샘플 간격이라 코너 호 위에 걸리면 방향이 통째로 틀어지고,
+         한 번 틀어지면 목표차로가 반대편으로 계산돼(off 부호 반전)
+         중앙선 구속 → 갇힘 → 순간이동 → 또 반대 의 순환에 빠진다.
+         ⇒ 20m 정도 앞을 보고 방향을 잡는다. 코너 한 점에 휘둘리지 않는다. */
+      const a=auto.wp[0];
+      let bi=1;
+      for(let k=1;k<auto.wp.length;k++){
+        bi=k;
+        if(Math.hypot(auto.wp[k].x-a.x, auto.wp[k].y-a.y) >= 20*S) break;
+      }
+      const b=auto.wp[bi];
       const ang=Math.atan2(b.y-a.y, b.x-a.x);
       me.x=a.x; me.y=a.y; me.ang=ang;
       me.v=0; me.steer=0; me.offroad=0; me.cool=0.8;
