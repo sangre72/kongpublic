@@ -1584,6 +1584,8 @@ function mdlPoll(dt){
                     fr:(a.free_r===undefined?null:+(+a.free_r).toFixed(2))} : {ok:0}; })(),
       car: {v:+me.v.toFixed(3), x:+(me.x/S).toFixed(2), y:+(me.y/S).toFixed(2),
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
+      bldDbg: window.__bldDbg||null,
+      offDbg: window.__offDbg||null,
       qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();
         return {l:Math.round(r.left),t:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height),
                 cx:Math.round(r.left+r.width/2),cy:Math.round(r.top+r.height/2),
@@ -2078,6 +2080,15 @@ function step(dt){
   // ★건물(벽) 충돌 — 통과 불가. 이전 위치로 되돌리고 정지
   const bi=bldHit(me);
   if(bi>=0){
+    /* ★u_5182 진단: 도로 위인데 건물 충돌이 난다는 지적.
+       실측 onroad=1, xt=1.63m, margin=3.25m — 여유 안인데 건물 28건.
+       충돌 시점의 도로/건물 관계를 남겨서 폴리곤이 도로를 덮는지 본다. */
+    try{
+      const _r=onRoad(me.x,me.y), _b=blds[bi];
+      window.__bldDbg = {onroad:_r&&_r.ok?1:0, d:_r?+(_r.d/S).toFixed(2):null,
+        roadW:_r&&_r.s?+(_r.s.roadW/S).toFixed(2):null,
+        bld:_b&&_b.n?_b.n:'?', n:(window.__bldDbg&&window.__bldDbg.n||0)+1};
+    }catch(e){}
     me.x=px0;me.y=py0;me.ang=pa0;
     const nm=blds[bi].n?blds[bi].n:'건물';
     me.v=0;
@@ -2214,6 +2225,14 @@ function step(dt){
       me.offroad+=dt;
       me.v*=(1-2.6*dt);
       if(me.offroad>.28){me.offroad=0;
+        /* ★u_5182 진단: "도로인데 건물/인도 판정이 난다".
+           사고는 순간이라 사후 조회로는 못 본다. 판정 시점의 값을 남긴다. */
+        try{
+          window.__offDbg = {edge:+(r.edge/S).toFixed(2),
+            d:+(r.d/S).toFixed(2), roadW:r.s?+(r.s.roadW/S).toFixed(2):null,
+            sw:SIDEWALK_M, kind:(r.edge>SIDEWALK_M*S?'도로이탈':'인도침범'),
+            n:((window.__offDbg&&window.__offDbg.n)||0)+1};
+        }catch(e){}
         crash(r.edge>SIDEWALK_M*S?'도로 이탈':'인도 침범',false)}
       /* ★이 가지도 교착 카운터를 올린다(a_5170 실사고).
          여기엔 blockT 증가가 없어서, 차가 도로 '밖'에 떨어지면 위의 경로복귀
