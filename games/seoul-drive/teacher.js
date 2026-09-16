@@ -307,7 +307,19 @@
     const ns = nearestSeg(me.x,me.y);
     const cross = lt.cross || 0;
     const spd = Math.max(3, me.v);
-    const xt = Math.atan2(0.9*cross, spd);               // 속도가 빠를수록 완만하게
+    /* ★u_5181 실측: 추종오차가 2~3.6m 인데 허용 여유는 0.72m((3.25-1.8)/2).
+       3~5배 초과인데도 복귀력(xt항)은 0.23~0.33 으로 상한 0.6 의 절반만 쓴다.
+       원인은 이 식의 분모가 속도라는 것 — Stanley 의 고속 안정화 항이지만,
+       v=10 이면 2m 이탈에도 0.18 밖에 안 나온다(게인 1.6 곱해도 0.29).
+       도로별 실측이 이를 뒷받침한다: 8차로 3% / 4차로 26% / 3차로 62% /
+       1차로 69% — 넓은 도로는 오차를 흡수하고 좁은 도로만 무너진다.
+       즉 '차선 개념'이 없는 게 아니라 정밀도가 여유를 못 맞추는 것이다.
+       ⇒ 차로 여유를 넘긴 만큼은 속도 감쇠를 걷어낸다. 차로 안에서는
+         기존대로 완만하게(잔떨림·고속 진동 방지). */
+    const MARGIN = (LANE_M - 1.8) / 2;                  // 차로 여유 0.72m
+    const excess = Math.max(0, Math.abs(cross) - MARGIN);
+    const spdEff = excess > 0 ? Math.max(3, spd - excess * 2.2) : spd;
+    const xt = Math.atan2(0.9*cross, spdEff);
     /* ★차선변경 중에는 cross-track 을 약하게 건다(u_5001 실측).
        이 항은 '차로 중심으로 되돌리는' 힘이라, 3.2m 를 통째로 옮기는 동작에는
        과하게 작용해 제어기가 스스로와 싸운다(실측: 폭 0.7m 에 그치고 속도가

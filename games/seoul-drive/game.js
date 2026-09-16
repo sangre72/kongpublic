@@ -1192,10 +1192,22 @@ function planTo(x,y){
      경로선이 차로 중심 중 어디에도 안 맞으면 그 선을 따르는 순간 차선을 문다.
      ⇒ laneOffset 과 같은 규약으로 통일한다(주행차로 = 가장 오른쪽 차로 기준
        1차로. 차로 인덱스는 교사가 T.lane 으로 따로 관리한다). */
-  const laneOff=(lanes,oneway)=>{
-    const nl = oneway ? Math.max(1, lanes||1)
-                      : Math.max(1, Math.floor((lanes||2)/2));
-    return 0.5*LW;                              // 1차로 중심(양 규약 모두 동일)
+  /* ★u_5181 오너 지적 "스크린샷만 봐도 안내선과 차선이 겹쳐진게 보인다".
+     화면으로 확인했고 사실이었다. 내가 숫자로 '경로점 1.62m = 차로 정중앙'
+     이라고 검증했던 건 이 함수의 반환값을 계산한 것이지, 화면에 그려진
+     선이 아니었다. 스크린샷 한 장이면 끝날 걸 붙들고 있었다.
+
+     원인: 이 함수가 일방통행·왕복 구분 없이 항상 0.5*LW(1.62m)를 돌려준다.
+     nl 을 계산해놓고 쓰지도 않는다. 그런데 게임의 차로 기하(laneOffset)는
+     일방통행을 -(roadW/2)+(lane+0.5)*LW 로 배치한다 — 원점이 다르다.
+     넓은 일방통행 도로일수록 경로선이 차로 중심에서 멀어지고,
+     결국 점선 위에 얹힌다.
+     ⇒ laneOffset 과 같은 식을 쓴다. roadW 가 필요하므로 간선을 통째로 받는다. */
+  const laneOff=(sg)=>{
+    if(!sg) return 0.5*LW;
+    const rw = sg.roadW || (Math.max(1, sg.l||2) * LW);
+    return sg.o ? (-(rw*0.5) + 0.5*LW)          // 일방: 좌측 가장자리부터 1차로
+                : (0.5*LW);                      // 왕복: 중심선 오른쪽 1차로
   };
   const edgeOf=(i,j)=>{                         // 두 노드를 잇는 간선 찾기
     if(NS!==GNODES) return null;
@@ -1229,7 +1241,7 @@ function planTo(x,y){
     const offs=[];
     for(let i=0;i<NP-1;i++){
       const sg=edgeOf(p[i],p[i+1]);
-      offs.push(sg ? laneOff(sg.l||2, sg.o) : LW*.5);
+      offs.push(sg ? laneOff(sg) : LW*.5);
     }
     /* 2) 내부 노드마다 코너 원을 미리 구한다.
        ★호는 '중심선 코너원(반경 Rc) + 차로 반경(Rl)' 으로 만든다. 중심선에
