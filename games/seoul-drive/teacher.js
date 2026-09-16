@@ -315,8 +315,17 @@
     }
     const d = obstacleAhead();
     let brake = 0, thr = 1;
-    if(d < 9){ brake = 1; thr = 0; }            // 앞 막힘 → 정지
-    else if(d < 18){ brake = 0.4; thr = 0.15; } // 접근 → 감속
+    /* ★u_5192 완주 후 남은 사고 1건(5,030m 추돌)의 원인.
+       제동 거리가 9m/18m 고정이었다. 물리적으로 필요한 거리는 속도에 비례한다 —
+       공주거리(0.7초) + 제동거리(v²/2a, a=4.0m/s²):
+         30km/h 14.4m / 45km/h 28.3m / 50km/h 34.3m
+       45km/h 에서 28.3m 가 필요한데 18m 에서야 감속을 시작하니 늦는다.
+       ⇒ 속도에 비례시킨다. 최소값은 저속에서도 여유를 두도록 유지. */
+    const vNow = Math.max(0, me.v);
+    const dStop = Math.max(9,  vNow*0.7 + (vNow*vNow)/(2*4.0));   // 완전정지 거리
+    const dSlow = Math.max(18, dStop * 1.5);                       // 감속 시작 거리
+    if(d < dStop){ brake = 1; thr = 0; }        // 앞 막힘 → 정지
+    else if(d < dSlow){ brake = 0.4; thr = 0.15; } // 접근 → 감속
     /* ★보행자 제동(a_5057). 사고 연쇄의 시작점이 보행자 충돌이었다.
        25m 안이면 감속, 12m 안이면 정지. 차량 제동보다 항상 우선(Math.max)한다 —
        앞차 기준으로 이미 계산된 brake 를 덮어쓰지 않고 더 강한 쪽을 쓴다. */
