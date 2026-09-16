@@ -110,16 +110,13 @@
       if(w){
         // 경로점이 중심선에서 얼마나 떨어져 있나 → 차로 인덱스로 환산
         const lat = (-(n.px-w.x)*Math.sin(sg.ang) + (n.py-w.y)*Math.cos(sg.ang)) / S * dir;
-        /* ★u_5176/5177: 이 역산이 laneOffset 규약과 어긋나 있었다.
-           laneOffset 은 일방통행을 (lane+0.5)*LW 로, 즉 중심선 오른쪽으로
-           전 차로를 몰아서 배치한다(game.js:300). 그런데 여기서는 중심선을
-           도로 한가운데로 보고 (lat + roadW/2)/LW 로 역산했다.
-           실측: 8차로 도로(폭 26m)에서 경로점 1.62m(=1차로 중심)이
-           차로 5 로 읽혔다. 그래서 교사는 5차로를 목표로 잡는데 차는
-           1차로에 있으니 cross 가 15~22m 로 나오고, 조향은 0.1 인데도
-           '15m 이탈'로 집계됐다 — 차가 아니라 목표가 도망다닌 것이다.
-           ⇒ laneOffset 의 역함수를 그대로 쓴다. */
-        const gi  = sg.o ? (lat/(LW/S) - 0.5)
+        /* ★u_5180: laneOffset 의 원점을 도로 좌측 가장자리로 고쳤으므로
+           (game.js: -(roadW/2) + (lane+0.5)*LW), 역산도 같은 원점을 써야 한다.
+           u_5176 에서 lat/LW-0.5 로 바꿨던 건 laneOffset 이 중심선 기준이던
+           시절의 임시방편이었다 — 지금은 틀렸다. 이게 안 맞으면 want 가
+           매 프레임 다른 값을 내고, laneF 가 7.0→0.7 처럼 도로를 훑는다
+           (실측: 8차로에서 목표가 한쪽 끝에서 반대쪽 끝까지 흘렀다). */
+        const gi  = sg.o ? ((lat + (sg.roadW/2)/S)/(LW/S) - 0.5)
                          : (Math.abs(lat)/(LW/S) - 0.5);
         want = Math.max(0, Math.min(nl-1, Math.round(gi)));
       }
@@ -130,7 +127,7 @@
     if(T.laneF === undefined){
       const lat0 = (-(n.px-me.x)*Math.sin(sg.ang) + (n.py-me.y)*Math.cos(sg.ang)) / S * dir;
       // lat0: 중심선 기준 부호거리(m) → 차로 인덱스로 환산
-      const guess = sg.o ? (lat0/(LW/S) - 0.5)
+      const guess = sg.o ? ((lat0 + (sg.roadW/2)/S)/(LW/S) - 0.5)
                          : (Math.abs(lat0)/(LW/S) - 0.5);   // laneOffset 역함수(위와 동일)
       T.laneF = Math.max(0, Math.min(nl-1, Math.round(guess)));
       /* ★목표(T.lane)는 아직 지정된 적 없을 때만 현재 차로로 맞춘다.
