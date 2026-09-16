@@ -182,7 +182,12 @@
        nd  = 차에서 세그먼트 중심선까지의 순수 거리(투영 오차)
        off = 목표 차로 오프셋(차로 인덱스가 틀리면 여기가 크다)
        둘 중 어느 쪽이 cross 를 만드는지 봐야 고칠 곳이 정해진다. */
-    T.dbg2 = {sw: sg.w || null, nl: nl, laneF: +(+(T.laneF||0)).toFixed(2),
+    /* ★u_5180: nd 는 부호 없는 거리라 좌/우 구분이 안 돼 차로 판정이 불가능하다.
+       cross(목표 차로 기준 부호거리)와 off(목표 차로 오프셋)로 역산하면
+       중심선 기준 부호거리 = cross + off 가 된다. 새 변수를 만들지 않는다 —
+       ns 를 참조했다가 예외가 나 g2 블록이 통째로 사라졌다(같은 실수 2회). */
+    T.dbg2 = {lat: +((cross + off/S)).toFixed(2), sw: sg.w || null, nl: nl,
+              laneF: +(+(T.laneF||0)).toFixed(2),
               off: +(off/S).toFixed(2), nd: +(n.d/S).toFixed(2),
               roadW: +((sg.roadW||0)/S).toFixed(2), o: sg.o?1:0};
 
