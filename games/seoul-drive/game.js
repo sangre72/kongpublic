@@ -1571,7 +1571,8 @@ function mdlPoll(dt){
     }));
   }catch(e){ _tq='?tel='+encodeURIComponent(JSON.stringify({err:String(e&&e.message||e)})); }
   fetch('/ctl'+_tq, {cache:'no-store'}).then(r=>r.json()).then(d=>{
-    if(d.seq !== MDL.seq){ MDL.seq = d.seq; MDL.rx++; }
+    if(d.seq !== MDL.seq){ MDL.seq = d.seq; MDL.rx++;
+      MDL.rxT = performance.now(); }   // ★u_5172: 명령 수신 시각(만료 판정용)
     MDL.steer = +d.steer||0; MDL.thr = +d.thr||0; MDL.brake = +d.brake||0;
     /* on 은 페이지 버튼이 주도권을 갖는다. 파이썬이 on=1 을 보내면 켜지지만,
        사람이 화면에서 끄면 그게 이긴다(안전: 폭주하면 손으로 끌 수 있어야 한다). */
@@ -1607,6 +1608,20 @@ function mdlPoll(dt){
 }
 /* 모델 출력 → 차. teacher.js T.drive 와 같은 물리 규약을 쓴다(일관성). */
 function driveModel(dt){
+  /* ★u_5172 오너 질문 "지금 뭐로 운행중이지 / 왜 이동하는거야" 에서 드러난 결함.
+     추론 프로세스가 죽어도 MDL.thr 이 그대로 남아 차가 계속 달렸다.
+     실측: 조향/스로틀/제동이 6초간 +0.010/0.614/0.149 로 고정인 채
+     981m → 1011m 이동. 아무도 운전하지 않는데 가속이 유지된다.
+     실차라면 치명적이고, 측정도 오염된다(모델 평가인 줄 알았던 주행이
+     사실은 굳은 명령의 관성일 수 있다).
+     ⇒ 0.5초 이상 새 명령이 없으면 입력을 버리고 서서히 멈춘다. */
+  const _age = MDL.rxT ? (performance.now() - MDL.rxT) : 1e9;
+  if(_age > 500){
+    me.v -= 3.0*dt; if(me.v < 0) me.v = 0;     // 타력주행으로 감속
+    me.steer = 0;                               // 조향도 중립으로
+    window.__mdl = {st:0, thr:0, brk:0, rx:MDL.rx, err:MDL.err, stale:1};
+    return;
+  }
   me.steer = Math.max(-0.9, Math.min(0.9, MDL.steer));
   /* ★브레이크는 '절대 임계'가 아니라 '스로틀과의 비교'로 판단한다(u_5101 실사고).
      실측: 모델이 thr=0.96 과 brk=0.84 를 동시에 냈고, brk>0.5 하드 게이트가
@@ -1618,7 +1633,7 @@ function driveModel(dt){
   if(MDL.brake > 0.5 && MDL.brake > MDL.thr + 0.1){ me.v -= 9.0*dt; if(me.v < 0) me.v = 0; }
   else { const cap = (window.__TARGET_KMH || 45)/3.6 * 1.12;
          me.v += (Math.max(0,MDL.thr)*cap - me.v)*Math.min(1, dt*1.8); }
-  window.__mdl = {st:me.steer, thr:MDL.thr, brk:MDL.brake, rx:MDL.rx, err:MDL.err};
+  window.__mdl = {st:me.steer, thr:MDL.thr, brk:MDL.brake, rx:MDL.rx, err:MDL.err, stale:0};
 }
 function setModel(on){
   MDL.on = !!on; MDL.userOff = !on;
