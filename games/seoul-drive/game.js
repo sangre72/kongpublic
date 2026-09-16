@@ -1358,8 +1358,26 @@ function planTo(x,y){
   /* ★목적지 스냅은 전역 그래프(GSEGS) 기준으로 한다(u_5024).
      nearestSeg 는 로컬 segs(적재된 청크)만 본다 → 먼 목적지는 '차 근처 도로'로
      스냅돼 마지막 구간이 아무것도 없는 곳을 직선으로 가로질렀다. */
+  /* ★u_5185/5187 실사고: 여기서 목적지를 '무조건' 붙인다.
+     경로 탐색이 실패해 중간이 비어도 마지막 점만 목적지로 꽂히므로,
+     경로가 64점(약 320m)에서 끊긴 채 8,286m 를 순간이동하는 선이 된다.
+     실측: 점 65개, 중앙간격 5.1m 인데 마지막 한 칸만 8286m —
+     (300,-112) → (-4309,-6998). 차는 그 점을 향해 급선회하고,
+     그게 화면에서 '제자리 피턴'으로 보인다. 닿는 순간 진행률도 1.0 으로 튄다.
+     ⇒ 직전 점과 정상 간격(리샘플 5m 의 20배=100m) 안일 때만 붙인다.
+       멀면 경로 탐색이 실패한 것이므로 붙이지 않고 그대로 둔다 —
+       짧아도 '이어진 경로'가 끊긴 경로보다 낫다. */
   const nn=gNearestOnRoad(x,y) || nearestSeg(x,y);
-  wp.push(nn?{x:nn.px,y:nn.py}:{x,y});
+  {
+    const dst = nn ? {x:nn.px, y:nn.py} : {x, y};
+    const last = wp[wp.length-1];
+    const gap = last ? Math.hypot(dst.x-last.x, dst.y-last.y)/S : 0;
+    if(!last || gap <= 100){
+      wp.push(dst);
+    }else{
+      window.__wpTrunc = {gap:+gap.toFixed(0), n:wp.length};
+    }
+  }
   /* ★차 뒤에 있는 웨이포인트는 버린다(u_5033).
      경로 첫 점이 뒤에 있으면 차가 그 자리에서 유턴한다 — 불법이고, 사람이
      운전하는 방식도 아니다. 진행방향 기준으로 이미 지난 점은 건너뛰고
@@ -1397,6 +1415,28 @@ function planTo(x,y){
       auto.i=Math.min(auto.i, wp.length-1);
     }
   }
+  /* ★u_5185/5187 진단: wpLen=65 에 routeM=8598 → 점 간격 132m.
+     정상은 5m(RS) 라 2439점이어야 한다. 132m 간격이면 코너를 표현할 수 없어
+     좌회전이 제자리 피턴처럼 보인다. 리샘플이 실제로 도는지 계측한다. */
+  try{
+    let gaps=[], mx=0;
+    for(let i=1;i<wp.length;i++){
+      const g=Math.hypot(wp[i].x-wp[i-1].x, wp[i].y-wp[i-1].y)/S;
+      gaps.push(g); if(g>mx) mx=g;
+    }
+    gaps.sort((a,b)=>a-b);
+    let bi=-1, bg=0;
+    for(let i=1;i<wp.length;i++){
+      const g=Math.hypot(wp[i].x-wp[i-1].x, wp[i].y-wp[i-1].y)/S;
+      if(g>bg){ bg=g; bi=i; }
+    }
+    window.__wpDbg = {n:wp.length, med:+(gaps[gaps.length>>1]||0).toFixed(1),
+                      max:+mx.toFixed(1), over50:gaps.filter(g=>g>50).length,
+                      at:bi, of:wp.length,
+                      // 끊긴 지점 앞뒤 좌표(m). 경로가 어디서 튀는지 본다.
+                      p0: bi>0?[+(wp[bi-1].x/S).toFixed(0),+(wp[bi-1].y/S).toFixed(0)]:null,
+                      p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null};
+  }catch(e){}
   /* ★경로 설정과 출발을 분리한다(u_5041 오너 지시).
      예전엔 경로를 만들자마자 auto.on=1 로 바로 달렸다. 이제 경로는 화면에
      표시만 하고, '목적지 가기'를 눌러야 출발한다. */
@@ -1585,6 +1625,8 @@ function mdlPoll(dt){
       car: {v:+me.v.toFixed(3), x:+(me.x/S).toFixed(2), y:+(me.y/S).toFixed(2),
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
       bldDbg: window.__bldDbg||null,
+      wpDbg: window.__wpDbg||null,
+      wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
       qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();
         return {l:Math.round(r.left),t:Math.round(r.top),w:Math.round(r.width),h:Math.round(r.height),
