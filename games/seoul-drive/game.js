@@ -1156,6 +1156,14 @@ function planTo(x,y){
         }
         if(n>=3 && ok/n < 0.8) continue;      // 5개 중 1개꼴로 도로 밖이면 버린다
       }
+      /* ★u_5185 진단: 경로가 312m 에서 끝난다(목적지까지 8.6km).
+         gAstar 가 반환한 노드 수와 실제 끝점이 목적지 근처인지 본다. */
+      try{
+        const e=GNODES[gp[gp.length-1]], t2=GNODES[tgt];
+        window.__planDbg = {nodes:gp.length,
+          endToTgt:+(Math.hypot(e.x-t2.x,e.y-t2.y)/S).toFixed(0),
+          tgtToMe:+(Math.hypot(t2.x-me.x,t2.y-me.y)/S).toFixed(0)};
+      }catch(err){}
       p=gp; NS=GNODES; break;
     }
   }
@@ -1239,10 +1247,17 @@ function planTo(x,y){
     const segLen=i=>{const a=nodeAt(i),b=nodeAt(i+1);return Math.hypot(b.x-a.x,b.y-a.y)};
     // 1) 구간별 차로 오프셋(간선 속성)
     const offs=[];
+    let _edgeMiss=0;
     for(let i=0;i<NP-1;i++){
       const sg=edgeOf(p[i],p[i+1]);
+      if(!sg) _edgeMiss++;
       offs.push(sg ? laneOff(sg) : LW*.5);
     }
+    /* ★u_5185 진단: gAstar 는 291노드로 목적지까지 도달하는데(endToTgt=0)
+       웨이포인트는 64점 312m 뿐이다. 이 리샘플 단계에서 잘린다.
+       NP 와 edgeOf 실패 수를 본다 — edgeOf 가 NS!==GNODES 면 무조건 null 이라
+       간선을 못 찾으면 구간 길이도 못 구한다. */
+    try{ window.__npDbg = {NP:NP, edgeMiss:_edgeMiss, nsIsG:(NS===GNODES)}; }catch(e){}
     /* 2) 내부 노드마다 코너 원을 미리 구한다.
        ★호는 '중심선 코너원(반경 Rc) + 차로 반경(Rl)' 으로 만든다. 중심선에
        호를 그린 뒤 오프셋을 다시 더하는 방식은 좌회전에서 부호가 뒤집혀
@@ -1307,18 +1322,30 @@ function planTo(x,y){
        0.1~0.2m 물러난다. 거리로만 걸러내면(0.05m) 통과해 버리고, 헤딩이
        한 표본에서 180도 뒤집힌다(실측 5도 코너: 표본당 177.5도 → 곡률 폭발).
        직전 진행방향과 내적이 음수면 그 점은 경로가 아니라 잡음이다. */
+    let _dropSame=0, _dropBack=0;
     const push=(x,y)=>{
       const q=wp[wp.length-1];
       if(!q){ wp.push({x,y}); return; }
       const dx=x-q.x, dy=y-q.y;
-      if(Math.hypot(dx,dy) <= 0.05*S) return;          // 같은 자리
-      if(wp.length>=2){
+      if(Math.hypot(dx,dy) <= 0.05*S){ _dropSame++; return; }   // 같은 자리
+      /* ★u_5185 실사고: 이 '역주행 점' 판정이 2,726점을 버리고 66점만 남겼다.
+         291노드·8,195m 경로가 64점·312m 로 잘린 원인이 이것이다.
+         원래 의도는 코너 꼭짓점에서 생기는 0.1~0.2m 짜리 잡음 점 제거인데,
+         내적 부호만 보면 코너 호가 안쪽으로 꺾일 때 정상 점도 전부 역내적이
+         되고, 한 번 걸리면 이후 점이 연쇄로 날아간다.
+         ⇒ '짧고 뒤로 가는' 점만 버린다. 정상 간격(5m 리샘플)이면 코너에서
+           방향이 꺾여도 경로다. */
+      if(wp.length>=2 && Math.hypot(dx,dy) < 1.5*S){
         const r=wp[wp.length-2];
         const px=q.x-r.x, py=q.y-r.y;
-        if(px*dx+py*dy < 0) return;                    // 역주행 점
+        if(px*dx+py*dy < 0){ _dropBack++; return; }              // 짧은 역주행 잡음
       }
       wp.push({x,y});
     };
+    /* ★u_5185: 291노드가 64점이 되는 원인을 센다. '역주행 점' 판정이
+       코너 호와 다리 리샘플 사이에서 과하게 걸리면 경로 뒷부분이 통째로
+       날아간다 — 한 번 걸리기 시작하면 이후 점이 계속 직전 방향과 역내적이 된다. */
+    window.__pushDbg = ()=>({same:_dropSame, back:_dropBack, kept:wp.length});
     // 3) 구간을 리샘플해 오프셋하되, 코너의 접선구간(T) 안쪽 점은 호가 대신한다.
     for(let i=0;i<NP-1;i++){
       const A=nodeAt(i), B=nodeAt(i+1), a=segAng(i), L=segLen(i), off=offs[i];
@@ -1396,6 +1423,7 @@ function planTo(x,y){
     while(st<CAP && ((wp[st].x-me.x)*fx + (wp[st].y-me.y)*fy) < 0) st++;
     auto.i=st;
   }
+  try{ if(window.__pushDbg) window.__npDbg2 = window.__pushDbg(); }catch(e){}
   /* ★같은 자리에 겹친 웨이포인트를 제거한다(u_5039 실사고).
      전역 그래프는 0.1m 정밀도로 노드를 용접하므로, 아주 짧은 간선이 그대로
      남아 경로에 '거의 같은 점'이 연달아 들어온다. 그러면 두 점으로 만드는
@@ -1626,6 +1654,9 @@ function mdlPoll(dt){
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
       bldDbg: window.__bldDbg||null,
       wpDbg: window.__wpDbg||null,
+      planDbg: window.__planDbg||null,
+      npDbg: window.__npDbg||null,
+      npDbg2: window.__npDbg2||null,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
       qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();
