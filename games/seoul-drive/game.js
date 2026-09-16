@@ -1172,9 +1172,20 @@ function planTo(x,y){
      붙고, onRoad() 의 nearestSeg 가 '맞은편 간선'을 집어 차로이탈이 발생했다.
      기록: {n:테헤란로,l:3,o:1,roadW:9.75,xt:3.25,margin:4.88,rOff:-3.25} — xt<margin
      인데도(자기 차도 안인데도) 사고가 났다 = 다른 간선 기준으로 판정된 것. */
+  /* ★u_5177 오너 지적 "경로선 자체가 차선 위에 그려짐". 맞다.
+     이 함수가 차로수와 무관하게 항상 0.5*LW(=1.62m)를 돌려주고 있었고,
+     그러면 경로선은 늘 '1차로 중심' 자리에 놓인다. 그런데 게임의 차로
+     기하(laneOffset)는 일방통행을 (lane+0.5)*LW 로 배치한다 — 규약이 서로
+     다르다. 실측: 4차로 도로(폭 13m)에서 교사 목표는 8.90m 인데 경로선은
+     1.62m 였고, 도로 중심선 6.50m 는 정확히 2/3차로 경계 점선 위다.
+     점선 위치 3.25/6.5/9.75, 차로 중심 1.62/4.88/8.12/11.38 —
+     경로선이 차로 중심 중 어디에도 안 맞으면 그 선을 따르는 순간 차선을 문다.
+     ⇒ laneOffset 과 같은 규약으로 통일한다(주행차로 = 가장 오른쪽 차로 기준
+       1차로. 차로 인덱스는 교사가 T.lane 으로 따로 관리한다). */
   const laneOff=(lanes,oneway)=>{
-    if(oneway) return 0.5*LW;                   // 일방: 중심선 오른쪽 1차로(laneOffset 과 동일)
-    return 0.5*LW;                              // 왕복: 진행방향 1차로
+    const nl = oneway ? Math.max(1, lanes||1)
+                      : Math.max(1, Math.floor((lanes||2)/2));
+    return 0.5*LW;                              // 1차로 중심(양 규약 모두 동일)
   };
   const edgeOf=(i,j)=>{                         // 두 노드를 잇는 간선 찾기
     if(NS!==GNODES) return null;
@@ -2503,15 +2514,11 @@ function draw(){
        ⇒ 그릴 때만 주행 차로 쪽으로 밀어준다. auto.wp 자체는 건드리지
          않는다 — 진행률 계산이 그 배열을 쓰므로 옮기면 진행률이 깨진다. */
     g.beginPath();
-    const _lo = (function(){
-      try{
-        const T=window.__teach, a=T&&T.last;
-        if(!a || a.off===undefined || !a.seg) return null;
-        const sg=a.seg, ang=sg.ang;
-        return {dx:-Math.sin(ang)*a.off, dy:Math.cos(ang)*a.off};
-      }catch(e){ return null; }
-    })();
-    const _ox = _lo?_lo.dx:0, _oy = _lo?_lo.dy:0;
+    /* ★u_5177: 여기서 교사 오프셋을 또 더하면 안 된다(내가 만든 버그).
+       wp 는 이미 laneOff 로 차로 오프셋이 적용된 좌표다. 거기에 교사의
+       off(4차로에서 8.90m)를 더하니 1.62+8.90=10.52m 가 되어 9.75m 점선
+       바로 옆에 선이 그려졌다. wp 를 그대로 그린다. */
+    const _ox = 0, _oy = 0;
     g.moveTo(auto.wp[auto.i].x+_ox, auto.wp[auto.i].y+_oy);
     for(let i=auto.i;i<auto.wp.length;i++)g.lineTo(auto.wp[i].x+_ox,auto.wp[i].y+_oy);
     g.stroke();g.setLineDash([]);g.globalAlpha=1;
