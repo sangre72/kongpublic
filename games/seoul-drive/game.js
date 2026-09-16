@@ -212,8 +212,20 @@ function buildSignals(){
       const sg=segs[si];
       const toward=(sg.a===ni)?sg.ang+Math.PI:sg.ang;   // 교차로를 향하는 진행방향
       const d=sg.roadW*.5+SIDEWALK_M*S+1.6*S;           // 정지선 위치
-      // 접근 차로(우측) 쪽으로 치우쳐 배치
-      const lat=sg.roadW*.28;
+      /* ★u_5223 오너 지적: "신호등은 지상 높은 곳에 있어서 방해물이 아니야.
+         그거는 그냥 지나치면 돼."
+         기존 lat = roadW*0.28 은 **차도 안**이었다(8차로면 중심선에서 7.28m,
+         도로 반폭 13m — 3번째 차로 한가운데). 노면에 그려지니 차가 노면의
+         이물로 보고 피해 갔다.
+         실제 신호등은 갓길 기둥이나 머리 위 암(arm)에 달린다 — 차로를 막지
+         않는다. 도로 가장자리 바깥(인도 쪽)으로 내보낸다. */
+      /* ★2차 수정(u_5225 재지적). 1차에서 앵커만 도로 밖으로 옮겼는데,
+         신호등 함체는 폭 BW=7.1m 짜리 가로형이라 중심에서 ±3.55m 뻗는다.
+         실측: 앵커 5.92m(도로 반폭 4.88m 밖) 인데 함체 안쪽 끝이 2.37m —
+         여전히 차도 한가운데를 가로막고 있었다. 화면으로 보고서야 잡혔다.
+         ⇒ 함체 반폭까지 더해 '함체 전체'가 도로 밖에 있게 한다. */
+      const _BW = (1.55*S)*4 + 0.9*S;                 // 함체 폭(그리기와 동일)
+      const lat=sg.roadW*.5 + _BW*0.5 + SIDEWALK_M*S*.25;
       signals.push({
         x:N.x+Math.cos(toward+Math.PI)*d-Math.sin(toward)*lat,
         y:N.y+Math.sin(toward+Math.PI)*d+Math.cos(toward)*lat,
@@ -683,17 +695,58 @@ const PED_CROSS_LAT_M = 2.2;   // 차도 위 보행자: 내 차로 폭만(u_5056
 function pedBrakeDist(){
   if(typeof peds==='undefined' || !peds || !peds.length) return 1e9;
   const ca=Math.cos(me.ang), sa=Math.sin(me.ang);
+  /* ★u_5205 실측 사고(연대동문길 구간 5,220m, 보행자 1건).
+     탐지 반경이 PED_SLOW_M(25m) 고정이었다. 교사의 제동 기준은 속도비례로
+     고쳤는데(pStop = dStop*1.3), 탐지가 고정이면 '안 보이는 사람'은 못 피한다:
+       14m/s 에서 pStop = (14*0.7 + 14²/8) * 1.3 = 36.8m > 25m
+     즉 정지에 36.8m 가 필요한데 25m 앞까지만 본다. 구조적으로 못 선다.
+     ★제동거리 고정값 금지 — 이 세션에서 세 번째로 같은 결함이다
+       (앞차 → 보행자 제동 → 보행자 '탐지'). 보는 거리도 속도에 비례해야 한다. */
+  const _v = Math.max(0, me.v);
+  const _need = _v*0.7 + (_v*_v)/(2*4.0);        // 정지에 필요한 거리(m)
+  const SCAN = Math.max(PED_SLOW_M, _need*1.3*1.6 + 5);   // pSlow 보다 넉넉히
   let best=1e9;
   for(const p of peds){
     const dx=p.x-me.x, dy=p.y-me.y;
     const f=(dx*ca+dy*sa)/S;                 // 전방거리(m). 0 이하면 이미 지나쳤다
-    if(f<=0 || f>=PED_SLOW_M) continue;      // 뒤에서 걷는 사람 때문에 서면 안 된다
+    if(f<=0 || f>=SCAN) continue;            // 뒤에서 걷는 사람 때문에 서면 안 된다
     const l=Math.abs(-dx*sa+dy*ca)/S;        // 횡방향 거리(m)
     if(l>PED_CROSS_LAT_M) continue;
     if(!onRoad(p.x,p.y).ok) continue;        // 인도 위 사람은 무시(차도 점유만 본다)
     if(f<best) best=f;
   }
   return best;
+}
+
+/* ★u_5206 서행(방어운전). 오너 질문: "보행자가 갑자기 도로 쪽으로 나왔을 때
+   서행하는 걸 구현해야 되는데 그것까지 가능할래".
+   가능하다. 제동으로 못 막는 이유는 '튀어나온 뒤'엔 이미 늦기 때문이므로,
+   튀어나오기 '전'에 속도를 낮춰 정지거리 자체를 줄인다.
+     보도 위 보행자까지 전방거리 d 안에 설 수 있는 최대속도:
+       d = 0.7v + v²/(2a),  a=4  →  v = (-5.6 + √(31.36 + 32d)) / 2
+   실측 효과: 29km/h 로 달리다 8m 돌발 → 정지 13.6m 필요(불가)
+              서행 20km/h 면 정지 7.8m(회피 가능)
+   pedBrakeDist() 와 달리 '차도 위'가 아니라 '도로 가장자리에 붙은' 사람을 본다. */
+function pedCautionV(){
+  if(typeof peds==='undefined' || !peds || !peds.length) return 1e9;
+  const ca=Math.cos(me.ang), sa=Math.sin(me.ang);
+  const _v=Math.max(0,me.v);
+  const SCAN=Math.max(30, (_v*0.7+(_v*_v)/8)*1.5+10);
+  let near=1e9;
+  for(const p of peds){
+    const dx=p.x-me.x, dy=p.y-me.y;
+    const f=(dx*ca+dy*sa)/S;
+    if(f<=0 || f>=SCAN) continue;
+    const l=Math.abs(-dx*sa+dy*ca)/S;
+    /* 차도 위 사람은 pedBrakeDist 가 이미 제동으로 처리한다.
+       여기서 볼 대상은 '아직 보도에 있지만 도로에 붙어 있는' 사람이다.
+       무단횡단 발동 조건이 lat<12m 이므로 그 범위를 본다. */
+    if(l>9) continue;
+    if(onRoad(p.x,p.y).ok) continue;          // 이미 차도 = 제동 담당
+    if(f<near) near=f;
+  }
+  if(near>=1e9) return 1e9;
+  return (-5.6 + Math.sqrt(31.36 + 32*near)) / 2;   // 허용 최대속도(m/s)
 }
 
 /* ---------- A* ---------- */
@@ -1289,6 +1342,24 @@ function planTo(x,y){
       if(!sg) _edgeMiss++;
       offs.push(sg ? laneOff(sg) : LW*.5);
     }
+    /* ★u_5223: 유턴 구간은 1차로(중앙선 쪽)에서 진입·진출해야 한다.
+       laneOff 는 주행차로(가장 오른쪽) 기준이라 유턴을 바깥차로에서 하게 만든다 —
+       실제로 "맨 바깥쪽 차선에서 90도 90도" 가 이렇게 나왔다.
+       유턴 직전/직후 구간의 오프셋만 1차로로 바꾼다(중앙선에서 반 차로 안쪽). */
+    for(let i=1;i<NP-1;i++){
+      const a1=segAng(i-1), a2=segAng(i);
+      const dd=((a2-a1+Math.PI*3)%(Math.PI*2))-Math.PI;
+      if(Math.abs(dd) <= Math.PI*0.82) continue;        // 유턴 아님
+      const sgA=edgeOf(p[i-1],p[i]), sgB=edgeOf(p[i],p[i+1]);
+      const in1=(sg)=>{
+        if(!sg) return LW*0.5;
+        const rw = sg.roadW || (Math.max(1, sg.l||2) * LW);
+        return sg.o ? (rw*0.5 - 0.5*LW)                 // 일방통행은 차로 개념이 같다
+                    : (0.5*LW);                          // 왕복: 중앙선에서 반 차로 = 1차로
+      };
+      if(i-1 < offs.length) offs[i-1] = in1(sgA);
+      if(i   < offs.length) offs[i]   = in1(sgB);
+    }
     /* ★u_5185 진단: gAstar 는 291노드로 목적지까지 도달하는데(endToTgt=0)
        웨이포인트는 64점 312m 뿐이다. 이 리샘플 단계에서 잘린다.
        NP 와 edgeOf 실패 수를 본다 — edgeOf 가 NS!==GNODES 면 무조건 null 이라
@@ -1302,6 +1373,9 @@ function planTo(x,y){
        파고들었다(실측 minLat: 좌90 -0.13m, 좌120 -1.37m, 좌150 -2.82m).
        동심원 방식은 두 방식 모두를 고친다(검증: verify_corner_geometry.js). */
     const RMIN=8*S;                                   // 중심선 기준 코너 반경 8m
+    /* ★유턴 최소회전반경(u_5223). 실제 승용차 최소회전반경은 외곽 5.0~5.5m,
+       차로중심 기준 약 5.5m. 이보다 작게 잡으면 물리적으로 못 도는 경로가 된다. */
+    const UTURN_R=5.5*S;
     const corner=[];
     for(let i=0;i<NP;i++) corner.push(null);
     for(let i=1;i<NP-1;i++){
@@ -1320,6 +1394,18 @@ function planTo(x,y){
          좌회전에서 주행선이 안쪽으로 파고들었다(실측 minLat: 좌90 -0.13m,
          좌120 -1.37m, 좌150 -2.82m — 각도가 급할수록 악화).
          중심 O 는 이등분선 위 |OV| = Rc/sin(내각/2) 지점(내각 = π-|Δ|). */
+      /* ★u_5223 오너 지적: "유턴할 때 1차로에서 최대한 회전각을 줘서 유턴해야
+         되는데, 지금은 맨 바깥쪽 차선에서 90도 90도 꺾어서 유턴하고 있다.
+         그건 명백한 도로교통법 위반이다."
+         맞다. 원인이 두 개였다:
+         (1) 진입 차로 — offs[] 는 '주행차로=가장 오른쪽' 기준이다(u_5191 수정).
+             평상시엔 맞지만 유턴은 중앙선에 붙은 1차로에서 해야 한다.
+         (2) 반경 붕괴 — 유턴은 d≈±π 라 t=|tan(d/2)|→∞ 이고,
+             Rc=Tcap/t 가 0 으로 주저앉는다. 그래서 호가 사라지고 꺾임 2개가
+             남았다(실측: 178도에서 t=57.3).
+         ⇒ 유턴은 별도 처리한다. 승용차 최소회전반경(차로중심 기준 5.5m)을
+           그대로 쓰고, 진입/진출 차로를 1차로로 옮긴다. */
+      const isUturn = Math.abs(d) > Math.PI*0.82;      // 148도 이상 = 유턴
       const interior=Math.PI-Math.abs(d);
       const sh=Math.sin(interior/2); const shs=Math.abs(sh)<0.05?0.05:sh;
       /* ★접선길이 상한 = min(다리 45%, 교차로 면제반경).
@@ -1331,7 +1417,10 @@ function planTo(x,y){
       const JR=(LW*2)*1.5;                            // nearJunction 면제 반경
       const Tcap=Math.min(segLen(i-1)*0.45, segLen(i)*0.45, JR*0.9);
       let Rc=Math.max(RMIN, LW/(t<0.05?0.05:t));
-      if(Rc*t>Tcap) Rc=Tcap/(t<0.05?0.05:t);
+      if(!isUturn && Rc*t>Tcap) Rc=Tcap/(t<0.05?0.05:t);
+      /* 유턴은 Tcap 으로 깎지 않는다 — 깎으면 반경이 0 이 되어 직각 2번이 된다.
+         승용차 최소회전반경 5.5m(차로중심)을 하한으로 둔다. */
+      if(isUturn) Rc = Math.max(UTURN_R, LW*0.5);
       const sgnD=d>=0?1:-1;
       /* ★우회전은 차로 반경이 Rc-off 라 Rc 가 작아지면 0 으로 붕괴한다.
          바닥(LW*0.3)에 걸리면 호 끝점이 다리와 어긋나 이음매에서 튄다
@@ -1703,6 +1792,15 @@ function mdlPoll(dt){
                     //   기준 세그먼트가 프레임마다 바뀌는지 본다 — 교차로에서 목표가
                     //   튀면 cross 는 '다른 도로 기준' 거리가 되어 의미가 없어진다.
                     g2:(window.__teach&&window.__teach.dbg2)||null,
+                    // ★u_5205/u_5206: 보행자 대응 채점용.
+                    //   ped = 차도 위 보행자까지 전방거리(제동 대상),
+                    //   cap = 보도 보행자 때문에 걸린 서행 상한(m/s).
+                    ped:(g&&g.ped!==undefined)?g.ped:null,
+                    cap:(g&&g.cap!==undefined)?g.cap:null,
+                    gap:(g&&g.gap!==undefined)?g.gap:null,
+                    sig:(g&&g.sig!==undefined)?g.sig:null,
+                    otWhy:(g&&g.otWhy!==undefined)?g.otWhy:null,
+                    sigStop:(g&&g.sigStop!==undefined)?g.sigStop:null,
                     // ★u_5171: 사고의 77%가 도로 경계 이탈(건물27%·인도25%·도로12%·차로13%).
                     //   교사는 lane_off(차로 중심에서 벗어난 양)를 이미 계산하는데
                     //   저장이 안 돼 학습에 한 번도 쓰인 적이 없다. 보조목표로 쓴다.
@@ -1720,8 +1818,18 @@ function mdlPoll(dt){
       wpSeg: window.__wpSeg||null,
       ppXt: (window.__ppXt===undefined?null:window.__ppXt),
       planDbg: window.__planDbg||null,
+      pedN: (function(){ try{
+        if(typeof peds==='undefined'||!peds) return null;
+        let near=0, onrd=0;
+        for(const p of peds){
+          const d=Math.hypot(p.x-me.x,p.y-me.y)/S;
+          if(d<80){ near++; if(onRoad(p.x,p.y).ok) onrd++; }
+        }
+        return {tot:peds.length, near:near, onroad:onrd};
+      }catch(e){ return 'ERR'; } })(),
       npDbg: window.__npDbg||null,
       npDbg2: window.__npDbg2||null,
+      avoidN: window.__avoidN||0,        // u_5223 회피 조향 발동 횟수
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
       qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();
@@ -2109,6 +2217,10 @@ function crash(label,heavy){
      'cr=8' 만 봐서는 원인을 모른다 — 추돌인지 보행자인지 차로이탈인지에 따라
      고칠 곳이 완전히 다르다. */
   { const k=label.indexOf('추돌')>=0?'추돌'
+          /* ★u_5206: 불가항력은 '보행자'보다 먼저 걸러야 한다.
+             '보행자 돌발(불가항력)' 도 '보행자'를 포함하므로, 순서가 뒤면
+             전부 '보행자'로 뭉쳐 분류가 통째로 사라진다(실측: 그렇게 됐다). */
+          : label.indexOf('불가항력')>=0?'보행자 돌발(불가항력)'
           : label.indexOf('보행자')>=0?'보행자'
           : label.indexOf('중앙선')>=0?'중앙선'      // ★F2 분리 측정(u_5061)
           : label.indexOf('차로')>=0?'차로이탈'
@@ -2471,7 +2583,18 @@ function step(dt){
       else if(!waiting){ me.v=Math.min(me.v, Math.max(0,(c.v||0))); }  // 밀리지만 사고 아님
     }}
   for(const p of peds){
-    if(obb(me,{x:p.x,y:p.y,ang:me.ang,w:1.4*S,h:1.4*S}))crash('보행자 사고',true)}
+    if(obb(me,{x:p.x,y:p.y,ang:me.ang,w:1.4*S,h:1.4*S})){
+      /* ★u_5206: 회피 가능했는지 분류한다.
+         무단횡단(jay)으로 튀어나온 순간의 거리(jayF)가 그때 필요한
+         정지거리(jayNeed)보다 짧았다면, 어떤 제동으로도 못 섰다 — 불가항력.
+         오너 판단: "갑자기 튀어나오는 건 도리가 없다. 기록만 남기고
+         영향 없는 걸로 하자." 그래서 이름을 나눠 집계만 분리한다.
+         (판정 실패 시엔 보수적으로 '보행자 사고'=회피가능 쪽으로 둔다) */
+      let _un = false;
+      try{ _un = !!(p.jay && p.jayF !== undefined && p.jayNeed !== undefined
+                    && p.jayF < p.jayNeed); }catch(e){}
+      crash(_un ? '보행자 돌발(불가항력)' : '보행자 사고', true);
+    }}
 }
 function stepCar(c,dt){
   const s=segs[c.si];
@@ -2567,6 +2690,13 @@ function stepPed(p,dt){
     const f=(dx*fx+dy*fy)/S;                        // 내 앞 거리(m)
     const lat=Math.abs(-dx*Math.sin(me.ang)+dy*Math.cos(me.ang))/S;
     if(f>8 && f<34 && lat<12){                      // 반응은 가능하되 급한 거리
+      /* ★u_5206 오너 판단: "갑자기 튀어나오는 건 도리가 없잖아".
+         발동 순간의 '내 속도로 필요한 정지거리'와 '그 사람까지의 거리'를
+         함께 남긴다. 사고가 났을 때 회피 가능했는지를 사후에 판정하려면
+         이 두 값이 사고 시점이 아니라 '튀어나온 시점'에 있어야 한다. */
+      const _v=Math.max(0,me.v);
+      p.jayF=f;                                   // 튀어나온 순간의 전방거리(m)
+      p.jayNeed=_v*0.7+(_v*_v)/(2*4.0);           // 그때 필요한 정지거리(m)
       p.cross=1; p.cx2=0; p.cdir=1; p.jay=1;
       p.cmax=(s.roadW*.5+SIDEWALK_M*S*.5);
       p.v*=2.0;                                     // 뛰어나온다

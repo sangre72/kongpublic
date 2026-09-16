@@ -63,15 +63,22 @@ def judge_lane(g):
         return None
     half = rw / 2
     offroad = nd > half
-    # 차로 중앙에서 얼마나 벗어났나 — 차로 경계(LW 배수)까지의 거리
-    edge = min(nd % LW, LW - (nd % LW))
+    # 차로 경계는 '도로 가장자리'부터 LW 배수 지점에 있다. 중심선 기준이 아니다.
+    # ★2026-09-16 실측 버그: nd % LW 로 재면 홀수차로 도로(3·5차로)에서
+    #   중심선이 차로 한가운데 놓이므로, 차로 정중앙에 있는 차가 edge=0.00 으로
+    #   '차선 뭄' 최대 위반으로 찍힌다. 서울 간선도로 대부분이 3·5차로라
+    #   이 한 줄이 straddle 79.8% 라는 허수를 만들었다.
+    x = half - nd                       # 가장자리 기준 위치(좌우 대칭이라 부호 무관)
+    edge = min(x % LW, LW - (x % LW))
     straddle = edge < CARW / 2
     wrong = False
     if not o:
-        # 왕복도로: 진행방향 반대쪽(중심선 너머)이면 역주행
-        lat, off = g.get('lat'), g.get('off')
-        if lat is not None and off is not None:
-            wrong = (lat - off) < -0.6      # cross 가 음수면 중앙선 너머
+        # 왕복도로: 진행방향 반대쪽(중심선 너머)이면 역주행.
+        # ★nlat = 도로 중심선까지의 '부호' 거리(dir 이 이미 곱해져 있어 양수=정상 차선).
+        #   lat-off 로 재면 목표 차로 기준이라 차로변경 중에 역주행으로 오판한다.
+        nlat = g.get('nlat')
+        if nlat is not None:
+            wrong = nlat < -0.9             # 차폭 절반만큼 중앙선을 넘었을 때
     return {'straddle': straddle, 'offroad': offroad, 'wrong': wrong}
 
 

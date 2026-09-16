@@ -47,7 +47,24 @@
       const dx=o.x-px, dy=o.y-py;
       const f=(dx*ca+dy*sa)/S, l=(-dx*sa+dy*ca)/S;
       if(Math.abs(l) > LW/S*0.70) continue;
-      if(f < 18 && f > -45) return false;
+      /* ★u_5223 실측 결함(추돌 1건의 원인). 앞쪽 확인이 18m 고정이었다.
+         14m/s 로 달리면 정지에 34.3m 가 필요한데, 20m 앞에 차가 있는 차로를
+         '비었다'고 판단해 들어갔다 → 그대로 추돌.
+         ★고정 거리상수 여섯 번째다(앞차제동·보행자제동·보행자탐지·앞차탐지·
+           신호등·차로확인). 차로 진입 판단도 정지거리 이상을 봐야 한다.
+         뒤쪽 45m 는 '추월해 오는 차 앞에 끼어들지 않기'용이라 속도와 무관하게 둔다. */
+      /* ★u_5223 2차 실측 — 1차 수정(정지거리 1.2배)은 오히려 악화시켰다.
+         같은 구간 사고 0건 → 6건(추돌 5), 회피 25회 → 6회.
+         이유: 50km/h 에서 41m 를 요구하니 '빈 차로'가 거의 없어졌고,
+         회피가 막히자 설 수 없는 상황에서 그대로 들이받았다.
+         ★내 추론이 틀렸다 — 차로를 옮길 때는 그 차 '뒤에 서는' 게 아니라
+           '옆으로 나란히 가는' 것이다. 정지거리 전체가 필요하지 않다.
+           필요한 건 (a)끼어들 물리적 공간 (b)상대속도 차이를 흡수할 여유.
+         상대속도 기반으로 잡는다: 내가 더 빠른 만큼만 추가로 본다. */
+      const _v = Math.max(0, me.v);
+      const _rel = Math.max(0, _v - (o.v||0));        // 접근 속도차
+      const _need = Math.max(18, 12 + _rel*1.8);      // 차간 12m + 속도차 1.8초분
+      if(f < _need && f > -45) return false;
     }
     return onRoad(px,py).ok;
   }
@@ -88,7 +105,54 @@
         const g = leadGap();
         if((T.ot.t > 1.2 && g > 30) || T.ot.t > 9.0){ T.ot.on = 0; }   // 복귀
         else want = T.ot.lane;
-      }else if(lead && lead.gap < 22 && lead.v < me.v*0.85){
+      }else if((function(){
+        /* ★u_5223 회피 조향(긴급). 기존 분기는 '느린 앞차 추월'만 본다
+           (lead.v < me.v*0.85). 그래서 **멈춘 장애물·정지거리 안쪽 보행자**
+           에는 한 번도 발동하지 않았다 — 실측 avoid 카운터가 전 구간 0.
+           자율주행의 돌발 대처는 '정지 or 회피' 두 가지인데 지금은 정지뿐이라,
+           정지로 못 막는 상황에서 대안이 없었다.
+           ⇒ 제동만으로 못 서는 거리면(정지거리 > 남은 거리) 옆 차로가 비었는지
+             보고 비켜간다. 사람이 하는 판단 그대로다. */
+        const vN = Math.max(0, me.v);
+        const need = vN*0.7 + (vN*vN)/(2*4.0);        // 지금 속도로 서려면 필요한 거리
+        const g = leadGap();
+        const pd = (function(){ try{ return pedAhead(); }catch(e){ return 1e9; } })();
+        const near = Math.min(g===undefined?1e9:g, pd);
+        if(!(near < need && near < 1e8)) return false; // 제동으로 설 수 있으면 회피 불필요
+        const cands = [want - 1, want + 1];
+        for(const c of cands){
+          if(c < 0 || c > nl-1 || c === want) continue;
+          if(!laneFree(c, dir, sg, nl)) continue;
+          T.ot = {on:1, from:want, lane:c, t:0, side:(c<want?'L':'R'), emg:1};
+          window.__avoidN = (window.__avoidN||0) + 1;  // 회피 횟수 계측
+          want = c;
+          return true;
+        }
+        return false;
+      })()){
+        /* 회피 발동됨 — want 는 위에서 이미 설정됐다 */
+      }else if(lead && (function(){
+        /* ★u_5226 오너 지시: "상대 속도가 너무 느리고 주변에 자동차가 없다면
+           추월하면 된다니까?"
+           기존 조건은 lead.gap < 22 고정이었다. 14m/s 에서 22m 는 1.6초 거리다 —
+           그 정도로 붙은 뒤에야 추월을 생각하니, 30m 앞의 느린 차는 영원히
+           추월 대상이 아니고 그냥 따라가다 속도만 맞춘다(실측: 추월 1~6회).
+           사람은 '몇 초 뒤에 따라잡느냐'로 판단한다. 시간 기준으로 바꾼다.
+           ★고정 거리상수 일곱 번째다. */
+        /* ★u_5226 2차 실측 — 'rel<=0.5' 로 막히는 게 196표본 중 187회였다.
+           원인: 교사가 앞차에 먼저 감속해 속도를 맞춰버린다(실측: gap 21.7m 에서
+           br=0.4 로 제동). 속도가 같아진 뒤에 추월을 판단하니 속도차가 없어
+           영원히 추월 대상이 아니다. 따라가다 같이 느려지는 게 지금 상태다.
+           ⇒ 판단 기준을 '지금 속도차'가 아니라 '앞차가 제한속도보다 느린가'로
+             바꾼다. 내가 감속당했든 아니든 앞차가 느리면 추월 대상이다. */
+        const vLimit = (window.__TARGET_KMH || 45) / 3.6;   // 목표속도(m/s) — 교사 주행 기준과 동일
+        const slow = (lead.v||0) < vLimit*0.80;       // 앞차가 목표속도의 80% 미만
+        if(!slow){ T._otWhy='rel'; return false; }
+        const rel = Math.max(me.v - (lead.v||0), vLimit - (lead.v||0));
+        const ttc = lead.gap / Math.max(0.5, rel);    // 따라잡기까지 시간(s)
+        if(!(ttc < 8.0)){ T._otWhy='ttc'+ttc.toFixed(0); return false; }
+        T._otWhy='GO'; return true;
+      })()){
         /* ★왼쪽이 막혔으면 오른쪽으로 비켜간다(u_5151 오너 지시).
            "왼쪽 차선이 비었을경우 추월해야하고, 왼쪽이 막혀있고 오른쪽이 비었다면
             오른쪽차선으로 변경해서 직진해야지"
@@ -152,16 +216,25 @@
            30km/h 25m · 45km/h 38m · 60km/h 50m
          5차로에서 우회전이면 4칸을 옮겨야 하므로 60km/h 기준 200m 가 필요하다.
          ⇒ 준비 거리 = 옮길 차로 수 x 속도 x 3초, 최소 60m 최대 250m. */
+      let turnRule = false;
       if(aheadTurn && aheadDist !== null && aheadTurn !== 'S'){
         const tgtLane = (aheadTurn === 'L') ? 0 : (nl - 1);
         const hops = Math.abs(tgtLane - (T.laneF !== undefined ? T.laneF : 0));
         const vNow = Math.max(me.v, 8.3);              // 최소 30km/h 기준
         const need = Math.max(60, Math.min(250, hops * vNow * 3.0));
         T._need = +need.toFixed(0);
-        if(aheadDist < need) ruleWant = tgtLane;
+        if(aheadDist < need){ ruleWant = tgtLane; turnRule = true; }
       }
-      if(aheadNl !== null && aheadNl < nl){
-        // 차로가 줄어든다 → 사라질 차로에 있으면 미리 남는 쪽으로
+      /* ★u_5207 실측 — 회전차로 준수 65%의 진짜 원인이 여기였다.
+         8차로 도로에서 우회전(목표 7차로)인데 fin=1 로 찍혔다:
+           aNl=2 < nl=8 이라 이 줄이 돌면서 min(7, 2-1) = 1 로 덮어썼다.
+         이 규칙의 의도는 '직진하는데 앞에서 차로가 줄어든다'는 상황이다.
+         회전은 다르다 — 회전 목표 차로는 '지금 도로에서 어디로 붙어야
+         그 길로 들어갈 수 있나'이고, 들어갈 길의 차로 수와는 무관하다.
+         우회전인데 왼쪽 차로로 붙으면 애초에 우회전을 못 한다.
+         ⇒ 회전 준비 중(ruleWant 가 회전으로 정해진 상태)이면 건드리지 않는다. */
+      if(aheadNl !== null && aheadNl < nl && !turnRule){
+        // 차로가 줄어든다 → 사라질 차로에 있으면 미리 남는 쪽으로(직진 한정)
         ruleWant = Math.min(ruleWant === null ? (T.laneF|0) : ruleWant, aheadNl - 1);
       }
     }catch(e){ ruleWant = null; T._rErr = String(e).slice(0,60); }
@@ -187,10 +260,17 @@
            목표가 4칸 튀면 차도 4칸을 가로지른다.
            ⇒ 목표 자체를 현재 차로에서 한 칸 이내로 끊는다. 한 칸을 다 옮기면
              다음 칸이 열리므로 결과적으로 순차 변경이 된다. */
+        /* ★u_5207 실측: 회전 차로 준수 69.8%. 원인은 이 clamp 였다.
+           want 를 cur±1 로 잘라놓고 laneF 를 '잘린 want' 로만 끌어당기니,
+           8차로에서 우회전(목표 7차로)인데 want 가 영원히 1 에서 멈춘다
+           (실측: laneF=1.00 tgt=7 want=1 이 회전 직전까지 유지).
+           한 칸씩 가는 것 자체는 옳다. 틀린 건 '최종 목표를 잊는 것'이다.
+           ⇒ 최종 목표(finalWant)를 따로 들고 있고, 중간 목표는 거기로 가는
+             한 칸이다. 한 칸을 다 옮기면 다음 칸이 자동으로 열린다. */
         const cur = (T.laneF !== undefined) ? T.laneF : want;
+        T._final = want;
         if(Math.abs(want - cur) > 1){
-          want = cur + Math.sign(want - cur);
-          want = Math.max(0, Math.min(nl-1, Math.round(want)));
+          want = Math.max(0, Math.min(nl-1, Math.round(cur + Math.sign(want - cur))));
         }
         T._want = want;   // dbg2 로 넘기기 위한 전달용(스코프가 다르다)
       }
@@ -212,7 +292,22 @@
        예전엔 여기서 laneF 를 곧바로 nl-1 로 잘랐다. 4차로에서 2차로 구간으로
        들어가는 순간 laneF 3 → 1 로 점프하고, 목표선이 6m 옆으로 튀어
        조향이 포화됐다. clamp 도 한 프레임에 step 만큼만 적용한다. */
-    const step = 0.02;
+    /* ★u_5207: 한 차로에 2.5초(step 0.02@30fps)는 평상시엔 맞지만,
+       회전이 임박했는데 여러 칸을 옮겨야 하면 시간이 모자란다 —
+       8차로 우회전은 6칸 x 2.5초 = 15초(14m/s 에서 210m)가 필요하다.
+       남은 거리 안에 끝내야 하는 칸 수로 스텝을 키운다(최대 3배).
+       급차로변경이 되지 않도록 상한을 둔다. */
+    let step = 0.02;
+    try{
+      if(T._final !== undefined && T._final !== null && aheadDist !== null && me.v > 1){
+        const hops = Math.abs(T._final - (T.laneF||0));
+        if(hops > 0.05){
+          const tLeft = aheadDist / Math.max(1, me.v);      // 회전까지 남은 시간(s)
+          const tNeed = hops * 2.5;                          // 현재 속도로 필요한 시간
+          if(tNeed > tLeft * 0.8) step = Math.min(0.06, 0.02 * (tNeed / Math.max(0.5, tLeft * 0.8)));
+        }
+      }
+    }catch(e){}
     const hi = nl - 1;
     /* ★u_5171 실측으로 이 완만한 clamp 가 원인임이 드러났다.
        분해 결과: 차는 도로 중심선에서 0.72m 떨어져 정상 주행 중인데,
@@ -265,6 +360,7 @@
                 return +(((-(ns.px-me.x)*Math.sin(sg.ang) + (ns.py-me.y)*Math.cos(sg.ang))/S*dir)).toFixed(2);
               }catch(e){ return null; } })(),
               err: (T._aErr||T._rErr)||null, need: (T._need===undefined?null:T._need), aNl: aheadNl, aTurn: aheadTurn, aD: aheadDist, want: (T._want===undefined?null:T._want),
+              fin: (T._final===undefined?null:T._final),
               lat: +((cross + off/S)).toFixed(2), sw: sg.w || null, nl: nl,
               laneF: +(+(T.laneF||0)).toFixed(2),
               off: +(off/S).toFixed(2), nd: +(n.d/S).toFixed(2),
@@ -274,8 +370,20 @@
   }
 
   function obstacleAhead(){
-    // 전방 장애물까지 거리(m). 게임 내부 정보 사용(교사 전용)
-    return gap(me, 40*S) / S;
+    /* 전방 장애물까지 거리(m). 게임 내부 정보 사용(교사 전용).
+       ★u_5206 실측: 탐지가 40m 고정이었다. 그런데 감속 시작 기준은
+       dSlow = dStop*1.5 로 속도비례다 —
+         14m/s(50km/h): dStop 34.3m, dSlow 51.4m > 40m
+       즉 순항속도에서 '감속을 시작해야 할 거리'가 시야 밖이다. 앞차는 40m
+       안에 들어와서야 보이고, 그때는 이미 정지거리에 근접해 급제동이 된다.
+       실측 증상: obst 가 상시 0 근처(바짝 붙음) + 급제동 반복, 9,396m 추돌.
+       ★제동거리 고정값 금지 — 이 세션 네 번째 같은 결함이다
+         (앞차제동 → 보행자제동 → 보행자탐지 → 이번엔 앞차'탐지').
+       보는 거리도 속도에 비례해야 한다. dSlow 보다 넉넉히 본다. */
+    const _v = Math.max(0, me.v);
+    const _stop = Math.max(9, _v*0.7 + (_v*_v)/(2*4.0));
+    const _scan = Math.max(40, _stop*1.5*1.4 + 10);
+    return gap(me, _scan*S) / S;
   }
 
   /* ★보행자 전방거리. 왜 gap() 으로 안 되나:
@@ -348,6 +456,24 @@
       brake = Math.max(brake, 0.5);
       thr = Math.min(thr, 0.12);
     }
+    /* ★u_5206 서행(방어운전). 보도에 사람이 붙어 있으면 '튀어나오기 전에' 속도를
+       낮춰 둔다. 제동은 튀어나온 뒤라 늦지만, 서행은 정지거리 자체를 줄인다.
+       실측: 29km/h→8m 돌발은 회피 불가, 20km/h 로 서행 중이면 회피 가능.
+       ★급제동이 아니라 '속도 상한'이다 — 이미 느리면 아무 일도 하지 않는다. */
+    try{
+      const vCap = pedCautionV();
+      /* ★실측(u_5206): (vNow-vCap)/vNow 로 제동을 주면 초과분이 작을 때 제동이
+         거의 0 이라 상한을 못 지킨다 — 33회 발동 중 12회(36%) 초과.
+         상한 제어는 '얼마나 넘었나'가 아니라 '넘었으면 확실히 줄인다'여야 한다.
+         초과 1m/s 당 0.35 를 주고 최소 0.25 는 보장한다. */
+      if(vCap < vNow){
+        thr = 0;
+        const over = vNow - vCap;
+        brake = Math.max(brake, Math.min(0.85, 0.25 + over*0.35));
+      }else if(vCap < vNow*1.15){
+        thr = Math.min(thr, 0.15);       // 상한 근처면 가속만 억제
+      }
+    }catch(e){}
     /* ★적신호 정지(u_4978). 신호등은 91개가 깔려 있었지만 교사가 아예 보지
        않아서, 데이터에 '빨간불에 선다'가 한 프레임도 없었다.
        내 진행방향과 같은 방향을 바라보는 신호만 대상으로 한다(맞은편 신호 무시).
@@ -355,19 +481,30 @@
     if(typeof signals!=='undefined' && signals.length){
       const now=performance.now();
       const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
+      /* ★u_5207 감사에서 나온 다섯 번째 '고정 거리상수' 결함.
+         탐지 38m 고정 + 정지 10m 고정이었다. 필요한 정지거리는
+           29km/h 13.6m · 40km/h 22.8m · 50km/h 34.3m
+         이므로 어느 속도에서도 10m 에 밟으면 못 선다 — 즉 빨간불을
+         구조적으로 통과한다. 탐지·정지·감속 전부 속도비례로 바꾼다. */
+      const vSig = Math.max(0, me.v);
+      const sigStop = Math.max(10, vSig*0.7 + (vSig*vSig)/(2*4.0));
+      const sigSlow = Math.max(22, sigStop*1.6);
+      const sigScan = Math.max(38, sigSlow*1.4 + 8);
       let sd=1e9;
       for(const sg of signals){
         const dx=sg.x-me.x, dy=sg.y-me.y;
         const f=(dx*fx+dy*fy)/S;                       // 전방거리(m)
-        if(f<1.5 || f>38) continue;                    // 이미 지났거나 너무 멂
+        if(f<1.5 || f>sigScan) continue;               // 이미 지났거나 너무 멂
         if(Math.abs(-dx*Math.sin(me.ang)+dy*Math.cos(me.ang))/S > 7) continue;  // 옆 도로
         let rel=((sg.ang-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
         if(Math.abs(rel)>0.9) continue;                // 내 방향 신호가 아님
         if(sigRed(sg, now) && f<sd) sd=f;
       }
+      T._sigD = (sd<1e9) ? +sd.toFixed(1) : null;     // 진단: 적신호까지 거리
+      T._sigStop = +sigStop.toFixed(1);
       if(sd<1e9){
-        if(sd<10){ brake=1; thr=0; }                   // 정지선 앞 → 정지
-        else if(sd<22){ brake=Math.max(brake,0.5); thr=Math.min(thr,0.1); }
+        if(sd<sigStop){ brake=1; thr=0; }              // 정지선 앞 → 정지
+        else if(sd<sigSlow){ brake=Math.max(brake,0.5); thr=Math.min(thr,0.1); }
       }
     }
     // 커브에서 감속
@@ -494,6 +631,19 @@
     /* ★u_5171: 예전엔 상한 적용 '전' 값(xt*xtK)을 보고해서 x=1.06 처럼
        불가능한 수치가 찍혔다(실제 xtTerm 은 ±0.6 으로 잘린다). 실제 값을 쓴다. */
     T.dbg = {d: diff*1.8, x: xtTerm, cross: cross, raw: steerRaw};
+    /* ★u_5203: 보행자 대응 채점용. 전방 보행자까지 거리(m).
+       g2 와 달리 여기서 터져도 dbg 만 잃으므로 try 로 감싼다. */
+    try{ T.dbg.ped = +(pedAhead()).toFixed(1); }catch(e){ T.dbg.ped = null; }
+    /* u_5206 서행 진단: 허용속도 상한이 실제로 걸리는지 화면/텔레메트리로 본다 */
+    try{ const _c=pedCautionV(); T.dbg.cap = (_c>=1e9? null : +_c.toFixed(1)); }
+    catch(e){ T.dbg.cap='ERR:'+(e&&e.message||e); }
+    /* ★앞차까지 실제 거리(m). dbg.d 는 조향 항(diff*1.8)이지 거리가 아니다 —
+       이걸 거리로 착각해 "상시 0m 로 바짝 붙는다"고 오판했다(u_5206). */
+    try{ const _g=obstacleAhead(); T.dbg.gap = (_g>=1e8? null : +_g.toFixed(1)); }
+    catch(e){ T.dbg.gap = null; }
+    T.dbg.sig = (T._sigD===undefined?null:T._sigD);
+    T.dbg.otWhy = (T._otWhy===undefined?null:T._otWhy);   // u_5226 추월 미발동 사유
+    T.dbg.sigStop = (T._sigStop===undefined?null:T._sigStop);
     /* ★lane_off 는 '차로 중심'까지의 거리여야 한다(u_5148/5149/5150 오너 지적).
        기존엔 ns.d = **도로 중심선**까지의 거리를 넣고 있었다. 그래서 오드는
        '도로 안에만 있으면 된다'로 배웠고, 차선을 물고 달려도 라벨상 정상이었다.
