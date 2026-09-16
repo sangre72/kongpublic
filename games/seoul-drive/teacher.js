@@ -123,8 +123,10 @@
         for(let k=i0+1; k<auto.wp.length; k++){
           const w = auto.wp[k];
           const dm = Math.hypot(w.x-me.x, w.y-me.y)/S;
-          if(dm > 200) break;                   // ★200m 넘으면 경로 인덱스가 뒤처진 것
-                                                //   (실측 8280m 이 나왔다 — 뒤쪽 점을 잡음)
+          if(dm > 400) break;                   // ★회전 준비 거리(최대 ~250m)보다 넉넉히.
+                                                //   원래 200m 였으나 u_5188 로 상향.
+                                                //   상한 자체는 필요하다 — 경로 인덱스가
+                                                //   뒤처지면 8280m 짜리 뒤쪽 점을 잡는다.
           if(dm < 12) continue;                 // 너무 가까운 점은 현재 구간
           const n2 = nearestSeg(w.x, w.y);
           if(!n2 || !n2.s) break;
@@ -143,9 +145,20 @@
        g2 가 통째로 사라진다(실측: 전 필드 None). 반드시 감싼다. */
     let ruleWant = null;
     try{
-      if(aheadTurn && aheadDist !== null && aheadDist < 80){
-        if(aheadTurn === 'L') ruleWant = 0;
-        else if(aheadTurn === 'R') ruleWant = nl - 1;
+      /* ★u_5188 오너 지적: "근거리에서 우회전하려면 1차로에 있으면 안 된다.
+         적어도 200~300m 전에는 바깥 차선으로 옮겼어야지."
+         맞다. 기존 80m 고정은 한 차로도 못 옮기는 거리다.
+         실측 환산 — 한 차로 변경에 3초(확인·신호 포함):
+           30km/h 25m · 45km/h 38m · 60km/h 50m
+         5차로에서 우회전이면 4칸을 옮겨야 하므로 60km/h 기준 200m 가 필요하다.
+         ⇒ 준비 거리 = 옮길 차로 수 x 속도 x 3초, 최소 60m 최대 250m. */
+      if(aheadTurn && aheadDist !== null && aheadTurn !== 'S'){
+        const tgtLane = (aheadTurn === 'L') ? 0 : (nl - 1);
+        const hops = Math.abs(tgtLane - (T.laneF !== undefined ? T.laneF : 0));
+        const vNow = Math.max(me.v, 8.3);              // 최소 30km/h 기준
+        const need = Math.max(60, Math.min(250, hops * vNow * 3.0));
+        T._need = +need.toFixed(0);
+        if(aheadDist < need) ruleWant = tgtLane;
       }
       if(aheadNl !== null && aheadNl < nl){
         // 차로가 줄어든다 → 사라질 차로에 있으면 미리 남는 쪽으로
@@ -233,7 +246,7 @@
        cross(목표 차로 기준 부호거리)와 off(목표 차로 오프셋)로 역산하면
        중심선 기준 부호거리 = cross + off 가 된다. 새 변수를 만들지 않는다 —
        ns 를 참조했다가 예외가 나 g2 블록이 통째로 사라졌다(같은 실수 2회). */
-    T.dbg2 = {err: (T._aErr||T._rErr)||null, aNl: aheadNl, aTurn: aheadTurn, aD: aheadDist, want: (T._want===undefined?null:T._want),
+    T.dbg2 = {err: (T._aErr||T._rErr)||null, need: (T._need===undefined?null:T._need), aNl: aheadNl, aTurn: aheadTurn, aD: aheadDist, want: (T._want===undefined?null:T._want),
               lat: +((cross + off/S)).toFixed(2), sw: sg.w || null, nl: nl,
               laneF: +(+(T.laneF||0)).toFixed(2),
               off: +(off/S).toFixed(2), nd: +(n.d/S).toFixed(2),
