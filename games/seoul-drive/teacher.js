@@ -328,11 +328,24 @@
        T.last 는 `T.dagger && !T.auto` 일 때만 갱신되므로(525행), 그걸 기준으로
        쓰면 값이 얼어붙고 rate limit 이 모든 출력을 그 고정값 쪽으로 붙잡는다.
        실측: 포화가 4% 예상이었는데 96% 가 나왔다(핸들이 한쪽에 고정). */
-    const MAXRATE = 4.0 / 60;                       // 프레임당 최대 변화량
-    if(typeof T.steerPrev !== 'number') T.steerPrev = steerRaw;
-    const steer = Math.max(T.steerPrev - MAXRATE,
-                           Math.min(T.steerPrev + MAXRATE, steerRaw));
-    T.steerPrev = steer;
+    /* ★u_5171 2차 수정: 제한을 넣었는데 실측 반전율이 27% 그대로였다.
+       시뮬레이션상 4.0/s 면 4% 가 나와야 했다. 원인은 T.compute() 가
+       한 프레임에 여러 곳에서 불린다는 것(호출지점 5곳: teacher 373/563,
+       game 3180/3194/3228). 매 호출마다 steerPrev 가 갱신되니 제한이
+       호출 횟수만큼 느슨해진다 — 3번 불리면 실질 12/s 다.
+       ⇒ 프레임 단위로 한 번만 적용하고, 같은 프레임의 재호출은 그 값을 쓴다. */
+    const MAXRATE = 4.0 / 60;
+    const _now = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+    let steer;
+    if(T._srFrame !== undefined && (_now - T._srFrame) < 8){
+      steer = T.steerPrev;                          // 같은 프레임 재호출
+    }else{
+      if(typeof T.steerPrev !== 'number') T.steerPrev = steerRaw;
+      steer = Math.max(T.steerPrev - MAXRATE,
+                       Math.min(T.steerPrev + MAXRATE, steerRaw));
+      T.steerPrev = steer;
+      T._srFrame = _now;
+    }
     // 진단(u_5020): 어느 항이 포화를 만드는지 화면으로 본다
     /* ★u_5171: 예전엔 상한 적용 '전' 값(xt*xtK)을 보고해서 x=1.06 처럼
        불가능한 수치가 찍혔다(실제 xtTerm 은 ±0.6 으로 잘린다). 실제 값을 쓴다. */
@@ -350,8 +363,22 @@
       const want = Math.abs(laneOffset(sg, 1, li))/S;     // 내 차로 중심의 중앙선 거리
       laneOff = Math.abs(laneOff - want);                  // 차로 중심에서 벗어난 양
     }
+    /* ★u_5171 v14 실패의 교훈: lane_off 는 '얼마나 벗어났나' 스칼라 1개라
+       방향이 없다(좌 3m 와 우 3m 가 같은 값). 그래서 오드는 '벗어났다'는
+       알아도 '어디로 피하나'를 모른 채 그 신호에 끌려다녔고, 건물 충돌이
+       41건(v5) → 96건(v14) 으로 늘었다. 거리도 2948m → 1370m 로 반토막.
+       net.py 의 원설계대로 좌/우 여유를 따로 준다 — 이게 있어야
+       '오른쪽이 좁다 → 왼쪽으로' 같은 판단을 배울 수 있다.
+       ns.d = 도로 중심선까지 거리, cross 부호로 어느 쪽인지 안다. */
+    let freeL = 99, freeR = 99;
+    if(ns && ns.s){
+      const halfW = (ns.s.roadW || 0) * 0.5 / S;      // 도로 반폭(m)
+      const lat = cross;                              // 부호: 왼쪽 -, 오른쪽 +
+      freeL = Math.max(0, halfW + lat);               // 왼쪽 가장자리까지
+      freeR = Math.max(0, halfW - lat);               // 오른쪽 가장자리까지
+    }
     return {steer, thr, brake, rev:0, ok:true,
-            lane_off: laneOff, obst:d};
+            lane_off: laneOff, free_l: freeL, free_r: freeR, obst:d};
   };
 
   /* 교사가 직접 차를 몬다(키 입력 없이 물리에 직접 반영) */

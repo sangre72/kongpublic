@@ -1544,7 +1544,11 @@ function mdlPoll(dt){
                     // ★u_5171: 사고의 77%가 도로 경계 이탈(건물27%·인도25%·도로12%·차로13%).
                     //   교사는 lane_off(차로 중심에서 벗어난 양)를 이미 계산하는데
                     //   저장이 안 돼 학습에 한 번도 쓰인 적이 없다. 보조목표로 쓴다.
-                    lo:(a.lane_off===undefined?null:+(+a.lane_off).toFixed(3))} : {ok:0}; })(),
+                    lo:(a.lane_off===undefined?null:+(+a.lane_off).toFixed(3)),
+                    // ★u_5171: 좌/우 여유(m). 방향 없는 lane_off 만으로는
+                    //   '어디로 피하나'를 배울 수 없었다(v14 건물충돌 96건).
+                    fl:(a.free_l===undefined?null:+(+a.free_l).toFixed(2)),
+                    fr:(a.free_r===undefined?null:+(+a.free_r).toFixed(2))} : {ok:0}; })(),
       car: {v:+me.v.toFixed(3), x:+(me.x/S).toFixed(2), y:+(me.y/S).toFixed(2),
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
       qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();

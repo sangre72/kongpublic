@@ -117,8 +117,13 @@ def episode(net, dev, secs, ep):
             #   사후에 구분할 방법이 없었다. 속도가 있으면 후자를 걸러낼 수 있다.
             # 5열: lane_off(차로 중심 이탈량 m). ★사고의 77%가 경계 이탈인데
             #   교사가 계산해둔 이 값이 저장되지 않아 학습에 쓰인 적이 없었다.
+            # 6열: [조향, 스로틀, 제동, 속도, 좌여유, 우여유]
+            # ★lane_off(방향없는 스칼라)는 v14 에서 역효과였다 — 건물충돌
+            #   41→96건, 거리 2948→1370m. 좌/우를 따로 줘야 '어디로 피하나'를
+            #   배운다(net.py 원설계).
             Y.append([st, th, br, float(d.get('v') or 0),
-                      float(t.get('lo') if t.get('lo') is not None else -1.0)])
+                      float(t.get('fl') if t.get('fl') is not None else -1.0),
+                      float(t.get('fr') if t.get('fr') is not None else -1.0)])
         time.sleep(0.02)
 
     dl = tel() or {}

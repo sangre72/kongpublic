@@ -36,7 +36,12 @@ def batch(X, Y, ids, AUX=None):
         yb[flip, 0] *= -1
     out = [xb.to(DEV), torch.from_numpy(yb).to(DEV)]
     if AUX is not None:
-        out.append(torch.from_numpy(AUX[real].copy()).to(DEV))
+        ab = AUX[real].copy()
+        # ★좌우반전 증강이면 좌/우 여유도 서로 바꾼다. 안 바꾸면 반전된 그림에
+        #   원래 좌우 라벨이 붙어 보조목표가 정반대를 가르친다.
+        if ab.ndim == 2 and ab.shape[1] == 2 and flip.any():
+            ab[flip] = ab[flip][:, ::-1]
+        out.append(torch.from_numpy(np.ascontiguousarray(ab)).to(DEV))
     return out
 
 
@@ -57,11 +62,24 @@ def main(dirs, out, epochs=30):
     #   추론 때는 앞 3개만 쓰므로 비용은 0에 가깝다(net.py 설계 의도).
     SPD = Yall[:, 3] if Yall.shape[1] > 3 else None
     AUX = None
-    if Yall.shape[1] > 4:
-        lo = Yall[:, 4]
-        have = lo >= 0                        # -1 = 그 라운드엔 값이 없음
+    # ★u_5171: 보조목표를 좌/우 여유 2개로 바꿨다.
+    #   lane_off(스칼라 1개)는 방향이 없어 '어디로 피하나'를 못 가르쳤고
+    #   실주행에서 역효과였다(v14: 건물충돌 96건, 1370m vs v5 41건 2948m).
+    #   6열 데이터(좌여유,우여유)면 2채널, 5열(옛 lane_off)이면 기존 1채널.
+    if Yall.shape[1] > 5:
+        fl, fr = Yall[:, 4], Yall[:, 5]
+        have = (fl >= 0) & (fr >= 0)
         if have.mean() > 0.2:
-            AUX = np.clip(lo / 3.25, 0, 2.0).astype(np.float32)   # 차로폭으로 정규화
+            AUX = np.stack([np.clip(fl / 6.5, 0, 2.0),
+                            np.clip(fr / 6.5, 0, 2.0)], 1).astype(np.float32)
+            AUX[~have] = -1.0
+            print(json.dumps({'aux_free_lr_pct': round(100*float(have.mean()), 1)}),
+                  flush=True)
+    elif Yall.shape[1] > 4:
+        lo = Yall[:, 4]
+        have = lo >= 0
+        if have.mean() > 0.2:
+            AUX = np.clip(lo / 3.25, 0, 2.0).astype(np.float32)[:, None]
             AUX[~have] = -1.0
             print(json.dumps({'aux_lane_off_pct': round(100*float(have.mean()), 1)}),
                   flush=True)
@@ -114,7 +132,7 @@ def main(dirs, out, epochs=30):
                           'slow_w': _sw}), flush=True)
     Wtr = w[np.abs(tr) - 1]; Wtr = Wtr / Wtr.sum()
 
-    net = DriveNet(out=3 if AUX is None else 4).to(DEV)
+    net = DriveNet(out=3 if AUX is None else 3 + AUX.shape[1]).to(DEV)
     opt = torch.optim.Adam(net.parameters(), 1e-3, weight_decay=1e-4)
     # 희소 클래스 보정. 오버샘플링 후의 실효 비율 기준으로 잡는다.
     pw = torch.tensor([float(os.environ.get('POS_W','3.0'))], device=DEV)
@@ -137,7 +155,8 @@ def main(dirs, out, epochs=30):
         if ab is not None and o.shape[1] > 3:
             m = ab >= 0
             if m.any():
-                loss = loss + float(os.environ.get('AUX_W','0.3')) * mse(torch.sigmoid(o[:, 3]) * 2.0, ab)[m].mean()
+                pred = torch.sigmoid(o[:, 3:]) * 2.0
+                loss = loss + float(os.environ.get('AUX_W','0.3')) * mse(pred, ab)[m].mean()
         return loss
 
     for ep in range(int(epochs)):
