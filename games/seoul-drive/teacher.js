@@ -105,6 +105,53 @@
         }
       }
     }
+    /* ★u_5182 차로 선택 규칙(도로교통법 기준).
+         · 기본은 주행차로 = 가장 오른쪽(인덱스 nl-1)이 아니라 1차로쪽부터.
+           이 게임의 인덱스는 0 이 중앙선쪽이므로, 우측통행 기준 주행차로는
+           인덱스가 큰 쪽이다. 다만 경로점이 지정한 차로가 우선한다.
+         · 좌회전이 임박하면 가장 왼쪽(0), 우회전이면 가장 오른쪽(nl-1).
+         · 차로가 줄면 남는 차로 안으로, 늘면 지금 차로를 유지한다.
+       회전 판단은 aheadTurn/aheadDist 로 앞을 미리 본다(위에서 계산). */
+    /* ★u_5182 오너 지시: 차선 판단에 필요한 정보를 갖춘다.
+       "현재 도로 몇차선 / 내가 몇차선 / 회전하려면 몇차선 / 차로 증감시 어디로".
+       지금은 현재 차로수(nl)와 내 차로(laneF)뿐이라 앞을 못 본다.
+       경로 앞쪽 웨이포인트로 다음 구간의 도로를 찾아 미리 읽는다. */
+    let aheadNl = null, aheadTurn = null, aheadDist = null;
+    try{
+      if(typeof auto!=='undefined' && auto.wp && auto.wp.length){
+        const i0 = Math.min(auto.i, auto.wp.length-1);
+        for(let k=i0+1; k<auto.wp.length; k++){
+          const w = auto.wp[k];
+          const dm = Math.hypot(w.x-me.x, w.y-me.y)/S;
+          if(dm > 200) break;                   // ★200m 넘으면 경로 인덱스가 뒤처진 것
+                                                //   (실측 8280m 이 나왔다 — 뒤쪽 점을 잡음)
+          if(dm < 12) continue;                 // 너무 가까운 점은 현재 구간
+          const n2 = nearestSeg(w.x, w.y);
+          if(!n2 || !n2.s) break;
+          if(n2.s === sg) continue;             // 아직 같은 도로
+          const nl2 = n2.s.o ? (n2.s.l||1) : Math.max(1, Math.floor((n2.s.l||2)/2));
+          aheadNl = nl2; aheadDist = +dm.toFixed(0);
+          /* 회전 방향: 다음 도로 방향과 현재 도로 방향의 차이.
+             좌회전이면 왼쪽 차로(인덱스 작은 쪽), 우회전이면 오른쪽 끝 차로. */
+          let rel = ((n2.s.ang - sg.ang + Math.PI*3) % (Math.PI*2)) - Math.PI;
+          aheadTurn = Math.abs(rel) < 0.35 ? 'S' : (rel < 0 ? 'L' : 'R');
+          break;
+        }
+      }
+    }catch(e){ T._aErr = String(e).slice(0,80); }
+    /* ★이 블록은 laneTarget() 본문이라 예외가 나면 함수가 통째로 죽고
+       g2 가 통째로 사라진다(실측: 전 필드 None). 반드시 감싼다. */
+    let ruleWant = null;
+    try{
+      if(aheadTurn && aheadDist !== null && aheadDist < 80){
+        if(aheadTurn === 'L') ruleWant = 0;
+        else if(aheadTurn === 'R') ruleWant = nl - 1;
+      }
+      if(aheadNl !== null && aheadNl < nl){
+        // 차로가 줄어든다 → 사라질 차로에 있으면 미리 남는 쪽으로
+        ruleWant = Math.min(ruleWant === null ? (T.laneF|0) : ruleWant, aheadNl - 1);
+      }
+    }catch(e){ ruleWant = null; T._rErr = String(e).slice(0,60); }
     if(typeof auto!=='undefined' && auto.on && auto.wp && auto.wp.length){
       const w = auto.wp[Math.min(auto.i, auto.wp.length-1)];
       if(w){
@@ -119,6 +166,9 @@
         const gi  = sg.o ? ((lat + (sg.roadW/2)/S)/(LW/S) - 0.5)
                          : (Math.abs(lat)/(LW/S) - 0.5);
         want = Math.max(0, Math.min(nl-1, Math.round(gi)));
+        // 회전·차로감소 규칙이 있으면 그쪽이 우선한다(경로점은 직진 기준이다)
+        if(ruleWant !== null) want = Math.max(0, Math.min(nl-1, ruleWant));
+        T._want = want;   // dbg2 로 넘기기 위한 전달용(스코프가 다르다)
       }
     }
     /* ★첫 프레임의 laneF 는 '목표'가 아니라 '차가 지금 실제로 있는 차로'여야 한다
@@ -183,7 +233,8 @@
        cross(목표 차로 기준 부호거리)와 off(목표 차로 오프셋)로 역산하면
        중심선 기준 부호거리 = cross + off 가 된다. 새 변수를 만들지 않는다 —
        ns 를 참조했다가 예외가 나 g2 블록이 통째로 사라졌다(같은 실수 2회). */
-    T.dbg2 = {lat: +((cross + off/S)).toFixed(2), sw: sg.w || null, nl: nl,
+    T.dbg2 = {err: (T._aErr||T._rErr)||null, aNl: aheadNl, aTurn: aheadTurn, aD: aheadDist, want: (T._want===undefined?null:T._want),
+              lat: +((cross + off/S)).toFixed(2), sw: sg.w || null, nl: nl,
               laneF: +(+(T.laneF||0)).toFixed(2),
               off: +(off/S).toFixed(2), nd: +(n.d/S).toFixed(2),
               roadW: +((sg.roadW||0)/S).toFixed(2), o: sg.o?1:0};
