@@ -50,18 +50,29 @@ def set_route(start, dest):
 
 
 def judge_lane(g):
-    """차로 준수 판정. 일방은 좌측가장자리, 왕복은 중심선이 원점."""
-    lat, rw, o = g.get('lat'), g.get('roadW') or 0, g.get('o')
-    if lat is None or not rw:
+    """차로 준수 판정.
+
+    ★u_5201 실측 교훈: lat(=cross+off)은 '목표 차로 기준' 부호거리다.
+      이걸 도로 좌표로 오해해 채점했더니 게임의 onroad 판정과 93% 불일치했고,
+      사고 2건짜리 주행이 '도로밖 75.8%' 로 나왔다.
+      nd 가 도로 중심선까지의 거리(부호 없음)이고 이게 게임 판정과 맞는다.
+      좌우 구분이 필요한 곳(중앙선 침범)에만 cross 부호를 쓴다.
+    """
+    nd, rw, o = g.get('nd'), g.get('roadW') or 0, g.get('o')
+    if nd is None or not rw:
         return None
-    if o:
-        x = rw / 2 + lat
-        edge = min(x % LW, LW - (x % LW))
-        return {'straddle': edge < CARW / 2, 'offroad': x < 0 or x > rw, 'wrong': False}
-    if lat < 0:
-        return {'straddle': True, 'offroad': False, 'wrong': True}   # 중앙선 넘음
-    edge = min(lat % LW, LW - (lat % LW))
-    return {'straddle': edge < CARW / 2, 'offroad': lat > rw / 2, 'wrong': False}
+    half = rw / 2
+    offroad = nd > half
+    # 차로 중앙에서 얼마나 벗어났나 — 차로 경계(LW 배수)까지의 거리
+    edge = min(nd % LW, LW - (nd % LW))
+    straddle = edge < CARW / 2
+    wrong = False
+    if not o:
+        # 왕복도로: 진행방향 반대쪽(중심선 너머)이면 역주행
+        lat, off = g.get('lat'), g.get('off')
+        if lat is not None and off is not None:
+            wrong = (lat - off) < -0.6      # cross 가 음수면 중앙선 너머
+    return {'straddle': straddle, 'offroad': offroad, 'wrong': wrong}
 
 
 def main():

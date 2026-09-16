@@ -257,7 +257,14 @@
        cross(목표 차로 기준 부호거리)와 off(목표 차로 오프셋)로 역산하면
        중심선 기준 부호거리 = cross + off 가 된다. 새 변수를 만들지 않는다 —
        ns 를 참조했다가 예외가 나 g2 블록이 통째로 사라졌다(같은 실수 2회). */
-    T.dbg2 = {err: (T._aErr||T._rErr)||null, need: (T._need===undefined?null:T._need), aNl: aheadNl, aTurn: aheadTurn, aD: aheadDist, want: (T._want===undefined?null:T._want),
+    /* ★u_5201: lat 을 '도로 중심선 기준 부호거리'로 쓰려 했는데 cross+off 는
+       목표 차로 기준이라 값이 달랐다(실측: 게임 onroad=1 인데 내 식은 밖이라고
+       판정, 93% 불일치). nd 는 부호가 없어 좌우를 모르므로, 도로 중심선까지의
+       부호거리를 직접 계산해 nlat 으로 내보낸다. 채점은 이 값을 써야 한다. */
+    T.dbg2 = {nlat: (function(){ try{
+                return +(((-(ns.px-me.x)*Math.sin(sg.ang) + (ns.py-me.y)*Math.cos(sg.ang))/S*dir)).toFixed(2);
+              }catch(e){ return null; } })(),
+              err: (T._aErr||T._rErr)||null, need: (T._need===undefined?null:T._need), aNl: aheadNl, aTurn: aheadTurn, aD: aheadDist, want: (T._want===undefined?null:T._want),
               lat: +((cross + off/S)).toFixed(2), sw: sg.w || null, nl: nl,
               laneF: +(+(T.laneF||0)).toFixed(2),
               off: +(off/S).toFixed(2), nd: +(n.d/S).toFixed(2),
