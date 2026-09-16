@@ -61,7 +61,14 @@ def judge_lane(g):
     edge = min(x % LW, LW - (x % LW))
     straddle = edge < CARW / 2
     wrong = False
-    if not o:
+    # ★u_5227 오너 지적: "회전각이 안 맞아서 잠시 앞대가리가 중앙선 침범은 할 수 있지."
+    #   맞다. 물리적으로 불가피하다 — 회전반경 5.5m 에서 차체 스윕폭이 3.28m 인데
+    #   차로폭은 3.25m 다. 즉 최소회전반경으로 돌면 반드시 0.03m 넘친다.
+    #   차 길이 4.6m 가 만드는 오프트래킹이라 운전을 잘해도 못 피한다.
+    #   ⇒ 회전 중(aTurn L/R, 교차로 근접)에는 중앙선 침범을 위반으로 세지 않는다.
+    #     직진 중 침범은 그대로 위반이다.
+    in_turn = (g.get('aTurn') in ('L', 'R')) and (g.get('aD') is not None) and (g['aD'] < 20)
+    if not o and not in_turn:
         nlat = g.get('nlat')
         if nlat is not None:
             wrong = nlat < -0.9

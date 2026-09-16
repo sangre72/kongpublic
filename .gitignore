@@ -142,3 +142,12 @@ games/seoul-drive/data/*.bak
 jobs/demo_recordings/
 jobs/truecrime_gunpo/
 kong-blender-wrap/examples/*.glb
+
+# 오드 학습데이터(u_5228) — X.npy 는 수집분당 수십 MB 라 저장소에 넣지 않는다.
+# dagger_r130 이 67.9MB 로 GitHub 권장(50MB)을 넘겨 경고가 났고, 그나마
+# 조향 라벨 평균 +0.95(한쪽 최대조향 고정)인 품질 미달 데이터였다.
+games/seoul-drive/data/*/X.npy
+games/seoul-drive/data/*/Y.npy
+games/seoul-drive/data/*/M.npy
+games/seoul-drive/data/*/DONE
+games/seoul-drive/data/*/episodes.json

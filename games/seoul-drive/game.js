@@ -1417,6 +1417,19 @@ function planTo(x,y){
       const JR=(LW*2)*1.5;                            // nearJunction 면제 반경
       const Tcap=Math.min(segLen(i-1)*0.45, segLen(i)*0.45, JR*0.9);
       let Rc=Math.max(RMIN, LW/(t<0.05?0.05:t));
+      /* ★u_5227 오너 지적: "현실 커브 도로는 회전각이 안 맞는 길은 안 만들지."
+         맞다. 그런데 이 Tcap 클램프가 급한 각에서 물리적으로 못 도는 반경을
+         만들고 있었다(실측: 120도→5.07m, 150도→2.35m).
+         차체 길이 4.6m·폭 1.8m 가 차로 3.25m 안에 들어가려면 최소 6.0m 가 필요하다
+         (스윕폭 = √((R+0.9)²+4.6²) − (R−0.9) ≤ 3.25).
+         그보다 작게 잡으면 차가 따라갈 수 없고, 못 따라가면 '경로 복귀'
+         순간이동이 일어난다 — 180초에 7회였다.
+         ⇒ 클램프에 물리적 하한을 둔다. 못 도는 길은 애초에 만들지 않는다. */
+      /* ★실측으로 되돌림: RPHYS(6m) 하한을 강제했더니 오히려 나빠졌다 —
+         순간이동 7회→24회, 진행률 0.150→0.020. 급한 각에서 반경을 키우면
+         호가 교차로 밖으로 튀어나가 차가 아예 못 따라간다.
+         즉 '반경을 키우는' 방향이 아니라 '급한 각 자체를 안 만드는' 방향으로
+         가야 한다(경로탐색 단계). 여기서는 원래 동작을 유지한다. */
       if(!isUturn && Rc*t>Tcap) Rc=Tcap/(t<0.05?0.05:t);
       /* 유턴은 Tcap 으로 깎지 않는다 — 깎으면 반경이 0 이 되어 직각 2번이 된다.
          승용차 최소회전반경 5.5m(차로중심)을 하한으로 둔다. */
@@ -1830,6 +1843,8 @@ function mdlPoll(dt){
       npDbg: window.__npDbg||null,
       npDbg2: window.__npDbg2||null,
       avoidN: window.__avoidN||0,        // u_5223 회피 조향 발동 횟수
+      tpN: window.__tpN||0,              // u_5227 순간이동 총횟수(사고로 안 세지던 것)
+      tpBld: window.__tpBld||0, tpPath: window.__tpPath||0,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
       qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();
@@ -2408,6 +2423,12 @@ function step(dt){
       me.v=0; me.cool=1.2; bldStuck=0;
       auto.i=j;
       if(auto.cum && j<auto.cum.length){ auto.s=auto.cum[j]; auto.k=Math.max(1,j); }
+      /* ★u_5227 오너 지적: "순간이동해서 경로 복귀. 이건 사고 아닌가?"
+         맞다. 차를 3점 앞으로 순간이동시키는 건 주행 실패다. 그런데
+         crash() 를 안 부르므로 사고 집계에 한 번도 안 잡혔다 —
+         점수는 깨끗한데 실제로는 못 가고 있던 것이다. 최소한 센다. */
+      window.__tpN=(window.__tpN||0)+1;
+      window.__tpBld=(window.__tpBld||0)+1;
       flash('건물 끼임 복구');
     }
   } else bldStuck=0;
@@ -2495,6 +2516,8 @@ function step(dt){
     me.v=0; me.offroad=0; me.cool=1.2; blockT=0;
     auto.i=j;
     if(auto.cum && j<auto.cum.length){ auto.s=auto.cum[j]; auto.k=Math.max(1,j); }
+    window.__tpN=(window.__tpN||0)+1;      // u_5227 순간이동 계측
+    window.__tpPath=(window.__tpPath||0)+1;
     flash('경로 복귀');
   }
   const r=onRoad(me.x,me.y);
