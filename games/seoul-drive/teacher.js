@@ -231,6 +231,12 @@
           if(n2.s === sg) continue;             // 아직 같은 도로
           const nl2 = n2.s.o ? (n2.s.l||1) : Math.max(1, Math.floor((n2.s.l||2)/2));
           aheadNl = nl2; aheadDist = +dm.toFixed(0);
+          /* ★2026-09-18 실측: 8차로 우회전이 aD=12m 에서야 fin=7 로 잡혔다.
+             7차로를 12m 안에 옮기는 건 물리적으로 불가능 → 매번 위반.
+             원인: 이 루프는 '현재 도로와 다른 첫 경로점'을 회전지점으로 삼는데,
+             교차로 직전의 짧은 연결 토막(진입로·호)이 먼저 걸려 그 지점 기준으로
+             거리를 재는 바람에, 정작 큰 도로에서 꺾이는 실제 회전은 코앞에서야
+             보인다. 회전으로 판정되지 않으면(=S) 계속 앞을 더 보게 한다. */
           /* 회전 방향: 다음 도로 방향과 현재 도로 방향의 차이.
              좌회전이면 왼쪽 차로(인덱스 작은 쪽), 우회전이면 오른쪽 끝 차로. */
           /* ★u_5261 실측(원효로 1,252m): 경로선은 오른쪽으로 곧장 가는데 교사는 '좌회전'
@@ -246,6 +252,10 @@
           const aNow = (i1>i0) ? Math.atan2(auto.wp[i1].y-auto.wp[i0].y, auto.wp[i1].x-auto.wp[i0].x) : me.ang;
           let rel = ((aRoute - aNow + Math.PI*3) % (Math.PI*2)) - Math.PI;
           aheadTurn = Math.abs(rel) < 0.70 ? 'S' : (rel < 0 ? 'L' : 'R');
+          if(aheadTurn === 'S'){                 // 직진 토막이면 더 앞을 본다
+            aheadTurn = null; aheadNl = null; aheadDist = null;
+            continue;
+          }
           break;
         }
       }
@@ -282,10 +292,20 @@
          ⇒ 준비 거리 = 옮길 차로 수 x 속도 x 3초, 최소 60m 최대 250m. */
       let turnRule = false;
       if(aheadTurn && aheadDist !== null && aheadTurn !== 'S'){
-        const tgtLane = (aheadTurn === 'L') ? 0 : (nl - 1);
+        /* ★u_5284/5294/5302 오너 지시: 좌회전·유턴은 항상 1차로(대각선으로라도
+           진입), 준비거리 상한 250m 는 8차로+120km/h 조합에서 부족했다(실측:
+           4차로 좌회전이 계속 재현됨). 좌회전/유턴은 상한을 500m 로 올린다.
+           우회전은 기존 상한(250m) 유지 — 오른쪽 끝 차로 하나 옮기는 데
+           500m 는 과도하고, 우회전전용차로는 보통 교차로 근처에 있다. */
+        const tgtLane = (aheadTurn === 'L' || aheadTurn === 'U') ? 0 : (nl - 1);
         const hops = Math.abs(tgtLane - (T.laneF !== undefined ? T.laneF : 0));
         const vNow = Math.max(me.v, 8.3);              // 최소 30km/h 기준
-        const need = Math.max(60, Math.min(250, hops * vNow * 3.0));
+        /* ★2026-09-18: 우회전 준비거리를 150~400m 로 늘려봤으나 위반은 그대로고
+           복귀만 1건 늘어 되돌렸다(우회전 2건 유지, 좌회전 1건 재발).
+           즉 '준비 거리 부족'이 원인이 아니다 — aD 가 짧게 잡히는 것 자체(회전
+           인식이 늦음)를 봐야 한다. 거리 상수를 더 키우는 시도는 하지 말 것. */
+        const cap = (aheadTurn === 'L' || aheadTurn === 'U') ? 500 : 250;
+        const need = Math.max(60, Math.min(cap, hops * vNow * 3.0));
         T._need = +need.toFixed(0);
         if(aheadDist < need){ ruleWant = tgtLane; turnRule = true; }
       }
