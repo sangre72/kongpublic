@@ -11,7 +11,8 @@ def tel():
 here=__file__.rsplit('/',1)[0]; secs=float(sys.argv[1])
 for idx,pair in enumerate(sys.argv[2:]):
     a,b=pair.split('>')
-    url='http://localhost:8901/index.html?go=1&from='+urllib.parse.quote(a)+'&to='+urllib.parse.quote(b)
+    import os
+    url='http://localhost:8901/index.html?go=1&from='+urllib.parse.quote(a)+'&to='+urllib.parse.quote(b)+os.environ.get('EXTRA_Q','')
     r=subprocess.run(['bash',here+'/reload.sh',url,'120'],capture_output=True,text=True,timeout=300)
     if r.returncode!=0: print(json.dumps({'route':pair,'reload_fail':r.stdout[-160:]},ensure_ascii=False),flush=True); continue
     t,_=tel(); w=(t or {}).get('wpDbg') or {}

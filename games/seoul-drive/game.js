@@ -2,6 +2,7 @@
    서버는 '이전 페이지의 마지막 스냅샷'을 계속 돌려준다 — 그걸 준비 완료로 오판했다.
    그래서 (a) 로드마다 다른 loadId 를 붙이고 (b) 첫 에러를 탭 제목에 써서
    루프 없이도 밖(osascript 'title of tab')에서 읽을 수 있게 한다. */
+try{ const _q=new URLSearchParams(location.search); if(_q.has('upen')) window.__upen=+_q.get('upen'); if(_q.get('nostrip')==='1') window.__nostrip=1; }catch(e){}
 window.__loadId = Math.floor(Math.random()*1e9);
 window.addEventListener('error', e=>{ if(!/^ERR:/.test(document.title)) document.title='ERR:'+(e.message||'?')+' @'+(e.lineno||'?'); }, true);
 window.addEventListener('unhandledrejection', e=>{ if(!/^ERR:/.test(document.title)) document.title='ERR:promise:'+String(e.reason&&e.reason.message||e.reason).slice(0,80); }, true);
@@ -814,7 +815,7 @@ function segAllows(si, from){
 function isJunction(n){ return (nodes[n].e || []).length >= 3; }
 
 function astar(s,t){
-  const NSj=n=>isJunction(n), SEGSj=segs, UTURN_PEN=60*S, UTURN_MINW=0;   /* ★u_5263 오너: 좁은 도로도 유턴(3점 회전)한다. 금지 대신 좁으면 비용을 더 얹는다 */
+  const NSj=n=>isJunction(n), SEGSj=segs, UTURN_PEN=(window.__upen!==undefined?window.__upen:60)*S, UTURN_MINW=0;   /* ★u_5263 오너: 좁은 도로도 유턴(3점 회전)한다. 금지 대신 좁으면 비용을 더 얹는다 */
   /* 상태키 = "노드|들어온간선". 시작은 들어온 간선이 없다(-1). */
   const key=(n,si)=>n+'|'+si;
   const G={}, F={}, came={}, seen=new Set();
@@ -839,13 +840,13 @@ function astar(s,t){
          교차로(간선 3개 이상) + 왕복도로에서만, 유턴 비용(UTURN_PEN)을 얹어 허용한다.
          비용이 있으니 진짜 돌아가는 길이 더 짧으면 그쪽을 고른다. */
       const _isU = (si===cur.si);
-      if(_isU && !( (NSj(cur.n)) && !SEGSj[si].o && SEGSj[si].roadW>=UTURN_MINW )) continue;   // 왕복 + 교차로 + 유턴 가능한 폭에서만
+      if(_isU && !( (NSj(cur.n)) && !SEGSj[si].o && (SEGSj[si].roadW||((SEGSj[si].l||2)*LW))>=UTURN_MINW )) continue;   // 왕복 + 교차로 + 유턴 가능한 폭에서만
       if(!segAllows(si, cur.n)) continue;             // 일방통행 역주행 금지
       /* 교차로가 아닌 지점에서 방향을 바꾸는 것도 유턴이다.
          간선이 2개뿐인 중간노드에서는 계속 진행만 허용된다(위 si!==cur.si 로 이미 보장). */
       const nb=other(segs[si],cur.n);
       const nk=key(nb,si);
-      const ng=(G[cur.k]||0)+segs[si].len+(_isU?(UTURN_PEN+(SEGSj[si].roadW<11*S?UTURN_PEN:0)):0);
+      const ng=(G[cur.k]||0)+segs[si].len+(_isU?(UTURN_PEN+((SEGSj[si].roadW||((SEGSj[si].l||2)*LW))<11*S?UTURN_PEN:0)):0);
       if(G[nk]===undefined||ng<G[nk]){
         G[nk]=ng; F[nk]=ng+h(nb,t); came[nk]={n:cur.n,k:cur.k};
         if(!seen.has(nk)) open.push({n:nb, si:si, k:nk});
@@ -1136,7 +1137,7 @@ function gTurnBlocked(prevSi, viaNode, nextSi){
   return false;
 }
 function gAstar(s,t,startAng){
-  const NSj=n=>((GNODES[n]&&GNODES[n].e)||[]).length>=3, SEGSj=GSEGS, UTURN_PEN=60*S, UTURN_MINW=0;   /* ★u_5263 오너: 좁은 도로도 유턴(3점 회전)한다. 금지 대신 좁으면 비용을 더 얹는다 */
+  const NSj=n=>((GNODES[n]&&GNODES[n].e)||[]).length>=3, SEGSj=GSEGS, UTURN_PEN=(window.__upen!==undefined?window.__upen:60)*S, UTURN_MINW=0;   /* ★u_5263 오너: 좁은 도로도 유턴(3점 회전)한다. 금지 대신 좁으면 비용을 더 얹는다 */
   const key=(n,si)=>n+'|'+si;
   const st={n:s,si:-1};
   const G={[key(s,-1)]:0}, came={}, open=[st], seen=new Set();
@@ -1159,7 +1160,7 @@ function gAstar(s,t,startAng){
          교차로(간선 3개 이상) + 왕복도로에서만, 유턴 비용(UTURN_PEN)을 얹어 허용한다.
          비용이 있으니 진짜 돌아가는 길이 더 짧으면 그쪽을 고른다. */
       const _isU = (si===cur.si);
-      if(_isU && !( (NSj(cur.n)) && !SEGSj[si].o && SEGSj[si].roadW>=UTURN_MINW )) continue;   // 왕복 + 교차로 + 유턴 가능한 폭에서만
+      if(_isU && !( (NSj(cur.n)) && !SEGSj[si].o && (SEGSj[si].roadW||((SEGSj[si].l||2)*LW))>=UTURN_MINW )) continue;   // 왕복 + 교차로 + 유턴 가능한 폭에서만
       const sg=GSEGS[si];
       if(!gSegAllows(sg, cur.n)) continue;          // 일방통행 역주행 금지
       if(gTurnBlocked(cur.si, cur.n, si)) continue; // ★회전금지(a_5053)
@@ -1187,7 +1188,7 @@ function gAstar(s,t,startAng){
          사람도 골목을 피해 큰길로 가듯, 경로 단계에서 좁은 길을 피한다.
          금지가 아니라 가중치다 — 좁은 길밖에 없으면 여전히 쓴다. */
       const narrow = (sg.l||2) <= 1 ? 12 : ((sg.l||2) <= 2 ? 2.5 : 1);
-      const ng=G[ck]+sg.len*(sg.v?40:1)*narrow+(_isU?(UTURN_PEN+(SEGSj[si].roadW<11*S?UTURN_PEN:0)):0);
+      const ng=G[ck]+sg.len*(sg.v?40:1)*narrow+(_isU?(UTURN_PEN+((SEGSj[si].roadW||((SEGSj[si].l||2)*LW))<11*S?UTURN_PEN:0)):0);
       const nk=key(nb,si);
       if(G[nk]===undefined||ng<G[nk]){
         came[nk]={n:cur.n,si:cur.si}; G[nk]=ng; F[nk]=ng+h(nb);
@@ -1304,7 +1305,7 @@ function planTo(x,y){
   /* ★u_5261 실측(신촌역 출발, 114m 지점 갇힘→복귀): 유턴을 허용하자 A* 가 출발점에서
      4.6m 앞 노드로 갔다가 되돌아오는 경로를 냈다. 차는 아직 서 있으니 처음부터
      되돌아오는 방향을 보고 출발하면 된다 — 맨 앞의 '갔다 오는' 두 홉을 잘라낸다. */
-  {  /* 실측 pHead [S,A,B,A]: 유턴이 index 2 에도 온다 → 출발 40m 안의 '갔다오기'는 전부 제거 */
+  if(!window.__nostrip){  /* 실측 pHead [S,A,B,A]: 유턴이 index 2 에도 온다 → 출발 40m 안의 '갔다오기'는 전부 제거 (?nostrip=1 = 3점회전 시험용) */
     let guard=0;
     while(guard++<8){
       let cut=false, acc=0;
@@ -1417,7 +1418,7 @@ function planTo(x,y){
        laneOff 는 주행차로(가장 오른쪽) 기준이라 유턴을 바깥차로에서 하게 만든다 —
        실제로 "맨 바깥쪽 차선에서 90도 90도" 가 이렇게 나왔다.
        유턴 직전/직후 구간의 오프셋만 1차로로 바꾼다(중앙선에서 반 차로 안쪽). */
-    const _ktPts=[];   // ★u_5263 좁은 도로 유턴 지점(3점 회전 대상)
+    const _ktPts=[]; window.__ktPtsTmp=_ktPts;   // ★u_5263 좁은 도로 유턴 지점(3점 회전 대상). 블록 밖(auto.wp 대입부)에서 읽도록 window 에 건다
     for(let i=1;i<NP-1;i++){
       const a1=segAng(i-1), a2=segAng(i);
       const dd=((a2-a1+Math.PI*3)%(Math.PI*2))-Math.PI;
@@ -1483,6 +1484,11 @@ function planTo(x,y){
          ⇒ 유턴은 별도 처리한다. 승용차 최소회전반경(차로중심 기준 5.5m)을
            그대로 쓰고, 진입/진출 차로를 1차로로 옮긴다. */
       const isUturn = Math.abs(d) > Math.PI*0.82;      // 148도 이상 = 유턴
+      /* ★u_5263 좁은 도로 유턴은 호를 만들지 않는다. 호를 만들면 양쪽 다리를 접선길이만큼
+         잘라(실측 31m 간격) 3점 회전을 마친 차 주변에 경로점이 없어진다(최근접 33m →
+         복귀모드 → 갇힘). 경로점을 꼭짓점까지 그대로 두고 회전은 driveAuto 의 3점 회전이 한다. */
+      if(isUturn){ try{ const _sgk=edgeOf(p[i-1],p[i]); const _rwk=_sgk?(_sgk.roadW||((_sgk.l||2)*LW)):0;
+                        if(_rwk && _rwk < 2*5.5*S + 1.0*S) continue; }catch(e){} }
       const interior=Math.PI-Math.abs(d);
       const sh=Math.sin(interior/2); const shs=Math.abs(sh)<0.05?0.05:sh;
       /* ★접선길이 상한 = min(다리 45%, 교차로 면제반경).
@@ -1636,7 +1642,7 @@ function planTo(x,y){
      운전하는 방식도 아니다. 진행방향 기준으로 이미 지난 점은 건너뛰고
      '앞에 있는 첫 점'부터 따라간다. */
   auto.wp=wp;
-  auto.ktPts=(typeof _ktPts!=='undefined')?_ktPts:[]; auto.kt=null; window.__ktN=auto.ktPts.length; window.__ktDone=0;
+  auto.ktPts=window.__ktPtsTmp||[]; window.__ktPtsTmp=null; auto.kt=null; window.__ktN=auto.ktPts.length; window.__ktDone=0;
   /* ★차 뒤의 '첫 몇 점'만 건너뛴다(u_5033, u_5035 수정).
      목적지가 뒤에 있으면 모든 점이 뒤로 판정돼 st 가 끝까지 가버렸다 →
      경로가 마지막 한 점만 남아 차가 아무것도 안 했다(오너: "목적지 설정하면
