@@ -19,11 +19,19 @@ need_go=0; case "$URL" in *go=1*) need_go=1;; esac
 
 renderer_mb(){ ps -eo rss,command | grep "Google Chrome Helper (Renderer)" | grep -v grep | sort -rn | head -1 | awk '{printf "%d",$1/1024}'; }
 win_count(){ osascript -e 'tell application "Google Chrome" to count windows' 2>/dev/null || echo 0; }
-ready(){ python3 - "$need_go" <<'PY'
+# ★준비 = '이번 로드'의 텔레메트리여야 한다(loadId 가 이전 값과 달라야). 루프 전에 죽은 페이지는
+#   /tel 을 못 올리고 서버가 이전 스냅샷을 돌려줘 3초 만에 '준비'로 오판했었다(실측).
+PREV_ID=$(python3 -c "
+import json,urllib.request
+try: print(json.load(urllib.request.urlopen('http://localhost:8901/tel',timeout=3)).get('loadId'))
+except Exception: print('None')")
+tab_title(){ osascript -e 'tell application "Google Chrome" to get title of active tab of front window' 2>/dev/null; }
+ready(){ python3 - "$need_go" "$PREV_ID" <<'PY'
 import sys,json,urllib.request
 try:
     d=json.load(urllib.request.urlopen("http://localhost:8901/tel",timeout=3))
-    ok=(d.get("wpLen") or 0)>100 and (not int(sys.argv[1]) or d.get("autoOn")==1)
+    fresh = d.get("loadId") is not None and str(d.get("loadId")) != sys.argv[2]
+    ok = fresh and (d.get("wpLen") or 0)>100 and (not int(sys.argv[1]) or d.get("autoOn")==1)
     sys.exit(0 if ok else 1)
 except Exception: sys.exit(1)
 PY
@@ -43,8 +51,11 @@ wait_ready(){  # $1 = 초
   local t=0
   while [ $t -lt "$1" ]; do
     sleep 3; t=$((t+3))
-    if ready; then echo "reload: ready in ${t}s"; return 0; fi
+    local ttl; ttl=$(tab_title)
+    case "$ttl" in ERR:*) echo "reload: PAGE ERROR — $ttl"; return 2;; esac
+    if ready; then echo "reload: ready in ${t}s (loadId changed, title='$ttl')"; return 0; fi
   done
+  echo "reload: timeout; last title='$(tab_title)'"
   return 1
 }
 
@@ -56,7 +67,9 @@ fi
 
 # 1) 로드 + 준비 확인
 navigate
-if wait_ready "$MAXWAIT"; then exit 0; fi
+wait_ready "$MAXWAIT"; WR=$?
+[ $WR -eq 0 ] && exit 0
+[ $WR -eq 2 ] && { echo "reload: FAILED — script error in page (not a browser problem)"; exit 2; }
 
 # 2) 1회 복구 재시도
 echo "reload: not ready after ${MAXWAIT}s (windows=$(win_count), renderer=$(renderer_mb)MB) — restarting Chrome"

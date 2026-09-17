@@ -199,8 +199,19 @@
           aheadNl = nl2; aheadDist = +dm.toFixed(0);
           /* 회전 방향: 다음 도로 방향과 현재 도로 방향의 차이.
              좌회전이면 왼쪽 차로(인덱스 작은 쪽), 우회전이면 오른쪽 끝 차로. */
-          let rel = ((n2.s.ang - sg.ang + Math.PI*3) % (Math.PI*2)) - Math.PI;
-          aheadTurn = Math.abs(rel) < 0.35 ? 'S' : (rel < 0 ? 'L' : 'R');
+          /* ★u_5261 실측(원효로 1,252m): 경로선은 오른쪽으로 곧장 가는데 교사는 '좌회전'
+             이라며 1차로로 붙였고, 그 자리가 합류부라 도로 밖(lat −9.3)으로 나가 갇힘→복귀.
+             원인 2개: ① sg.ang/n2.s.ang 은 세그먼트 저장방향(a→b, 왕복도로는 임의)이라
+             직진이 ±180° 로 읽혀 L/R 이 무작위로 나온다. ② 20° 굽음도 회전으로 봤다.
+             ⇒ 각도는 경로점 자체의 진행방향으로 재고, 40° 넘어야 회전이다. */
+          /* 다음 도로의 방향은 경계점이 아니라 그 너머 ~15m 에서 잰다 — 경계점에선
+             회전 호가 아직 안 굽어서 우회전이 13m 앞까지 'S' 로 읽혔다(구간① 961m). */
+          let kn = k; while(kn < auto.wp.length-1 && Math.hypot(auto.wp[kn].x-w.x, auto.wp[kn].y-w.y) < 15*S) kn++;
+          const aRoute = Math.atan2(auto.wp[kn].y-w.y, auto.wp[kn].x-w.x);
+          const i1 = Math.min(auto.wp.length-1, i0+1);
+          const aNow = (i1>i0) ? Math.atan2(auto.wp[i1].y-auto.wp[i0].y, auto.wp[i1].x-auto.wp[i0].x) : me.ang;
+          let rel = ((aRoute - aNow + Math.PI*3) % (Math.PI*2)) - Math.PI;
+          aheadTurn = Math.abs(rel) < 0.70 ? 'S' : (rel < 0 ? 'L' : 'R');
           break;
         }
       }

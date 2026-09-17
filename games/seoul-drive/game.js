@@ -1,3 +1,10 @@
+/* ★u_5256 진단 채널. 스크립트가 루프에 닿기 전에 죽으면 /tel 이 한 번도 안 올라가고
+   서버는 '이전 페이지의 마지막 스냅샷'을 계속 돌려준다 — 그걸 준비 완료로 오판했다.
+   그래서 (a) 로드마다 다른 loadId 를 붙이고 (b) 첫 에러를 탭 제목에 써서
+   루프 없이도 밖(osascript 'title of tab')에서 읽을 수 있게 한다. */
+window.__loadId = Math.floor(Math.random()*1e9);
+window.addEventListener('error', e=>{ if(!/^ERR:/.test(document.title)) document.title='ERR:'+(e.message||'?')+' @'+(e.lineno||'?'); }, true);
+window.addEventListener('unhandledrejection', e=>{ if(!/^ERR:/.test(document.title)) document.title='ERR:promise:'+String(e.reason&&e.reason.message||e.reason).slice(0,80); }, true);
 /* ====== 강남 드라이브 — 실측 스케일 물리/렌더 ======
    ★스케일 규약: S = px per metre. 모든 치수는 '미터'로 쓰고 S를 곱해 그린다.
      (이전 버그: 차 5.8m×12.3m > 차로폭 3.5m → 차가 도로를 벗어남) */
@@ -74,12 +81,35 @@ function collectRoads(cx,cy){
   loadedKeys=new Set(keys);
   return out;
 }
+/* ★u_5256 온디맨드 건물 로드. 인라인 CHUNKS 에는 도로('r')·표지('s')만 남고 건물('b')은
+   청크별 파일에서 필요할 때 가져온다(build.py 가 쪼갠다). 도로가 전부 인라인이므로
+   경로탐색·검색은 바뀌지 않는다. 건물은 차 주변 3x3 + 경로 앞쪽을 미리 가져온다. */
+const BLD_URL=k=>'data/chunks6/'+k.replace(',','_')+'.b.json';
+const _bldReq=new Map(); let _bldPending=0, _bldDirty=false; window.__bldFetched=0;
+function requestBld(k){
+  const c=CH&&CH[k]; if(!c||c.b) return null;
+  if(_bldReq.has(k)) return _bldReq.get(k);          // 진행 중이면 그 promise 를 돌려준다(await 가 실제로 기다리게)
+  _bldPending++;
+  const p=fetch(BLD_URL(k),{cache:'force-cache'})
+    .then(r=>{ if(!r.ok){ (window.__bldErr=window.__bldErr||[]).push(k+':HTTP'+r.status); return []; } return r.json(); })
+    .catch(e=>{ (window.__bldErr=window.__bldErr||[]).push(k+':'+String(e&&e.message||e).slice(0,40)); return []; })
+    .then(bl=>{ c.b=bl; _bldPending--; window.__bldFetched++;
+                window.__bldDirtyN=(window.__bldDirtyN||0)+1; _bldDirty=true; });   // 근처 여부와 무관하게 재조립(값싸다)
+  _bldReq.set(k,p); return p;
+}
+function prefetchBldsAround(mx,my){            // mx,my = 미터
+  const i0=Math.floor(mx/CHUNK),j0=Math.floor(my/CHUNK), ps=[];
+  for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++){ const p=requestBld(i+','+j); if(p) ps.push(p); }
+  return Promise.all(ps);
+}
+/* 도착한 건물만 다시 조립한다 — streamWorld(true) 는 교통을 재배치하므로 주행 중엔 쓰지 않는다 */
+function refreshBlds(){ BLDS_ACTIVE=collectBlds(me.x/S,me.y/S); blds=mkBlds(BLDS_ACTIVE); buildBldGrid(); }
 function collectBlds(cx,cy){
   if(!CH) return BLDS;
   const out=[];
   const i0=Math.floor(cx/CHUNK),j0=Math.floor(cy/CHUNK);
   for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++){
-    const c=CH[i+','+j];if(c)out.push(...c.b);
+    const c=CH[i+','+j];if(c&&c.b)out.push(...c.b); else if(c) requestBld(i+','+j);   // collectBlds 에는 k 가 없다(실측 ReferenceError @264)
   }
   return out;
 }
@@ -594,6 +624,20 @@ function reset(){
 }
 
 /* ---------- 도로 판정(인도 침범 감지) ---------- */
+/* ★u_5261 실측(신촌역→시청역 1,146m): 왕복1차로가 일방통행 간선에 얕은 각으로 합류하는
+   곳에서, 차는 이미 간선 위인데 nearestSeg 는 아직 좁은 왕복도로를 돌려줘 그 도로의
+   중앙선 기준으로 '침범' 이 났다(95프레임→복귀). 일방통행 차도 안에 있으면 중앙선
+   침범이 성립할 수 없으므로 가드를 끈다. */
+function insideOneWay(x,y){
+  for(const s of segs){
+    if(!s.o) continue;
+    const A=nodes[s.a],B=nodes[s.b]; if(!A||!B) continue;
+    const vx=B.x-A.x,vy=B.y-A.y,L=vx*vx+vy*vy;
+    let t=L?((x-A.x)*vx+(y-A.y)*vy)/L:0; t=Math.max(0,Math.min(1,t));
+    if(Math.hypot(A.x+vx*t-x,A.y+vy*t-y)<=s.roadW*0.5) return true;
+  }
+  return false;
+}
 function nearestSeg(x,y){
   let best=null;
   for(const s of segs){
@@ -770,6 +814,7 @@ function segAllows(si, from){
 function isJunction(n){ return (nodes[n].e || []).length >= 3; }
 
 function astar(s,t){
+  const NSj=n=>isJunction(n), SEGSj=segs, UTURN_PEN=60*S, UTURN_MINW=0;   /* ★u_5263 오너: 좁은 도로도 유턴(3점 회전)한다. 금지 대신 좁으면 비용을 더 얹는다 */
   /* 상태키 = "노드|들어온간선". 시작은 들어온 간선이 없다(-1). */
   const key=(n,si)=>n+'|'+si;
   const G={}, F={}, came={}, seen=new Set();
@@ -789,13 +834,18 @@ function astar(s,t){
     if(seen.has(cur.k)) continue;
     seen.add(cur.k);
     for(const si of nodes[cur.n].e){
-      if(si===cur.si) continue;                       // 왔던 길로 되돌아가기 = 제자리 유턴 금지
+      /* ★u_5256 오너 지시 "일차로에서 유턴하는 걸로". 모든 노드에서 되돌아가기를 막으니
+         교차로에서도 유턴이 불가능해 블록을 도는 '좌회전 두 번'이 나왔다.
+         교차로(간선 3개 이상) + 왕복도로에서만, 유턴 비용(UTURN_PEN)을 얹어 허용한다.
+         비용이 있으니 진짜 돌아가는 길이 더 짧으면 그쪽을 고른다. */
+      const _isU = (si===cur.si);
+      if(_isU && !( (NSj(cur.n)) && !SEGSj[si].o && SEGSj[si].roadW>=UTURN_MINW )) continue;   // 왕복 + 교차로 + 유턴 가능한 폭에서만
       if(!segAllows(si, cur.n)) continue;             // 일방통행 역주행 금지
       /* 교차로가 아닌 지점에서 방향을 바꾸는 것도 유턴이다.
          간선이 2개뿐인 중간노드에서는 계속 진행만 허용된다(위 si!==cur.si 로 이미 보장). */
       const nb=other(segs[si],cur.n);
       const nk=key(nb,si);
-      const ng=(G[cur.k]||0)+segs[si].len;
+      const ng=(G[cur.k]||0)+segs[si].len+(_isU?(UTURN_PEN+(SEGSj[si].roadW<11*S?UTURN_PEN:0)):0);
       if(G[nk]===undefined||ng<G[nk]){
         G[nk]=ng; F[nk]=ng+h(nb,t); came[nk]={n:cur.n,k:cur.k};
         if(!seen.has(nk)) open.push({n:nb, si:si, k:nk});
@@ -1086,6 +1136,7 @@ function gTurnBlocked(prevSi, viaNode, nextSi){
   return false;
 }
 function gAstar(s,t,startAng){
+  const NSj=n=>((GNODES[n]&&GNODES[n].e)||[]).length>=3, SEGSj=GSEGS, UTURN_PEN=60*S, UTURN_MINW=0;   /* ★u_5263 오너: 좁은 도로도 유턴(3점 회전)한다. 금지 대신 좁으면 비용을 더 얹는다 */
   const key=(n,si)=>n+'|'+si;
   const st={n:s,si:-1};
   const G={[key(s,-1)]:0}, came={}, open=[st], seen=new Set();
@@ -1103,7 +1154,12 @@ function gAstar(s,t,startAng){
     if(seen.has(ck)) continue;
     seen.add(ck);
     for(const si of GNODES[cur.n].e){
-      if(si===cur.si) continue;                     // 제자리 유턴 금지
+      /* ★u_5256 오너 지시 "일차로에서 유턴하는 걸로". 모든 노드에서 되돌아가기를 막으니
+         교차로에서도 유턴이 불가능해 블록을 도는 '좌회전 두 번'이 나왔다.
+         교차로(간선 3개 이상) + 왕복도로에서만, 유턴 비용(UTURN_PEN)을 얹어 허용한다.
+         비용이 있으니 진짜 돌아가는 길이 더 짧으면 그쪽을 고른다. */
+      const _isU = (si===cur.si);
+      if(_isU && !( (NSj(cur.n)) && !SEGSj[si].o && SEGSj[si].roadW>=UTURN_MINW )) continue;   // 왕복 + 교차로 + 유턴 가능한 폭에서만
       const sg=GSEGS[si];
       if(!gSegAllows(sg, cur.n)) continue;          // 일방통행 역주행 금지
       if(gTurnBlocked(cur.si, cur.n, si)) continue; // ★회전금지(a_5053)
@@ -1131,7 +1187,7 @@ function gAstar(s,t,startAng){
          사람도 골목을 피해 큰길로 가듯, 경로 단계에서 좁은 길을 피한다.
          금지가 아니라 가중치다 — 좁은 길밖에 없으면 여전히 쓴다. */
       const narrow = (sg.l||2) <= 1 ? 12 : ((sg.l||2) <= 2 ? 2.5 : 1);
-      const ng=G[ck]+sg.len*(sg.v?40:1)*narrow;
+      const ng=G[ck]+sg.len*(sg.v?40:1)*narrow+(_isU?(UTURN_PEN+(SEGSj[si].roadW<11*S?UTURN_PEN:0)):0);
       const nk=key(nb,si);
       if(G[nk]===undefined||ng<G[nk]){
         came[nk]={n:cur.n,si:cur.si}; G[nk]=ng; F[nk]=ng+h(nb);
@@ -1245,6 +1301,21 @@ function planTo(x,y){
   }
   if(!p){ p=astar(nearestNode(me.x,me.y),nearestNode(x,y)); NS=nodes; }
   if(!p){ flash('경로 없음'); window.__planFail=(window.__planFail||0)+1; return; }
+  /* ★u_5261 실측(신촌역 출발, 114m 지점 갇힘→복귀): 유턴을 허용하자 A* 가 출발점에서
+     4.6m 앞 노드로 갔다가 되돌아오는 경로를 냈다. 차는 아직 서 있으니 처음부터
+     되돌아오는 방향을 보고 출발하면 된다 — 맨 앞의 '갔다 오는' 두 홉을 잘라낸다. */
+  {  /* 실측 pHead [S,A,B,A]: 유턴이 index 2 에도 온다 → 출발 40m 안의 '갔다오기'는 전부 제거 */
+    let guard=0;
+    while(guard++<8){
+      let cut=false, acc=0;
+      for(let i=1;i<p.length-1;i++){
+        const A=NS[p[i-1]], B=NS[p[i]]; if(A&&B) acc+=Math.hypot(B.x-A.x,B.y-A.y);
+        if(acc>40*S) break;
+        if(p[i-1]===p[i+1]){ p.splice(i,2); cut=true; break; }
+      }
+      if(!cut) break;
+    }
+  }
   /* ★주행선을 '실제 차로 중앙'에 놓는다(u_5025).
      예전엔 중심선에서 무조건 LW*.5(=1.75m)만 띄웠다. 왕복도로는 우연히 맞지만
      일방통행은 전 차로를 쓰기 때문에 기준이 달라서, 올바른 위치가 -3.5m~-5.25m 인데
@@ -1346,11 +1417,17 @@ function planTo(x,y){
        laneOff 는 주행차로(가장 오른쪽) 기준이라 유턴을 바깥차로에서 하게 만든다 —
        실제로 "맨 바깥쪽 차선에서 90도 90도" 가 이렇게 나왔다.
        유턴 직전/직후 구간의 오프셋만 1차로로 바꾼다(중앙선에서 반 차로 안쪽). */
+    const _ktPts=[];   // ★u_5263 좁은 도로 유턴 지점(3점 회전 대상)
     for(let i=1;i<NP-1;i++){
       const a1=segAng(i-1), a2=segAng(i);
       const dd=((a2-a1+Math.PI*3)%(Math.PI*2))-Math.PI;
       if(Math.abs(dd) <= Math.PI*0.82) continue;        // 유턴 아님
       const sgA=edgeOf(p[i-1],p[i]), sgB=edgeOf(p[i],p[i+1]);
+      /* ★u_5263 오너: "회전반경이 안 나오면 최대한 회전했다가 후진하고 다시 돌아야지".
+         유턴 원(지름 ≈ 2×5.5m) 이 도로폭에 안 들어가면 한 번에 못 돈다 → 3점 회전 지점으로 표시.
+         주행기(driveAuto)가 이 점 근처에서 전진-좌 / 후진-우 / 전진-좌 로 돈다. */
+      try{ const _V=NS[p[i]]; const _rw=sgA ? (sgA.roadW || (Math.max(1,sgA.l||2)*LW)) : 0;
+           if(_V && _rw && _rw < 2*5.5*S + 1.0*S) _ktPts.push({x:_V.x, y:_V.y, done:0}); }catch(e){}
       const in1=(sg)=>{
         if(!sg) return LW*0.5;
         const rw = sg.roadW || (Math.max(1, sg.l||2) * LW);
@@ -1559,6 +1636,7 @@ function planTo(x,y){
      운전하는 방식도 아니다. 진행방향 기준으로 이미 지난 점은 건너뛰고
      '앞에 있는 첫 점'부터 따라간다. */
   auto.wp=wp;
+  auto.ktPts=(typeof _ktPts!=='undefined')?_ktPts:[]; auto.kt=null; window.__ktN=auto.ktPts.length; window.__ktDone=0;
   /* ★차 뒤의 '첫 몇 점'만 건너뛴다(u_5033, u_5035 수정).
      목적지가 뒤에 있으면 모든 점이 뒤로 판정돼 st 가 끝까지 가버렸다 →
      경로가 마지막 한 점만 남아 차가 아무것도 안 했다(오너: "목적지 설정하면
@@ -1638,7 +1716,10 @@ function planTo(x,y){
                       // 끊긴 지점 앞뒤 좌표(m). 경로가 어디서 튀는지 본다.
                       p0: bi>0?[+(wp[bi-1].x/S).toFixed(0),+(wp[bi-1].y/S).toFixed(0)]:null,
                       p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null,
-                      /* ★진단(u_5255 '우주선 경로'): 출발부 경로점과 차의 관계를 숫자로 본다 */
+                      pHead:p.slice(0,4),
+      uturnHops:(function(){let c=0;for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]) c++;return c})(),
+      uturnPts:(function(){const o=[];for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]){const n=(typeof GNODES!=='undefined'&&GNODES[p[i]])||(typeof NODES!=='undefined'&&NODES[p[i]]); if(n) o.push({x:+(n.x/S).toFixed(1),y:+(n.y/S).toFixed(1)});} return o.slice(0,8)})(),
+      /* ★진단(u_5255 '우주선 경로'): 출발부 경로점과 차의 관계를 숫자로 본다 */
                       head:wp.slice(0,9).map(q=>[+(q.x/S).toFixed(1),+(q.y/S).toFixed(1)]),
                       car:[+(me.x/S).toFixed(1),+(me.y/S).toFixed(1),+(me.ang*57.2958).toFixed(1)],
                       hd01:wp.length>1?+(Math.atan2(wp[1].y-wp[0].y,wp[1].x-wp[0].x)*57.2958).toFixed(1):null,
@@ -1863,9 +1944,20 @@ function mdlPoll(dt){
       npDbg: window.__npDbg||null,
       npDbg2: window.__npDbg2||null,
       avoidN: window.__avoidN||0,        // u_5223 회피 조향 발동 횟수
+      loadId: window.__loadId,           // u_5256 이 로드의 식별자(스냅샷 재사용 방지)
       tpN: window.__tpN||0,              // u_5227 순간이동 총횟수(사고로 안 세지던 것)
+      bldN: (typeof blds!=='undefined'&&blds)?blds.length:0, bldFetched: window.__bldFetched||0, bldPending: _bldPending,
+      bldErr:(window.__bldErr||[]).slice(0,6),
+      bldLens:(function(){try{const i0=Math.floor(me.x/S/CHUNK),j0=Math.floor(me.y/S/CHUNK);const o={};for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++){const c=CH&&CH[i+','+j];o[i+','+j]=c?(c.b?c.b.length:'nob'):'nochunk';}return o}catch(e){return 'ERR'}})(),
+      bldDbg2:{lk:typeof loadedKeys, dirtyN:window.__bldDirtyN||0, collectN:(function(){try{return collectBlds(me.x/S,me.y/S).length}catch(e){return 'ERR:'+e.message}})(),
+               haveB:(function(){try{const i0=Math.floor(me.x/S/CHUNK),j0=Math.floor(me.y/S/CHUNK);let n=0;for(let i=i0-1;i<=i0+1;i++)for(let j=j0-1;j<=j0+1;j++){const c=CH&&CH[i+','+j];if(c&&c.b)n++;}return n}catch(e){return 'ERR'}})()},
+      signN: window.__signN||0, signOpp: window.__signOpp||0, signLast: window.__signLast||null,
       blkCenter: window.__blkCenter||0, blkStuck: window.__blkStuck||0,   // 복귀 유래 분해
+      blkLast: window.__blkLast||null, blkHist: window.__blkHist||null,   // 구속 발동 문맥
+      startK: (window.__startK===undefined?null:window.__startK),         // 출발 경로점 인덱스
       tpBld: window.__tpBld||0, tpPath: window.__tpPath||0,
+      ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
+      da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
       qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();
@@ -2040,6 +2132,32 @@ function driveAuto(dt){
       return;
     }
   }
+  /* ★u_5263 3점 회전(K-turn). 좁은 왕복도로의 유턴 지점(auto.ktPts)에 오면 Pure Pursuit 을
+     잠시 멈추고 ①전진·최대좌조향 → ②후진·최대우조향 → ③전진·최대좌조향 으로 180° 돈다.
+     단계 전환 = 누적 회전각 또는 '움직임 정지(도로 가장자리에 닿음)'. 끝나면 경로로 복귀. */
+  try{
+    if(!auto.kt && auto.ktPts && auto.ktPts.length){
+      for(const q of auto.ktPts){ if(q.done) continue;
+        const dq=Math.hypot(q.x-me.x,q.y-me.y);
+        if(dq < 8*S){ auto.kt={q, ph:1, a0:me.ang, t:0, st:0, lx:me.x, ly:me.y}; flash('3점 회전'); break; }
+      }
+    }
+    if(auto.kt){
+      const k=auto.kt; k.t+=dt;
+      const dA=Math.abs(((me.ang-k.a0+Math.PI*3)%(Math.PI*2))-Math.PI);   // 누적 회전각
+      const mv=Math.hypot(me.x-k.lx,me.y-k.ly)/S; k.lx=me.x; k.ly=me.y;
+      k.st = (mv<0.01 && k.t>0.4) ? k.st+dt : 0;                             // 가장자리에 막혀 못 움직임
+      let steer, vt;
+      if(k.ph===1){ steer=-0.9; vt= 1.8; if(dA>Math.PI*0.36 || k.st>0.5){ k.ph=2; k.st=0; k.t=0; } }
+      else if(k.ph===2){ steer= 0.9; vt=-1.8; if(dA>Math.PI*0.72 || k.st>0.5){ k.ph=3; k.st=0; k.t=0; } }
+      else { steer=-0.9; vt= 1.8; if(dA>Math.PI*0.94 || k.st>0.8){ k.q.done=1; auto.kt=null; window.__ktDone=(window.__ktDone||0)+1; flash('회전 완료'); } }
+      if(auto.kt){
+        me.steer=steer; me.v+=(vt-me.v)*Math.min(1,dt*3); me.cool=Math.max(me.cool||0,0.3);   // cool>0 = 갇힘 감지 보류
+        auto.act='3점 회전 '+k.ph; window.__ktDbg={ph:k.ph,dA:+(dA*57.3).toFixed(0),st:+k.st.toFixed(1),v:+me.v.toFixed(2)};
+        return;
+      }
+    }
+  }catch(e){ window.__ktErr=String(e&&e.message||e).slice(0,60); auto.kt=null; }
   // 3) 전방 곡률 → 코너 속도
   let vmaxCurve=14;
   {
@@ -2478,7 +2596,7 @@ function step(dt){
        3) 교차로 노드에서 roadW*1.5 안쪽이면 검사 자체를 끈다 — 회전 구간 */
   {
     const ns=nearestSeg(me.x,me.y);
-    if(ns && ns.s && !ns.s.o && ns.d <= ns.s.roadW*0.5 && !nearJunction(me.x,me.y,ns.s)){
+    if(ns && ns.s && !ns.s.o && ns.d <= ns.s.roadW*0.5 && !nearJunction(me.x,me.y,ns.s) && !insideOneWay(me.x,me.y) && !(auto.on&&auto.kt)){
       const sg=ns.s;
       let dd=((me.ang - sg.ang + Math.PI*3)%(Math.PI*2))-Math.PI;
       /* 양방향 구간은 a→b 방향이 임의로 저장돼 있다. 역방향으로 달리는 것이
@@ -2487,8 +2605,18 @@ function step(dt){
       if(align >= Math.PI/3){ blockT=Math.max(0,(blockT||0)-dt*0.5); }
       else{
       const dir = Math.abs(dd) < Math.PI/2 ? 1 : -1;
-      // 중심선 기준 부호거리(진행방향 오른쪽이 +)
-      const lat = (-(ns.px-me.x)*Math.sin(sg.ang) + (ns.py-me.y)*Math.cos(sg.ang)) * dir;
+      /* 중심선 기준 부호거리(진행방향 오른쪽이 +).
+         ★u_5260 실측(구간5, 556/556 프레임): 옛 식은 부호가 뒤집혀 있었다 — 정상 차로
+         중앙을 달리는 차(−1.63)와 경로점 자체(−1.55)가 모두 '반대편'으로 읽혔다.
+         y-아래 캔버스에서 진행방향 ang 의 오른쪽 법선은 (−sin, cos) 이고, 차−발점 벡터에
+         내적해야 하는데 발점−차 벡터를 썼다. 그래서 왕복도로(노란 중앙선)에서만, 차로
+         중앙에서 조금만 오른쪽으로 흔들려도 '중앙선 침범'→복귀가 났다. */
+      const lat = ((ns.px-me.x)*Math.sin(sg.ang) - (ns.py-me.y)*Math.cos(sg.ang)) * dir;
+      try{ if(auto.on&&auto.wp.length){ const w=auto.wp[Math.min(auto.wp.length-1,(auto.i|0)+2)];
+        const latW=((ns.px-w.x)*Math.sin(sg.ang) - (ns.py-w.y)*Math.cos(sg.ang))*dir;   // 같은 공식, 경로점에
+        window.__signN=(window.__signN||0)+1;
+        if(latW<0) window.__signOpp=(window.__signOpp||0)+1;      // 경로점이 '반대편'으로 읽힌 횟수
+        window.__signLast={guardCar:+(lat/S).toFixed(2), guardRoute:+(latW/S).toFixed(2), dir:dir, roadW:+(sg.roadW/S).toFixed(1)}; } }catch(e){}
       /* ★u_5253/u_5255 실측: 경로복귀를 부르는 갈래는 이 중앙선 구속이 지배적이다
          (2,818프레임 vs 갇힘판정 1프레임). 구속으로 굳은 저속 표본 77건이 100%
          왕복1차로(폭 6.5m)였다. 그 도로는 차로중심이 중앙선에서 1.62m 이고 차폭이
@@ -2499,13 +2627,32 @@ function step(dt){
          실측(구간1 110초): 구속 2,818→54 프레임, 복귀 46→1회, 주행 675→872m, 사고 0. */
       const _halfLane = (sg.roadW*0.5) / Math.max(1, Math.floor((sg.l||2)/2)) * 0.5;
       const _margin = Math.max(0.6*S, _halfLane + 0.35*S);
-      if(lat < -_margin){                     // 중앙선 너머(반대 차도)
+      /* ★u_5260 실측 2차: 부호를 뒤집어도 왕복1차로(dir=-1)에서 차(-1.98)와 교사 목표
+         off(-1.63) 가 같은 부호로 나왔다 — 즉 어느 식이든 '오른쪽=+' 가 dir 에 따라
+         안 지켜진다(교사 off 는 세그먼트 좌표계). 좌표계 논쟁을 끝내기 위해 기준을
+         바꾼다: 경로선은 차로를 따라 만들어진 게 검증됐으니(u_5235), 차가 '가장 가까운
+         경로점과 반대편' 에 있을 때만 중앙선 침범이다. 경로점이 이 도로 밖(교차로 너머)
+         이면 판단 불가 → 검사 생략. */
+      let _wrongSide = false;
+      try{ if(auto.on&&auto.wp.length){ const w0=auto.wp[Math.min(auto.wp.length-1,(auto.i|0))];
+        const latR=((ns.px-w0.x)*Math.sin(sg.ang) - (ns.py-w0.y)*Math.cos(sg.ang))*dir;
+        if(Math.abs(latR) <= sg.roadW*0.5 && Math.abs(lat) > _margin && (lat<0) !== (latR<0)) _wrongSide=true; } }catch(e){}
+      if(_wrongSide){                         // 중앙선 너머(경로와 반대 차도)
         me.x=px0; me.y=py0; me.ang=pa0;
         me.v*=0.5;
         me.offroad+=dt;
         if(me.offroad>.9){ me.offroad=0; crash('중앙선 침범',false); }
         blockT=(blockT||0)+dt;                // 얼마나 계속 막히고 있나
         window.__blkCenter=(window.__blkCenter||0)+1;   // 복귀 유래: 중앙선 구속
+        try{
+          const _g=window.__teach&&window.__teach.dbg2;
+          window.__blkLast={roadW:+(sg.roadW/S).toFixed(2), l:sg.l, o:sg.o?1:0,
+            lat:+(lat/S).toFixed(2), margin:+(_margin/S).toFixed(2),
+            aTurn:_g?_g.aTurn:null, aD:_g?_g.aD:null, v:+me.v.toFixed(2),
+            dir:dir, raw:+((lat/dir)/S).toFixed(2), off:_g?_g.off:null};   // 부호 규약 대조용
+          const _k=(sg.roadW/S).toFixed(1)+'m/l'+sg.l;
+          window.__blkHist=window.__blkHist||{}; window.__blkHist[_k]=(window.__blkHist[_k]||0)+1;
+        }catch(e){}
       } else blockT=Math.max(0,(blockT||0)-dt*0.5);   // 깜빡여도 누적되게 천천히 감소
       }
     }
@@ -2531,7 +2678,12 @@ function step(dt){
        0.00~0.34 를 오가서 조건을 자주 못 넘긴다(실측 19/20 샘플 제자리).
        '주행 중인데 안 움직인다' 만으로 충분하다. 정상 주행이면 5m/s 로
        프레임당 0.08m 는 움직인다. */
-    if(auto.on && moved < 0.02 && !window.__parked && me.cool<=0){
+    /* ★u_5260 실측: 7분 주행에서 중앙선 구속 0회인데 경로복귀 21회 — 이 감지가
+       신호·앞차·보행자 때문에 '정상 정지' 한 것도 갇힘으로 세고 있었다(주석은
+       '가속 명령이 있는데' 라 했지만 코드는 그걸 안 봤다). 멈추려는 의도가 있으면
+       갇힘이 아니다: 속도상한이 사실상 0, 앞차 간격이 정지거리, 교사가 제동 중. */
+    const _da0=window.__da||{}; const _wantStop = (_da0.vmax!==undefined && _da0.vmax<1.0) || (_da0.gp!==undefined && _da0.gp<11) || ((window.__tbrk||0)>0.2);
+    if(auto.on && moved < 0.02 && !window.__parked && me.cool<=0 && !_wantStop){
       window.__stuckT=(window.__stuckT||0)+dt;
       if(window.__stuckT > 1.2){ blockT = Math.max(blockT||0, 1.1); window.__blkStuck=(window.__blkStuck||0)+1; }   // 복귀 발동
     }else window.__stuckT=Math.max(0,(window.__stuckT||0)-dt*0.5);
@@ -3626,6 +3778,11 @@ function drawChip(){
 
 let last=performance.now(),nt=0;
 function loop(t){
+  if(_bldDirty){ _bldDirty=false; try{ refreshBlds(); }catch(e){} }
+  if(((window.__rafN|0)%60)===0){ try{
+    prefetchBldsAround(me.x/S,me.y/S);
+    if(auto.on&&auto.wp.length){ const w=auto.wp[Math.min(auto.wp.length-1,(auto.i|0)+60)]; prefetchBldsAround(w.x/S,w.y/S); }
+  }catch(e){} }
   streamWorld(false);
   const dt=Math.min(.05,(t-last)/1000);last=t;
   /* ★한 프레임에 한 컨트롤러만 차를 몬다(P1, u_5020).
@@ -3930,7 +4087,7 @@ setTimeout(()=>{
      매 리로드마다 출발지·목적지를 손으로 넣는 게 시간 낭비였다.
      [목적지 가기]는 자동으로 누르지 않는다 — 출발 시점은 사람이 정한다.
      ?auto=0 으로 끌 수 있다. */
-  if(!/[?&]auto=0/.test(location.search)) setTimeout(()=>{
+  if(!/[?&]auto=0/.test(location.search)) setTimeout(async ()=>{
     try{
       const sb=document.getElementById('qs'), db=document.getElementById('q');
       if(!sb||!db) return;
@@ -3940,6 +4097,7 @@ setTimeout(()=>{
       const _f=_q.get('from'), _t=_q.get('to');
       if(_f) sb.value=_f; else if(!sb.value) sb.value='강남역';
       if(_t) db.value=_t; else if(!db.value) db.value='시청역';
+      try{ const _c0=search(sb.value)[0]; if(_c0) await prefetchBldsAround(_c0.x,_c0.y); }catch(e){}
       if(!setStart(sb.value)) return;          // 출발지 배치 실패면 경로도 잡지 않는다
       hits=search(db.value); if(!hits.length){ flash('목적지 없음: '+db.value); return; }
       sel=0; window.__autoStart=false; pick();  // 경로만 만든다(출발은 사람이)
@@ -4074,3 +4232,4 @@ setTimeout(()=>{
   window.__sdbg = ()=>({v:box.value, hits:hits.length, sel:sel,
                         idx:IDX.length, auto:auto.on, wp:auto.wp.length});
 })();
+if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스크립트 끝까지 도달 표시

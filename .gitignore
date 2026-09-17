@@ -151,3 +151,6 @@ games/seoul-drive/data/*/Y.npy
 games/seoul-drive/data/*/M.npy
 games/seoul-drive/data/*/DONE
 games/seoul-drive/data/*/episodes.json
+
+# u_5256 온디맨드 건물 청크 — build.py 가 data6.js 에서 생성하는 파생물
+games/seoul-drive/data/chunks6/

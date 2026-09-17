@@ -28,6 +28,24 @@ head = open('games/seoul-drive/index.html').read().split('<script>')[0]
 import os as _os
 _d = 'games/seoul-drive/data/data6.js'
 data = open(_d if _os.path.exists(_d) else '/tmp/data6.js').read()
+# ★u_5256 온디맨드 로드. 청크의 'b'(건물)가 바이트의 ~75%인데 차 주변 3x3 에서만 쓴다.
+#   도로('r')는 전역 경로탐색이 전부 필요하므로 인라인 유지 → 경로·검색 결과는 바이트 동일.
+#   건물만 games/seoul-drive/data/chunks6/<i>_<j>.b.json 으로 쪼개고 게임이 필요할 때 fetch 한다.
+#   ★data/seoul/chunks 는 다른(더 큰) 데이터셋이라 쓰지 않는다 — 지도 자체가 바뀐다.
+import json as _json
+_i0 = data.index('{')
+_obj, _end = _json.JSONDecoder().raw_decode(data[_i0:])
+_tail = data[_i0+_end:]                       # 객체 뒤 문장들(ROADS/BLDS/POI 선언 등) 보존
+_outdir = 'games/seoul-drive/data/chunks6'; _os.makedirs(_outdir, exist_ok=True)
+_nb = 0
+for _k, _c in _obj.items():
+    _bl = _c.pop('b', None)
+    if _bl is not None:
+        open(f"{_outdir}/{_k.replace(',', '_')}.b.json", 'w', encoding='utf8').write(
+            _json.dumps(_bl, separators=(',', ':'), ensure_ascii=False))
+        _nb += len(_bl)
+data = data[:_i0] + _json.dumps(_obj, separators=(',', ':'), ensure_ascii=False) + _tail
+print(f"chunks6: buildings {_nb} split into {_outdir} ({len(_obj)} chunks); inline map now {len(data)/1048576:.1f} MB")
 # ★검색 인덱스(u_5003) — 없으면 검색창은 뜨되 결과가 없다. build_search_index.py 로 생성.
 _si = 'games/seoul-drive/data/search.js'
 search_js = open(_si).read() if _os.path.exists(_si) else 'const SEARCH=[];'
