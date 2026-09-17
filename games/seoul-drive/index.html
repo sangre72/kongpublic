@@ -2000,6 +2000,7 @@ function mdlPoll(dt){
       npDbg2: window.__npDbg2||null,
       avoidN: window.__avoidN||0,        // u_5223 회피 조향 발동 횟수
       tpN: window.__tpN||0,              // u_5227 순간이동 총횟수(사고로 안 세지던 것)
+      blkCenter: window.__blkCenter||0, blkStuck: window.__blkStuck||0,   // 복귀 유래 분해
       tpBld: window.__tpBld||0, tpPath: window.__tpPath||0,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
@@ -2624,12 +2625,23 @@ function step(dt){
       const dir = Math.abs(dd) < Math.PI/2 ? 1 : -1;
       // 중심선 기준 부호거리(진행방향 오른쪽이 +)
       const lat = (-(ns.px-me.x)*Math.sin(sg.ang) + (ns.py-me.y)*Math.cos(sg.ang)) * dir;
-      if(lat < -0.6*S){                       // 중앙선 너머(반대 차도)
+      /* ★u_5253/u_5255 실측: 경로복귀를 부르는 갈래는 이 중앙선 구속이 지배적이다
+         (2,818프레임 vs 갇힘판정 1프레임). 구속으로 굳은 저속 표본 77건이 100%
+         왕복1차로(폭 6.5m)였다. 그 도로는 차로중심이 중앙선에서 1.62m 이고 차폭이
+         1.8m 라 차 왼쪽 모서리와 중앙선 사이 여유가 0.72m 뿐인데, 임계는 0.6m 고정
+         이었다 — 0.12m 만 흔들려도 침범으로 잡혀 사실상 상시 위반이었다.
+         ⇒ 임계를 도로에 맞춘다: 반차로 폭 + 0.35m. 차 모서리가 실제로 중앙선을
+           넘었을 때만 본다. 넓은 도로에서는 예전 0.6m 를 하한으로 유지한다.
+         실측(구간1 110초): 구속 2,818→54 프레임, 복귀 46→1회, 주행 675→872m, 사고 0. */
+      const _halfLane = (sg.roadW*0.5) / Math.max(1, Math.floor((sg.l||2)/2)) * 0.5;
+      const _margin = Math.max(0.6*S, _halfLane + 0.35*S);
+      if(lat < -_margin){                     // 중앙선 너머(반대 차도)
         me.x=px0; me.y=py0; me.ang=pa0;
         me.v*=0.5;
         me.offroad+=dt;
         if(me.offroad>.9){ me.offroad=0; crash('중앙선 침범',false); }
         blockT=(blockT||0)+dt;                // 얼마나 계속 막히고 있나
+        window.__blkCenter=(window.__blkCenter||0)+1;   // 복귀 유래: 중앙선 구속
       } else blockT=Math.max(0,(blockT||0)-dt*0.5);   // 깜빡여도 누적되게 천천히 감소
       }
     }
@@ -2657,7 +2669,7 @@ function step(dt){
        프레임당 0.08m 는 움직인다. */
     if(auto.on && moved < 0.02 && !window.__parked && me.cool<=0){
       window.__stuckT=(window.__stuckT||0)+dt;
-      if(window.__stuckT > 1.2) blockT = Math.max(blockT||0, 1.1);   // 복귀 발동
+      if(window.__stuckT > 1.2){ blockT = Math.max(blockT||0, 1.1); window.__blkStuck=(window.__blkStuck||0)+1; }   // 복귀 발동
     }else window.__stuckT=Math.max(0,(window.__stuckT||0)-dt*0.5);
   }
   if(blockT>1.0 && auto.on && auto.wp.length>1){
