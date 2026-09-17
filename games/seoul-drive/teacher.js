@@ -216,6 +216,25 @@
         }
       }
     }catch(e){ T._aErr = String(e).slice(0,80); }
+    /* ★u_5272/5273 실측(충정로7길 83m): aheadTurn 이 매 프레임 새로 스캔되다 보니
+       auto.i 가 한 칸만 움직여도 R↔S 로 뒤집혔다(회전 준비중 fin 2→0→2→0 반복).
+       각 반전마다 want 가 반대쪽 차로로 최대조향(-1)을 걸어, 8차로 도로에서
+       lat -35m(도로 밖)까지 훑고 반대 차선으로 넘어갔다.
+       ⇒ 한 번 회전(L/R)으로 판정되면 실제로 그 회전을 지날 때까지(aD가 짧아져
+       실제 진입하거나, 완전히 새 도로로 넘어갈 때까지) 판정을 고정한다.
+       직진(S)에서 회전으로 바뀌는 것은 즉시 허용 — 위험한 건 회전이 켜졌다
+       꺼졌다 하는 것이지, 새로 켜지는 게 아니다. */
+    if(aheadTurn && aheadTurn !== 'S'){
+      if(T._turnLock && T._turnLock.turn === aheadTurn && T._turnLock.sg === sg){
+        aheadTurn = T._turnLock.turn; aheadDist = Math.min(aheadDist, T._turnLock.dist);
+      }
+      T._turnLock = {turn: aheadTurn, dist: aheadDist, sg: sg};
+    } else if(T._turnLock && T._turnLock.sg === sg && T._turnLock.dist > 8){
+      aheadTurn = T._turnLock.turn; aheadDist = T._turnLock.dist - 15;   // 갱신 안 됐어도 거리는 줄어든 것으로 본다
+      T._turnLock.dist = aheadDist;
+    } else {
+      T._turnLock = null;
+    }
     /* ★이 블록은 laneTarget() 본문이라 예외가 나면 함수가 통째로 죽고
        g2 가 통째로 사라진다(실측: 전 필드 None). 반드시 감싼다. */
     let ruleWant = null;

@@ -2165,7 +2165,7 @@ function driveAuto(dt){
     }
   }catch(e){ window.__ktErr=String(e&&e.message||e).slice(0,60); auto.kt=null; }
   // 3) 전방 곡률 → 코너 속도
-  let vmaxCurve=14;
+  let vmaxCurve=(window.__TARGET_KMH||45)/3.6;   // ★u_5288/5289: --speed 값이 teacher/GEOM 순항속도에도 적용되게
   {
     const look=25*S, step=5*S;
     let maxK=0;
