@@ -1433,7 +1433,16 @@ function planTo(x,y){
       if(!isUturn && Rc*t>Tcap) Rc=Tcap/(t<0.05?0.05:t);
       /* 유턴은 Tcap 으로 깎지 않는다 — 깎으면 반경이 0 이 되어 직각 2번이 된다.
          승용차 최소회전반경 5.5m(차로중심)을 하한으로 둔다. */
-      if(isUturn) Rc = Math.max(UTURN_R, LW*0.5);
+      if(isUturn){
+        /* ★u_5255 실측: 여기서 Tcap 을 빼놓은 것이 71.3m 끊김을 만들었다.
+           Tc=Rc*tan(|d|/2) 라 160도 헤어핀이면 5.5m*tan80 = 31m 를 앞뒤 구간에서
+           잘라낸다 → 짧은 구간이 통째로 사라지고 직선 chord 만 남는다(경로점 출처
+           'bbbbbbbb', 호 점 없음). 오너 지적대로 '유턴이 아니라 좌회전 두 번'이
+           isUturn 에 걸린 경우다. 구간에 들어가는 만큼만 자른다 — 반경이 줄어
+           급한 꺾임이 되더라도 도로 위에 남는 것이 도로 밖 chord 보다 낫다. */
+        Rc = Math.max(UTURN_R, LW*0.5);
+        if(Rc*t > Tcap) Rc = Math.max(LW*0.5, Tcap/(t<0.05?0.05:t));
+      }
       const sgnD=d>=0?1:-1;
       /* ★우회전은 차로 반경이 Rc-off 라 Rc 가 작아지면 0 으로 붕괴한다.
          바닥(LW*0.3)에 걸리면 호 끝점이 다리와 어긋나 이음매에서 튄다
@@ -1460,7 +1469,7 @@ function planTo(x,y){
        0.1~0.2m 물러난다. 거리로만 걸러내면(0.05m) 통과해 버리고, 헤딩이
        한 표본에서 180도 뒤집힌다(실측 5도 코너: 표본당 177.5도 → 곡률 폭발).
        직전 진행방향과 내적이 음수면 그 점은 경로가 아니라 잡음이다. */
-    let _dropSame=0, _dropBack=0;
+    let _dropSame=0, _dropBack=0; window.__wpSrc=[];
     const push=(x,y)=>{
       const q=wp[wp.length-1];
       if(!q){ wp.push({x,y}); return; }
@@ -1478,7 +1487,7 @@ function planTo(x,y){
         const px=q.x-r.x, py=q.y-r.y;
         if(px*dx+py*dy < 0){ _dropBack++; return; }              // 짧은 역주행 잡음
       }
-      wp.push({x,y});
+      wp.push({x,y}); (window.__wpSrc=window.__wpSrc||[]).push(window.__wpSrcTag||'?');
     };
     /* ★u_5185: 291노드가 64점이 되는 원인을 센다. '역주행 점' 판정이
        코너 호와 다리 리샘플 사이에서 과하게 걸리면 경로 뒷부분이 통째로
@@ -1490,6 +1499,7 @@ function planTo(x,y){
       const t0 = corner[i]   ? corner[i].T2  : 0;      // 시작쪽(앞 코너의 진출접점)에서 자를 길이
       const t1 = corner[i+1] ? corner[i+1].T : 0;      // 끝쪽(다음 코너의 진입접점)에서 자를 길이
       const s0=t0, s1=L-t1;
+      window.__wpSrcTag='b';
       if(s1>s0){
         const n=Math.max(1,Math.round((s1-s0)/RS));
         for(let k=0;k<=n;k++){
@@ -1510,6 +1520,7 @@ function planTo(x,y){
            회전이 커져(실측 우150: 108.8도/표본) 곡률 스캔이 다시 폭발한다.
            20도/표본 이하가 되게 나눈다(최소 4, 최대 10). */
         const N=Math.max(4, Math.min(10, Math.ceil(Math.abs(dA)/(20*Math.PI/180))));
+        window.__wpSrcTag='a';
         for(let k=0;k<=N;k++){
           const ang=A0+dA*(k/N);
           push(g.Cox+Math.cos(ang)*g.R, g.Coy+Math.sin(ang)*g.R);
@@ -1626,7 +1637,16 @@ function planTo(x,y){
                       at:bi, of:wp.length,
                       // 끊긴 지점 앞뒤 좌표(m). 경로가 어디서 튀는지 본다.
                       p0: bi>0?[+(wp[bi-1].x/S).toFixed(0),+(wp[bi-1].y/S).toFixed(0)]:null,
-                      p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null};
+                      p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null,
+                      /* ★진단(u_5255 '우주선 경로'): 출발부 경로점과 차의 관계를 숫자로 본다 */
+                      head:wp.slice(0,9).map(q=>[+(q.x/S).toFixed(1),+(q.y/S).toFixed(1)]),
+                      car:[+(me.x/S).toFixed(1),+(me.y/S).toFixed(1),+(me.ang*57.2958).toFixed(1)],
+                      hd01:wp.length>1?+(Math.atan2(wp[1].y-wp[0].y,wp[1].x-wp[0].x)*57.2958).toFixed(1):null,
+                      hd05:wp.length>5?+(Math.atan2(wp[5].y-wp[0].y,wp[5].x-wp[0].x)*57.2958).toFixed(1):null,
+                      d0:+(Math.hypot(wp[0].x-me.x,wp[0].y-me.y)/S).toFixed(1),
+                      startK: window.__startK,
+                      /* 71m 끊김(bi) 주변 8점 — 어느 루프가 만든 점인지(b=다리 a=호 f=보정) */
+                      srcAround:(window.__wpSrc||[]).slice(Math.max(0,bi-4),bi+4).join('')};
   }catch(e){}
   /* ★경로 설정과 출발을 분리한다(u_5041 오너 지시).
      예전엔 경로를 만들자마자 auto.on=1 로 바로 달렸다. 이제 경로는 화면에
@@ -3972,8 +3992,29 @@ setTimeout(()=>{
        조향이 맞아도 도달할 수 없고 차는 좌우로 헌팅만 한다(방향 반전 18회).
        출발 버튼을 누른 그 프레임에 경로 시작점·방향으로 정렬한다. */
     if(auto.wp.length>1){
-      const a=auto.wp[0], b=auto.wp[1];
+      /* ★u_5255 실측('우주선 경로', 구간5 원효로1길): wp[0] 은 교차로 노드이고
+         wp[1..8] 이 그 2m 뒤부터 반경 ~5m 호로 북쪽으로 꺾인다. 차를 wp[0] 에
+         wp0→wp1(2m 짜리 토막) 방향으로 세우면, 출발과 동시에 한 차 길이 안에서
+         꺾이는 곡선을 만나 넘어가 버리고(실측: 11.7m 지나쳐 47도 어긋남) 구속에
+         굳는다. 경로 방향을 평균내는 것(되돌린 e12f849)은 증상만 눌렀다.
+         ⇒ '앞으로 20m 가 곧은 첫 경로점'에서, 그 곧은 방향으로 출발한다.
+           교차로 토막·호는 건너뛰고 실제 주행 도로 위에서 시작하게 된다. */
+      const W=auto.wp;
+      let k0=0;
+      for(let k=0;k<W.length-6;k++){
+        let d=0, j=k, maxTurn=0;
+        let prevA=Math.atan2(W[k+1].y-W[k].y, W[k+1].x-W[k].x);
+        while(j<W.length-1 && d<20*S){
+          const a2=Math.atan2(W[j+1].y-W[j].y, W[j+1].x-W[j].x);
+          const dd=Math.abs(((a2-prevA+Math.PI*3)%(Math.PI*2))-Math.PI);
+          if(dd>maxTurn) maxTurn=dd;
+          d+=Math.hypot(W[j+1].x-W[j].x, W[j+1].y-W[j].y); prevA=a2; j++;
+        }
+        if(maxTurn < 20*Math.PI/180 && d>=15*S){ k0=k; break; }
+      }
+      const a=W[k0], b=W[Math.min(W.length-1,k0+4)];
       const ang=Math.atan2(b.y-a.y, b.x-a.x);
+      window.__startK=k0;
       me.x=a.x; me.y=a.y; me.ang=ang;
       me.v=0; me.steer=0; me.offroad=0; me.cool=0.8;
       auto.cum=null; auto.s=0; auto.k=1; auto.i=0; auto.stall=0;
