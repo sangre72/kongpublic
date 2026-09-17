@@ -1996,7 +1996,7 @@ function mdlPoll(dt){
       blkCenter: window.__blkCenter||0, blkStuck: window.__blkStuck||0,   // 복귀 유래 분해
       blkLast: window.__blkLast||null, blkHist: window.__blkHist||null,   // 구속 발동 문맥
       startK: (window.__startK===undefined?null:window.__startK),         // 출발 경로점 인덱스
-      tpBld: window.__tpBld||0, tpPath: window.__tpPath||0, tpEsc: window.__tpEsc||0,
+      tpBld: window.__tpBld||0, tpPath: window.__tpPath||0, tpEsc: window.__tpEsc||0, sxDbg: window.__sxDbg||null,
       ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
@@ -4157,10 +4157,37 @@ setTimeout(()=>{
       const _f=_q.get('from'), _t=_q.get('to');
       if(_f) sb.value=_f; else if(!sb.value) sb.value='강남역';
       if(_t) db.value=_t; else if(!db.value) db.value='시청역';
-      try{ const _c0=search(sb.value)[0]; if(_c0) await prefetchBldsAround(_c0.x,_c0.y); }catch(e){}
-      if(!setStart(sb.value)) return;          // 출발지 배치 실패면 경로도 잡지 않는다
+      /* ★u_5341 오너: "테스트 구간을 문제 발생구간으로 해. 그럼 매번 나오잖아".
+         맞다. 장소명이 아니라 사고 난 좌표에서 바로 출발할 수 있어야 회귀시험이 된다.
+         ?sx=<px>&sy=<px> (텔레메트리 wpDbg.car 좌표 그대로) 로 그 지점에 차를 놓는다. */
+      const _sx=parseFloat(_q.get('sx')), _sy=parseFloat(_q.get('sy'));
+      if(isFinite(_sx) && isFinite(_sy)){
+        try{ await prefetchBldsAround(_sx,_sy); }catch(e){}
+        me.x=_sx; me.y=_sy;
+        try{ streamWorld(true); }catch(e){}
+        const _r2=placeCarNear(me.x,me.y,{metric:'proj', place:true});
+        try{ window.__sxDbg={req:[_sx,_sy], placed:!!_r2, after:[+me.x.toFixed(1),+me.y.toFixed(1)], segs:(typeof segs!=='undefined'?segs.length:-1)}; }catch(e){}
+        window.__sxLock=[me.x,me.y];   // pick()/planTo 뒤에 되돌아갔는지 대조용
+        if(!_r2){ flash('시작 좌표 근처에 도로 없음'); return; }
+        me.v=0; me.steer=0; me.crashes=0; me.dmg=0; me.offroad=0; me.cool=1.0;
+        crashHold=0; crashHoldT=0; bldStuck=0; blockT=0;
+        window.__tpN=0; window.__tpPath=0; window.__tpBld=0; window.__tpEsc=0;
+        window.__blkStuck=0; window.__blkCenter=0;
+        resetTeacherLane(); window.__parked=1;
+      }
+      else{
+        try{ const _c0=search(sb.value)[0]; if(_c0) await prefetchBldsAround(_c0.x,_c0.y); }catch(e){}
+        if(!setStart(sb.value)) return;        // 출발지 배치 실패면 경로도 잡지 않는다
+      }
       hits=search(db.value); if(!hits.length){ flash('목적지 없음: '+db.value); return; }
       sel=0; window.__autoStart=false; pick();  // 경로만 만든다(출발은 사람이)
+      /* ★u_5341: sx/sy 로 놓은 차를 뒤 단계가 되돌리면 회귀시험이 성립 안 한다.
+         planTo/streamWorld 가 위치를 건드렸으면 원위치로 복구한다. */
+      try{ if(window.__sxLock){
+        const _d=Math.hypot(me.x-window.__sxLock[0], me.y-window.__sxLock[1]);
+        window.__sxDbg.moved=+_d.toFixed(1);
+        if(_d>1){ me.x=window.__sxLock[0]; me.y=window.__sxLock[1]; window.__sxDbg.restored=1; }
+      } }catch(e){}
       const rb=document.getElementById('qrun');
       if(rb && auto.wp.length>1){ rb.disabled=false; flash('강남역→시청역 경로 준비됨 — [목적지 가기]'); }
       /* ★?go=1 이면 경로가 잡힌 직후 자동으로 출발한다(u_5126).
@@ -4229,6 +4256,18 @@ setTimeout(()=>{
           d+=Math.hypot(W[j+1].x-W[j].x, W[j+1].y-W[j].y); prevA=a2; j++;
         }
         if(maxTurn < 20*Math.PI/180 && d>=15*S){ k0=k; break; }
+      }
+      /* ★u_5341 회귀시험(?sx=&sy=): 그 좌표에서 출발해야 사고 구간이 재현된다.
+         기본 동작은 '경로 시작점으로 차를 옮김'이라 좌표 지정이 무의미해진다.
+         좌표가 주어졌으면 차에서 가장 가까운 경로점을 출발점으로 삼는다. */
+      if(window.__sxLock){
+        let bi=0, bd=Infinity;
+        for(let k=0;k<W.length-5;k++){
+          const dd=Math.hypot(W[k].x-me.x, W[k].y-me.y);
+          if(dd<bd){ bd=dd; bi=k; }
+        }
+        k0=bi;
+        try{ window.__sxDbg.startK=k0; window.__sxDbg.startDist=+ (bd/S).toFixed(1); }catch(e){}
       }
       const a=W[k0], b=W[Math.min(W.length-1,k0+4)];
       const ang=Math.atan2(b.y-a.y, b.x-a.x);
