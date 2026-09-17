@@ -1996,7 +1996,7 @@ function mdlPoll(dt){
       blkCenter: window.__blkCenter||0, blkStuck: window.__blkStuck||0,   // 복귀 유래 분해
       blkLast: window.__blkLast||null, blkHist: window.__blkHist||null,   // 구속 발동 문맥
       startK: (window.__startK===undefined?null:window.__startK),         // 출발 경로점 인덱스
-      tpBld: window.__tpBld||0, tpPath: window.__tpPath||0,
+      tpBld: window.__tpBld||0, tpPath: window.__tpPath||0, tpEsc: window.__tpEsc||0,
       ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
@@ -2743,7 +2743,17 @@ function step(dt){
        같은 점으로 되돌리면 도착하자마자 같은 구속에 다시 걸려 무한반복이다 —
        실측: wp45 는 통과했는데 wp64 에서 같은 v=0.2 증상이 재현됐다.
        구속을 못 넘는 지점은 건너뛰고 그 다음 합법 지점부터 이어간다. */
-    const j=Math.min(auto.wp.length-1, auto.i+3);
+    /* ★u_5338/5339 실사고: 같은 자리에서 복귀 753회 무한루프.
+       원인 = 항상 auto.i+3 고정. 옮겨간 3점 앞이 여전히 못 지나가는 구간이면
+       auto.i 가 다시 제자리로 수렴해 같은 곳으로 계속 보내진다(좌표가 소수점까지
+       동일, prog 고정). 실측: xt=37m(경로선에서 이탈) + 58m 경로구멍 구간.
+       ⇒ 연속 복귀일수록 점프를 키운다. 5초 안에 재발하면 escalate, 아니면 리셋. */
+    const _now=performance.now();
+    if(_now - (window.__tpLastT||0) < 5000) window.__tpEsc=(window.__tpEsc||0)+1;
+    else window.__tpEsc=0;
+    window.__tpLastT=_now;
+    const _hop = Math.min(120, 3 + (window.__tpEsc||0)*6);   // 3,9,15,... 최대 120점
+    const j=Math.min(auto.wp.length-1, auto.i+_hop);
     const t=auto.wp[j];
     const p=auto.wp[Math.max(0,j-1)];
     me.x=t.x; me.y=t.y; me.ang=Math.atan2(t.y-p.y,t.x-p.x);
