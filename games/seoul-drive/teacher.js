@@ -68,10 +68,44 @@
     }
     return onRoad(px,py).ok;
   }
+  /* ★u_5271~5290 실측(충정로7길 교차로 밀집구간): laneTarget() 이 매 프레임
+     nearestSeg(=최근접 중심선)만으로 '지금 도로'를 정해서, 지척에 여러 도로가
+     있으면 완전히 다른 도로(차로수 8→3→1)로 튀었다. 8차로에서 우회전목표
+     (fin=7)를 정확히 잡은 바로 다음 프레임에 3차로 도로로 튀어 우회전 자체가
+     취소됐다(t=14~16, 텔레메트리 실측). onRoad() 를 그대로 경유했더니 laneTarget
+     이 통째로 죽어(aTurn/fin 8초+ None) 되돌렸다(u_5284 시도).
+     ⇒ 헤딩(진행방향) 정합성만 본다: 최근접 도로가 내 진행방향과 60도 넘게
+       어긋나는데, 직전에 쓰던 도로는 20도 이내로 맞으면 옛 도로를 1초까지
+       유지한다. onRoad 우회 없이 teacher.js 안에서 완결되므로 이전 실패
+       (다른 함수까지 죽는 것)를 반복하지 않는다. */
+  let _ltSeg = null, _ltT = 0;
   function laneTarget(){
     const n = nearestSeg(me.x, me.y);
     if(!n) return null;
-    const sg = n.s;
+    let sg = n.s;
+    const hdOf = s2 => { const dd=((me.ang - s2.ang + Math.PI*3)%(Math.PI*2))-Math.PI; return Math.abs(Math.abs(dd)>Math.PI/2?Math.PI-Math.abs(dd):dd); };
+    if(_ltSeg && _ltSeg!==sg && hdOf(sg)>1.05 && hdOf(_ltSeg)<0.35 && (performance.now()-_ltT)<1000){
+      const A=nodes[_ltSeg.a], B=nodes[_ltSeg.b];
+      if(A && B){
+        const vx=B.x-A.x, vy=B.y-A.y, L=vx*vx+vy*vy;
+        let t=L?((me.x-A.x)*vx+(me.y-A.y)*vy)/L:0; t=Math.max(0,Math.min(1,t));
+        const dd=Math.hypot(A.x+vx*t-me.x, A.y+vy*t-me.y);
+        if(dd<=_ltSeg.roadW*1.2) sg=_ltSeg;             // 헤딩 안맞는 도로로 안 튄다(그 도로 근처면)
+      }
+    }
+    if(sg!==_ltSeg || !_ltSeg){ _ltSeg=sg; _ltT=performance.now(); }
+    /* ★n.d 는 원래 nearestSeg 결과(최근접, sg 와 다를 수 있다)의 거리다.
+       위에서 sg 를 안정화용으로 바꿔치기했는데 n.d 는 안 바꾸면, 계측(nd/lat)이
+       'sg 기준 각도·오프셋' + '다른 도로까지의 거리' 를 섞어 실제보다 훨씬 큰
+       값을 낸다(실측 lat -34m). sg 를 바꿨으면 n.d 도 그 도로 기준으로 다시 잰다. */
+    if(sg !== n.s){
+      const A=nodes[sg.a], B=nodes[sg.b];
+      if(A && B){
+        const vx=B.x-A.x, vy=B.y-A.y, L=vx*vx+vy*vy;
+        let t=L?((me.x-A.x)*vx+(me.y-A.y)*vy)/L:0; t=Math.max(0,Math.min(1,t));
+        n.d = Math.hypot(A.x+vx*t-me.x, A.y+vy*t-me.y);
+      }
+    }
     let d = ((me.ang - sg.ang + Math.PI*3) % (Math.PI*2)) - Math.PI;
     const dir = Math.abs(d) < Math.PI/2 ? 1 : -1;
 
@@ -350,8 +384,14 @@
        차선을 바꿀 때 얘기다. 도로가 아예 좁아져 그 차로가 존재하지 않으면
        천천히 갈 이유가 없다 — 없는 차로에 머무는 것이 곧 도로 이탈이다.
        ⇒ 도로 밖으로 나가는 방향의 clamp 는 즉시 적용한다. */
-    if(T.laneF > hi) T.laneF = Math.max(hi, T.laneF - step);
-    if(T.laneF < 0)  T.laneF = Math.min(0,  T.laneF + step);
+    /* ★u_5295 실측(충정로7길 1,254m): 위 주석은 '즉시 적용'이라 했지만 실제로는
+       -step(0.02~0.06)씩만 깎아, laneF=5.96·nl=3(hi=2) 상태가 수 초간 유지되며
+       목표 오프셋이 도로 밖(lat 29m)을 계속 가리켜 이탈→갇힘→복귀가 났다.
+       도로 자체가 바뀌어(차로수 급변) laneF 가 범위 밖이 된 경우는 존재하지
+       않는 차로를 조금씩 벗어나는 게 아니라 '지금 당장' 도로 안으로 넣어야
+       한다 — 주석의 의도대로 진짜 즉시 자른다. */
+    if(T.laneF > hi) T.laneF = hi;
+    if(T.laneF < 0)  T.laneF = 0;
     // 실제 차선변경도 2~3초에 걸쳐 한다(0.02/프레임 ≈ 한 차로에 2.5초@30fps)
     if(T.laneF < want)      T.laneF = Math.min(want, T.laneF + step);
     else if(T.laneF > want) T.laneF = Math.max(want, T.laneF - step);
