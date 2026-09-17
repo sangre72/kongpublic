@@ -8,7 +8,9 @@ bad=0
 for c in cs:
     print(f"\n=== {c['id']} ({c['from']} > {c['to']}, {c['secs']}s) ===")
     print(f"    증상: {c['symptom']}")
-    out=subprocess.run(['python3','focus_test.py',str(c['secs']),f"{c['from']}>{c['to']}"],
+    env=dict(__import__('os').environ)
+    if c.get('extra_qs'): env['EXTRA_Q']=c['extra_qs']
+    out=subprocess.run(['python3','focus_test.py',str(c['secs']),f"{c['from']}>{c['to']}"], env=env,
                        capture_output=True,text=True,timeout=c['secs']+300).stdout
     last=[l for l in out.strip().split('\n') if '"result"' in l]
     if not last: print('    FAIL: no result'); bad+=1; continue
