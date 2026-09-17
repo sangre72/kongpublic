@@ -1464,10 +1464,18 @@ function planTo(x,y){
            우회전 차로 준수는 경로가 아니라 교사 쪽(laneTarget turnRule)에서 다룬다. */
         if(dd >= 0) continue;                         // 우회전은 경로 기본값(맨 오른쪽) 유지
         const sgTurn = edgeOf(p[i-1],p[i]);
+        /* ★2026-09-18 실측: 왕복1차로(6.5m)에서 경로가 중앙선 17cm 옆에 그려졌다
+           (nd=0.17, xt≈0 = 차는 경로를 정확히 따라감). 원인은 이 좌회전 소급이
+           '1차로로 붙이기'를 방향당 차로가 1개뿐인 도로에도 적용한 것.
+           그런 도로에서 1차로 = 중앙선 붙기이고, 옮길 차로 자체가 없다.
+           ⇒ 방향당 2차로 이상일 때만 소급한다. */
+        const _dirLanes=(sg)=> !sg ? 1 : (sg.o ? (sg.l||1) : Math.max(1, Math.floor((sg.l||2)/2)));
+        if(_dirLanes(sgTurn) < 2) continue;
         let acc=0;
         for(let k=i-1;k>=0 && acc<PREP_M;k--){
           const sg=edgeOf(p[k],p[k+1]);
           if(!sg || sg!==sgTurn) break;
+          if(_dirLanes(sg) < 2) break;
           offs[k]=inner(sg);
           acc+=segLen(k);
         }
