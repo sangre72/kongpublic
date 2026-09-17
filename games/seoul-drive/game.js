@@ -1452,7 +1452,12 @@ function planTo(x,y){
       /* ★부호·원점 규약은 laneOffset() 하나만 쓴다(직접 계산 금지 — u_5337 실사고:
          자체 식으로 -3.25 를 냈다가 왕복도로에서 부호가 뒤집혀 lat=±9.75(도로 밖
          가장자리)로 경로가 나갔다). 1차로 = lane index 0, dir=1 기준. */
-      const inner=(sg)=> sg ? laneOffset(sg, 1, 0) : LW*0.5;
+      /* ★2026-09-18 실사고(신약개발로 구간 driven_m=0, prog=NaN): laneOffset 은 s.roadW 를
+         그대로 읽는데 전역그래프 간선(GSEGS)엔 roadW 가 없다(유턴 전면금지 버그와 같은
+         뿌리). 일방통행 좌회전 진입구간에서 -(undefined*0.5) = NaN 오프셋 → 경로점 NaN →
+         auto.cum/prog/xt 전부 NaN. '출발 못 함'으로 보인 건 이 계측 붕괴였고, 그걸 잡으려던
+         시도 3건(정지중 중앙선 면제·교착 카운터·NPC 양보)은 전부 헛다리였다. */
+      const inner=(sg)=> sg ? laneOffset({...sg, roadW:(sg.roadW||(Math.max(1,sg.l||2)*LW))}, 1, 0) : LW*0.5;
       for(let i=1;i<NP-1;i++){
         const a1=segAng(i-1), a2=segAng(i);
         let dd=((a2-a1+Math.PI*3)%(Math.PI*2))-Math.PI;
@@ -2317,6 +2322,22 @@ function driveAuto(dt){
   const queued = gp < 14*S;                        // 앞차 대기 중
   auto.stall = (auto.on && me.v < 0.8 && !queued && auto.s < total-20*S)
                  ? (auto.stall||0)+dt : 0;
+  /* ★2026-09-18 실측(신약개발로>서초유치원, driven_m=0 · 복귀 17회): 교차로를 가로막고
+     선 NPC 때문에 출발조차 못 했다. 원인은 여기 — queued(gp<14m)면 stall 을 0 으로
+     리셋하므로, '앞차 뒤 줄서기'와 '앞차가 영영 안 비키는 교착'이 구분되지 않는다.
+     줄서기는 앞차가 언젠가 움직이지만, 교착은 앞차도 0 이라 영원히 안 풀린다.
+     ⇒ 앞차가 서 있고(leadV≈0) 나도 서 있는 상태가 이어지면 그건 줄서기가 아니다.
+       별도 카운터로 재고, 임계를 넘으면 위의 탈출 로직에 태운다. */
+  {
+    const _lead = (typeof leadCar==='function') ? leadCar() : null;
+    const _leadStopped = !_lead || Math.abs(_lead.v||0) < 0.5;
+    auto.jam = (auto.on && me.v < 0.8 && queued && _leadStopped && auto.s < total-20*S)
+                 ? (auto.jam||0)+dt : 0;
+    /* ★2026-09-18: jam 을 탈출로직(stall>10, 주변 정지차 제거)에 태워봤으나
+       driven_m 은 0 그대로였고 보행자 사고가 11건 터졌다(차를 지우자 그 자리로
+       나아가며 보행자를 침). 차를 지우는 방식으로는 이 교착을 못 푼다. 시도 금지.
+       jam 값 자체는 진단용으로 남긴다. */
+  }
   const creep = auto.stall > 3;
   /* ★추월 판단이 먼저다(u_5121). 비켜갈 수 있으면 서지 않는다.
      otOff/gp 는 조향(4번)에서 이미 쓰므로 그 위에서 계산해 둔다. */
@@ -2692,6 +2713,9 @@ function step(dt){
       try{ if(auto.on&&auto.wp.length){ const w0=auto.wp[Math.min(auto.wp.length-1,(auto.i|0))];
         const latR=((ns.px-w0.x)*Math.sin(sg.ang) - (ns.py-w0.y)*Math.cos(sg.ang))*dir;
         if(Math.abs(latR) <= sg.roadW*0.5 && Math.abs(lat) > _margin && (lat<0) !== (latR<0)) _wrongSide=true; } }catch(e){}
+      /* ★2026-09-18: 정지 상태(v<=0.5)에서 중앙선 구속을 면제해봤으나 효과 없음 —
+         driven_m 은 0 그대로였고 복귀가 11→17 로 오히려 늘어 되돌렸다.
+         즉 이 구간이 못 나가는 원인은 중앙선 구속이 아니다. 다시 시도하지 말 것. */
       if(_wrongSide){                         // 중앙선 너머(경로와 반대 차도)
         me.x=px0; me.y=py0; me.ang=pa0;
         me.v*=0.5;
