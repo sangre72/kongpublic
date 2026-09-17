@@ -2694,7 +2694,10 @@ function step(dt){
        신호·앞차·보행자 때문에 '정상 정지' 한 것도 갇힘으로 세고 있었다(주석은
        '가속 명령이 있는데' 라 했지만 코드는 그걸 안 봤다). 멈추려는 의도가 있으면
        갇힘이 아니다: 속도상한이 사실상 0, 앞차 간격이 정지거리, 교사가 제동 중. */
-    const _da0=window.__da||{}; const _wantStop = (_da0.vmax!==undefined && _da0.vmax<1.0) || (_da0.gp!==undefined && _da0.gp<11) || ((window.__tbrk||0)>0.2);
+    /* ★u_5271 실측(원효로1길 수집, 12.9초): 3점 회전(auto.kt) 도중 갇힘감지가
+       발동해 회전을 끊고 경로점으로 순간이동시켰다. 회전 중엔 저속·정지·후진이
+       전부 의도된 동작이라 '못 가고 있음'이 아니다 — 반드시 제외해야 한다. */
+    const _da0=window.__da||{}; const _wantStop = (auto.kt) || (_da0.vmax!==undefined && _da0.vmax<1.0) || (_da0.gp!==undefined && _da0.gp<11) || ((window.__tbrk||0)>0.2);
     if(auto.on && moved < 0.02 && !window.__parked && me.cool<=0 && !_wantStop){
       window.__stuckT=(window.__stuckT||0)+dt;
       if(window.__stuckT > 1.2){ blockT = Math.max(blockT||0, 1.1); window.__blkStuck=(window.__blkStuck||0)+1; }   // 복귀 발동
