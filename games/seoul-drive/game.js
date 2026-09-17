@@ -1438,6 +1438,41 @@ function planTo(x,y){
       if(i-1 < offs.length) offs[i-1] = in1(sgA);
       if(i   < offs.length) offs[i]   = in1(sgB);
     }
+    /* ★u_5337 오너: "일차로에서 좌회전·유턴, 우회전전용차로 있으면 그쪽" = 기본 도로교통법.
+       기존 laneOff() 는 모든 구간을 '가장 오른쪽 차로'로만 놓았고 예외는 유턴뿐이었다.
+       그래서 좌회전 직전 구간도 경로선이 오른쪽 끝에 그려지고, 교사가 뒤늦게 왼쪽으로
+       끌고 가다 못 맞춘다(4차로에서 좌회전 = 이것 때문). 경로가 먼저 차로를 잡아야 한다.
+       ⇒ 회전 직전 구간의 오프셋을 회전 방향에 맞춰 바꾼다:
+          좌회전 → 1차로(중앙선 쪽). 우회전 → 가장 오른쪽(=laneOff 기본값, 유지).
+       판정은 경로점 진행방향 차이로(세그먼트 저장방향은 왕복도로에서 임의라 못 씀).
+       회전 준비는 한 구간이 아니라 '회전 지점 이전 PREP_M 이내 구간 전부'에 적용해야
+       실제로 미리 옮겨진다. */
+    {
+      const PREP_M = 500*S;                 // 좌회전 준비 거리(u_5294 오너: 500m 전)
+      /* ★부호·원점 규약은 laneOffset() 하나만 쓴다(직접 계산 금지 — u_5337 실사고:
+         자체 식으로 -3.25 를 냈다가 왕복도로에서 부호가 뒤집혀 lat=±9.75(도로 밖
+         가장자리)로 경로가 나갔다). 1차로 = lane index 0, dir=1 기준. */
+      const inner=(sg)=> sg ? laneOffset(sg, 1, 0) : LW*0.5;
+      for(let i=1;i<NP-1;i++){
+        const a1=segAng(i-1), a2=segAng(i);
+        let dd=((a2-a1+Math.PI*3)%(Math.PI*2))-Math.PI;
+        if(Math.abs(dd) > Math.PI*0.82) continue;     // 유턴은 위에서 이미 처리
+        if(Math.abs(dd) < 0.70) continue;             // 직진(40도 미만)
+        if(dd >= 0) continue;                         // 우회전(dd>0) = 오른쪽 차로 유지
+        /* 좌회전: 회전점 i 이전으로 PREP_M 만큼 거슬러 올라가며 1차로로.
+           ★단, '같은 도로' 안에서만 소급한다(u_5337 실사고: 도로가 바뀌어도 계속
+           덮어써서 26m 8차로 구간까지 1차로로 끌어다 lat=-30m, 도로 밖으로 나갔다).
+           회전 직전 간선과 다른 간선을 만나면 거기서 멈춘다. */
+        const sgTurn = edgeOf(p[i-1],p[i]);
+        let acc=0;
+        for(let k=i-1;k>=0 && acc<PREP_M;k--){
+          const sg=edgeOf(p[k],p[k+1]);
+          if(!sg || sg!==sgTurn) break;
+          offs[k]=inner(sg);
+          acc+=segLen(k);
+        }
+      }
+    }
     /* ★u_5185 진단: gAstar 는 291노드로 목적지까지 도달하는데(endToTgt=0)
        웨이포인트는 64점 312m 뿐이다. 이 리샘플 단계에서 잘린다.
        NP 와 edgeOf 실패 수를 본다 — edgeOf 가 NS!==GNODES 면 무조건 null 이라
