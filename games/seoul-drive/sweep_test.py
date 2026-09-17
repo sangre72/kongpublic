@@ -40,7 +40,12 @@ def tel():
 def set_route(start, dest, wait=45):
     url = ('http://localhost:8901/index.html?go=1'
            '&from=' + urllib.parse.quote(start) + '&to=' + urllib.parse.quote(dest))
-    subprocess.run(['bash', HERE + '/reload.sh', url], capture_output=True, timeout=180)
+    r = subprocess.run(['bash', HERE + '/reload.sh', url, '120'], capture_output=True, text=True, timeout=300)
+    # ★u_5255: reload.sh 가 /tel 로 준비(wpLen>100·autoOn)를 직접 확인하고 exit code 로 알린다.
+    #   예전엔 고정 sleep 뒤 여기서 40초만 더 보다가 '경로 실패'로 오판했다(콜드 로드 32초+).
+    if r.returncode != 0:
+        print(json.dumps({'reload_fail': (r.stdout or '').strip()[-200:]}, ensure_ascii=False), flush=True)
+        return None
     for _ in range(wait):
         time.sleep(1)
         d = tel()
