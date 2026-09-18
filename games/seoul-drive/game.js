@@ -1454,12 +1454,12 @@ function planTo(x,y){
     const segAng=i=>{const a=nodeAt(i),b=nodeAt(i+1);return Math.atan2(b.y-a.y,b.x-a.x)};
     const segLen=i=>{const a=nodeAt(i),b=nodeAt(i+1);return Math.hypot(b.x-a.x,b.y-a.y)};
     // 1) 구간별 차로 오프셋(간선 속성)
-    const offs=[];
+    const offs=[]; window.__offWho={};
     let _edgeMiss=0; window.__prepU=0; window.__prepL=0;
     for(let i=0;i<NP-1;i++){
       const sg=edgeOf(p[i],p[i+1]);
       if(!sg) _edgeMiss++;
-      offs.push(sg ? laneOff(sg) : LW*.5);
+      offs.push(sg ? laneOff(sg) : LW*.5); (window.__offWho=window.__offWho||{})[i]='base';
     }
     /* ★u_5223: 유턴 구간은 1차로(중앙선 쪽)에서 진입·진출해야 한다.
        laneOff 는 주행차로(가장 오른쪽) 기준이라 유턴을 바깥차로에서 하게 만든다 —
@@ -1510,8 +1510,17 @@ function planTo(x,y){
         return sg.o ? (rw*0.5 - 0.5*LW)                 // 일방통행은 차로 개념이 같다
                     : (0.5*LW);                          // 왕복: 중앙선에서 반 차로 = 1차로
       };
-      if(i-1 < offs.length) offs[i-1] = in1(sgA);
-      if(i   < offs.length) offs[i]   = in1(sgB);
+      /* ★★2026-09-18 u_5405 실측(offTab m217): 이 두 줄이 유턴 직전 '한 홉'만
+         1차로로 덮어쓴다. 소급(아래 루프)이 곧바로 끊기는 도로에서는 그 한 홉만
+         남아 오프셋이 +3.25 → -3.25 → +3.25 로 튄다. 편도 3차로에서 3차로 폭을
+         한 홉만에 건너갔다 돌아오는 것 = 화면에서 본 '안내선이 엉뚱한 쪽' 이고
+         도로교통법상으로도 급차로변경이다.
+         ⇒ 여기서 바로 쓰지 않고 후보로만 둔다. 아래 소급이 실제로 구간을
+           확보했을 때만(연속 진입로가 생겼을 때만) 반영한다. */
+      const _u1A = in1(sgA), _u1B = in1(sgB);
+      const _uApply = [];                                  // [index, offset] 후보
+      if(i-1 < offs.length) _uApply.push([i-1, _u1A]);
+      if(i   < offs.length) _uApply.push([i,   _u1B]);
       /* ★u_5356 오너 실측: "유턴이 1차로에서 바로 안 되고 우측차선으로 커브 틀면서 유턴".
          위 두 줄은 유턴 노드에 붙은 '한 홉'만 1차로로 바꾼다. 그 앞 구간은 여전히
          주행차로(맨 오른쪽)라, 차가 마지막 몇 m 에서 오른쪽에서 왼쪽 끝까지 훑으며
@@ -1520,17 +1529,28 @@ function planTo(x,y){
          방향당 차로가 1개뿐이면 옮길 차로가 없으니 건너뛴다. */
       try{
         const _dl=(sg)=> !sg ? 1 : (sg.o ? (sg.l||1) : Math.max(1, Math.floor((sg.l||2)/2)));
+        let _acc=0; const _back=[];
         if(sgA && _dl(sgA) >= 2){
-          let acc=0;
-          for(let k=i-2;k>=0 && acc<500*S;k--){
+          for(let k=i-2;k>=0 && _acc<500*S;k--){
             const sg=edgeOf(p[k],p[k+1]);
             /* ★u_5359/5360 실측: 경로는 OSM 폴리라인 꼭짓점마다 다른 간선 객체다.
                객체 동일성(sg!==sgA)으로 '같은 도로'를 판정하니 첫 꼭짓점(5~30m)에서
                끊겨 500m 소급이 사실상 한 번도 작동하지 않았다. way id 로 비교한다. */
             if(!sg || !sgA || sg.w!==sgA.w || sg.o!==sgA.o) break;
             if(_turnAt.has(k+1)) break;                       // 중간 회전을 넘어 덮어쓰지 않는다
-            offs[k]=in1(sg); acc+=segLen(k); window.__prepU=(window.__prepU||0)+1;
+            _back.push([k, in1(sg)]); _acc+=segLen(k);
           }
+        }
+        /* ★u_5405: 차로를 옮기려면 '옮길 거리'가 있어야 한다.
+           한 차로 변경에 3초, 도심 14m/s 면 약 42m. 그만큼도 소급이 안 되면
+           1차로 진입 자체를 포기한다 — 한 홉만 덮으면 급차로변경이 된다.
+           (도로교통법 제38조: 일반도로는 30m 전 신호. 그만한 여유가 필요하다.) */
+        const MIN_PREP = 40*S;
+        if(_acc >= MIN_PREP){
+          for(const [k,v] of _back){ offs[k]=v; (window.__offWho=window.__offWho||{})[k]='Uback'; window.__prepU=(window.__prepU||0)+1; }
+          for(const [k,v] of _uApply){ offs[k]=v; (window.__offWho=window.__offWho||{})[k]='Uhop'; }
+        }else{
+          window.__prepUSkip=(window.__prepUSkip||0)+1;       // 여유 없어 1차로 진입 포기
         }
       }catch(e){}
     }
@@ -1572,14 +1592,27 @@ function planTo(x,y){
            ⇒ 방향당 2차로 이상일 때만 소급한다. */
         const _dirLanes=(sg)=> !sg ? 1 : (sg.o ? (sg.l||1) : Math.max(1, Math.floor((sg.l||2)/2)));
         if(_dirLanes(sgTurn) < 2) continue;
-        let acc=0;
+        /* ★★2026-09-18 u_5405 실측(offTab m217, writer=Lprep):
+           이 소급이 '한 홉'만 덮으면 편도 3차로에서 오프셋이 +3.25 → -3.25 → +3.25
+           로 튄다. 3차로 폭을 한 홉에 건너갔다 돌아오는 것 = 급차로변경이고,
+           화면에서 '안내선이 엉뚱한 쪽에 붙은' 것으로 보인다(오너 u_5405).
+           ⇒ 먼저 후보만 모으고, 실제로 옮길 거리(≥40m, 제38조 30m 신호 + 여유)가
+             확보됐을 때만 반영한다. 모자라면 회전 차로 진입을 포기한다 —
+             못 옮길 거리에서 억지로 옮기는 것이 위반이다. */
+        let acc=0; const _cand=[];
         for(let k=i-1;k>=0 && acc<PREP_M;k--){
           const sg=edgeOf(p[k],p[k+1]);
           if(!sg || !sgTurn || sg.w!==sgTurn.w || sg.o!==sgTurn.o) break;   // 같은 way 인가(꼭짓점마다 객체가 다르다)
           if(k+1 < i && _turnAt.has(k+1)) break;                          // 중간 회전(특히 우회전) 진입차로 보호
           if(_dirLanes(sg) < 2) break;
-          offs[k]=inner(sg); window.__prepL=(window.__prepL||0)+1;
+          _cand.push([k, inner(sg)]);
           acc+=segLen(k);
+        }
+        const MIN_PREP_L = 40*S;
+        if(acc >= MIN_PREP_L){
+          for(const [k,v] of _cand){ offs[k]=v; (window.__offWho=window.__offWho||{})[k]='Lprep'; window.__prepL=(window.__prepL||0)+1; }
+        }else{
+          window.__prepLSkip=(window.__prepLSkip||0)+1;
         }
       }
     }
@@ -1606,7 +1639,7 @@ function planTo(x,y){
       for(let i=0;i<p.length-1;i++){
         const A=NS[p[i]], B=NS[p[i+1]];
         const sg=edgeOf(p[i],p[i+1]);
-        tab.push([Math.round(acc/S), +(offs[i]/S).toFixed(2), sg?+((sg.roadW||0)/S).toFixed(2):null, sg?(sg.l||0):null, sg?(sg.o?1:0):null]);
+        tab.push([Math.round(acc/S), +(offs[i]/S).toFixed(2), sg?+((sg.roadW||0)/S).toFixed(2):null, sg?(sg.l||0):null, sg?(sg.o?1:0):null, (window.__offWho&&window.__offWho[i])||'-']);
         acc+=Math.hypot(B.x-A.x,B.y-A.y);
       }
       window.__offTab=tab;
@@ -1737,9 +1770,17 @@ function planTo(x,y){
        한 표본에서 180도 뒤집힌다(실측 5도 코너: 표본당 177.5도 → 곡률 폭발).
        직전 진행방향과 내적이 음수면 그 점은 경로가 아니라 잡음이다. */
     let _dropSame=0, _dropBack=0; window.__wpSrc=[];
-    const push=(x,y)=>{
+    /* ★★2026-09-18 u_5405 오너 "유턴 좌회전 우회전 다 틀렸잖아" — 화면 확인 결과
+       회전 계산이 아니라 '따라갈 선' 자체가 틀렸다. 경로점의 차로값(wpLane)이
+       -1.38~3.35 를 오가며 9회 점프한다(존재하지 않는 차로 = 도로 밖).
+       원인: 경로점이 x,y 만 들고 있어서, 나중에 차로를 알아내려면 nearestSeg 로
+       '가장 가까운 도로'를 다시 추측해야 한다. 교차로에서는 직각으로 붙은 옆길이
+       더 가까워서 엉뚱한 도로로 붙고(실측 충정로 주행 중 '충정로5길'로 판정),
+       그 도로 기준으로 차로를 세니 번호가 튄다.
+       ⇒ 경로를 만들 때 이미 아는 도로를 점에 같이 달아둔다. 추측하지 않는다. */
+    const push=(x,y,_sg)=>{
       const q=wp[wp.length-1];
-      if(!q){ wp.push({x,y}); return; }
+      if(!q){ wp.push(_sg?{x,y,sg:_sg}:{x,y}); return; }
       const dx=x-q.x, dy=y-q.y;
       if(Math.hypot(dx,dy) <= 0.05*S){ _dropSame++; return; }   // 같은 자리
       /* ★u_5185 실사고: 이 '역주행 점' 판정이 2,726점을 버리고 66점만 남겼다.
@@ -1754,7 +1795,7 @@ function planTo(x,y){
         const px=q.x-r.x, py=q.y-r.y;
         if(px*dx+py*dy < 0){ _dropBack++; return; }              // 짧은 역주행 잡음
       }
-      wp.push({x,y}); (window.__wpSrc=window.__wpSrc||[]).push(window.__wpSrcTag||'?');
+      wp.push(_sg?{x,y,sg:_sg}:{x,y}); (window.__wpSrc=window.__wpSrc||[]).push(window.__wpSrcTag||'?');
     };
     /* ★u_5185: 291노드가 64점이 되는 원인을 센다. '역주행 점' 판정이
        코너 호와 다리 리샘플 사이에서 과하게 걸리면 경로 뒷부분이 통째로
@@ -1763,6 +1804,7 @@ function planTo(x,y){
     // 3) 구간을 리샘플해 오프셋하되, 코너의 접선구간(T) 안쪽 점은 호가 대신한다.
     for(let i=0;i<NP-1;i++){
       const A=nodeAt(i), B=nodeAt(i+1), a=segAng(i), L=segLen(i), off=offs[i];
+      const _sgLeg=edgeOf(p[i],p[i+1]);          // 이 구간의 실제 도로(u_5405)
       const t0 = corner[i]   ? corner[i].T2  : 0;      // 시작쪽(앞 코너의 진출접점)에서 자를 길이
       const t1 = corner[i+1] ? corner[i+1].T : 0;      // 끝쪽(다음 코너의 진입접점)에서 자를 길이
       const s0=t0, s1=L-t1;
@@ -1771,7 +1813,9 @@ function planTo(x,y){
         const n=Math.max(1,Math.round((s1-s0)/RS));
         for(let k=0;k<=n;k++){
           const s=s0+(s1-s0)*k/n, u=s/L;
-          push(A.x+(B.x-A.x)*u - Math.sin(a)*off, A.y+(B.y-A.y)*u + Math.cos(a)*off);
+          /* ★u_5405: 이 점이 어느 도로 위의 점인지 같이 달아 보낸다.
+             나중에 nearestSeg 로 되짚으면 교차로에서 옆길로 붙는다. */
+          push(A.x+(B.x-A.x)*u - Math.sin(a)*off, A.y+(B.y-A.y)*u + Math.cos(a)*off, _sgLeg);
         }
       }
       // 4) 이 구간의 끝이 코너면 이등분선 호를 붙인다.
@@ -1848,8 +1892,20 @@ function planTo(x,y){
        차는 경로선을 0.26m 오차로 잘 따라가는데 목표 차로와는 5.85m 차이다 —
        경로선 자체가 차로를 넘나든다는 뜻("직진 도로에서 4개 차로 유턴"). */
     const lanes=[];
+    /* ★u_5405: __wpSeg 이 '없을 때만' 채워져서 첫 경로의 값이 영영 남았다.
+       경로를 다시 만들 때마다 비운다 — 안 그러면 고친 걸 고쳤는지 알 수 없다. */
+    window.__wpSeg=[];
     for(let k=10;k<Math.min(400, wp.length);k+=10){
-      const q=wp[k], n=nearestSeg(q.x, q.y);
+      const q=wp[k];
+      /* ★점이 자기 도로를 들고 있으면 그걸 쓴다(추측 금지, u_5405). */
+      let n;
+      if(q.sg){
+        const A=nodes[q.sg.a], B=nodes[q.sg.b];
+        if(A&&B){ const vx=B.x-A.x, vy=B.y-A.y, L=vx*vx+vy*vy;
+          let t=L?((q.x-A.x)*vx+(q.y-A.y)*vy)/L:0; t=Math.max(0,Math.min(1,t));
+          n={s:q.sg, px:A.x+vx*t, py:A.y+vy*t}; }
+      }
+      if(!n) n=nearestSeg(q.x, q.y);
       if(!n || !n.s) continue;
       const rw=n.s.roadW/S;
       const lat=(-(n.px-q.x)*Math.sin(n.s.ang) + (n.py-q.y)*Math.cos(n.s.ang))/S;
@@ -1862,8 +1918,10 @@ function planTo(x,y){
     if(lanes.length){
       let jump=0;
       for(let k=1;k<lanes.length;k++) if(Math.abs(lanes[k]-lanes[k-1])>1.0) jump++;
+      let _withSg=0; for(let k=0;k<wp.length;k++) if(wp[k]&&wp[k].sg) _withSg++;
       window.__wpLane = {n:lanes.length, min:Math.min(...lanes), max:Math.max(...lanes),
-                         jumps:jump, head:lanes.slice(0,12)};
+                         jumps:jump, head:lanes.slice(0,12),
+                         sgN:_withSg, sgPct:+(100*_withSg/Math.max(1,wp.length)).toFixed(0)};
     }
   }catch(e){}
   /* ★같은 자리에 겹친 웨이포인트를 제거한다(u_5039 실사고).
