@@ -335,7 +335,12 @@
            즉 '준비 거리 부족'이 원인이 아니다 — aD 가 짧게 잡히는 것 자체(회전
            인식이 늦음)를 봐야 한다. 거리 상수를 더 키우는 시도는 하지 말 것. */
         const cap = (aheadTurn === 'L' || aheadTurn === 'U') ? 500 : 250;
-        const need = Math.max(60, Math.min(cap, hops * vNow * 3.0));
+        /* ★★2026-09-19 실측(신촌역 0.5초 폴링, m=121~168): 좌회전 109m 앞부터 보였는데 need=60 이라
+           발동 안 하고, aD 가 72→14 로 튀는 순간에야 want=0 → 2차로를 14m 에 옮김 = 차로위반.
+           원인: need = hops×v×3초 인데 서행(3.5m/s) 중엔 21m → 하한 60m 만 남는다.
+           '옮길 거리'는 지금 속도가 아니라 차로수의 함수다(정지해 있어도 차로변경엔 거리가 든다).
+           라우터·경로선과 같은 자: 차로당 50m + 신호 30m(제38조). 상한(cap)은 그대로. */
+        const need = Math.max(60, Math.min(cap, hops * 50 + 30));
         T._need = +need.toFixed(0);
         if(aheadDist < need){ ruleWant = tgtLane; turnRule = true; }
       }

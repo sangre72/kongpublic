@@ -32,6 +32,7 @@ class Conv(osmium.SimpleHandler):
         self.ch = {}
         self.bbox = bbox
         self.nroad = self.nbld = self.nsig = 0
+        self.fixed = []                         # 차로수를 보정한 way 목록(보고용)
 
     def _put(self, key, kind, obj):
         c = self.ch.setdefault(key, {'r':[],'b':[],'s':[]})
@@ -62,17 +63,40 @@ class Conv(osmium.SimpleHandler):
         cx = sum(p[0] for p in xy)/len(xy); cy = sum(p[1] for p in xy)/len(xy)
         k = self._key(cx, cy)
         if hw in ROAD:
-            try: lanes = int(t.get('lanes'))
-            except (TypeError, ValueError): lanes = LANES_DEF.get(hw, 2)
+            oneway = t.get('oneway') in ('yes','true','1')
+            def _i(k):
+                try: return int(str(t.get(k)).split(';')[0])
+                except (TypeError, ValueError): return None
+            lanes = _i('lanes'); lf = _i('lanes:forward'); lb = _i('lanes:backward')
+            tagged = lanes is not None
+            if lanes is None: lanes = LANES_DEF.get(hw, 2)
+            # ★2026-09-19 u_5418/u_5419 실측: 통일로 way 773066532 등 4건이 lanes=8·oneway=yes 로 태그돼
+            #   있다(원본 pbf 확인). 서울에 편도 8차로 일방 차도는 없다 — 도로 전체 차로수를 한쪽 차도에
+            #   단 것이다. 게임은 이걸 그대로 26m 도로로 그려 1차로가 실제 차도 밖 6m 에 찍혔고, 경로가
+            #   4~5차로를 사선으로 가로질렀다(오너 스크린샷). 규칙: 일방통행에 lanes:forward 가 있으면
+            #   그것, 없고 7차로 이상이면 절반. 보정한 way 는 전부 보고서에 남긴다.
+            if oneway:
+                if lf is not None and lf < lanes: self.fixed.append((w.id, t.get('name',''), lanes, lf, 'lanes:forward')); lanes = lf
+                elif lanes >= 7: self.fixed.append((w.id, t.get('name',''), lanes, lanes//2, 'oneway>=7 halved')); lanes = lanes//2
+            elif lf is not None and lb is not None and lf+lb != lanes:
+                self.fixed.append((w.id, t.get('name',''), lanes, lf+lb, 'forward+backward')); lanes = lf+lb
+            tl = t.get('turn:lanes') or t.get('turn:lanes:forward')
+            wd = _i('width')
             # 'w' = OSM way id (a_5046). 회전제한 테이블(data/seoul/restrictions.json)의
             # 키가 "<from_way>|<via_node>|<to_way>" 라서, 이 id 없이는 청크 도로와 제한을
             # 이어붙일 수 없다(cf ar_5034 Q3).
             # 'nd' = [첫 노드 id, 끝 노드 id] (a_5053). 회전제한 키의 via 는 '노드 id' 라
             # way id 만으로는 조회가 안 된다. 교차로는 두 way 가 끝점 노드를 공유하는
             # 지점이므로 끝점 두 개만 있으면 via 판정이 된다.
-            self._put(k, 'r', {'n': t.get('name',''), 'l': max(1,min(10,lanes)),
-                               'o': t.get('oneway') in ('yes','true','1'), 'p': xy,
-                               'w': w.id, 'nd': [kept[0][2], kept[-1][2]]})
+            rec = {'n': t.get('name',''), 'l': max(1,min(10,lanes)), 'o': oneway, 'p': xy,
+                   'w': w.id, 'nd': [kept[0][2], kept[-1][2]]}
+            # 추가 필드(게임이 아직 안 읽음 — 전용 회전차로 등 다음 단계용). 있을 때만 싣는다.
+            if tl: rec['tl'] = tl                      # turn:lanes  예: "left|through|through;right"
+            if lf is not None: rec['lf'] = lf
+            if lb is not None: rec['lb'] = lb
+            if wd is not None: rec['wd'] = wd
+            if not tagged: rec['ld'] = 1                # lanes 태그 없음 → 도로등급 기본값 사용(검토 대상)
+            self._put(k, 'r', rec)
             self.nroad += 1
         else:
             self._put(k, 'b', {'n': t.get('name',''), 'p': xy}); self.nbld += 1
@@ -104,6 +128,10 @@ def main():
     json.dump(idx, open(f'{out}/index.json','w'))
     print(json.dumps({'written': len(h.ch), 'total_mb': round(tot/1024/1024,1),
                       'avg_kb': round(tot/max(1,len(h.ch))/1024,1), 'out': out}))
+    # 차로수 보정 보고서 — 뭘 고쳤는지 남긴다(추측 금지, 검토 가능하게)
+    json.dump([{'w':w,'n':n,'from':a,'to':b,'why':why} for w,n,a,b,why in h.fixed],
+              open(f'{out}/lane_fixes.json','w'), ensure_ascii=False, indent=1)
+    print(json.dumps({'lane_fixes': len(h.fixed), 'report': f'{out}/lane_fixes.json'}))
 
 if __name__ == '__main__':
     main()

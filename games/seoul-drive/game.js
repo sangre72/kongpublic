@@ -130,12 +130,19 @@ function buildGraph(roads){
     const si=segs.length;
     const len=Math.hypot(nodes[b].x-nodes[a].x,nodes[b].y-nodes[a].y);
     const ang=Math.atan2(nodes[b].y-nodes[a].y,nodes[b].x-nodes[a].x);
-    segs.push({a,b,l:w.l,o:w.o,n:w.n,len,ang,roadW:w.l*LW});
+    const _lf=laneFix(w.l,w.o);
+    segs.push({a,b,l:_lf,o:w.o,n:w.n,len,ang,roadW:_lf*LW});
     nodes[a].e.push(si);nodes[b].e.push(si);
   }
 }
 buildGraph(ROADS_ACTIVE);
 const other=(s,n)=>s.a===n?s.b:s.a;
+/* ★★2026-09-19 u_5418 실측(충정로7길 858~1186m): 통일로 way 773066532 등이 l=8·일방통행으로
+   기록돼 있고 바로 옆에 같은 통일로 l=3 일방 way 가 나란히 있다. 서울에 편도 8차로 일방 도로는 없다 —
+   OSM 이 차도별 way 에 도로 전체 lanes 를 단 것이다. 그대로 쓰면 1차로가 -11.4m(실제 차도 밖 6m)에
+   찍혀 경로선이 4~5차로를 사선으로 가로지른다(오너 스크린샷). 일방통행에 7차로 이상이면 절반으로 본다.
+   두 소비처(로컬 segs·전역 GSEGS) 모두 이 한 함수를 거친다. */
+function laneFix(l,o){ l=l||2; if(o && l>=7){ window.__laneFixN=(window.__laneFixN||0)+1; return Math.max(1,Math.floor(l/2)); } return l; }
 function nearestSegRaw(x,y){
   let b=null,bd=1e18;
   for(const s of segs){
@@ -909,7 +916,7 @@ function buildGlobalGraph(){
          교차로 = 두 way 가 끝점 노드를 공유하는 지점이므로 이걸로 via 판정이 된다. */
       const nd=r.nd;
       const si=GSEGS.length;
-      GSEGS.push({a,b,len,l:(r.l||2),o:!!r.o,
+      GSEGS.push({a,b,len,l:laneFix((r.l||2),!!r.o),o:!!r.o,
                   w:(r.w||0), n:(r.n||''),   // ★u_5414: 이름을 싣는다 — way 가 쪼개져도 같은 도로인지 이걸로 안다
                   n0:(nd&&i===0)?nd[0]:0,
                   n1:(nd&&i+2===p.length)?nd[1]:0});
@@ -1351,7 +1358,20 @@ function planTo(x,y){
          A* 가 끝난 뒤 지워져 금지 횟수가 항상 0 으로 보였다(규칙이 도는지 확인 불가). */
       window.__rtLeftBan=0; window.__rtEval=[]; window.__routeRelaxed=0;
       const gp=gAstar(sN, tgt, me.ang);
+      /* ★감사 지적(2026-09-19): 완화(relax) 경로는 차로 가로지르기 규칙을 끈 경로다. 조용히 달리면
+         합법 경로와 구분이 안 된다. 화면에 띄우고 콘솔에 남긴다. 실측으로는 아직 0 건. */
+      if(window.__routeRelaxed){ try{ flash('⚠ 합법 경로 없음 — 완화 경로'); console.warn('routeRelaxed', sN, tgt); }catch(e){} window.__routeRelaxedN=(window.__routeRelaxedN||0)+1; }
       if(!gp) continue;
+      /* ★감사 지적(2026-09-19): 두 번째 출발 후보 gNearest 는 방향을 무시한다. gAstar 의 첫 구간
+         방향 검사는 '출발 노드에서 나가는 첫 간선'만 보므로, 노드가 차 뒤에 잡히면 경로가 차가 온
+         길을 되짚게 되고 차는 제자리에서 돌아야 한다("직진 잘 가다 제자리 유턴"). 어느 후보든
+         첫 경로 구간이 차 진행방향과 90° 넘게 어긋나면 그 경로는 버린다. */
+      if(gp.length>=2){
+        const a0=GNODES[gp[0]], a1=GNODES[gp[1]];
+        const ea=Math.atan2(a1.y-a0.y, a1.x-a0.x);
+        const dd=Math.abs(((ea-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI);
+        if(dd > Math.PI/2){ window.__startBack=(window.__startBack||0)+1; continue; }
+      }
       /* ★경로는 '내 차가 있는 도로'에서 시작해야 한다(u_5038 오너 지시).
          출발노드가 차에서 60m 넘게 떨어져 있으면 그건 옆 도로다 — 그런 경로는
          차가 따라갈 수 없고, 따라가려 하면 길 아닌 데를 가로지른다. 버린다. */
@@ -1724,7 +1744,7 @@ function planTo(x,y){
       for(let i=0;i<p.length-1;i++){
         const A=NS[p[i]], B=NS[p[i+1]];
         const sg=edgeOf(p[i],p[i+1]);
-        tab.push([Math.round(acc/S), +(offs[i]/S).toFixed(2), sg?+((sg.roadW||0)/S).toFixed(2):null, sg?(sg.l||0):null, sg?(sg.o?1:0):null, (window.__offWho&&window.__offWho[i])||'-']);
+        tab.push([Math.round(acc/S), +(offs[i]/S).toFixed(2), sg?+((sg.roadW||0)/S).toFixed(2):null, sg?(sg.l||0):null, sg?(sg.o?1:0):null, (window.__offWho&&window.__offWho[i])||'-', sg?(sg.w||0):null, sg?(sg.n||''):null]);
         acc+=Math.hypot(B.x-A.x,B.y-A.y);
       }
       window.__offTab=tab;

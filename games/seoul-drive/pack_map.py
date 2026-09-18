@@ -8,11 +8,12 @@ WHY: 아티팩트는 파일 하나로 배포된다. 서울 전체(1,281청크 48
 """
 import sys, os, json, glob
 
-SRC = 'games/seoul-drive/data/seoul/chunks'
 def arg(name, default):
     if name in sys.argv:
         return sys.argv[sys.argv.index(name)+1]
     return default
+# ★2026-09-19: 재추출본(data/seoul2)을 검증 후 바꿔 끼우기 위해 소스 디렉토리를 인자로 받는다.
+SRC = arg('--src', 'games/seoul-drive/data/seoul/chunks')
 
 def main():
     R    = int(arg('--radius', 8))        # 도로를 담을 반경(km)
