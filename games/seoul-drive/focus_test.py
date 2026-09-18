@@ -9,6 +9,35 @@ def tel():
         d=json.load(urllib.request.urlopen('http://localhost:8901/tel',timeout=3)); t=d.get('top',d); t['_tch']={k:(d.get('tch') or {}).get(k) for k in ('gap','ped','sig','sigStop','cap','br','th')}; return t, (d.get('tch') or {}).get('g2') or {}
     except Exception: return None,None
 here=__file__.rsplit('/',1)[0]; secs=float(sys.argv[1])
+
+# ★★u_5408/u_5409 오너: "실수를 없애", "실수할 가능성을 없애란 소리야"
+#   내가 기억해서 지키는 방식은 이 세션에서만 5번 샜다(빌드할 때 --speed 를 빼먹어
+#   목표속도가 매번 45 로 원복). 검사를 '내가 부르는 스크립트'에 두면 그것도 빼먹는다.
+#   ⇒ 모든 주행시험이 반드시 지나가는 이 지점에서 강제로 검사한다. 어긋나면 안 달린다.
+def _preflight():
+    import os, glob
+    idx = here + '/index.html'
+    bad = []
+    try: html = open(idx).read()
+    except Exception as e: sys.exit('preflight: index.html 없음 (%s) — build.py 먼저' % e)
+    import re
+    m = re.search(r'__TARGET_KMH=(\d+)', html)
+    kmh = int(m.group(1)) if m else -1
+    want = int(os.environ.get('EXPECT_KMH', '120'))
+    if kmh != want:
+        bad.append('목표속도 %s (기대 %s) — build.py 다시 돌려라' % (kmh, want))
+    # 소스가 빌드보다 새로우면 '고친 게 안 들어간' 상태로 재는 것이다
+    try:
+        bt = os.path.getmtime(idx)
+        for f in ('game.js', 'teacher.js'):
+            fp = here + '/' + f
+            if os.path.exists(fp) and os.path.getmtime(fp) > bt:
+                bad.append('%s 가 빌드보다 최신 — build.py 다시 돌려라' % f)
+    except Exception: pass
+    if bad:
+        sys.exit('preflight FAILED:\n  ' + '\n  '.join(bad))
+    print('preflight OK: %dkm/h, build fresh' % kmh, flush=True)
+_preflight()
 for idx,pair in enumerate(sys.argv[2:]):
     a,b=pair.split('>')
     import os
