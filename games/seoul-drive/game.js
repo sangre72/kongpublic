@@ -1238,22 +1238,29 @@ function gAstar(s,t,startAng,relax){
           const aIn=_hd(cur.si, fromN, cur.n), aOut=_hd(si, cur.n, nb);
           const d0=_turn(aIn,aOut);
           const leftOrU = _isU || (d0 < -0.70);
-          if(leftOrU){
-            /* ★실측: 우회전이 곡선 램프면 꼭짓점당 각도가 40° 미만이라 '직진'으로 합산돼
-               112m 로 셌다(준비 소급은 ±15m 창으로 정점을 50m 뒤로 맞게 봤다). 자를 맞춘다:
-               되짚으며 헤딩 변화를 누적, 오른쪽 누적이 20°를 넘는 지점 = 우회전 정점. */
+          const rightT  = (!_isU && d0 > 0.70);
+          /* ★★2026-09-19 u_5417 오너: "회전인데 어떻게 1차로로 들어가, 5~6차선으로 그려진 건데"
+             종전 규칙은 우회전→좌회전만 막았다. 좌회전(1차로로 나옴)→우회전(맨 오른쪽 필요)도
+             같은 문제다 — 통일로 8차로에서 7차로를 사선으로 가로지르는 경로가 나왔다.
+             양방향으로 막는다. 필요거리 = (차로수−1)×50m + 30m(제38조 신호거리).
+             실측 112m 짜리 R→U 가 need 100 에 걸리지 않고 통과했었다. */
+          if(leftOrU || rightT){
+            const wantSgn = leftOrU ? -1 : 1;                                  // 내가 갈 회전
             let dist=GSEGS[cur.si].len, node=cur.n, segi=cur.si, prev=pk, hops=0, blockedBy=null, cum=0;
             while(prev && hops++<12){
               const pkey=key(prev.n,prev.si); const pp=came[pkey];
-              if(prev.si===-1 || !pp) break;                                 // 출발점: 차로 미상, 제약 없음
+              /* ★u_5417 실측: 출발 직후 우회전 램프가 20° 누적 전에 출발점에 닿아 '제약 없음'으로 통과했다.
+                 출발점의 차로는 주행차로(맨 오른쪽)다 — 좌회전/유턴이면 그만큼 거리가 필요하다. */
+              if(prev.si===-1 || !pp){ if(leftOrU) blockedBy='opp'; break; }
               const a1=_hd(prev.si, pp.n, prev.n), a2=_hd(segi, prev.n, node);
-              cum+=_turn(a1,a2);
-              if(cum > 0.35){ blockedBy='R'; break; }                          // 누적 우회전 20°: 정점
-              if(cum < -0.70) break;                                           // 누적 좌회전: 이미 1차로
+              cum+=_turn(a1,a2);                                             // 누적 헤딩(곡선 램프 포함)
+              if(cum*wantSgn < -0.35){ blockedBy='opp'; break; }             // 반대 방향 회전 정점: 여기서부터 잰다
+              if(cum*wantSgn >  0.70) break;                                  // 같은 방향 회전: 이미 그 차로
               dist+=GSEGS[prev.si].len; node=prev.n; segi=prev.si; prev=pp;
             }
-            const need=(_dl(GSEGS[cur.si])-1)*50*S;
-            if(blockedBy==='R' && dist < need){ window.__rtLeftBan=(window.__rtLeftBan||0)+1; continue; }
+            const need=(_dl(GSEGS[cur.si])-1)*50*S + 30*S;
+            (window.__rtEval=window.__rtEval||[]); if(window.__rtEval.length<12) window.__rtEval.push([leftOrU?'L':'R', Math.round(dist/S), Math.round(need/S), blockedBy, hops]);
+            if(blockedBy==='opp' && dist < need){ window.__rtLeftBan=(window.__rtLeftBan||0)+1; continue; }
           }
         }
       }
@@ -1340,6 +1347,9 @@ function planTo(x,y){
     const cands=[gStartNode(me.x,me.y,me.ang), gNearest(me.x,me.y)];
     for(const sN of cands){
       if(sN===undefined||sN<0) continue;
+      /* ★u_5417: 라우터 계수는 라우팅 '전'에 초기화한다. 경로 생성 블록에서 초기화했더니
+         A* 가 끝난 뒤 지워져 금지 횟수가 항상 0 으로 보였다(규칙이 도는지 확인 불가). */
+      window.__rtLeftBan=0; window.__rtEval=[]; window.__routeRelaxed=0;
       const gp=gAstar(sN, tgt, me.ang);
       if(!gp) continue;
       /* ★경로는 '내 차가 있는 도로'에서 시작해야 한다(u_5038 오너 지시).
@@ -1489,7 +1499,7 @@ function planTo(x,y){
     const segAng=i=>{const a=nodeAt(i),b=nodeAt(i+1);return Math.atan2(b.y-a.y,b.x-a.x)};
     const segLen=i=>{const a=nodeAt(i),b=nodeAt(i+1);return Math.hypot(b.x-a.x,b.y-a.y)};
     // 1) 구간별 차로 오프셋(간선 속성)
-    const offs=[]; window.__offWho={}; window.__prepLSkip=0; window.__prepLone=0; window.__prepLWhy=[]; window.__rtLeftBan=0; window.__routeRelaxed=0; window.__prepL=0; window.__prepU=0;
+    const offs=[]; window.__offWho={}; window.__prepLSkip=0; window.__prepLone=0; window.__prepLWhy=[]; window.__prepL=0; window.__prepU=0;
     let _edgeMiss=0; window.__prepU=0; window.__prepL=0;
     for(let i=0;i<NP-1;i++){
       const sg=edgeOf(p[i],p[i+1]);
@@ -1625,7 +1635,11 @@ function planTo(x,y){
       for(const [i,_deg] of (window.__turnAtDbg||[])){
         if(i<1 || i>=NP-1) continue;
         const dd=_deg/57.3;
-        if(Math.abs(dd) > Math.PI*0.82) continue;     // 유턴은 위에서 이미 처리
+        /* ★u_5417 실측: 누적 -180° 인 분리대 유턴(꼭짓점 두 개)이 '유턴은 위에서 처리'로 건너뛰어졌는데
+           위 유턴 처리는 꼭짓점 하나짜리만 본다 → 접근 구간이 통째로 기본차로가 됐다.
+           건너뛰는 건 '꼭짓점 하나에서 148° 넘는' 진짜 단일 유턴뿐이다. */
+        { const _dv=((segAng(i)-segAng(i-1)+Math.PI*3)%(Math.PI*2))-Math.PI;
+          if(Math.abs(_dv) > Math.PI*0.82) continue; }
         /* ★2026-09-18: 우회전 진입구간을 경로에서 맨 오른쪽 차로로 고정해봤으나
            회귀시험에서 갇힘/복귀가 1→3건으로 늘어 되돌렸다(250m·120m 둘 다 악화).
            맨 오른쪽 차로는 정차·합류·갓길 영향을 받아 경로로 못 박으면 막힌다.
@@ -1956,7 +1970,24 @@ function planTo(x,y){
          구조적으로 없앤다: 이전 홉 오프셋에서 이 홉 오프셋까지 직선 위에서 연속 램프.
          길이 = 차로당 50m(≈60km/h 에서 3초). 홉이 짧으면 홉 전체에 걸쳐 램프.
          호(코너)는 진입 오프셋으로 그리고 램프는 호가 끝난 뒤(s0 이후)에 시작한다. */
-      const offPrev=(uexit[i] ? uexit[i].oX : (i>0 ? offs[i-1] : off));   // 유턴 진출은 1차로에서 시작해 램프로 우측 이동
+      /* ★★u_5417 실측(offTab): 2차로 변경이 189m 의 7m 홉에 통째로 걸렸다 — 램프가 '새 오프셋을 가진 홉'
+         안에만 있어서다. 차로 변경은 경계 중심으로 앞뒤 홉에 나눠 걸어야 한다(50m/차로 총량을
+         두 홉이 길이에 따라 나눠 가짐, 경계에서 값이 이어짐). 코너 경계는 종전대로 진출 홉에서만
+         (호가 진입 오프셋 하나로 그려지므로 진입 쪽은 램프가 있으면 안 된다). */
+      const _rampLen=(a,b)=>50*S*Math.abs(b-a)/LW;
+      const _split=(j)=>{                 // 홉 j-1 | 홉 j 경계의 램프를 [앞홉 몫, 뒷홉 몫] 으로
+        if(j<=0 || j>=NP-1) return [0,0];
+        if(corner[j] || uspan[j-1] || uexit[j]) return [0, 0];            // 코너/유턴 경계: 진출 홉 규칙(offPrev)이 처리
+        const R=_rampLen(offs[j-1], offs[j]); if(R<=0) return [0,0];
+        const Lp=segLen(j-1)*0.5, Ln=segLen(j)*0.5;
+        let hn=Math.min(Ln, R*0.5), hp=Math.min(Lp, R-hn);               // 뒷홉 절반, 모자라면 앞홉이 채움
+        if(hp+hn<R) hn=Math.min(Ln, R-hp);
+        return [hp,hn];
+      };
+      const [_hpS,_hnS]=_split(i);       // 이 홉의 시작 경계
+      const [_hpE,_hnE]=_split(i+1);     // 이 홉의 끝 경계
+      const _straightStart = !(corner[i] || uexit[i]);
+      const offPrev=(uexit[i] ? uexit[i].oX : (i>0 ? offs[i-1] : off));   // 코너/유턴 진출: 진입 오프셋에서 램프 시작
       const _dOff=off-offPrev;
       const t0 = corner[i]   ? corner[i].T2  : (uexit[i] ? Math.max(0,uexit[i].cut) : 0);   // 시작쪽에서 자를 길이
       const t1 = corner[i+1] ? corner[i+1].T : (uspan[i] && uspan[i].sc<0 ? -uspan[i].sc : 0); // 끝쪽에서 자를 길이
@@ -1966,9 +1997,21 @@ function planTo(x,y){
         const n=Math.max(1,Math.round((s1-s0)/RS));
         for(let k=0;k<=n;k++){
           const s=s0+(s1-s0)*k/n, u=s/L;
-          const RAMP=Math.min(s1-s0, 50*S*Math.abs(_dOff)/LW);
-          const f=(RAMP>0) ? Math.max(0, Math.min(1, (s-s0)/RAMP)) : 1;
-          const offS=offPrev+_dOff*f;
+          let offS;
+          if(_straightStart){
+            /* 직진 경계: 시작 쪽은 앞홉과 나눈 램프의 뒷몫(_hnS), 끝 쪽은 뒷홉과 나눈 램프의 앞몫(_hpE) */
+            offS=off;
+            if(_hnS>0 && s<_hnS && i>0){ const c=offs[i]-offs[i-1]; const tot=_hpS+_hnS; const at=(_hpS+s)/tot; offS=offs[i-1]+c*at; }
+            if(_hpE>0 && s>L-_hpE && i+1<NP-1){ const c=offs[i+1]-offs[i]; const tot=_hpE+_hnE; const at=(s-(L-_hpE))/tot; offS=offs[i]+c*at; }
+          }else{
+            /* ★u_5417 실측(bad1): 우회전 직후 곧바로 1차로로 사선. 제25조 출구 차로 유지 + 제38조
+               30m 신호 뒤에 변경한다: 호가 끝난 뒤 30m 는 진입 오프셋 유지, 그 다음 램프. */
+            const HOLD=Math.min(30*S, Math.max(0,(s1-s0)*0.5));
+            const RAMP=Math.min(Math.max(0,s1-s0-HOLD), 50*S*Math.abs(_dOff)/LW);
+            const f=(RAMP>0) ? Math.max(0, Math.min(1, (s-s0-HOLD)/RAMP)) : (s>s0+HOLD?1:0);
+            offS=offPrev+_dOff*f;
+            if(_hpE>0 && s>L-_hpE && i+1<NP-1){ const c=offs[i+1]-offs[i]; const tot=_hpE+_hnE; const at=(s-(L-_hpE))/tot; offS=offs[i]+c*at; }
+          }
           /* ★u_5405: 이 점이 어느 도로 위의 점인지 같이 달아 보낸다.
              나중에 nearestSeg 로 되짚으면 교차로에서 옆길로 붙는다. */
           push(A.x+(B.x-A.x)*u - Math.sin(a)*offS, A.y+(B.y-A.y)*u + Math.cos(a)*offS, _sgLeg);
@@ -2131,7 +2174,7 @@ function planTo(x,y){
                       // 끊긴 지점 앞뒤 좌표(m). 경로가 어디서 튀는지 본다.
                       p0: bi>0?[+(wp[bi-1].x/S).toFixed(0),+(wp[bi-1].y/S).toFixed(0)]:null,
                       p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null,
-                      pHead:p.slice(0,4), prepU:window.__prepU||0, turnRuns:(window.__turnRuns||[]).slice(0,10).map(r=>[r.i0,r.i1,+(r.cum*57.3).toFixed(0)]), uspanN:window.__uspanN||0, uspanTight:window.__uspanTight||0, uspanOff:window.__uspanOff||0, uspanDbg:window.__uspanDbg||null, uspanErr:window.__uspanErr||null, rtLeftBan:window.__rtLeftBan||0, routeRelaxed:window.__routeRelaxed||0, prepLSkip:window.__prepLSkip||0, prepLone:window.__prepLone||0, prepLWhy:(window.__prepLWhy||[]).slice(0,8), prepL:window.__prepL||0, NP:p.length,
+                      pHead:p.slice(0,4), prepU:window.__prepU||0, turnRuns:(window.__turnRuns||[]).slice(0,10).map(r=>[r.i0,r.i1,+(r.cum*57.3).toFixed(0)]), uspanN:window.__uspanN||0, uspanTight:window.__uspanTight||0, uspanOff:window.__uspanOff||0, uspanDbg:window.__uspanDbg||null, uspanErr:window.__uspanErr||null, rtLeftBan:window.__rtLeftBan||0, rtEval:(window.__rtEval||[]).slice(0,12), routeRelaxed:window.__routeRelaxed||0, prepLSkip:window.__prepLSkip||0, prepLone:window.__prepLone||0, prepLWhy:(window.__prepLWhy||[]).slice(0,8), prepL:window.__prepL||0, NP:p.length,
       offTab: window.__offTab||null, offErr: window.__offErr||null,
       uturnHops:(function(){let c=0;for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]) c++;return c})(),
       uturnPts:(function(){const o=[];for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]){const n=(typeof GNODES!=='undefined'&&GNODES[p[i]])||(typeof NODES!=='undefined'&&NODES[p[i]]); if(n) o.push({x:+(n.x/S).toFixed(1),y:+(n.y/S).toFixed(1)});} return o.slice(0,8)})(),
