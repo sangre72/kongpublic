@@ -1374,9 +1374,20 @@ function planTo(x,y){
        주행차로 원칙과도 맞는다(추월·좌회전이 아니면 오른쪽). */
   const laneOff=(sg)=>{
     if(!sg) return 0.5*LW;
+    /* ★2026-09-18 실측(충정로7길 m246~258): 전역그래프 간선은 roadW 를 안 갖는다(0).
+       여기서 l*LW 로 대체하는 건 맞지만, l 은 '양방향 합계'다 — 왕복 2차로면 6.5m 가
+       도로 전체이고 내 차도는 3.25m 다. 그런데 이 식은 rw*0.5-0.5*LW 로 내 차도를
+       다시 절반 내 1.63m 를 내놓아, 실제 차로중앙(중앙선에서 1.63m)이 아니라
+       갓길 쪽으로 밀렸다. 교사는 진짜 도로폭으로 재므로 둘이 어긋나 kerb 에 붙었다.
+       ⇒ nearestSeg 가 아는 실제 roadW 를 우선 쓰고, 없을 때만 l*LW 로 추정한다. */
     const rw = sg.roadW || (Math.max(1, sg.l||2) * LW);
-    return sg.o ? (rw*0.5 - 0.5*LW)             // 일방: 오른쪽 끝에서 반 차로 안
-                : (rw*0.5 - 0.5*LW);            // 왕복: 진행방향 차도의 오른쪽 끝
+    if(sg.o) return rw*0.5 - 0.5*LW;            // 일방: 오른쪽 끝 차로 중앙
+    /* ★2026-09-18 실측: 왕복도로는 rw 가 '양방향 합계'다. 내 차도 폭은 rw/2 이고
+       주행차로(맨 오른쪽) 중앙은 중앙선에서 (myLanes-0.5)*LW 다.
+       기존 식 rw*0.5-0.5*LW 는 짝수차로에서만 우연히 맞고, 홀수차로(l=3)에서는
+       3.25m 를 내놔 중앙선 건너편을 가리켰다(l=3 o=0: now 3.25 vs should 1.62). */
+    const myLanes = Math.max(1, Math.floor((sg.l||2)/2));
+    return (myLanes - 0.5) * LW;
   };
   const edgeOf=(i,j)=>{                         // 두 노드를 잇는 간선 찾기
     if(NS!==GNODES) return null;
@@ -1539,6 +1550,16 @@ function planTo(x,y){
     /* ★유턴 최소회전반경(u_5223). 실제 승용차 최소회전반경은 외곽 5.0~5.5m,
        차로중심 기준 약 5.5m. 이보다 작게 잡으면 물리적으로 못 도는 경로가 된다. */
     const UTURN_R=5.5*S;
+    try{
+      const tab=[]; let acc=0;
+      for(let i=0;i<p.length-1;i++){
+        const A=NS[p[i]], B=NS[p[i+1]];
+        const sg=edgeOf(p[i],p[i+1]);
+        tab.push([Math.round(acc/S), +(offs[i]/S).toFixed(2), sg?+((sg.roadW||0)/S).toFixed(2):null, sg?(sg.l||0):null, sg?(sg.o?1:0):null]);
+        acc+=Math.hypot(B.x-A.x,B.y-A.y);
+      }
+      window.__offTab=tab;
+    }catch(e){ window.__offTab=null; window.__offErr=String(e&&e.message||e).slice(0,90); }
     const corner=[];
     for(let i=0;i<NP;i++) corner.push(null);
     for(let i=1;i<NP-1;i++){
@@ -1808,6 +1829,7 @@ function planTo(x,y){
                       p0: bi>0?[+(wp[bi-1].x/S).toFixed(0),+(wp[bi-1].y/S).toFixed(0)]:null,
                       p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null,
                       pHead:p.slice(0,4), prepU:window.__prepU||0, prepL:window.__prepL||0, NP:p.length,
+      offTab: window.__offTab||null, offErr: window.__offErr||null,
       uturnHops:(function(){let c=0;for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]) c++;return c})(),
       uturnPts:(function(){const o=[];for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]){const n=(typeof GNODES!=='undefined'&&GNODES[p[i]])||(typeof NODES!=='undefined'&&NODES[p[i]]); if(n) o.push({x:+(n.x/S).toFixed(1),y:+(n.y/S).toFixed(1)});} return o.slice(0,8)})(),
       /* ★진단(u_5255 '우주선 경로'): 출발부 경로점과 차의 관계를 숫자로 본다 */
