@@ -37,6 +37,9 @@ out={'route':sys.argv[2],'frames':frames,
  'straight_xt':{'n':len(straight),'med':q(straight,.5),'p90':q(straight,.9),'max':q(straight,.999)},
  'twolane_6.5':{'n':len(two),'xt_med':q([x for x,_,_ in two],.5),'xt_p90':q([x for x,_,_ in two],.9),
                 'nlat_med':q([n for _,n,_ in two],.5),'nlat_min':q([n for _,n,_ in two],.001),'nd_med':q([d for _,_,d in two],.5)},
- 'overtake':{'lead_close_frames':leadClose,'veto_reasons':dict(otWhy.most_common(8))},
+ # ★2026-09-18 정정: otWhy 는 '거부 사유'가 아니다. 차로 탐색 전에 'GO' 가 찍히므로
+ # GO 가 많다고 추월이 일어난 것도, 막힌 것도 아니다. 실제 성사 횟수는 otN(누적) 이다.
+ 'overtake':{'lead_close_frames':leadClose,'otWhy_counts':dict(otWhy.most_common(8)),
+             'otN_total':(t.get('otN') if t else None)},
  'cr':t.get('cr'),'tpN':t.get('tpN')}
 print(json.dumps(out,ensure_ascii=False))
