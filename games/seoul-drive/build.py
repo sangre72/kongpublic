@@ -15,9 +15,13 @@ if '--traffic' in sys.argv:
     _i = sys.argv.index('--traffic')
     if _i + 1 < len(sys.argv) and sys.argv[_i+1] in ('light','medium','heavy'):
         _tf = sys.argv[_i+1]
-# ★목표 주행속도(u_4975): --speed <km/h>. 기본 45.
+# ★목표 주행속도(u_4975): --speed <km/h>.
 #   교사가 이 속도를 맞춰 달리고, 앞이 막히면 안전이 우선이다.
-_kmh = 45
+# ★★2026-09-18 u_5406 오너: "내 차 속도가 너무 느려. 시속 120km 는 또 삭제했나"
+#   삭제된 게 아니라 이 기본값이 45 였다. --speed 를 안 붙이고 빌드할 때마다
+#   45 로 되돌아갔다(이 세션에서만 5회 재빌드). 기본값을 120 으로 둔다 —
+#   느리게 보고 싶으면 그때 --speed 로 낮춘다. 기본이 원복되면 안 된다.
+_kmh = 120
 if '--speed' in sys.argv:
     _i = sys.argv.index('--speed')
     if _i + 1 < len(sys.argv):
