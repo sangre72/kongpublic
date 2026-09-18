@@ -1,0 +1,1458 @@
+[
+ {
+  "w": 37398844,
+  "n": "염곡지하도로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 37401844,
+  "n": "양산로",
+  "from": 6,
+  "to": 3,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 37928434,
+  "n": "자양로",
+  "from": 3,
+  "to": 5,
+  "why": "forward+backward"
+ },
+ {
+  "w": 46676454,
+  "n": "동일로",
+  "from": 7,
+  "to": 3,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 70998387,
+  "n": "양재대로",
+  "from": 3,
+  "to": 10,
+  "why": "forward+backward"
+ },
+ {
+  "w": 70998406,
+  "n": "양재대로",
+  "from": 2,
+  "to": 4,
+  "why": "forward+backward"
+ },
+ {
+  "w": 86198165,
+  "n": "천호대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 177618264,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 177618265,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 180238309,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 186410710,
+  "n": "서현로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 186410729,
+  "n": "",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 198566324,
+  "n": "세종대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 218681384,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 218798308,
+  "n": "망우로",
+  "from": 3,
+  "to": 4,
+  "why": "forward+backward"
+ },
+ {
+  "w": 218865675,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 218873820,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 218877837,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 218964496,
+  "n": "현충로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 218964499,
+  "n": "",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 218964501,
+  "n": "",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 218971528,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 219072577,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 219138999,
+  "n": "영등포로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 219745446,
+  "n": "현충로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 220313357,
+  "n": "하늘길",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 228545466,
+  "n": "경인고속도로",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 248405550,
+  "n": "현충로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 315423465,
+  "n": "",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 378453707,
+  "n": "세종대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 418775475,
+  "n": "성남대로",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 422599312,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 469471152,
+  "n": "천호대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 469900276,
+  "n": "하늘길",
+  "from": 2,
+  "to": 5,
+  "why": "forward+backward"
+ },
+ {
+  "w": 470154269,
+  "n": "양산로",
+  "from": 7,
+  "to": 3,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 470951256,
+  "n": "중앙로",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 477958936,
+  "n": "탄천동로",
+  "from": 2,
+  "to": 3,
+  "why": "forward+backward"
+ },
+ {
+  "w": 481322513,
+  "n": "중대로2길",
+  "from": 2,
+  "to": 5,
+  "why": "forward+backward"
+ },
+ {
+  "w": 489789012,
+  "n": "송파대로",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 494824659,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 494855765,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 494954974,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 515561251,
+  "n": "마포대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 515561252,
+  "n": "마포대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 516174739,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 516174742,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 516177107,
+  "n": "모래내로",
+  "from": 4,
+  "to": 2,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 516179429,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 516179459,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 516365914,
+  "n": "모래내로",
+  "from": 5,
+  "to": 2,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 516398275,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 516725212,
+  "n": "구의강변로",
+  "from": 2,
+  "to": 3,
+  "why": "forward+backward"
+ },
+ {
+  "w": 516728239,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 516736294,
+  "n": "송내대로",
+  "from": 10,
+  "to": 5,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 517634898,
+  "n": "세종대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 520018144,
+  "n": "동일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 520023265,
+  "n": "동일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 520033847,
+  "n": "동일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 520474628,
+  "n": "동일로",
+  "from": 7,
+  "to": 4,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 521182519,
+  "n": "현충로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521766168,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521766170,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521766171,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521766172,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521766175,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521766177,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521766179,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521766180,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521766184,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521766186,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521766192,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521770116,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521770117,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521770119,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 521770121,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 522869001,
+  "n": "서현로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 535722777,
+  "n": "월곡로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 538351842,
+  "n": "",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 538352859,
+  "n": "",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 546735163,
+  "n": "봉천로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 585352846,
+  "n": "현충로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 615657920,
+  "n": "",
+  "from": 2,
+  "to": 3,
+  "why": "forward+backward"
+ },
+ {
+  "w": 616217912,
+  "n": "봉천로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 619147732,
+  "n": "세종대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 619147734,
+  "n": "세종대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 620634303,
+  "n": "세종대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 630100249,
+  "n": "",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 664993813,
+  "n": "중대로2길",
+  "from": 2,
+  "to": 5,
+  "why": "forward+backward"
+ },
+ {
+  "w": 669880281,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 672784485,
+  "n": "천호대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 694764608,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 694764610,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 712143669,
+  "n": "동일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 770899736,
+  "n": "율곡로",
+  "from": 7,
+  "to": 5,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 773066532,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 788313172,
+  "n": "천호대로",
+  "from": 10,
+  "to": 5,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 794619867,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 812395774,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 829379107,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 840873959,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 867821853,
+  "n": "올림픽로35길",
+  "from": 2,
+  "to": 4,
+  "why": "forward+backward"
+ },
+ {
+  "w": 898565848,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 899373284,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 899373382,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 899373686,
+  "n": "세종대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 901227398,
+  "n": "천호대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 901442892,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 907680600,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 907960742,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908069314,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908354236,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908354250,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908354252,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908354257,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908354258,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908364243,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908364248,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908364249,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908608550,
+  "n": "천호대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908608557,
+  "n": "천호대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908608558,
+  "n": "천호대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908608565,
+  "n": "천호대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908622900,
+  "n": "세종대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908636259,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908720245,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908803249,
+  "n": "망우로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 908857709,
+  "n": "천호대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 909112476,
+  "n": "양재대로",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 909242353,
+  "n": "양재대로",
+  "from": 3,
+  "to": 10,
+  "why": "forward+backward"
+ },
+ {
+  "w": 913895962,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 915663102,
+  "n": "의사당대로",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 952960322,
+  "n": "양산로",
+  "from": 6,
+  "to": 3,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 981596881,
+  "n": "강동대로",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 991389135,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1049486284,
+  "n": "천호대로",
+  "from": 10,
+  "to": 5,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1061328143,
+  "n": "진건오남로",
+  "from": 6,
+  "to": 5,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1084408283,
+  "n": "세종대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1139179529,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1140707551,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1144268072,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1149812457,
+  "n": "천호대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1175034867,
+  "n": "중대로",
+  "from": 2,
+  "to": 7,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175034871,
+  "n": "중대로",
+  "from": 3,
+  "to": 6,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175034872,
+  "n": "중대로",
+  "from": 2,
+  "to": 7,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175034873,
+  "n": "양재대로",
+  "from": 2,
+  "to": 4,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175034875,
+  "n": "탄천동로",
+  "from": 2,
+  "to": 3,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175635373,
+  "n": "중대로",
+  "from": 2,
+  "to": 8,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175635374,
+  "n": "중대로",
+  "from": 2,
+  "to": 7,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175635375,
+  "n": "중대로8길",
+  "from": 2,
+  "to": 6,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175635378,
+  "n": "중대로",
+  "from": 2,
+  "to": 7,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175635379,
+  "n": "중대로",
+  "from": 2,
+  "to": 7,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175635381,
+  "n": "중대로",
+  "from": 2,
+  "to": 7,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175635384,
+  "n": "중대로",
+  "from": 2,
+  "to": 7,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175929590,
+  "n": "양재대로",
+  "from": 3,
+  "to": 10,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175929592,
+  "n": "양재대로",
+  "from": 3,
+  "to": 10,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175929593,
+  "n": "양재대로",
+  "from": 3,
+  "to": 10,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175929594,
+  "n": "양재대로",
+  "from": 3,
+  "to": 10,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1175929595,
+  "n": "양재대로",
+  "from": 3,
+  "to": 10,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1196780726,
+  "n": "",
+  "from": 2,
+  "to": 3,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1198651840,
+  "n": "자양로",
+  "from": 3,
+  "to": 7,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1203026216,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1203026218,
+  "n": "하남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1205266014,
+  "n": "망우로",
+  "from": 3,
+  "to": 5,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1206205704,
+  "n": "서현로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1206205705,
+  "n": "서현로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1206396058,
+  "n": "청계산로",
+  "from": 5,
+  "to": 6,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1206937730,
+  "n": "자양로",
+  "from": 3,
+  "to": 8,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1206937736,
+  "n": "자양로",
+  "from": 3,
+  "to": 6,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1208044050,
+  "n": "동남로",
+  "from": 2,
+  "to": 6,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1214479777,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1214479779,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1214479780,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1214479793,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1214479798,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1214479801,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1214479804,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1214479815,
+  "n": "통일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1215044974,
+  "n": "양산로",
+  "from": 3,
+  "to": 2,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 1215044998,
+  "n": "위례순환로",
+  "from": 2,
+  "to": 3,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1293946024,
+  "n": "송파대로",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1293946025,
+  "n": "송파대로",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1311838462,
+  "n": "거마로",
+  "from": 7,
+  "to": 4,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 1311838466,
+  "n": "양산로",
+  "from": 7,
+  "to": 4,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 1313988785,
+  "n": "하늘길",
+  "from": 2,
+  "to": 5,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1319879480,
+  "n": "봉천로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1322597923,
+  "n": "송내대로",
+  "from": 10,
+  "to": 5,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1322597926,
+  "n": "송내대로",
+  "from": 11,
+  "to": 5,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1322597927,
+  "n": "송내대로",
+  "from": 11,
+  "to": 5,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1415849472,
+  "n": "봉천로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1415849474,
+  "n": "봉천로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1441657839,
+  "n": "마포대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1443489728,
+  "n": "다산지금로",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1443693030,
+  "n": "가운로",
+  "from": 2,
+  "to": 5,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1443693033,
+  "n": "가운로1길",
+  "from": 4,
+  "to": 3,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1443693035,
+  "n": "가운로1길",
+  "from": 2,
+  "to": 4,
+  "why": "forward+backward"
+ },
+ {
+  "w": 1454229448,
+  "n": "수도권제1순환고속도로",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1454229449,
+  "n": "수도권제1순환고속도로",
+  "from": 7,
+  "to": 3,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1478779812,
+  "n": "동일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1478779813,
+  "n": "동일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1478779817,
+  "n": "동일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1478779823,
+  "n": "동일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1478779824,
+  "n": "동일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1478779825,
+  "n": "동일로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1495356698,
+  "n": "모래내로",
+  "from": 5,
+  "to": 2,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 1499936625,
+  "n": "율곡로",
+  "from": 7,
+  "to": 5,
+  "why": "lanes:forward"
+ },
+ {
+  "w": 1506103783,
+  "n": "영등포로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1508343241,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ },
+ {
+  "w": 1536041717,
+  "n": "강남대로",
+  "from": 8,
+  "to": 4,
+  "why": "oneway>=7 halved"
+ }
+]
