@@ -256,6 +256,24 @@
             aheadTurn = null; aheadNl = null; aheadDist = null;
             continue;
           }
+          /* ★2026-09-18 실측(충정로7길 m207~245, 1914~1959): 우회전 12m 뒤 14~20m 만에 좌회전.
+             짧은 연결로를 지나는 S자 굴곡이다. 3차로에서 우회전용 바깥차로 → 14m 뒤 좌회전용
+             1차로는 물리적으로 불가능해 교사 목표가 R/L 로 요동했고(laneF 0.1↔1.8) 그게
+             '회전 차로위반' 11건과 보행자 사고로 이어졌다.
+             ⇒ 회전 뒤 35m 안에 반대 방향 회전이 이어지면 앞 회전은 연결로다. 차로 목표는
+               **빠져나가는 회전**(뒤쪽) 기준으로 잡는다. 연결로는 그냥 따라간다. */
+          try{
+            let kk=kn, dj=0, exit=null;
+            while(kk < auto.wp.length-1 && dj < 35*S){
+              dj += Math.hypot(auto.wp[kk+1].x-auto.wp[kk].x, auto.wp[kk+1].y-auto.wp[kk].y);
+              const a3 = Math.atan2(auto.wp[Math.min(auto.wp.length-1,kk+4)].y-auto.wp[kk].y,
+                                    auto.wp[Math.min(auto.wp.length-1,kk+4)].x-auto.wp[kk].x);
+              const r3 = ((a3 - aRoute + Math.PI*3) % (Math.PI*2)) - Math.PI;
+              if(Math.abs(r3) >= 0.70){ exit = (r3 < 0 ? 'L' : 'R'); break; }
+              kk++;
+            }
+            if(exit && exit !== aheadTurn){ aheadTurn = exit; T._jog = 1; } else T._jog = 0;
+          }catch(e){}
           break;
         }
       }
@@ -268,12 +286,17 @@
        실제 진입하거나, 완전히 새 도로로 넘어갈 때까지) 판정을 고정한다.
        직진(S)에서 회전으로 바뀌는 것은 즉시 허용 — 위험한 건 회전이 켜졌다
        꺼졌다 하는 것이지, 새로 켜지는 게 아니다. */
+    /* ★2026-09-18 실측(충정로7길 m204~245, R→L→R→L 8~30m 간격, laneF 0.1↔1.8 요동):
+       잠금이 sg 객체 동일성으로 '같은 도로'를 판정했는데 경로는 폴리라인 꼭짓점마다
+       다른 객체라 매 꼭짓점에서 잠금이 풀렸다 — 회전 판정 요동이 그대로 재발했다.
+       way id 로 잠근다(같은 객체 동일성 버그가 경로 소급에도 있었다). */
+    const _wid = sg && sg.w!==undefined ? sg.w : sg;
     if(aheadTurn && aheadTurn !== 'S'){
-      if(T._turnLock && T._turnLock.turn === aheadTurn && T._turnLock.sg === sg){
+      if(T._turnLock && T._turnLock.turn === aheadTurn && T._turnLock.w === _wid){
         aheadTurn = T._turnLock.turn; aheadDist = Math.min(aheadDist, T._turnLock.dist);
       }
-      T._turnLock = {turn: aheadTurn, dist: aheadDist, sg: sg};
-    } else if(T._turnLock && T._turnLock.sg === sg && T._turnLock.dist > 8){
+      T._turnLock = {turn: aheadTurn, dist: aheadDist, w: _wid};
+    } else if(T._turnLock && T._turnLock.w === _wid && T._turnLock.dist > 8){
       aheadTurn = T._turnLock.turn; aheadDist = T._turnLock.dist - 15;   // 갱신 안 됐어도 거리는 줄어든 것으로 본다
       T._turnLock.dist = aheadDist;
     } else {

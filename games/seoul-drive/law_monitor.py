@@ -30,6 +30,7 @@ def tel():
     except Exception:
         return None, None, None
 
+_last_turn_m = -999
 def judge(t, ch, g):
     """이 프레임의 위반 목록. 정상이면 []."""
     v = []
@@ -85,9 +86,15 @@ def judge(t, ch, g):
         v.append(('역주행/중앙선침범', f'nlat={nlat:.2f}'))
     # 4 회전 차로 — 회전 임박(aD 가까움)일 때만 본다
     aTurn, aD, fin = g.get('aTurn'), g.get('aD'), g.get('fin')
+    #  ★2026-09-18: 회전 뒤 35m 안에 또 회전(S자 연결로)이면 두 회전 모두에 차로 규칙을
+    #    적용할 수 없다(물리적으로 불가). 직전 회전이 35m 이내면 판정 생략.
+    global _last_turn_m
+    m_now = t.get('_m', 0)
     if aTurn in ('L','R','U') and aD is not None and aD < 30 and laneF is not None:
         want = 0 if aTurn in ('L','U') else nl - 1
-        if abs(laneF - want) > 0.6:
+        jog = (m_now - _last_turn_m) < 35
+        _last_turn_m = m_now
+        if (not jog) and abs(laneF - want) > 0.6:
             nm = {'L':'좌회전','R':'우회전','U':'유턴'}[aTurn]
             v.append((f'{nm} 차로위반', f'laneF={laneF:.2f} want={want} nl={nl} aD={aD}'))
     # 5 차선물기 — 정당 사유 제외
@@ -131,7 +138,7 @@ def main():
         if not t: time.sleep(0.3); continue
         frames += 1
         now = round(time.time() - t0, 1)
-        m = round((t.get('prog') or 0) * (t.get('routeM') or 0))
+        m = round((t.get('prog') or 0) * (t.get('routeM') or 0)); t['_m'] = m
 
         cr = t.get('cr') or 0
         if cr > last_cr:

@@ -24,6 +24,9 @@ BOX = {
 }
 
 def q_for(la0, lo0, la1, lo1):
+    # ★u_5307: turn:lanes(차선별 회전 방향) 태그가 필요해졌다. out geom 은
+    # way 의 전체 태그를 이미 포함하므로(확인됨) 쿼리 자체는 그대로 두고,
+    # 다운스트림 파서만 이 태그를 뽑으면 된다 — 별도 필터 불필요.
     return f"""[out:json][timeout:90];
 (way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|residential|unclassified|living_street|service)$"]({la0},{lo0},{la1},{lo1});
  way["building"]({la0},{lo0},{la1},{lo1});

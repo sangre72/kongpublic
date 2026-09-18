@@ -1408,7 +1408,7 @@ function planTo(x,y){
     const segLen=i=>{const a=nodeAt(i),b=nodeAt(i+1);return Math.hypot(b.x-a.x,b.y-a.y)};
     // 1) 구간별 차로 오프셋(간선 속성)
     const offs=[];
-    let _edgeMiss=0;
+    let _edgeMiss=0; window.__prepU=0; window.__prepL=0;
     for(let i=0;i<NP-1;i++){
       const sg=edgeOf(p[i],p[i+1]);
       if(!sg) _edgeMiss++;
@@ -1418,6 +1418,21 @@ function planTo(x,y){
        laneOff 는 주행차로(가장 오른쪽) 기준이라 유턴을 바깥차로에서 하게 만든다 —
        실제로 "맨 바깥쪽 차선에서 90도 90도" 가 이렇게 나왔다.
        유턴 직전/직후 구간의 오프셋만 1차로로 바꾼다(중앙선에서 반 차로 안쪽). */
+    /* ★2026-09-18 실측(충정로7길, 우회전 위반 1→7·좌회전 1→5, 우회전 12m 앞에서 1차로에 있다가
+       보행자 사고): 500m 소급이 way id 로 제대로 작동하자, '뒤에 오는 좌회전'의 소급이
+       '앞에 있는 우회전'의 진입차로까지 1차로로 덮어썼다. 소급은 도로가 바뀌는 곳뿐 아니라
+       **중간에 다른 회전이 있으면 거기서** 멈춰야 한다. 회전 노드 집합을 먼저 만든다. */
+    /* 꼭짓점 하나의 꺾임이 아니라 ±15m 창의 진행방향 변화로 회전을 잡는다 —
+       곡선 램프는 꼭짓점마다 40° 미만이라도 전체는 90° 다(교사 스캔과 같은 정의). */
+    const _turnAt=new Set();
+    const _hdAt=(i)=>segAng(Math.max(0,Math.min(NP-2,i)));
+    for(let i=1;i<NP-1;i++){
+      let b=i-1, f=i, db=0, df=0;
+      while(b>0 && db<15*S){ db+=segLen(b); b--; }
+      while(f<NP-2 && df<15*S){ df+=segLen(f); f++; }
+      const dd=((_hdAt(f)-_hdAt(b)+Math.PI*3)%(Math.PI*2))-Math.PI;
+      if(Math.abs(dd) >= 0.70) _turnAt.add(i);
+    }
     const _ktPts=[]; window.__ktPtsTmp=_ktPts;   // ★u_5263 좁은 도로 유턴 지점(3점 회전 대상). 블록 밖(auto.wp 대입부)에서 읽도록 window 에 건다
     for(let i=1;i<NP-1;i++){
       const a1=segAng(i-1), a2=segAng(i);
@@ -1437,6 +1452,27 @@ function planTo(x,y){
       };
       if(i-1 < offs.length) offs[i-1] = in1(sgA);
       if(i   < offs.length) offs[i]   = in1(sgB);
+      /* ★u_5356 오너 실측: "유턴이 1차로에서 바로 안 되고 우측차선으로 커브 틀면서 유턴".
+         위 두 줄은 유턴 노드에 붙은 '한 홉'만 1차로로 바꾼다. 그 앞 구간은 여전히
+         주행차로(맨 오른쪽)라, 차가 마지막 몇 m 에서 오른쪽에서 왼쪽 끝까지 훑으며
+         돈다. 좌회전과 같이 진입 구간을 최대 500m 거슬러 1차로로 고정한다
+         (같은 간선 안에서만 — 다른 도로까지 덮어쓰면 도로 밖으로 나간 실사고 있음).
+         방향당 차로가 1개뿐이면 옮길 차로가 없으니 건너뛴다. */
+      try{
+        const _dl=(sg)=> !sg ? 1 : (sg.o ? (sg.l||1) : Math.max(1, Math.floor((sg.l||2)/2)));
+        if(sgA && _dl(sgA) >= 2){
+          let acc=0;
+          for(let k=i-2;k>=0 && acc<500*S;k--){
+            const sg=edgeOf(p[k],p[k+1]);
+            /* ★u_5359/5360 실측: 경로는 OSM 폴리라인 꼭짓점마다 다른 간선 객체다.
+               객체 동일성(sg!==sgA)으로 '같은 도로'를 판정하니 첫 꼭짓점(5~30m)에서
+               끊겨 500m 소급이 사실상 한 번도 작동하지 않았다. way id 로 비교한다. */
+            if(!sg || !sgA || sg.w!==sgA.w || sg.o!==sgA.o) break;
+            if(_turnAt.has(k+1)) break;                       // 중간 회전을 넘어 덮어쓰지 않는다
+            offs[k]=in1(sg); acc+=segLen(k); window.__prepU=(window.__prepU||0)+1;
+          }
+        }
+      }catch(e){}
     }
     /* ★u_5337 오너: "일차로에서 좌회전·유턴, 우회전전용차로 있으면 그쪽" = 기본 도로교통법.
        기존 laneOff() 는 모든 구간을 '가장 오른쪽 차로'로만 놓았고 예외는 유턴뿐이었다.
@@ -1479,9 +1515,10 @@ function planTo(x,y){
         let acc=0;
         for(let k=i-1;k>=0 && acc<PREP_M;k--){
           const sg=edgeOf(p[k],p[k+1]);
-          if(!sg || sg!==sgTurn) break;
+          if(!sg || !sgTurn || sg.w!==sgTurn.w || sg.o!==sgTurn.o) break;   // 같은 way 인가(꼭짓점마다 객체가 다르다)
+          if(k+1 < i && _turnAt.has(k+1)) break;                          // 중간 회전(특히 우회전) 진입차로 보호
           if(_dirLanes(sg) < 2) break;
-          offs[k]=inner(sg);
+          offs[k]=inner(sg); window.__prepL=(window.__prepL||0)+1;
           acc+=segLen(k);
         }
       }
@@ -1770,7 +1807,7 @@ function planTo(x,y){
                       // 끊긴 지점 앞뒤 좌표(m). 경로가 어디서 튀는지 본다.
                       p0: bi>0?[+(wp[bi-1].x/S).toFixed(0),+(wp[bi-1].y/S).toFixed(0)]:null,
                       p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null,
-                      pHead:p.slice(0,4),
+                      pHead:p.slice(0,4), prepU:window.__prepU||0, prepL:window.__prepL||0, NP:p.length,
       uturnHops:(function(){let c=0;for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]) c++;return c})(),
       uturnPts:(function(){const o=[];for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]){const n=(typeof GNODES!=='undefined'&&GNODES[p[i]])||(typeof NODES!=='undefined'&&NODES[p[i]]); if(n) o.push({x:+(n.x/S).toFixed(1),y:+(n.y/S).toFixed(1)});} return o.slice(0,8)})(),
       /* ★진단(u_5255 '우주선 경로'): 출발부 경로점과 차의 관계를 숫자로 본다 */
@@ -2010,6 +2047,10 @@ function mdlPoll(dt){
       blkLast: window.__blkLast||null, blkHist: window.__blkHist||null,   // 구속 발동 문맥
       startK: (window.__startK===undefined?null:window.__startK),         // 출발 경로점 인덱스
       tpBld: window.__tpBld||0, tpPath: window.__tpPath||0, tpEsc: window.__tpEsc||0, sxDbg: window.__sxDbg||null,
+      /* ★2026-09-18: wpDbg.car 는 경로 생성 시점 스냅샷이라 주행 중 안 변한다. 이걸 실시간
+         위치로 오독해 '유턴 지점에서 110초 정지'라는 허위 진단을 냈다(두 번째). 실시간
+         좌표는 여기 pos 로만 읽는다. */
+      pos: [+(me.x).toFixed(1), +(me.y).toFixed(1), +(me.ang*57.2958).toFixed(1)],
       ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
@@ -2237,6 +2278,12 @@ function driveAuto(dt){
      전방주시점이 옆으로 가버려 복귀하지 못한다.
      벗어남이 크면 Ld 를 짧게 잡아 '경로로 곧장 붙는' 각도를 만든다. */
   const off = auto.xt||0;                          // m
+  /* ★2026-09-18 실측(충정로7길 m≈255, 매 실행 재현): 좌회전 호(R≈8m)에서 v=3.5 인데
+     xt 가 2.0→2.8m 로 커지며 안쪽으로 파고들어 좁은 진출로(6.5m) 가장자리에 걸려 되돌림 →
+     갇힘 → 복귀. Pure Pursuit 는 Ld 만큼 앞점을 향하므로 호 안쪽을 Ld²/2R 만큼 자른다:
+     Ld=6, R=8 → 2.25m. 실측 xt 와 일치. 급한 곡률에서는 하한을 낮춘다(3.5m → 0.77m). */
+  /* ★위 가설로 Ld 하한을 곡률에 따라 3.5m 까지 낮춰봤으나 복귀 2→3 으로 악화, 되돌림.
+     xt 증가는 코너 커팅이 아니라 호(arc) 기하 자체가 도로 밖으로 나가는 쪽을 의심. */
   const Ld = off > 6
     ? Math.max(4, Math.min(8, 4 + 0.3*me.v))       // 복귀: 짧게 → 급히 붙는다
     : Math.max(6, Math.min(16, 0.9*me.v));         // 정상: 속도비례
