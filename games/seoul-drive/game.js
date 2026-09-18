@@ -1511,16 +1511,21 @@ function planTo(x,y){
        정의를 바꾼다: 폴리라인을 따라 같은 부호의 헤딩 변화를 누적, 40° 를 넘는 구간마다
        정점 하나(누적 20° 를 넘는 꼭짓점)만 표시. 코너당 하나, 넘침 없음.
        곡선 램프(꼭짓점당 40° 미만)도 누적으로 잡힌다. 라우터의 누적 규칙과 같은 자. */
-    const _turnAt=new Set(); window.__turnAtDbg=[];
+    const _turnAt=new Set(); window.__turnAtDbg=[]; window.__turnRuns=[];
     {
-      let cum=0, apex=-1, flagged=false;
-      const _end=()=>{ if(flagged){ _turnAt.add(apex); window.__turnAtDbg.push([apex, +(cum*57.3).toFixed(0)]); } cum=0; apex=-1; flagged=false; };
+      let cum=0, apex=-1, flagged=false, runStart=1, runEnd=1;
+      const _end=()=>{ if(flagged){ _turnAt.add(apex); window.__turnAtDbg.push([apex, +(cum*57.3).toFixed(0)]); window.__turnRuns.push({i0:runStart,i1:runEnd,cum}); } cum=0; apex=-1; flagged=false; };
       for(let i=1;i<NP-1;i++){
         const d=((segAng(i)-segAng(i-1)+Math.PI*3)%(Math.PI*2))-Math.PI;
         const straightLong = Math.abs(d)<0.03 && segLen(i)>15*S;
         if(straightLong){ _end(); continue; }
-        if(cum!==0 && Math.abs(d)>0.03 && Math.sign(d)!==Math.sign(cum)) _end();
-        cum+=d;
+        const bends = Math.abs(d)>=0.03;                       // 실제로 꺾이는 꼭짓점만 구간 경계가 된다
+        /* ★실측(turnRuns): 분리대 링크의 1~3m 홉에 1.7° 이상 반대 떨림이 있어 유턴이 [8,9]·[12,12]
+           로 쪼개졌다. 8.6°(0.15rad) 미만의 반대 떨림은 같은 구간으로 흡수한다. */
+        if(bends && cum!==0 && Math.sign(d)!==Math.sign(cum) && Math.abs(d)>=0.15) _end();
+        if(bends && cum===0) runStart=i;
+        if(bends) runEnd=i;
+        if(bends || cum!==0) cum+=d;                           // 구간 밖의 미세 흔들림은 무시
         if(apex<0 && Math.abs(cum)>=0.35) apex=i;
         if(!flagged && Math.abs(cum)>=0.70) flagged=true;
       }
@@ -1826,7 +1831,7 @@ function planTo(x,y){
       const nx=-Math.sin(bis)*sgnD, ny=Math.cos(bis)*sgnD; // 회전 안쪽 법선
       const Cox=V.x+nx*(Rc/shs), Coy=V.y+ny*(Rc/shs);
       // 차로 호의 시작/끝 각도 = 중심선 접점 각도와 동일(동심원)
-      const Tc=Rc*t;                                       // 중심선 접점까지 거리
+      const Tc=isUturn ? Math.min(Rc*t, Math.min(20*S, segLen(i-1)*0.9, segLen(i)*0.9)) : Rc*t;   // ★유턴은 예산 안에서만 자른다(접선 발산 방지)
       const P0x=V.x-Math.cos(a1)*Tc, P0y=V.y-Math.sin(a1)*Tc;
       const P2x=V.x+Math.cos(a2)*Tc, P2y=V.y+Math.sin(a2)*Tc;
       const A0=Math.atan2(P0y-Coy,P0x-Cox), A2=Math.atan2(P2y-Coy,P2x-Cox);
@@ -1873,18 +1878,88 @@ function planTo(x,y){
        날아간다 — 한 번 걸리기 시작하면 이후 점이 계속 직전 방향과 역내적이 된다. */
     window.__pushDbg = ()=>({same:_dropSame, back:_dropBack, kept:wp.length});
     // 3) 구간을 리샘플해 오프셋하되, 코너의 접선구간(T) 안쪽 점은 호가 대신한다.
+    /* ★★2026-09-18 u_5411/u_5414 "유턴 구간도 안 지키고": 중앙분리대 틈으로 도는 유턴은
+       경로상 '좌회전 두 번'(12m 안에 90°+90°)이라 코너 두 개로 그려졌고, 차가 6.5m 링크
+       위에서 기어가다 갇혔다(실측 275m). 실제는 반원 하나다: 진입 차로선과 진출 차로선의
+       간격 D 를 지름으로 하는 원. 분리대 폭이 더해져 R=D/2 가 최소회전반경(6m)을 넘는다.
+       내부 꼭짓점의 코너·다리는 건너뛰고 반원으로 잇는다. 회전 방향은 축 가정 없이
+       실제 진행벡터로 정한다. R<5m 면(틈이 좁음) 종전 방식 유지. */
+    const uspan={}, uexit={}, skipLeg={}; window.__uspanN=0; window.__uspanTight=0; window.__uspanOff=0;
+    for(const r of (window.__turnRuns||[])){
+      try{
+        if(Math.abs(r.cum) < Math.PI*0.82) continue;
+        const i0=r.i0, i1=r.i1; if(i0<1 || i1>NP-2) continue;
+        let inner=0; for(let k=i0;k<i1;k++) inner+=segLen(k);
+        if(inner > 40*S) continue;
+        const a1=segAng(i0-1), a2=segAng(i1);
+        const u1x=Math.cos(a1), u1y=Math.sin(a1), n1x=-Math.sin(a1), n1y=Math.cos(a1);
+        const n2x=-Math.sin(a2), n2y=Math.cos(a2);
+        /* ★진출은 1차로다(1차로→1차로). 기본값(맨 오른쪽)을 쓰면 D 가 두 차로만큼 커져(실측 24.3m)
+           유턴이 1차로→3차로가 된다. 진출 직선에서 램프로 우측 이동한다. */
+        const _lane1=(sg)=> sg ? laneOffset({...sg, roadW:(sg.roadW||(Math.max(1,sg.l||2)*LW))}, 1, 0) : LW*0.5;
+        const sgX=edgeOf(p[i1],p[i1+1]);
+        const oE=offs[i0-1], oX=_lane1(sgX);
+        const N0=nodeAt(i0), N1=nodeAt(i1);
+        const E0x=N0.x+n1x*oE, E0y=N0.y+n1y*oE, X0x=N1.x+n2x*oX, X0y=N1.y+n2y*oX;
+        const dx=X0x-E0x, dy=X0y-E0y;
+        const D=dx*n1x+dy*n1y;                                       // 부호 있는 가로 간격
+        const R=UTURN_R;                                             // 법정 최소회전반경 6.0m
+        if(Math.abs(D) < 2*R){ window.__uspanTight++; continue; }   // 틈이 회전지름보다 좁다: 종전 방식
+        /* ★실측: 반원(R=D/2=8.9~12m)은 틈 중앙에서 R 만큼 앞으로 나가 6.5m 횡단도로를 넘쳤다(267m 갇힘).
+           실제 운전 = ¼원(R) + 틈을 가로지르는 직선(D−2R) + ¼원(R). 앞으로 나가는 거리 = R 로 최소.
+           시작 접점 sc 는 횡단도로 안에서 끝나게 둔다: s_gap + w/2 − R (단, 횡단도로에 들어선 뒤). */
+        const sgn=D>=0?1:-1;
+        const sX=dx*u1x+dy*u1y;
+        const sGap=((N0.x+N1.x)/2-E0x)*u1x+((N0.y+N1.y)/2-E0y)*u1y;   // 틈(횡단도로 중심선) 세로 위치
+        const sgL=edgeOf(p[i0],p[i0+1]);                             // 틈을 잇는 링크 도로
+        const w=sgL ? (sgL.roadW||((sgL.l||2)*LW)) : 2*LW;
+        /* ★실측(0.5초 폴링, m=250): 직선이 횡단도로 가장자리선(틈중앙+w/2) 위에 놓여
+           추적오차 0.25m 로 nd=3.5>3.25 → 도로이탈 제동 → 3.9→0.5m/s → 갇힘 → 순간이동.
+           차 반폭(0.9)+여유 = 1.2m 안쪽으로 들인다. 호는 횡단도로 직전 0.7m 에서 시작하는데
+           그 구간은 아직 1차로 안(가로 이동 <1.63m)이라 도로 위다. */
+        const CARM=1.2*S;
+        const sc=sGap + w*0.5 - R - CARM;
+        if(sc < sGap - w*0.5 - 2.0*S){ window.__uspanTight++; continue; }   // 횡단도로가 너무 좁다
+        const Pex=E0x+u1x*sc, Pey=E0y+u1y*sc;                        // 진입 접점(차로선 A)
+        const C1x=Pex+n1x*sgn*R, C1y=Pey+n1y*sgn*R;                  // ¼원 1 중심
+        const Q1x=C1x+u1x*R, Q1y=C1y+u1y*R;                          // ¼원 1 끝(진행 = 가로)
+        const Q2x=Q1x+n1x*sgn*(Math.abs(D)-2*R), Q2y=Q1y+n1y*sgn*(Math.abs(D)-2*R); // 직선 끝
+        const C2x=Q2x-u1x*R, C2y=Q2y-u1y*R;                          // ¼원 2 중심
+        const Pxx=C2x+n1x*sgn*R, Pxy=C2y+n1y*sgn*R;                  // 진출 접점(차로선 B)
+        const A0=Math.atan2(Pey-C1y,Pex-C1x);
+        const tx=-Math.sin(A0), ty=Math.cos(A0);
+        const rot=((u1x*tx+u1y*ty)>=0 ? 1 : -1);                     // 회전 방향(축 가정 없음)
+        const B0=Math.atan2(Q2y-C2y,Q2x-C2x);
+        /* 블록 돌기 오인 방지: 직선 구간(가장 앞으로 나간 곳)의 중간점이 도로 위여야 한다. */
+        { const Mx=(Q1x+Q2x)/2, My=(Q1y+Q2y)/2; const ns=nearestSeg(Mx,My);
+          const half=ns&&ns.s ? ((ns.s.roadW||((ns.s.l||2)*LW))*0.5) : 0;
+          window.__uspanDbg={i0,i1,R:+(R/S).toFixed(1),D:+(Math.abs(D)/S).toFixed(2),w:+(w/S).toFixed(1),inner:+(inner/S).toFixed(1),scRel:+((sc-sGap)/S).toFixed(1),midOff:ns?+((ns.d-half)/S).toFixed(1):null,deg:+(r.cum*57.3).toFixed(0)};
+          if(!ns || ns.d > half+3.0*S){ window.__uspanOff=(window.__uspanOff||0)+1; continue; } }
+        uspan[i0-1]={R,rot,C1:[C1x,C1y],A0,Q1:[Q1x,Q1y],Q2:[Q2x,Q2y],C2:[C2x,C2y],B0,sc,E:[E0x,E0y],Pe:[Pex,Pey],i1};
+        uexit[i1]={cut:sX-sc,Px:[Pxx,Pxy],X0:[X0x,X0y],oX};
+        for(let k=i0;k<=i1;k++) corner[k]=null;
+        for(let k=i0;k<i1;k++) skipLeg[k]=1;
+        window.__uspanN++;
+        window.__uspanDbg={i0,i1,R:+(R/S).toFixed(2),D:+(Math.abs(D)/S).toFixed(2),inner:+(inner/S).toFixed(1),sc:+(sc/S).toFixed(1),cutX:+((sX-sc)/S).toFixed(1),deg:+(r.cum*57.3).toFixed(0)};
+      }catch(e){ window.__uspanErr=String(e&&e.message||e).slice(0,80); }
+    }
     for(let i=0;i<NP-1;i++){
+      if(skipLeg[i]) continue;                    // 반원 유턴 내부 다리
       const A=nodeAt(i), B=nodeAt(i+1), a=segAng(i), L=segLen(i), off=offs[i];
       const _sgLeg=edgeOf(p[i],p[i+1]);          // 이 구간의 실제 도로(u_5405)
+      if(uexit[i]){                                // 반원 진출: 접점이 노드 뒤면 접점→노드 직선 보강
+        const ux=uexit[i];
+        if(ux.cut<0){ const m=Math.max(1,Math.round(-ux.cut/RS)); for(let k=0;k<m;k++){ const f=k/m; push(ux.Px[0]+(ux.X0[0]-ux.Px[0])*f, ux.Px[1]+(ux.X0[1]-ux.Px[1])*f, _sgLeg); } }
+      }
       /* ★★u_5409 "실수할 가능성을 없애": 오프셋이 홉마다 상수라 경계에서 계단처럼 튀었다.
          한 홉만 1차로가 되면 급차로변경, 회전 뒤 3차로로 튀면 난장판 — 전부 이 계단이다.
          구조적으로 없앤다: 이전 홉 오프셋에서 이 홉 오프셋까지 직선 위에서 연속 램프.
          길이 = 차로당 50m(≈60km/h 에서 3초). 홉이 짧으면 홉 전체에 걸쳐 램프.
          호(코너)는 진입 오프셋으로 그리고 램프는 호가 끝난 뒤(s0 이후)에 시작한다. */
-      const offPrev=(i>0 ? offs[i-1] : off);
+      const offPrev=(uexit[i] ? uexit[i].oX : (i>0 ? offs[i-1] : off));   // 유턴 진출은 1차로에서 시작해 램프로 우측 이동
       const _dOff=off-offPrev;
-      const t0 = corner[i]   ? corner[i].T2  : 0;      // 시작쪽(앞 코너의 진출접점)에서 자를 길이
-      const t1 = corner[i+1] ? corner[i+1].T : 0;      // 끝쪽(다음 코너의 진입접점)에서 자를 길이
+      const t0 = corner[i]   ? corner[i].T2  : (uexit[i] ? Math.max(0,uexit[i].cut) : 0);   // 시작쪽에서 자를 길이
+      const t1 = corner[i+1] ? corner[i+1].T : (uspan[i] && uspan[i].sc<0 ? -uspan[i].sc : 0); // 끝쪽에서 자를 길이
       const s0=t0, s1=L-t1;
       window.__wpSrcTag='b';
       if(s1>s0){
@@ -1898,6 +1973,17 @@ function planTo(x,y){
              나중에 nearestSeg 로 되짚으면 교차로에서 옆길로 붙는다. */
           push(A.x+(B.x-A.x)*u - Math.sin(a)*offS, A.y+(B.y-A.y)*u + Math.cos(a)*offS, _sgLeg);
         }
+      }
+      // 3b) 이 구간의 끝이 반원 유턴이면: (노드→접점 연장) + 반원
+      if(uspan[i]){
+        const u=uspan[i];
+        if(u.sc>0){ const m=Math.max(1,Math.round(u.sc/RS)); for(let k=1;k<=m;k++){ const f=k/m; push(u.E[0]+(u.Pe[0]-u.E[0])*f, u.E[1]+(u.Pe[1]-u.E[1])*f, _sgLeg); } }
+        window.__wpSrcTag='u';
+        const N=6;                                                     // ¼원당 15°/표본
+        for(let k=1;k<=N;k++){ const ang=u.A0+u.rot*(Math.PI/2)*(k/N); push(u.C1[0]+Math.cos(ang)*u.R, u.C1[1]+Math.sin(ang)*u.R); }
+        { const Lq=Math.hypot(u.Q2[0]-u.Q1[0],u.Q2[1]-u.Q1[1]); const m=Math.max(1,Math.round(Lq/RS));
+          for(let k=1;k<=m;k++){ const f=k/m; push(u.Q1[0]+(u.Q2[0]-u.Q1[0])*f, u.Q1[1]+(u.Q2[1]-u.Q1[1])*f); } }
+        for(let k=1;k<=N;k++){ const ang=u.B0+u.rot*(Math.PI/2)*(k/N); push(u.C2[0]+Math.cos(ang)*u.R, u.C2[1]+Math.sin(ang)*u.R); }
       }
       // 4) 이 구간의 끝이 코너면 이등분선 호를 붙인다.
       const c=window.__NOARC?null:corner[i+1];
@@ -2045,7 +2131,7 @@ function planTo(x,y){
                       // 끊긴 지점 앞뒤 좌표(m). 경로가 어디서 튀는지 본다.
                       p0: bi>0?[+(wp[bi-1].x/S).toFixed(0),+(wp[bi-1].y/S).toFixed(0)]:null,
                       p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null,
-                      pHead:p.slice(0,4), prepU:window.__prepU||0, rtLeftBan:window.__rtLeftBan||0, routeRelaxed:window.__routeRelaxed||0, prepLSkip:window.__prepLSkip||0, prepLone:window.__prepLone||0, prepLWhy:(window.__prepLWhy||[]).slice(0,8), prepL:window.__prepL||0, NP:p.length,
+                      pHead:p.slice(0,4), prepU:window.__prepU||0, turnRuns:(window.__turnRuns||[]).slice(0,10).map(r=>[r.i0,r.i1,+(r.cum*57.3).toFixed(0)]), uspanN:window.__uspanN||0, uspanTight:window.__uspanTight||0, uspanOff:window.__uspanOff||0, uspanDbg:window.__uspanDbg||null, uspanErr:window.__uspanErr||null, rtLeftBan:window.__rtLeftBan||0, routeRelaxed:window.__routeRelaxed||0, prepLSkip:window.__prepLSkip||0, prepLone:window.__prepLone||0, prepLWhy:(window.__prepLWhy||[]).slice(0,8), prepL:window.__prepL||0, NP:p.length,
       offTab: window.__offTab||null, offErr: window.__offErr||null,
       uturnHops:(function(){let c=0;for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]) c++;return c})(),
       uturnPts:(function(){const o=[];for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]){const n=(typeof GNODES!=='undefined'&&GNODES[p[i]])||(typeof NODES!=='undefined'&&NODES[p[i]]); if(n) o.push({x:+(n.x/S).toFixed(1),y:+(n.y/S).toFixed(1)});} return o.slice(0,8)})(),
