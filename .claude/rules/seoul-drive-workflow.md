@@ -118,3 +118,26 @@ BC 는 교사를 복제할 뿐이므로, 교사가 못 하는 걸 모델이 할 
 `/tel` → `wpDbg.offTab` [누적m, 오프셋, 폭, 차로, 일방, **작성자**] · `wpDbg.prepLWhy` [정점 i, 확보m, 홉, 끊긴 이유, 근처 정점] · `wpDbg.turnRuns` [i0,i1,각도] · `wpDbg.uspanDbg` · `rtLeftBan`/`routeRelaxed`.
 '누가 이 값을 썼는지' 표시를 붙이는 게 원인을 잡은 방법이었다. 추측 3번보다 표시 1번이 빨랐다.
 0.5초 폴링(`v thr brk vmax xt blk cap gap lat nd`)이 '왜 멈추나'를 잡았다 — 이벤트 한 줄로는 안 보인다.
+
+## 9. 지도 데이터가 틀리면 규칙은 헛수고 — 데이터부터 검증 (MUST — u_5418/u_5419, 2026-09-19)
+
+> 오너: "우리가 사용하는 맵 자체도 문제가 있다고 그러면 그 문제를 해결하는 게 우선이잖아"
+
+### 실사고
+경로선이 4~5차로를 사선으로 가로질렀다(오너 스크린샷). 회전 규칙을 며칠 고쳤지만 원인은 지도였다:
+통일로 way 773066532 등이 OSM 에 `lanes=8 + oneway=yes` 로 태그됨(도로 전체 차로수를 한쪽 차도에).
+게임은 26m 도로로 그려 1차로를 실제 차도 밖 6m 에 찍었다. 옆 차도 way 는 lanes 태그가 없어 기본값 3.
+
+### 규칙
+1. **주행 이상을 보면 먼저 경로 오프셋이 도로 폭 안인지 본다.** `/tel` → `wpDbg.offTab` 의 `[누적m, 오프셋, roadW, l, o, 작성자, way, 이름]`.
+   ★전역그래프 간선은 `roadW=0` 이라 `r[2]` 로 판정하면 전부 건너뛴다(실제로 그렇게 헛검사한 적 있음). **`|오프셋| > l×3.25/2` 로 잰다.**
+2. 밖이면 way id 로 원본 pbf 태그를 직접 확인한다(`data/osm_src/south-korea.osm.pbf`, osmium 5초). 추측하지 않는다.
+3. 데이터 오류는 **추출기에서 고치고 보고서를 남긴다**(`pbf_to_chunks.py` → `lane_fixes.json`). 게임 안 땜질(`laneFix`)은 임시.
+4. 재추출: `python3 pbf_to_chunks.py data/osm_src/south-korea.osm.pbf data/seoul2 --bbox 37.3901,126.7445,37.7315,127.2088`
+   → `pack_map.py --src games/seoul-drive/data/seoul2/chunks` → `build_search_index.py` → `build.py`. 이전 지도는 `data6_prev_*.js` 로 백업.
+5. 검증 = 회귀 3구간에서 '도로 밖 오프셋 홉 = 0' + 법규 모니터.
+
+### 아직 없는 데이터
+- 전용 회전차로: `tl`(turn:lanes) 필드를 이제 싣지만 **게임이 아직 안 읽는다**. 다음 단계.
+- lanes 태그 없는 way(`ld:1`)는 도로등급 기본값(primary 3 등) — 실제와 다를 수 있다.
+- 유턴 구역·표지 정보 없음(폭으로 근사).
