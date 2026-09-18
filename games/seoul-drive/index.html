@@ -2578,8 +2578,19 @@ function driveAuto(dt){
        앞차가 가까워도 멈추면 안 된다. 대신 옆 차로 안전은 laneClear 가 이미 봤다. */
     if(gp<7*S) vmax = Math.min(vmax, 3.0);
   }else{
-    if(gp<28*S)vmax=Math.min(vmax,14*(gp-9*S)/(19*S));
-    if(gp<11*S)vmax = 0;                             // ★앞차 앞에서는 무조건 정지
+    /* ★2026-09-18 실측(여의대방로 등 추돌 7건): 앞차 감속 기준이 28m/11m 고정이었다.
+       정지거리는 v*0.7 + v²/8 이라 13.2m/s 면 31m — 감속을 시작하는 28m 보다 길다.
+       실제로 gap 23→22→충돌 동안 br=0(제동 없음) 이었다. 브레이크가 늦은 게 아니라
+       '멀다'고 판단한 것이다. ★고정 거리상수 결함 일곱 번째(앞차제동·보행자제동·
+       보행자탐지·앞차탐지·신호등·차로확인에 이어). 속도에 비례시킨다. */
+    const _need = me.v*0.7 + (me.v*me.v)/(2*4.0);    // 정지에 필요한 거리(m)
+    /* ★계수 주의: 1.6/1.05 로 처음 잡았더니 사평대로 주행거리가 2341m → 540m 로 무너졌다.
+       사고 0 이 '안 움직여서' 나오면 의미가 없다(rules: 정지가 최적해가 되면 안 된다).
+       여유는 두되 과하지 않게 1.25/0.95 로 낮춘다 — 13.2m/s 기준 감속 38.7m·정지 29.4m. */
+    const _slowAt = Math.max(28, _need*1.25)*S;      // 감속 시작
+    const _stopAt = Math.max(11, _need*0.95)*S;      // 완전 정지
+    if(gp<_slowAt) vmax=Math.min(vmax, 14*(gp-_stopAt*0.82)/Math.max(1e-6,(_slowAt-_stopAt*0.82)));
+    if(gp<_stopAt) vmax = 0;                         // ★앞차 앞에서는 무조건 정지
   }
   if(creep && !queued){
     vmax=Math.max(vmax,2.2);
