@@ -33,6 +33,15 @@ def main():
         chunks[f'{i},{j}'] = {'r': r, 'b': b}
         nroad += len(r); nbld += len(b); nsig += len(sg)
 
+    # 역 POI(2026-09-19): 청크 'p' → POI 전역. 게임 POIS 는 {n,k,x,y}(m 단위, 게임이 S 배)를 읽는다.
+    pois = []
+    for f in sorted(glob.glob(SRC + '/*.json')):
+        k = os.path.basename(f)[:-5]
+        i, j = (int(v) for v in k.split('_'))
+        if abs(i) > R or abs(j) > R:
+            continue
+        for p in json.load(open(f, encoding='utf-8')).get('p', []):
+            pois.append({'n': p['n'], 'k': p.get('k','station'), 'x': p['x'], 'y': p['y']})
     # 신호등은 게임이 SIGNALS 전역에서 읽는다(buildSignals)
     sigs = []
     for f in sorted(glob.glob(SRC + '/*.json')):
@@ -60,9 +69,9 @@ def main():
             + 'const TURNS=' + json.dumps(turns, separators=(',', ':')) + ';\n'
             # ROADS/BLDS 는 CHUNKS 가 없을 때의 폴백이지만, 선언 자체가 없으면
             # collectRoads 의 참조에서 ReferenceError 가 난다(실측). 빈 배열로 둔다.
-            + 'const ROADS=[];const BLDS=[];const POI=[];const XWALK=[];\n')
+            + 'const ROADS=[];const BLDS=[];const POI=' + json.dumps(pois, ensure_ascii=False, separators=(',', ':')) + ';const XWALK=[];\n')
     open(out, 'w', encoding='utf-8').write(body)
-    print(json.dumps({'chunks': len(chunks), 'roads': nroad, 'blds': nbld,
+    print(json.dumps({'chunks': len(chunks), 'roads': nroad, 'blds': nbld, 'pois': len(pois),
                       'signals': len(sigs), 'mb': round(len(body.encode())/1024/1024, 2),
                       'radius_km': R, 'bld_radius_km': BR, 'out': out}))
 

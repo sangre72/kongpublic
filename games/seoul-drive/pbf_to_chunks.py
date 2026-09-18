@@ -35,7 +35,7 @@ class Conv(osmium.SimpleHandler):
         self.fixed = []                         # 차로수를 보정한 way 목록(보고용)
 
     def _put(self, key, kind, obj):
-        c = self.ch.setdefault(key, {'r':[],'b':[],'s':[]})
+        c = self.ch.setdefault(key, {'r':[],'b':[],'s':[],'p':[]})
         c[kind].append(obj)
 
     def _key(self, x, y):
@@ -102,10 +102,20 @@ class Conv(osmium.SimpleHandler):
             self._put(k, 'b', {'n': t.get('name',''), 'p': xy}); self.nbld += 1
 
     def node(self, n):
-        if n.tags.get('highway') != 'traffic_signals': return
+        t = n.tags
         if not n.location.valid() or not self._in(n.location.lat, n.location.lon): return
         x, y = to_xy(n.location.lat, n.location.lon)
-        self._put(self._key(x,y), 's', {'x':x,'y':y}); self.nsig += 1
+        if t.get('highway') == 'traffic_signals':
+            self._put(self._key(x,y), 's', {'x':x,'y':y}); self.nsig += 1; return
+        # ★2026-09-19: 역 이름 목적지(강남역→시청역 = 오너 성공기준). 지하철·철도역은 railway=station 노드이고
+        #   이름에 '역'이 없다(시청·강남·신촌). 예전 검색인덱스에만 '시청역'이 있었고 지도엔 없어서 재추출 후
+        #   경로가 아예 안 잡혔다. POI 로 싣고 '역' 붙인 별칭도 같이 넣는다.
+        if t.get('railway') == 'station' and t.get('name'):
+            nm = t.get('name'); k = t.get('station') or 'station'
+            self._put(self._key(x,y), 'p', {'n': nm, 'x': x, 'y': y, 'k': 'station'})
+            if not nm.endswith('역'):
+                self._put(self._key(x,y), 'p', {'n': nm+'역', 'x': x, 'y': y, 'k': 'station'})
+            self.npoi = getattr(self, 'npoi', 0) + 1
 
 def main():
     pbf, out = sys.argv[1], sys.argv[2]
@@ -117,7 +127,7 @@ def main():
     h = Conv(bbox)
     h.apply_file(pbf, locations=True, idx='flex_mem')
     print(json.dumps({'parsed_s': round(time.time()-t0),
-                      'roads': h.nroad, 'blds': h.nbld, 'signals': h.nsig,
+                      'roads': h.nroad, 'blds': h.nbld, 'signals': h.nsig, 'stations': getattr(h,'npoi',0),
                       'chunks': len(h.ch)}), flush=True)
     tot = 0
     for k, v in h.ch.items():
