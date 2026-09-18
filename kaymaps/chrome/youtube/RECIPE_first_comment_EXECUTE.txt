@@ -1,0 +1,62 @@
+[RECIPE]yt_first_comment_pin — 쿠팡 파트너스 첫댓글 등록 + 고정 (실행 전용)
+[GATE]verified 2026-09-18(09-19 배치) · 2026-09-17(ar_5328 12/12) · 2026-09-15(ar_5066 12/12)
+[REG]youtube.com/shorts/<id> · 업로드 12건 완료 후 실행
+[WHY]2026-09-18 실사고: 이 레시피를 안 쓰고 새로 만들다 40분 낭비.
+  studio 댓글화면·watch 페이지 두 경로 모두 막다른 길이었다(아래 ★BAN 참조).
+
+★★★★★ USE-FIRST — 이것만 쓴다 ★★★★★
+  URL = https://www.youtube.com/shorts/<videoId>     ← 반드시 /shorts/
+  이 주소라야 **창 우측에 댓글 패널**이 뜬다. 패널 안에 입력창·등록버튼·⋮(고정)이 전부 있다.
+
+★★★★★ USE-BAN — 절대 쓰지 말 것(둘 다 2026-09-18 실측 실패) ★★★★★
+  ✗ studio.youtube.com/video/<id>/comments
+     → 스튜디오 댓글탭은 **내 채널이 쓴 댓글을 아예 안 보여준다**. "일치하는 댓글이 없습니다"가
+       계속 뜨는데 실제로는 등록돼 있다. 등록여부도 고정도 여기선 판정 불가.
+  ✗ youtube.com/watch?v=<id>
+     → 댓글이 지연로딩이고 화면 아래쪽이라 a11y 에 안 잡힌다. 자동재생이 다른 영상으로 넘어가
+       **엉뚱한 영상에 댓글 달 위험**이 있다(실제로 남의 영상 페이지까지 갔다).
+  ✗ 스크롤바 드래그로 페이지 내리기 → 텍스트 블록선택만 되고 스크롤 안 됨(오너 지적 u_5381).
+
+===== 선행 준비 (한 번만) =====
+1. 영상 ID 12개를 **먼저 전부 취합**한다(u_5375 오너 지시). 한 건씩 목록에서 클릭해 찾지 않는다.
+   방법: Studio > 콘텐츠 > Shorts 목록에서 행 클릭 → 주소창 cmd+l, cmd+c → /video/<id>/edit 에서 추출.
+   ★스샷에서 id 를 눈으로 옮겨적지 말 것(I/l/1 혼동, ar_4845 실사고).
+   ★목록 상단 3건(쥐·소·호랑이)은 뷰포트 밖이라 a11y에 안 잡힌다 → 페이지 클릭 후 down×10 으로 내린 뒤 조회.
+2. list.tsv 작성: `<띠>\t<videoId>\t<zodiac키>` 12줄, **12간지 순서**(rat ox tiger rabbit dragon snake
+   horse goat monkey rooster dog pig).
+3. comment.txt = 파트너스 본문. ★마지막 줄 공정위 고지문구 필수, 삭제·축약 금지.
+   "이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다."
+
+===== 영상 1건 처리 (cmt.sh) =====
+S1 주소이동: osascript 로 active tab URL = https://www.youtube.com/shorts/<id>  → sleep 9 → Chrome activate
+   ★osascript 는 `tell application "Google Chrome"` 만 허용(그 외 System Events 자동화 금지).
+S2 댓글버튼 대기(최대 8회×2s): a11y AXButton 라벨 `· 댓글 보기` 또는 `· 댓글 N개 보기`
+   ★페이지 전환 직후 a11y 는 **이전 영상 내용을 반환**한다(STALE). 반드시 폴링할 것.
+   ★grep 패턴은 `· 댓글( [0-9]+개)? 보기$` — 둘 다 잡아야 2회차부터 안 깨진다.
+S3 스킵판정 = **버튼 라벨로만** 한다. `댓글 보기`=0건(작성 필요) / `댓글 N개 보기`=이미 있음
+   → 본문 grep 으로 "이미 있음" 판정 금지(stale 위험).
+S4 댓글버튼 클릭 → sleep 4 → 우측 패널 열림
+S5 입력창: AXTextField 중 라벨 `댓글 추가` 좌표 클릭. 못 찾으면 [댓글]버튼 좌표에서 (-180,-33).
+S6 본문 입력 = **줄 단위**(typecmt.sh):
+   · 개행이 들어간 문자열을 `input text` 로 한 번에 넣으면 **0자 입력**된다(길이 문제 아님).
+   · 줄 사이는 `input chord shift enter`. **enter 는 즉시 등록**이라 줄바꿈으로 못 쓴다.
+   · 빈 줄도 shift+enter 로 보존한다.
+   · `while IFS= read -r L || [ -n "$L" ]` — || 절 없으면 **마지막 줄(고지문구)이 누락**된다(법적 리스크).
+   · cmd+a / cmd+v 금지(u_5332). 지우기는 backspace 반복.
+S7 등록: AXButton 라벨 `댓글` 클릭 → sleep 7 → a11y 에 본문 첫 문장 존재 확인
+S8 고정(필수, u_4833 — 댓글만 달고 미고정 = 미완료):
+   AXButton `작업 메뉴` 클릭 → AXMenuItem `· 고정` 클릭 → 확인 AXButton `고정` 클릭
+   → a11y 에 `고정함` 문자열 확인. 없으면 FAIL 로 처리(성공 단정 금지).
+S9 성공 직후 즉시 상태기록:
+   bash telegram_bot/orchestrator/scripts/yt_comment_state.sh mark <YYYY-MM-DD> <zodiac> pinned
+   ★이 파일이 SSOT. 화면 보고 "했던가?" 추측 금지. 날짜가 키라 다음날 배치는 자동 0/12 시작.
+
+===== 전수 확인 =====
+Studio > 콘텐츠 > Shorts 목록의 **댓글수 컬럼**이 가장 빠르다.
+ a11y 라벨 `동영상에 N개의 댓글이 있습니다` 를 행(AXCheckBox 제목)과 y좌표로 매칭 → N=0 인 행만 결손.
+ ★고정 여부는 이 목록에 안 나온다. 고정은 각 영상 a11y 의 `고정함` 으로 확인한다.
+ ★공개 페이지·oembed API 로는 고정 여부를 읽을 수 없다(u_5067).
+
+===== 도구 =====
+cmt.sh(1건: 댓글+고정) · typecmt.sh(줄단위 타이핑) · run.sh(list.tsv 순회 + state 마킹)
+원본: ar_5328 배치 scratchpad. 새로 만들지 말고 **이걸 복사해서 경로만 바꿔 쓴다**.
