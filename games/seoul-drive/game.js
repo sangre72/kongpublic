@@ -1605,7 +1605,14 @@ function planTo(x,y){
          가둔다(급한 각일수록 작게 도는 게 실제 주행과도 맞다). */
       const JR=(LW*2)*1.5;                            // nearJunction 면제 반경
       const Tcap=Math.min(segLen(i-1)*0.45, segLen(i)*0.45, JR*0.9);
-      let Rc=Math.max(RMIN, LW/(t<0.05?0.05:t));
+      /* ★2026-09-18 실측(충정로7길 m255, 매 실행 재현): RMIN=8m 고정이라 폭 6.5m(반폭
+         3.25m) 도로로 꺾을 때 호가 도로에 안 들어간다 — 차가 nd=3.9m(자기 차도 밖)로
+         밀려 갇힘→복귀. 좁은 쪽 도로에 맞춰 하한을 낮춘다(진입/진출 중 좁은 쪽 반폭까지). */
+      const _rwA=(()=>{const g1=edgeOf(p[i-1],p[i]); return g1?(g1.roadW||((g1.l||2)*LW)):0;})();
+      const _rwB=(()=>{const g2=edgeOf(p[i],p[i+1]); return g2?(g2.roadW||((g2.l||2)*LW)):0;})();
+      const _narrow=Math.min(_rwA||1e9,_rwB||1e9);
+      const _rmin=Math.min(RMIN, Math.max(3.5*S, (_narrow||RMIN)*0.5));
+      let Rc=Math.max(_rmin, LW/(t<0.05?0.05:t));
       /* ★u_5227 오너 지적: "현실 커브 도로는 회전각이 안 맞는 길은 안 만들지."
          맞다. 그런데 이 Tcap 클램프가 급한 각에서 물리적으로 못 도는 반경을
          만들고 있었다(실측: 120도→5.07m, 150도→2.35m).
