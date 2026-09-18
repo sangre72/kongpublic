@@ -1,6 +1,6 @@
 RECIPE: audio_nodes (MeloTTS-Korean voice + ACE-Step music)
 GATE: VERIFIED 2026-09-03 ar_3552(MeloTTS re-synth PASS) / ar_3542(ACE PASS)
-REG: ComfyUI=/Users/bumsuklee/ComfyUI-src (LIVE :8000). venv=/Users/bumsuklee/ComfyUI-src/venv/bin/python3 (py3.10). mac Metal.
+REG: ComfyUI=/Users/bumsuklee/ComfyUI-src (LIVE :8188). venv=/Users/bumsuklee/ComfyUI-src/venv/bin/python3 (py3.10). mac Metal.
 WHY: TTS(Korean narration) + music-gen for CineBot audio. TTS=MeloTTS-Korean(isolated .melo_venv, native KR). ACE=core-native ComfyUI node.
 HISTORY: F5-TTS REMOVED 2026-09-03(ar_3549) — EN/ZH only, no KR finetune. MMS-TTS-KOR REMOVED 2026-09-03(ar_3560) — user request(chinese-tail issue u_3553); model files deleted from HF cache(hf_home/hub/models--facebook--mms-tts-kor, 139M). MeloTTS-Korean = sole active KR TTS. MMS section below kept as HISTORICAL REF only(model no longer installed).
 
@@ -54,12 +54,12 @@ KNOWN-FAIL:
 ===== MUSIC: ACE-Step (CORE-NATIVE, unchanged) =====
 NODES(core, comfy_extras/nodes_ace.py): CheckpointLoaderSimple + TextEncodeAceStepAudio + EmptyAceStepLatentAudio + VAEDecodeAudio + SaveAudioMP3 + ModelSamplingSD3 + ConditioningZeroOut + KSampler.
 MODEL: ace_step_v1_3.5b.safetensors (7.7GB all-in-one, self-contained) → models/checkpoints/. src=huggingface.co/Comfy-Org/ACE-Step_ComfyUI_repackaged/resolve/main/all_in_one/ace_step_v1_3.5b.safetensors
-SMOKE(API /prompt, bypasses canvas): workflow=kaymaps/comfyui/ace_t2a_smoke.json. POST localhost:8000/prompt {"prompt":<json>}. poll GET /history/<id>→status success. → output/audio/*.mp3, ffprobe dur>0. (verified calm-piano 9.94s.)
+SMOKE(API /prompt, bypasses canvas): workflow=kaymaps/comfyui/ace_t2a_smoke.json. POST localhost:8188/prompt {"prompt":<json>}. poll GET /history/<id>→status success. → output/audio/*.mp3, ffprobe dur>0. (verified calm-piano 9.94s.)
 Multilang lyrics: romanize + [ko]/[ja] tag prefix(core has no auto multilang).
 
 ===== ★.ff7env (torchcodec/torchaudio ffmpeg7 libs) — KEEP =====
 path=/Users/bumsuklee/ComfyUI-src/.ff7env/lib (conda ffmpeg7.1, libavutil.59+libavcodec.61).
-WHY keep(¬F5-only): ACE SaveAudioMP3 uses comfy_extras/nodes_audio.py→torchaudio→torchcodec, which needs ffmpeg4-7(sys has only ff8). If :8000 restarts, ACE audio-save could break w/o ff7. → orch redeploy/start :8000 SHOULD export DYLD_FALLBACK_LIBRARY_PATH=/Users/bumsuklee/ComfyUI-src/.ff7env/lib. MMS-TTS uses soundfile(¬torchcodec)=no ff7 need, but ACE keeps it.
+WHY keep(¬F5-only): ACE SaveAudioMP3 uses comfy_extras/nodes_audio.py→torchaudio→torchcodec, which needs ffmpeg4-7(sys has only ff8). If :8188 restarts, ACE audio-save could break w/o ff7. → orch redeploy/start :8188 SHOULD export DYLD_FALLBACK_LIBRARY_PATH=/Users/bumsuklee/ComfyUI-src/.ff7env/lib. MMS-TTS uses soundfile(¬torchcodec)=no ff7 need, but ACE keeps it.
 
 VERIFY(done-cond):
   - MMS: wav ffprobe dur>0 + non-silent(mean>-30dB). ★worker can't audibly judge KR-quality → user must confirm.

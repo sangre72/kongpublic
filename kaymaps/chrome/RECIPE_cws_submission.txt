@@ -7,13 +7,13 @@ WHY: 2회 반복 + 2회 모두 동일 privacy-checkbox 오체크 사고(a_3765).
 
 ===== PRE(1회) =====
 P0. dev-account 로그인 확인: devconsole 접속 → "다시 로그인/본인인증" 나오면 ★Google 로그인+2FA=HUMAN-ONLY(자동화 금지, security-guideline). halt+report, 무한재시도 금지(§BLOCKER-1).
-P1. backends(icon-gen용): curl localhost:4000(CineBot) + localhost:8000(ComfyUI) = 200. ¬재시작(network-budget, 이미 up면 skip).
+P1. backends(icon-gen용): curl localhost:4000(CineBot) + localhost:8188(ComfyUI) = 200. ¬재시작(network-budget, 이미 up면 skip).
 
 ===== STEP =====
-1. ICON-GEN(Krea2 Turbo, ComfyUI 8000, ¬Flux):
+1. ICON-GEN(Krea2 Turbo, ComfyUI 8188, ¬Flux):
    - payload: UnetLoaderGGUF(Krea2/Krea-2-Turbo-Q3_K_M.gguf) + CLIPLoader(qwen3vl_4b_bf16.safetensors, type="krea2" ★fp8=MPS crash라 bf16) + VAELoader(wan_2.1_vae.safetensors) + KSampler(steps=8 cfg=1.0 euler simple) + 1024².
    - ★프롬프트: 순수 시각묘사만(고릴라 마스코트+앱모티프). ★UI/card/text/logo 단어 배제(text-hallucination 트리거→garbled). negative=빈문자열(cfg1.0=distilled, negative inert).
-   - POST localhost:8000/prompt → node_errors={} 확인 → queue 폴링(~130-150s) → history/{prompt_id}로 output png 경로 → ~/ComfyUI-src/output/<prefix>_00001_.png.
+   - POST localhost:8188/prompt → node_errors={} 확인 → queue 폴링(~130-150s) → history/{prompt_id}로 output png 경로 → ~/ComfyUI-src/output/<prefix>_00001_.png.
    - Read로 육안검증(garbled 없음). sips -z {16,48,128}로 리사이즈 → icons/icon{16,48,128}.png. 48px 판독확인.
 2. MANIFEST: name(최종명칭)·description(한글 기능설명)·version. +icons{16,48,128}·action.default_icon{동일}. permissions 최소(storage 등). JSON valid 확인.
 3. PACKAGE: zip = runtime파일만(manifest·content.js·helper.css·popup.*·icons/16·48·128). ★제외: README·screenshots·source_1024·test·zip자신. 명명: <name>_v<ver>.zip. node --check + json valid.

@@ -183,7 +183,7 @@
    "image_model": "Krea 2 Turbo (Flux deleted by user, MUST use Krea2). 'Flux Kontext' UI label is STATIC, not real active model.",
    "backends_needed": [
     "4000 CineBot",
-    "8000 ComfyUI"
+    "8188 ComfyUI"
    ],
    "worker_model": "opus",
    "duration": "MEASURED(9/4): 77min total, avg 6m25s/scene(prev est 40-50min was low). 1 slide render 3-4min gen but full=6m25s incl overhead.",
