@@ -2581,7 +2581,13 @@ function driveAuto(dt){
   // 3) 전방 곡률 → 코너 속도
   let vmaxCurve=(window.__TARGET_KMH||45)/3.6;   // ★u_5288/5289: --speed 값이 teacher/GEOM 순항속도에도 적용되게
   {
-    const look=25*S, step=5*S;
+    /* ★★2026-09-19 u_5406/u_5407 "시속 120km 는 또 삭제했나": 0.5초 폴링 실측 — 8차로 간선에서
+       vmax=13.5 로 고정. 아래 Math.min(14, …) 가 곡률이 조금이라도 있으면(실제 도로는 항상)
+       14m/s=50km/h 로 잘라, 목표속도 120 이 도로에 닿은 적이 없다. 상한은 목표속도다.
+       그리고 앞을 보는 거리 25m 는 33m/s 에서 0.75초 — 코너를 못 본다. 정지거리
+       v·0.7 + v²/8 (이 파일의 표준식)만큼 본다. 모든 거리는 속도의 함수여야 한다(§B1). */
+    const _needLook = me.v*0.7 + (me.v*me.v)/(2*4.0);
+    const look=Math.max(25, _needLook)*S, step=5*S;
     let maxK=0;
     for(let sv=auto.s; sv<Math.min(total,auto.s+look); sv+=step){
       const p0=posAt(sv), p1=posAt(sv+step);
@@ -2591,7 +2597,7 @@ function driveAuto(dt){
     }
     if(maxK>1e-4){
       const aLat=2.4;                              // m/s² 허용 횡가속
-      vmaxCurve=Math.max(3.5, Math.min(14, Math.sqrt(aLat/maxK)));
+      vmaxCurve=Math.max(3.5, Math.min((window.__TARGET_KMH||45)/3.6, Math.sqrt(aLat/maxK)));
     }
     auto.curv=maxK;
   }
@@ -2619,7 +2625,15 @@ function driveAuto(dt){
      터져 requestAnimationFrame 재등록이 안 돼 게임이 통째로 멈췄다
      (실측: [목적지 가기] 직후 performance.now() 6197ms 고정, daCnt=0, v=0).
      그래서 autoOn=1 인데 차가 1cm 도 못 움직였다. */
-  const gp=gap(me);
+  /* ★★2026-09-19 u_5406/u_5407 실측(0.5초 폴링): 목표 120 인데 8차로 간선에서 13.5m/s 고정.
+     gap() 은 기본 탐지범위 40m 이고 '앞차 없음'을 40 으로 돌려준다. 아래 앞차 감속식은
+     반응거리 _slowAt = 정지거리×1.25 를 쓰는데, 이건 속도의 함수라 v≈13.4 에서 40m 를 넘는다.
+     그 순간부터 '40m 앞의 유령차'가 속도를 14×(40−25)/(40−25)≈13.8 로 영원히 묶는다.
+     탐지범위는 고정, 반응거리는 속도비례 — 8번째 고정거리 결함이다(§B1).
+     ⇒ 탐지범위를 반응거리보다 항상 크게(정지거리×1.4, 최소 40m) 잡는다. 없음 = 범위값 그대로. */
+  const _needG = me.v*0.7 + (me.v*me.v)/(2*4.0);
+  const _gpRange = Math.max(40, _needG*1.4)*S;
+  const gp=gap(me, _gpRange);
   /* ★추월은 driveAuto 에 두지 않는다(u_5138 오너 지적).
      driveAuto 는 '수식 주행'이고, 여기에 기능을 넣으면 모델이 아니라 루틴이 잘 가게 된다.
      추월 판단은 teacher.js 에만 있다 — 교사가 시연하고, 그게 라벨이 되고, 모델이 배운다.
