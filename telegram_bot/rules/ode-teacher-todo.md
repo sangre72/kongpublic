@@ -172,7 +172,7 @@ python3 sweep_test.py --pairs /tmp/pairs30.json --secs 600 --out /tmp/sweep60.js
 3. 골목 헤어핀(대흥로20안길, 회귀 9): 누적 ≥148° 런을 좁은 도로 K턴 지점으로 / 또는 라우터가 골목 헤어핀 회피.
 4. 캡처 1.3fps(`capture.grab_canvas`, screencapture 경로) → 10fps 목표.
 5. 신촌역 m≈530 추돌(좌회전 13~15m 앞, 오른쪽으로 밀림) — pos (-7529.8,-7133.0)m 접근 60m 전 sx 재현.
-6. 계층형 제어(u_5436): Layer 1 페일세이프 분리 + 등급 판정기(/tel tier) — [[ode-hierarchical-control]].
+6. 계층형 제어(u_5436/u_5443): Layer 1 페일세이프 분리 + 규칙 등급 판정기(/tel tier) + **tier net**(화면→등급, 태그 파생 라벨) — [[ode-hierarchical-control]].
 7. (취소, u_5440: 렌더 랜덤화 대신 학습 증강으로 대체 — train_stage.augment 완료) 시각 모호함 태그는 3D 단계에서.
 8. 비대칭 왕복도로 96개(lf≠lb): 실제 중앙선 = OSM 선에서 `c=(lb−lf)·LW/2`, 진행방향 차로 k 중심 = `c+(k+0.5)·LW`, 반대 = `c−(k+0.5)·LW`.
    `laneOffset`·`laneOff`·중앙선 그리기·`_wrongSide`(lat 부호 → c 기준) 를 **함께** 바꿔야 한다. 플래그로 넣고 회귀로 검증.
