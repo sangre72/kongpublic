@@ -172,7 +172,8 @@ python3 sweep_test.py --pairs /tmp/pairs30.json --secs 600 --out /tmp/sweep60.js
 1. `train_morning.sh` 결과(1단계 학습·ode_s1 120초 검증) 확인 → 오너 보고.
 2. 새 지도 빌드(oneway 연속성 규칙, `data6.js` 재팩 완료 상태) → 회귀 9구간 → 충정로7길 1.8km 서소문로에서 중앙선 없이 달리는지 캡처.
 3. 골목 헤어핀(대흥로20안길, 회귀 9): 누적 ≥148° 런을 좁은 도로 K턴 지점으로 / 또는 라우터가 골목 헤어핀 회피.
-4. 캡처 1.3fps(`capture.grab_canvas`, screencapture 경로) → 10fps 목표.
+4. ~~캡처 1.3fps → 10fps~~ 완료(2026-09-20 db21018, 페이지 `/frame` 푸시 14fps). ★캡처가 느리면 모델 검증이 통째로 무효다(150ms 신선도 한계에 명령 전부 폐기 → v=0). `thr 0.93 인데 진행 0` = 캡처/신선도 문제.
+   1단계 첫 검증(07:14)이 그 사례. 재검증(13fps): 진행 31.7%/사고 15 — 이제부터 `dagger_loop.sh` 로 DAgger 반복. 직진 필터는 `(turn==0)|(aD>150)`(aTurn=다음 회전 종류).
 5. 신촌역 m≈530 추돌(좌회전 13~15m 앞, 오른쪽으로 밀림) — pos (-7529.8,-7133.0)m 접근 60m 전 sx 재현.
 6. 계층형 제어(u_5436/u_5443): Layer 1 페일세이프 분리 + 규칙 등급 판정기(/tel tier) + **tier net**(화면→등급, 태그 파생 라벨) — [[ode-hierarchical-control]].
 7. (취소, u_5440: 렌더 랜덤화 대신 학습 증강으로 대체 — train_stage.augment 완료) 시각 모호함 태그는 3D 단계에서.
