@@ -87,7 +87,9 @@ def load(dirs, stage, replay, rng, extra=()):
         try: W = np.load(f'{d}/W.npy').astype(np.float32)
         except Exception: W = np.ones(len(Y), np.float32)
         if not (len(M) == len(Y) == len(W)): print(json.dumps({'skip': d, 'why': 'len mismatch'})); continue
-        sel = STAGES[stage](M) if d not in extra else np.ones(len(M), bool)
+        # ★DAgger 라운드도 정지 프레임은 뺀다(2026-09-20 k=2 실측: r202 96% 가 v≈0·brake 라벨 → 다음 모델이 '서 있기'를 배움, 진행 0.6%).
+        #   남기는 것: 차가 움직였거나(v>1) 교사가 '가라'(thr>0.3)고 한 프레임 — 출발·복귀 정답은 남고, 앞차 뒤 대기는 follow 단계 몫.
+        sel = STAGES[stage](M) if d not in extra else ((M[:, 5] > 1.0) | (Y[:, 1] > 0.3))
         rest = np.where(~sel)[0]
         rep = rng.choice(rest, int(len(rest) * replay), replace=False) if len(rest) and replay > 0 else np.array([], int)
         idx = np.concatenate([np.where(sel)[0], rep])

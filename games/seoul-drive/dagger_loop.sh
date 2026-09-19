@@ -2,11 +2,11 @@
 # DAgger 반복(2026-09-20, PLAN_ODE §9). 회귀(run_regression)가 페이지를 쓰는 동안 기다렸다가 시작(크롬·GPU 동시실행 금지).
 #   k 회차: train_stage straight (밤 교사 수집 r1* + DAgger r2* 전 프레임 --extra, --init 직전 모델) → ode_s1_k.pt
 #           → dagger.py --round 20k --model ode_s1_k.pt 120초(사평대로) → 텔레그램. 도착·무사고면 종료.
-# 사용: bash dagger_loop.sh [시작k=2] [회수=4]
+# 사용: bash dagger_loop.sh [시작k=2] [회수=4] [초기모델=ode_s1.pt]
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive
 export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8
 NT=/Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/notify_telegram.py
-K=${1:-2}; N=${2:-4}; prev=ode_s1.pt
+K=${1:-2}; N=${2:-4}; prev=${3:-ode_s1.pt}
 while pgrep -f "run_regression.sh|route_test.py|dagger.py" >/dev/null; do sleep 30; done
 for ((k=K; k<K+N; k++)); do
   out=ode_s1_$k.pt; r=$((200+k)); log=/tmp/dagger_train_$k.log
