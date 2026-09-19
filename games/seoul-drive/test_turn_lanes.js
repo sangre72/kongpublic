@@ -25,15 +25,15 @@ eq(parseTurnLanes("through"), [['through']]);
 
 // picks
 const A=parseTurnLanes("left|through|through;right");
-eq(tlPickLane(A,'R'), 2, 'R = leftmost lane containing right');
-eq(tlPickLane(A,'L'), 0, 'L = rightmost lane containing left');
+eq(tlPickLane(A,'R'), 2, 'R = rightmost lane containing right');
+eq(tlPickLane(A,'L'), 0, 'L = leftmost lane containing left');
 eq(tlPickLane(A,'S',2), 2, 'S: through;right lane is still through');
 eq(tlPickLane(A,'S',0), 1, 'S: lane0 is left-only -> nearest through = 1');
 const B=parseTurnLanes("left|left|through|right|right");
-eq(tlPickLane(B,'L'), 1, 'two left lanes -> rightmost left = 1');
-eq(tlPickLane(B,'R'), 3, 'two right lanes -> leftmost right = 3');
+eq(tlPickLane(B,'L'), 0, 'two left lanes -> leftmost left = 0');
+eq(tlPickLane(B,'R'), 4, 'two right lanes -> rightmost right = 4');
 eq(tlPickLane(B,'S',4), 2, 'right-only lane -> nearest through');
-eq(tlPickLane(B,'U'), 1, 'U without reverse falls back to L rule');
+eq(tlPickLane(B,'U'), 0, 'U without reverse falls back to L rule (leftmost left)');
 eq(tlPickLane(parseTurnLanes("reverse;left|through"),'U'), 0, 'U prefers reverse lane');
 eq(tlPickLane(parseTurnLanes("through|through"),'R'), -1, 'no right lane -> -1');
 eq(tlPickLane(parseTurnLanes("left|right"),'S',0), -1, 'no through lane -> -1');

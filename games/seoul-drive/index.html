@@ -312,17 +312,20 @@ function parseTurnLanes(tl){
   });
   return out.length?out:null;
 }
-/* 회전별 목표 차로(0=맨 왼쪽=1차로). R='right' 계열이 있는 가장 왼쪽 차로 / L='left' 계열이 있는 가장 오른쪽 차로 /
-   U='reverse' 가 있으면 그 중 가장 오른쪽, 없으면 L 규칙 / S=cur 에서 가장 가까운 직진 가능(through·none) 차로
+/* 회전별 목표 차로(0=맨 왼쪽=1차로). R='right' 계열이 있는 가장 오른쪽 차로 / L='left' 계열이 있는 가장 왼쪽 차로 /
+   U='reverse' 가 있으면 그 중 가장 왼쪽, 없으면 L 규칙 / S=cur 에서 가장 가까운 직진 가능(through·none) 차로
    (left/right 만 있는 회전전용 차로는 피한다). 없으면 -1. 차로수 검증은 tlSetsFor 가 한다. */
 function tlPickLane(sets, turn, cur){
   if(!sets||!sets.length) return -1;
   const isR=x=>x==='right'||x==='slight_right'||x==='sharp_right';
   const isL=x=>x==='left'||x==='slight_left'||x==='sharp_left';
   const isS=x=>x==='through'||x==='none';
-  if(turn==='R'){ for(let i=0;i<sets.length;i++) if(sets[i].some(isR)) return i; return -1; }
-  if(turn==='U'){ for(let i=sets.length-1;i>=0;i--) if(sets[i].indexOf('reverse')>=0) return i; turn='L'; }
-  if(turn==='L'){ for(let i=sets.length-1;i>=0;i--) if(sets[i].some(isL)) return i; return -1; }
+  /* ★2026-09-19 실측(소공로 through|through|right|right): '가장 왼쪽 right 차로' 규칙은 주행차로(맨 오른쪽)에서
+     우회전 직전에 한 칸 왼쪽으로 옮기게 했다 — 불필요한 차로변경. 제25조(우측 가장자리)대로 right 가 있는
+     '가장 오른쪽' 차로, 좌회전은 left 가 있는 '가장 왼쪽'(1차로 쪽) 차로. 유턴은 reverse 중 가장 왼쪽. */
+  if(turn==='R'){ for(let i=sets.length-1;i>=0;i--) if(sets[i].some(isR)) return i; return -1; }
+  if(turn==='U'){ for(let i=0;i<sets.length;i++) if(sets[i].indexOf('reverse')>=0) return i; turn='L'; }
+  if(turn==='L'){ for(let i=0;i<sets.length;i++) if(sets[i].some(isL)) return i; return -1; }
   if(turn==='S'){
     const c=(typeof cur==='number'&&!isNaN(cur))?cur:0; let best=-1, bd=1e9;
     for(let i=0;i<sets.length;i++){ if(!sets[i].some(isS)) continue; const d=Math.abs(i-c); if(d<bd){ bd=d; best=i; } }
