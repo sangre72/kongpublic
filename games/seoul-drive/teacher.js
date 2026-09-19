@@ -692,7 +692,8 @@
        여기서는 '이 thr 이면 결국 몇 m/s 가 되는가'가 cap*thr 이라는 점을 이용해
        필요한 thr 을 역산하고, 커브·전방 감속분(thr0)을 상한으로 씌운다. */
     if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('tc:speed');
-    const TGT = (window.__TARGET_KMH || 45) / 3.6;       // m/s
+    let TGT = (window.__TARGET_KMH || 45) / 3.6;       // m/s
+    try{ const _lim=window.roadLimitKmh&&window.roadLimitKmh(nearestSeg(me.x,me.y)); if(_lim) TGT=Math.min(TGT, _lim/3.6); }catch(e){}   // 이면도로 30km/h(제17조)
     if(brake === 0){
       const cap = TGT * 1.12;                            // thr=1 일 때 도달 속도
       const need = Math.max(0, Math.min(1, TGT / cap));  // 목표 유지에 필요한 thr(≈0.89)

@@ -383,6 +383,14 @@ const TY={
 };
 const rnd=(a,b)=>a+Math.random()*(b-a),pick=a=>a[(Math.random()*a.length)|0];
 
+/* ★도로별 법정 제한속도(km/h). 이면도로(방향당 1차로·전폭 ≤6.5m) = 30(제17조, 5030). 그 외 = 0(목표속도 그대로).
+   driveAuto 와 teacher.compute 가 같이 쓴다 — 둘이 다르면 라벨이 어긋난다. */
+window.roadLimitKmh=function(ns){
+  try{ const sg=ns&&ns.s; if(!sg) return 0;
+       const rw=sg.roadW||((sg.l||2)*LW); const nl=sg.o?(sg.l||1):Math.max(1,Math.floor((sg.l||2)/2));
+       if(nl<=1 && rw<=6.5*LW/3.25+0.01) return 30;
+       return 0; }catch(e){ return 0; }
+};
 /* 차로 중심 오프셋: dir=+1 → 진행방향 기준 오른쪽 차로 */
 function laneOffset(s,dir,lane){
   /* lane 은 실수도 받는다(차선변경 보간용, u_4972) — 정수로 깎지 않는다 */
@@ -3013,6 +3021,10 @@ function driveAuto(dt){
      다른 판단을 냈다. 사본을 없애야 그 갈라짐이 다시 안 생긴다. */
   const pedD=pedBrakeDist();
   let vmax=vmaxCurve;
+  /* ★2026-09-19 스윕 24구간(노블레스아파트, 골목 보행자 사고 6건, 43km/h 로 6.5m 골목 주행) — 도로교통법 제17조·
+     안전속도 5030: 이면도로(왕복 1차로·폭 6.5m 이하) 30km/h. 지도의 속도표지(l<4 → 30)와도 일치.
+     넓은 도로는 오너 지시(u_5407, 법규 시험 동안 120km/h)대로 목표속도 유지. 교사(teacher.js)도 같은 함수를 쓴다. */
+  try{ const _lim=window.roadLimitKmh(nearestSeg(me.x,me.y)); if(_lim) vmax=Math.min(vmax, _lim/3.6); }catch(e){}
   if(auto.mergeWait){ vmax=Math.min(vmax, 1.5); window.__mergeWaitN=(window.__mergeWaitN||0)+1; }   // 차로 못 옮김 + 회전 임박: 틈 대기
   if(pedD<PED_STOP_M) vmax=0;
   else if(pedD<PED_SLOW_M) vmax=Math.min(vmax, 3.5);
