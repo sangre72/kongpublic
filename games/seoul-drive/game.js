@@ -2944,6 +2944,10 @@ function driveAuto(dt){
      되돌려져(속도 12 인데 이동 0) 갇힘 판정. 차로 변경은 목표 차로의 차량을 방해하면 안 된다
      (도로교통법 제19조·제17조의2). 직선에서 경로가 옆 차로에 있고 그 차로 띠(±0.6차로)에
      차가 앞 15m·뒤 12m 안에 있으면, 이번 프레임은 경로와 평행하게 '지금 차로'를 유지한다(보류). */
+  /* ★2026-09-19 스윕 22구간(긴고랑로49길) 실측: mergeWait 가 '직선+차로변경중' 가지 안에서만 갱신돼,
+     회전 접근·순간이동 뒤 등 다른 프레임에선 이전 값(1)이 그대로 남았다 → vmax 1.5m/s 래치 →
+     갇힘→순간이동 17회로 '도착'. 매 프레임 0 에서 시작해 이번 프레임 조건이 맞을 때만 1 로 둔다. */
+  auto.mergeWait=0;
   try{
     const dP=((P.ang-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
     if(Math.abs(dP) < 0.26){                                     // 직선(경로 헤딩 ≈ 내 헤딩)일 때만
@@ -3527,7 +3531,7 @@ function step(dt){
     const t=auto.wp[j];
     const p=auto.wp[Math.max(0,j-1)];
     me.x=t.x; me.y=t.y; me.ang=Math.atan2(t.y-p.y,t.x-p.x);
-    me.v=0; me.offroad=0; me.cool=1.2; blockT=0;
+    me.v=0; me.offroad=0; me.cool=1.2; blockT=0; auto.mergeWait=0; auto.mergeHold=0; auto.stall=0;   // 순간이동 뒤 대기·교착 상태 초기화(2026-09-19)
     auto.i=j;
     if(auto.cum && j<auto.cum.length){ auto.s=auto.cum[j]; auto.k=Math.max(1,j); }
     window.__tpN=(window.__tpN||0)+1;      // u_5227 순간이동 계측
