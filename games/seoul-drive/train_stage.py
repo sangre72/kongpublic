@@ -24,7 +24,9 @@ import gpu_guard
 DEV = gpu_guard.require_gpu()
 BS = 128
 STAGES = {
-    'straight': lambda M: (M[:, 3] == 0) & (M[:, 0] > 60) & (M[:, 1] > 40) & (M[:, 2] > 60) & (M[:, 5] > 1.0),   # v>1: 정지 프레임은 '서 있기'를 가르친다(ode-training-pitfalls; r110 ep3 1.75% 진행)
+    # ★2026-09-20 실측: M[:,3](aTurn)은 '다음 회전 종류'라 회전 600m 전부터 L/R 로 찍힌다(전체 32,621 중 S=13,592).
+    #   turn==0 만 직진으로 치면 4,323프레임(13%)뿐 → aD>150m 이면 직진 구간으로 본다(10,952프레임). 회전 준비 차로변경은 'turn' 단계.
+    'straight': lambda M: ((M[:, 3] == 0) | (M[:, 4] > 150)) & (M[:, 0] > 60) & (M[:, 1] > 40) & (M[:, 2] > 60) & (M[:, 5] > 1.0),   # v>1: 정지 프레임은 '서 있기'를 가르친다(ode-training-pitfalls; r110 ep3 1.75% 진행)
     'follow':   lambda M: M[:, 0] < 40,
     'ped':      lambda M: M[:, 1] < 30,
     'signal':   lambda M: M[:, 2] < 60,
@@ -72,9 +74,12 @@ def batch(X, Y, ids, train=False):
     if train and AUG: xb = augment(xb)
     return xb, torch.from_numpy(yb).to(DEV)
 
-def load(dirs, stage, replay, rng):
+def load(dirs, stage, replay, rng, extra=()):
+    """extra = DAgger 라운드(모델이 몰고 교사가 라벨) — 단계 필터를 거치지 않고 전 프레임(W 가중)을 넣는다.
+       모델이 실제로 가는 상태(차선 이탈·복귀)의 정답이 핵심이라 상황 태그로 걸러내면 안 된다."""
     Xs, Ys, Ws, nsel, nrep = [], [], [], 0, 0
-    for d in dirs:
+    extra = set(extra)
+    for d in list(dirs) + [e for e in extra if e not in dirs]:
         try:
             X = np.load(f'{d}/X.npy'); Y = np.load(f'{d}/Y.npy')[:, :3].astype(np.float32); M = np.load(f'{d}/M.npy')
         except Exception as e:
@@ -82,13 +87,13 @@ def load(dirs, stage, replay, rng):
         try: W = np.load(f'{d}/W.npy').astype(np.float32)
         except Exception: W = np.ones(len(Y), np.float32)
         if not (len(M) == len(Y) == len(W)): print(json.dumps({'skip': d, 'why': 'len mismatch'})); continue
-        sel = STAGES[stage](M)
+        sel = STAGES[stage](M) if d not in extra else np.ones(len(M), bool)
         rest = np.where(~sel)[0]
         rep = rng.choice(rest, int(len(rest) * replay), replace=False) if len(rest) and replay > 0 else np.array([], int)
         idx = np.concatenate([np.where(sel)[0], rep])
         if len(idx) == 0: continue
         Xs.append(X[idx]); Ys.append(Y[idx]); Ws.append(W[idx]); nsel += int(sel.sum()); nrep += len(rep)
-        print(json.dumps({'dir': d.split('/')[-1], 'total': len(Y), 'stage': int(sel.sum()), 'replay': len(rep)}), flush=True)
+        print(json.dumps({'dir': d.split('/')[-1], 'total': len(Y), 'stage': int(sel.sum()), 'replay': len(rep), 'extra': int(d in extra)}), flush=True)
     if not Xs: return None
     return np.concatenate(Xs), np.concatenate(Ys), np.concatenate(Ws), nsel, nrep
 
@@ -96,10 +101,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('stage', choices=sorted(STAGES)); ap.add_argument('dirs'); ap.add_argument('out')
     ap.add_argument('--init', default=None); ap.add_argument('--epochs', type=int, default=20); ap.add_argument('--replay', type=float, default=0.2)
+    ap.add_argument('--extra', default='', help='DAgger 라운드 글롭(쉼표) — 필터 없이 전 프레임')
     a = ap.parse_args()
     rng = np.random.default_rng(0)
     dirs = [d for p in a.dirs.split(',') for d in sorted(glob.glob(p))]
-    got = load(dirs, a.stage, a.replay, rng)
+    extra = [d for p in a.extra.split(',') if p for d in sorted(glob.glob(p))]
+    got = load(dirs, a.stage, a.replay, rng, extra)
     if not got: print(json.dumps({'error': 'no frames for stage', 'stage': a.stage})); return
     X, Y, W, nsel, nrep = got; n = len(X)
     print(json.dumps({'stage': a.stage, 'aug': AUG, 'frames': n, 'stage_frames': nsel, 'replay_frames': nrep, 'w0': int((W == 0).sum()),
