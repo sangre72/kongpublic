@@ -95,7 +95,7 @@ top: prog routeM v cr crk brk st thr autoOn parked jsErr pedN{tot,near,onroad}
   순서: **교사 주행 수집(`dagger.py --model none`) → `train_stage.py straight` → 새 모델로 DAgger**. 모델 없이 DAgger 를 돌리면 안 된다.
 - 밤샘 루프: `games/seoul-drive/collect_overnight.sh [시작라운드]` — 라운드 r=100.. 마다 `pairs30.json[(r-100)%30]` 을 로드 →
   `dagger.py --round r --episodes 3 --secs 600 --model bc_final.pt` → `data/dagger_r<r>/{X,Y,W,M}.npy` → 라운드 통계 텔레그램. 07:00 정지.
-- 아침: `python3 train_stage.py straight 'data/dagger_r1*' ode_s1.pt` → 실주행 검증(모델 주행) → 다음 단계(follow/ped/signal/turn/uturn).
+- 아침: `games/seoul-drive/train_morning.sh`(수집 종료 대기 → `train_stage.py straight 'data/dagger_r1*' ode_s1.pt` → `dagger.py --model ode_s1.pt` 120초 검증 → 텔레그램). 그다음 단계(follow/ped/signal/turn/uturn)는 결과 보고 결정.
 - 레포에 있다: `games/seoul-drive/collect_overnight.sh`.
 
 ## D. 재개 방법
