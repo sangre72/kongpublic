@@ -16,7 +16,7 @@
  {
   "w": 37928434,
   "n": "자양로",
-  "from": 3,
+  "from": 4,
   "to": 5,
   "why": "forward+backward"
  },
@@ -30,7 +30,7 @@
  {
   "w": 70998387,
   "n": "양재대로",
-  "from": 3,
+  "from": 4,
   "to": 10,
   "why": "forward+backward"
  },
@@ -96,13 +96,6 @@
   "from": 8,
   "to": 4,
   "why": "oneway>=7 halved"
- },
- {
-  "w": 218798308,
-  "n": "망우로",
-  "from": 3,
-  "to": 4,
-  "why": "forward+backward"
  },
  {
   "w": 218865675,
@@ -898,7 +891,7 @@
  {
   "w": 909242353,
   "n": "양재대로",
-  "from": 3,
+  "from": 4,
   "to": 10,
   "why": "forward+backward"
  },
@@ -996,7 +989,7 @@
  {
   "w": 1175034871,
   "n": "중대로",
-  "from": 3,
+  "from": 4,
   "to": 6,
   "why": "forward+backward"
  },
@@ -1073,35 +1066,35 @@
  {
   "w": 1175929590,
   "n": "양재대로",
-  "from": 3,
+  "from": 4,
   "to": 10,
   "why": "forward+backward"
  },
  {
   "w": 1175929592,
   "n": "양재대로",
-  "from": 3,
+  "from": 4,
   "to": 10,
   "why": "forward+backward"
  },
  {
   "w": 1175929593,
   "n": "양재대로",
-  "from": 3,
+  "from": 4,
   "to": 10,
   "why": "forward+backward"
  },
  {
   "w": 1175929594,
   "n": "양재대로",
-  "from": 3,
+  "from": 4,
   "to": 10,
   "why": "forward+backward"
  },
  {
   "w": 1175929595,
   "n": "양재대로",
-  "from": 3,
+  "from": 4,
   "to": 10,
   "why": "forward+backward"
  },
@@ -1115,7 +1108,7 @@
  {
   "w": 1198651840,
   "n": "자양로",
-  "from": 3,
+  "from": 4,
   "to": 7,
   "why": "forward+backward"
  },
@@ -1136,7 +1129,7 @@
  {
   "w": 1205266014,
   "n": "망우로",
-  "from": 3,
+  "from": 4,
   "to": 5,
   "why": "forward+backward"
  },
@@ -1164,14 +1157,14 @@
  {
   "w": 1206937730,
   "n": "자양로",
-  "from": 3,
+  "from": 4,
   "to": 8,
   "why": "forward+backward"
  },
  {
   "w": 1206937736,
   "n": "자양로",
-  "from": 3,
+  "from": 4,
   "to": 6,
   "why": "forward+backward"
  },
@@ -3507,13 +3500,6 @@
   "why": "oneway-continuity 318577500/318577493"
  },
  {
-  "w": 1475234380,
-  "n": "망우로",
-  "from": 3,
-  "to": 3,
-  "why": "oneway-continuity 1339823464/908724714"
- },
- {
   "w": 1316076582,
   "n": "항동로",
   "from": 2,
@@ -3533,20 +3519,6 @@
   "from": 2,
   "to": 2,
   "why": "oneway-continuity 1498190059/383396066"
- },
- {
-  "w": 482777266,
-  "n": "서빙고로",
-  "from": 3,
-  "to": 3,
-  "why": "oneway-continuity 634546863/183272490"
- },
- {
-  "w": 1151103608,
-  "n": "천호대로",
-  "from": 3,
-  "to": 3,
-  "why": "oneway-continuity 1151103607/915126793"
  },
  {
   "w": 1346002341,
@@ -3619,25 +3591,11 @@
   "why": "oneway-continuity 465750910/250375637"
  },
  {
-  "w": 1272746470,
-  "n": "경강로",
-  "from": 3,
-  "to": 3,
-  "why": "oneway-continuity 1272746471/547956133"
- },
- {
   "w": 1414683900,
   "n": "경강로",
   "from": 2,
   "to": 2,
   "why": "oneway-continuity 445167863/1414683898"
- },
- {
-  "w": 248405546,
-  "n": "동작대로",
-  "from": 3,
-  "to": 3,
-  "why": "oneway-continuity 523296665/585352845"
  },
  {
   "w": 284164516,
@@ -3822,13 +3780,6 @@
   "why": "oneway-continuity 972750967/972750966"
  },
  {
-  "w": 1091572958,
-  "n": "양재대로",
-  "from": 3,
-  "to": 3,
-  "why": "oneway-continuity 557212759/261477463"
- },
- {
   "w": 927484774,
   "n": "사가정로",
   "from": 2,
@@ -3841,13 +3792,6 @@
   "from": 2,
   "to": 2,
   "why": "oneway-continuity 1344337413/1344337411"
- },
- {
-  "w": 915434402,
-  "n": "수인로",
-  "from": 3,
-  "to": 3,
-  "why": "oneway-continuity 1215424053/554727781"
  },
  {
   "w": 290884777,

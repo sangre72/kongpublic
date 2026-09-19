@@ -70,7 +70,11 @@ class Conv(osmium.SimpleHandler):
                 except (TypeError, ValueError): return None
             lanes = _i('lanes'); lf = _i('lanes:forward'); lb = _i('lanes:backward')
             tagged = lanes is not None
-            if lanes is None: lanes = LANES_DEF.get(hw, 2)
+            if lanes is None:
+                lanes = LANES_DEF.get(hw, 2)
+                # ★2026-09-19 u_5434 실측(서소문로 1424068313, oneway=no·lanes 없음): 왕복도로에 홀수 기본값(primary 3)이 붙으면
+                #   방향당 1.5차로 → 1차로 중심이 중앙선 1.63m 옆(여유 0.7m) = '중앙선 주행'으로 보인다. 왕복 미태그는 짝수로.
+                if not oneway and lanes % 2 == 1: lanes += 1
             # ★2026-09-19 u_5418/u_5419 실측: 통일로 way 773066532 등 4건이 lanes=8·oneway=yes 로 태그돼
             #   있다(원본 pbf 확인). 서울에 편도 8차로 일방 차도는 없다 — 도로 전체 차로수를 한쪽 차도에
             #   단 것이다. 게임은 이걸 그대로 26m 도로로 그려 1차로가 실제 차도 밖 6m 에 찍혔고, 경로가
