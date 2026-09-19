@@ -94,6 +94,8 @@ top: prog routeM v cr crk brk st thr autoOn parked jsErr pedN{tot,near,onroad}
 cd games/seoul-drive
 python3 sweep_test.py --pairs /tmp/pairs30.json --secs 600 --out /tmp/sweep60.json
 # 단일구간: python3 route_test.py <출발> <도착> <초>
+# 커리큘럼(u_5427): python3 train_stage.py <straight|follow|ped|signal|turn|uturn> 'data/dagger_r*' out.pt --init prev.pt
+#   (M.npy 상황 태그로 프레임 선별, --replay 0.2 로 이전 단계 표본 혼합, W.npy 가중치 적용)
 # 타임랩스: python3 record_drive.py <초> <out.mp4> <간격>
 # 리셋: bash reload.sh "http://localhost:8901/index.html?go=1"
 # 빌드: python3 games/seoul-drive/build.py --dagger  (후 reload, 주행중 리로드 금지)
