@@ -91,6 +91,8 @@ top: prog routeM v cr crk brk st thr autoOn parked jsErr pedN{tot,near,onroad}
 
 ## D-0. 수집 시작 (오너 u_5431 2026-09-19 19:5x — "학습 데이터는 언제 만드냐")
 - 관문(E) 대신 오너 결정(u_5426): 회전·전용차로가 법규대로 확인됐으면 시작, 잔여 사고는 가중치(W.npy)로.
+- ★`bc_final.pt` 는 옛 DriveNet 구조(h.0/h.2)라 현재 망에 안 들어간다(2026-09-19 실측: dagger 즉시 종료). 덮어쓰지 않는다.
+  순서: **교사 주행 수집(`dagger.py --model none`) → `train_stage.py straight` → 새 모델로 DAgger**. 모델 없이 DAgger 를 돌리면 안 된다.
 - 밤샘 루프: `games/seoul-drive/collect_overnight.sh [시작라운드]` — 라운드 r=100.. 마다 `pairs30.json[(r-100)%30]` 을 로드 →
   `dagger.py --round r --episodes 3 --secs 600 --model bc_final.pt` → `data/dagger_r<r>/{X,Y,W,M}.npy` → 라운드 통계 텔레그램. 07:00 정지.
 - 아침: `python3 train_stage.py straight 'data/dagger_r1*' ode_s1.pt` → 실주행 검증(모델 주행) → 다음 단계(follow/ped/signal/turn/uturn).

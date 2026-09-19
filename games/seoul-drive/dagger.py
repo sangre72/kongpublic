@@ -48,18 +48,20 @@ def post(d):
 
 def episode(net, dev, secs, ep):
     """한 에피소드: 모델이 몰고 교사 라벨을 모은다. (frames, stats)"""
-    post({'reset': 1, 'on': 1, 'force': 1, 'release': 0})   # 소프트리셋 + 모델 강제 ON
+    if net is None: post({'reset': 1, 'on': 0, 'force': 0, 'release': 1, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 리셋만, 모델 OFF
+    else: post({'reset': 1, 'on': 1, 'force': 1, 'release': 0})   # 소프트리셋 + 모델 강제 ON
     time.sleep(1.5)
     X, Y = [], []
     W, TT = [], []                         # ★u_5426 프레임 가중치(사고 직전 3초=0)·프레임 시각
     M = []                                 # ★u_5427 상황 태그 [gap, ped, sig, turn(0/S 1/L 2/R 3/U), aD, v, laneF, nl] — 커리큘럼 단계 필터용
-    cr_prev = cr0; crk_prev = dict(crk0)
     seen = set()
     t0 = time.time()
+    if net is None: post({'on': 0, 'force': 0, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 모델 조작 해제 → GEOM/교사가 몬다(안 그러면 drv=MODEL 에 명령 없음 → v=0·순간이동 연쇄)
     d0 = tel() or {}
     p_start = float(d0.get('prog') or 0)
     cr0 = int(d0.get('cr') or 0)
     crk0 = dict(d0.get('crk') or {})
+    cr_prev = cr0; crk_prev = dict(crk0)          # W 가중치용 사고 추적(u_5426)
     pmax = p_start
     nmodel = ntot = 0
     dup = nolabel = nodecode = 0
@@ -118,10 +120,11 @@ def episode(net, dev, secs, ep):
             nodecode += 1
             time.sleep(0.02); continue
         x = preprocess(f, device=dev)[None]
-        with torch.no_grad():
-            o = net(x)[0].cpu().numpy()
-        post({'on': 1, 'force': 1, 'steer': float(o[0]),
-              'thr': float(o[1]), 'brake': float(o[2])})
+        if net is not None:
+            with torch.no_grad():
+                o = net(x)[0].cpu().numpy()
+            post({'on': 1, 'force': 1, 'steer': float(o[0]),
+                  'thr': float(o[1]), 'brake': float(o[2])})
 
         # --- 저장: 모델이 본 화면 + 교사의 정답 ---
         h = hashlib.md5(np.ascontiguousarray(f).tobytes()).digest()
@@ -186,11 +189,16 @@ def main():
 
     dev = require_gpu()
     mp = a.model if os.path.isabs(a.model) else os.path.join(BASE, a.model)
-    sd = torch.load(mp, map_location=dev)
-    out = sd[list(sd)[-1]].shape[0]
-    net = DriveNet(out=out).to(dev)
-    net.load_state_dict(sd); net.eval()
-    assert_on_gpu(net)
+    # ★2026-09-19 u_5431: bc_final.pt 는 옛 DriveNet 구조(h.0/h.2)라 현재 망(h.1/h.4/h.6)에 안 들어간다. 1단계(직진) 데이터는
+    #   교사가 몰아 만든다 — `--model none` 이면 추론·조작을 건너뛰고 화면+교사 라벨+W/M 만 저장한다(BC 먼저, DAgger 는 새 모델 뒤).
+    if a.model == 'none':
+        net = None; print(json.dumps({'mode': 'teacher-drive', 'note': 'no model; GEOM/teacher drives'}), flush=True)
+    else:
+        sd = torch.load(mp, map_location=dev)
+        out = sd[list(sd)[-1]].shape[0]
+        net = DriveNet(out=out).to(dev)
+        net.load_state_dict(sd); net.eval()
+    if net is not None: assert_on_gpu(net)
 
     subprocess.run(['open', '-a', 'Google Chrome'], capture_output=True)
     time.sleep(2)

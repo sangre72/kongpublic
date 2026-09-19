@@ -13,7 +13,7 @@ while [ "$(date +%H)" != "07" ] && [ $r -lt 130 ]; do
   if ! python3 -c "
 import json,urllib.request,sys
 d=json.load(urllib.request.urlopen('http://localhost:8901/tel',timeout=5)); sys.exit(0 if (d.get('wpLen') or 0)>100 else 1)"; then echo "route fail, skip"; r=$((r+1)); continue; fi
-  python3 dagger.py --round $r --episodes 3 --secs 600 --model bc_final.pt 2>&1 | grep -E '"ep"|"round"|err|abort' | cut -c1-260 | tee /tmp/dagger_r$r.log
+  python3 dagger.py --round $r --episodes 3 --secs 600 --model none 2>&1 | grep -E '"ep"|"round"|err|abort' | cut -c1-260 | tee /tmp/dagger_r$r.log
   s=$(python3 -c "
 import json,glob
 try:
