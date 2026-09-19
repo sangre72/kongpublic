@@ -32,14 +32,45 @@ STAGES = {
     'uturn':    lambda M: (M[:, 3] == 3) & (M[:, 4] < 80),
 }
 
-def batch(X, Y, ids):
+AUG = os.environ.get('AUG', '1') == '1'
+def augment(xb):
+    """도메인 랜덤화(오너 u_5439, 2026-09-19): 밝기·대비 지터, 가우시안 노이즈, 일부는 흑백 — 그래픽 스타일이 아니라
+       도로/차선/장애물 형태에 반응하도록. 검증 배치에는 적용하지 않는다."""
+    n = xb.shape[0]
+    b = (torch.rand(n, 1, 1, 1, device=xb.device) - 0.5) * 0.4          # 밝기 ±0.2
+    c = 1.0 + (torch.rand(n, 1, 1, 1, device=xb.device) - 0.5) * 0.6    # 대비 0.7~1.3
+    m = xb.mean(dim=(1, 2, 3), keepdim=True)
+    xb = (xb - m) * c + m + b
+    xb = xb + torch.randn_like(xb) * 0.03
+    g = torch.rand(n, device=xb.device) < 0.25                            # 25% 흑백
+    if g.any():
+        gray = xb[g].mean(dim=1, keepdim=True).expand(-1, 3, -1, -1)
+        xb = xb.clone(); xb[g] = gray
+    # u_5440: 채널별 색 지터(±0.05), 흐림(다운→업샘플, 30%), 가림 사각형(실차·표지판에 가려짐 흉내, 30%)
+    xb = xb + (torch.rand(n, 3, 1, 1, device=xb.device) - 0.5) * 0.10
+    bl = torch.rand(n, device=xb.device) < 0.30
+    if bl.any():
+        small = torch.nn.functional.interpolate(xb[bl], scale_factor=0.5, mode='bilinear', align_corners=False)
+        xb = xb.clone(); xb[bl] = torch.nn.functional.interpolate(small, size=xb.shape[-2:], mode='bilinear', align_corners=False)
+    oc = torch.rand(n, device=xb.device) < 0.30
+    if oc.any():
+        xb = xb.clone(); H, Wd = xb.shape[-2:]
+        for i in torch.nonzero(oc).flatten().tolist():
+            h = int(H * (0.08 + 0.17 * torch.rand(1).item())); w = int(Wd * (0.08 + 0.17 * torch.rand(1).item()))
+            y0 = int(torch.randint(0, H - h, (1,)).item()); x0 = int(torch.randint(0, Wd - w, (1,)).item())
+            xb[i, :, y0:y0 + h, x0:x0 + w] = torch.rand(1).item()
+    return xb.clamp_(0, 1)
+
+def batch(X, Y, ids, train=False):
     real = np.abs(ids) - 1
     xb = torch.from_numpy(np.ascontiguousarray(X[real])).float().div_(255.)
     yb = Y[real].copy()
     flip = ids < 0
     if flip.any():
         xb[flip] = torch.flip(xb[flip], dims=[3]); yb[flip, 0] *= -1
-    return xb.to(DEV), torch.from_numpy(yb).to(DEV)
+    xb = xb.to(DEV)
+    if train and AUG: xb = augment(xb)
+    return xb, torch.from_numpy(yb).to(DEV)
 
 def load(dirs, stage, replay, rng):
     Xs, Ys, Ws, nsel, nrep = [], [], [], 0, 0
@@ -71,7 +102,7 @@ def main():
     got = load(dirs, a.stage, a.replay, rng)
     if not got: print(json.dumps({'error': 'no frames for stage', 'stage': a.stage})); return
     X, Y, W, nsel, nrep = got; n = len(X)
-    print(json.dumps({'stage': a.stage, 'frames': n, 'stage_frames': nsel, 'replay_frames': nrep, 'w0': int((W == 0).sum()),
+    print(json.dumps({'stage': a.stage, 'aug': AUG, 'frames': n, 'stage_frames': nsel, 'replay_frames': nrep, 'w0': int((W == 0).sum()),
                       'steer_std': round(float(Y[:, 0].std()), 4), 'thr_mean': round(float(Y[:, 1].mean()), 3),
                       'stopped_pct': round(100 * float((Y[:, 1] < 0.05).mean()), 1)}), flush=True)
     if nsel < 200: print(json.dumps({'warn': 'stage frames < 200 — collect more of this situation first'}), flush=True)
@@ -85,7 +116,7 @@ def main():
     for ep in range(a.epochs):
         net.train(); tot = 0.0; perm = rng.permutation(tr)
         for i in range(0, len(perm), BS):
-            ids = perm[i:i+BS]; xb, yb = batch(X, Y, ids); wb = torch.from_numpy(W[np.abs(ids) - 1]).to(DEV)
+            ids = perm[i:i+BS]; xb, yb = batch(X, Y, ids, train=True); wb = torch.from_numpy(W[np.abs(ids) - 1]).to(DEV)
             opt.zero_grad(); o = net(xb)
             l = (wb * ((o - yb) ** 2).mean(1)).sum() / wb.sum().clamp_min(1.0)
             of = net(torch.flip(xb, dims=[3])); l = l + 0.5 * ((o[:, 0] + of[:, 0]) ** 2).mean()   # 좌우 대칭(bias 억제)
