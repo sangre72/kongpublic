@@ -45,6 +45,22 @@
     "tpN": 0,
     "blkStuck": 0
    }
+  },
+  {
+   "id": "rightturn-tl-소공로",
+   "from": "소공로",
+   "to": "퇴계로12길",
+   "secs": 40,
+   "extra_qs": "&sx=-23800&sy=-40700",
+   "found": "2026-09-19",
+   "symptom": "우회전 전용차로(turn:lanes through|through|right|right) 미사용 — 회귀 3구간엔 tl 도로가 없어 실측 0회였음(u_5423)",
+   "cause": "경로 기본차로=맨 오른쪽(전용차로 무시), 교사 turnRule 도 tl 안 봄",
+   "fix": "f962969 tl 소비 + bbb54d8 오른쪽 right 차로 + d96d547 직진은 through 차로(Stl)",
+   "note": "도착 직전 교차로 정지→복귀 1회(m=215/234, 도착 처리 문제) 미해결이라 tpN 은 아직 기대값에 안 넣음",
+   "expect": {
+    "cr": 0,
+    "blkCenter": 0
+   }
   }
  ],
  "_note_expect": "보행자 돌발은 매 판 무작위로 생겨 cr 로 고정 판정하면 회귀가 아닌데도 실패한다. 구조적 결함(복귀·갇힘·중앙선)만 기대값으로 둔다."
