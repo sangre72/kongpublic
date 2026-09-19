@@ -2763,6 +2763,7 @@ function mdlPoll(dt){
       pos: [+(me.x).toFixed(1), +(me.y).toFixed(1), +(me.ang*57.2958).toFixed(1)],
       tlUse: window.__tlUse||0, tlMismatch: window.__tlMismatch||0, tlDbg: window.__tlDbg||null, tlRoute: window.__tlRoute||0, tlRouteErr: window.__tlRouteErr||null,   // turn:lanes(tl) 사용 계측(2026-09-19)
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
+      pushN: window.__pushN|0, pushOn: window.__pushOn?1:0, frPush: window.__frPush||null,
       crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
@@ -2806,6 +2807,7 @@ function mdlPoll(dt){
        실측: userOff=1 로 굳어서 /ctl on=1 을 보내도 drv=GEOM 유지.
        학습 하네스가 명시적으로 force 를 보낼 때만 해제한다. */
     if(d.force){ MDL.userOff = false; }
+    window.__pushOn = !!d.push;   // 서버가 /frame 소비자를 보는 동안만 1
     /* ★교사 모드를 원격으로 바꾼다(u_5144 커리큘럼 수집).
        좌회전·정지·추월 라벨은 교사에게 '그 상황을 하라'고 시켜야 생긴다.
        그냥 달리면 실측상 좌회전 108 / 우회전 10,142 로 94배 쏠린다. */
@@ -4868,6 +4870,28 @@ function loop(t){
      물리는 매 프레임 돌려 주행 품질을 유지하고, 그리기만 30fps 로 낮춘다.
      비전 모델도 58fps 로 읽으므로 30fps 렌더면 충분하다. */
   if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:draw'); if(t - lastDraw >= DRAW_MS){ lastDraw = t; draw(); }
+  /* ★프레임 푸시(2026-09-20, PLAN_ODE §9-1). screencapture 경로가 0.7~1.3fps 라 모델 명령 간격이 1.4초 →
+     150ms 신선도 한계에 전부 버려져 v=0(ode_s1 검증 무효). 캡처 대신 페이지가 그린 캔버스를 그대로
+     JPEG 로 /frame 에 밀어준다. 서버는 누군가 /frame 을 읽는 동안만 push=1 을 내려 준다(소비자 없으면 비용 0).
+     논리해상도(763)로 축소해 보낸다 — 학습 프레임(CLI 캡처→논리해상도)과 같은 크기. */
+  if(window.__pushOn && !window.__pushBusy && (t - (window.__pushT||0)) >= 66){
+    try{
+      window.__pushBusy = 1; window.__pushT = t;
+      const pc = window.__pushCv || (window.__pushCv = document.createElement('canvas'));
+      const pw = Math.round(cv.width/DPR), ph = Math.round(cv.height/DPR);
+      if(pc.width!==pw || pc.height!==ph){ pc.width=pw; pc.height=ph; }
+      pc.getContext('2d').drawImage(cv, 0, 0, pw, ph);
+      /* toBlob(비동기)은 실측 470ms/프레임(콜백이 90fps 루프 뒤로 밀림). 동기 toDataURL + atob 로 바꿈. */
+      const _pt0 = performance.now();
+      const du = pc.toDataURL('image/jpeg', 0.85);
+      const bin = atob(du.slice(du.indexOf(',')+1)); const u8 = new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+      const _pt1 = performance.now();
+      fetch('/frame', {method:'POST', body:u8, cache:'no-store', headers:{'Content-Type':'image/jpeg'}})
+        .then(()=>{ window.__pushN=(window.__pushN|0)+1; const D=window.__frPush=window.__frPush||{blobMs:0,postMs:0,kb:0,n:0}; D.n++; D.blobMs+=_pt1-_pt0; D.postMs+=performance.now()-_pt1; D.kb+=u8.length/1024; })
+        .catch(()=>{}).finally(()=>{ window.__pushBusy = 0; });
+    }catch(e){ window.__pushBusy = 0; }
+  }
   if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:ui'); const sp=document.getElementById('sp');if(sp)sp.textContent=KMH(Math.abs(me.v));
   const ac=document.getElementById('ac');if(ac)ac.textContent=auto.on?auto.act:'수동 주행';
   if(t-nt>350){nt=t;const rd=document.getElementById('rd');if(rd)rd.textContent=roadName()}

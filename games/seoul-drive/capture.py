@@ -91,6 +91,37 @@ def _grab_cli():
 #   ⇒ 기본은 CLI. 진짜 해법은 페이지가 canvas.toDataURL 로 프레임을 /frame 에 밀어주는 방식(내일).
 CAPTURE_PREFER_CLI = True   # False 면 Quartz 를 먼저 시도(현재 30s/프레임 — 쓰지 말 것)
 
+# ★2026-09-20 페이지 프레임 푸시(PLAN_ODE §9-1). 서버 /frame 에서 페이지가 올린 JPEG 를 받는다.
+#   CLI 0.7~1.3fps → 목표 10fps↑. 새 seq 만 받고(since), 없으면 짧게 기다렸다가 CLI 로 떨어진다.
+#   반환 규약은 CLI 와 같다: BGR uint8 (H,W,3), 논리해상도, 브라우저 크롬 없음(캔버스만).
+CAPTURE_PREFER_PUSH = True
+_push = {'seq': -1, 'fail': 0, 'n': 0, 'wait_s': 0.25}
+
+def _grab_push(wait=None):
+    import urllib.request, numpy as _np, time as _t
+    wait = _push['wait_s'] if wait is None else wait
+    t0 = _t.time()
+    while True:
+        try:
+            r = urllib.request.urlopen('http://localhost:8901/frame?since=%d' % _push['seq'], timeout=1.0)
+            if r.status == 200:
+                b = r.read(); seq = int(r.headers.get('X-Seq') or 0)
+                import cv2
+                a = cv2.imdecode(_np.frombuffer(b, dtype=_np.uint8), cv2.IMREAD_COLOR)   # BGR
+                if a is None:
+                    _push['fail'] += 1; return None
+                _push['seq'] = seq; _push['n'] += 1; _push['fail'] = 0
+                return a
+        except Exception:
+            _push['fail'] += 1
+            return None
+        if _t.time() - t0 >= wait:        # 204(새 프레임 없음)만 반복
+            return None
+        _t.sleep(0.01)
+
+def push_stats():
+    return dict(_push)
+
 def _grab_quartz():
     """Quartz 창 캡처(in-process, 6~14ms). 실패 시 None."""
     if 'rect' not in _cache and find_window() is None:
@@ -124,6 +155,13 @@ def grab_canvas():
         return None
     # ★2026-09-19 실측(u_5437 지연 병목): screencapture CLI 1.64s/프레임 vs Quartz CGWindowListCreateImage 6~14ms.
     #   위 주석의 'Quartz API 가 죽음'은 이 기계에서 더 이상 사실이 아니다 → Quartz 를 먼저, 실패(None)할 때만 CLI.
+    if CAPTURE_PREFER_PUSH:
+        # 첫 호출은 페이지가 push=1 을 보고 보내기 시작할 때까지(폴링 50ms + 인코딩) 잠깐 걸린다.
+        f = _grab_push(wait=1.0 if _push['n'] == 0 else None)
+        if f is not None:
+            return f
+        if _push['n'] > 0 and _push['fail'] < 5:
+            return None            # 푸시가 살아 있는데 새 프레임만 없는 것 — 옛 화면 재캡처보다 None 이 맞다
     if not CAPTURE_PREFER_CLI:
         q = _grab_quartz()
         if q is not None:

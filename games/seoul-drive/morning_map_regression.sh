@@ -5,7 +5,7 @@ export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8
 NT=/Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/notify_telegram.py
 while pgrep -f "collect_overnight.sh|train_morning.sh" >/dev/null; do sleep 60; done
 echo "=== map build $(date +%H:%M:%S) ==="
-(python3 games/seoul-drive/build.py 2>&1 | tail -1)
+(python3 build.py 2>&1 | tail -1)
 echo "=== regression ==="; bash run_regression.sh 2>&1 | grep -E "EVT|result|PASS|REGRESSION|FAIL|불가항력" | cut -c1-230 | tee /tmp/reg_morning.log
 s=$(grep -E "ALL PASS|REGRESSION\(S\)" /tmp/reg_morning.log | tail -1)
 python3 $NT "[오드 아침] 새 지도 빌드 후 회귀 9구간: $s" >/dev/null 2>&1

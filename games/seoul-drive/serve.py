@@ -31,6 +31,11 @@ _gets = [0]   # 페이지가 실제로 폴링하는지 확인용(a_5085 검증)
 #   이미 20Hz 로 도는 폴링에 실어 보낸다 — 새 연결도, 새 타이머도 만들지 않는다.
 _tel = {}
 _lock = threading.Lock()
+# ★/frame (2026-09-20, PLAN_ODE §9-1): 페이지가 그린 캔버스 JPEG 를 POST 로 밀어주고, 추론 루프가 GET 으로 읽는다.
+#   screencapture 0.7~1.3fps 병목을 우회한다. 페이지는 /ctl 의 push=1 을 볼 때만 보낸다 — 최근 2초 안에 누군가
+#   GET /frame 을 했을 때만 켠다(소비자 없으면 비용 0). GET ?since=<seq> 로 같은 프레임은 204 로 돌려보낸다.
+import time as _time
+_frame = {'b': None, 'seq': 0, 't': 0.0, 'get_t': 0.0, 'posts': 0}
 
 
 class H(http.server.SimpleHTTPRequestHandler):
@@ -67,13 +72,41 @@ class H(http.server.SimpleHTTPRequestHandler):
                             except Exception:
                                 pass
                 d = dict(_ctl); d['gets'] = _gets[0]
+                d['push'] = 1 if (_time.time() - _frame['get_t']) < 2.0 else 0
                 return self._json(d)
+        if self.path.split('?')[0] == '/frame':
+            q = self.path.split('?', 1)[1] if '?' in self.path else ''
+            since = -1
+            try:
+                import urllib.parse
+                since = int(dict(urllib.parse.parse_qsl(q)).get('since', -1))
+            except Exception:
+                pass
+            with _lock:
+                _frame['get_t'] = _time.time()
+                b, seq, t = _frame['b'], _frame['seq'], _frame['t']
+            if b is None or seq <= since:
+                self.send_response(204); self.send_header('X-Seq', str(seq)); self.end_headers(); return
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/jpeg')
+            self.send_header('Content-Length', str(len(b)))
+            self.send_header('X-Seq', str(seq))
+            self.send_header('X-Age-Ms', str(int((_time.time() - t) * 1000)))
+            self.end_headers(); self.wfile.write(b); return
         if self.path.split('?')[0] == '/tel':
             with _lock:
                 return self._json(dict(_tel))
         return super().do_GET()
 
     def do_POST(self):
+        if self.path.split('?')[0] == '/frame':
+            n = int(self.headers.get('Content-Length') or 0)
+            b = self.rfile.read(n) if n > 0 else b''
+            with _lock:
+                if b:
+                    _frame['b'] = b; _frame['seq'] += 1; _frame['t'] = _time.time(); _frame['posts'] += 1
+                seq = _frame['seq']
+            self.send_response(200); self.send_header('X-Seq', str(seq)); self.send_header('Content-Length', '0'); self.end_headers(); return
         if self.path.split('?')[0] != '/ctl':
             self.send_error(404); return
         n = int(self.headers.get('Content-Length') or 0)
