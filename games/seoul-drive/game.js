@@ -2764,6 +2764,7 @@ function mdlPoll(dt){
       tlUse: window.__tlUse||0, tlMismatch: window.__tlMismatch||0, tlDbg: window.__tlDbg||null, tlRoute: window.__tlRoute||0, tlRouteErr: window.__tlRouteErr||null,   // turn:lanes(tl) 사용 계측(2026-09-19)
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       pushN: window.__pushN|0, pushOn: window.__pushOn?1:0, frPush: window.__frPush||null,
+      tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
       crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
@@ -2860,7 +2861,36 @@ function driveModel(dt){
   else { const cap = (window.__TARGET_KMH || 45)/3.6 * 1.12;
          me.v += (Math.max(0,MDL.thr)*cap - me.v)*Math.min(1, dt*1.8); }
   window.__mdl = {st:me.steer, thr:MDL.thr, brk:MDL.brake, rx:MDL.rx, err:MDL.err, stale:0};
+  /* ★Layer 1 페일세이프(오너 u_5436/u_5444, 2026-09-20): 충돌 임박 제동은 모델 출력과 무관하게 규칙이 건다 — 관제망 아래 하드와이어.
+     교사 compute() 는 모델 주행 중에도 매 프레임 돈다(T.last, DAgger 라벨). 그 정지 판단(앞차 dStop·보행자 pStop·적신호 sigStop → brake=1,thr=0)과
+     서행 상한(T.dbg.cap, 보행자 근접)만 빌린다. 조향은 절대 건드리지 않는다(Layer 2 = 모델). ?nol1=1 이면 끈다(모델 단독 측정용).
+     실측 근거: DAgger k=2/k=3 검증에서 모델이 앞차를 추돌한 뒤 그 뒤에 서 있었다(진행 0.6%/1.4%). */
+  if(!window.__noL1){ try{
+    const T=window.__teach, L=T&&T.last, D=T&&T.dbg;
+    if(L && L.ok && !L.rev && L.brake>=1 && L.thr===0){ me.v -= 9.0*dt; if(me.v<0) me.v=0; window.__l1N=(window.__l1N|0)+1; window.__l1Last='stop'; window.__l1T=performance.now(); }
+    else if(D && typeof D.cap==='number' && me.v > D.cap){ me.v = Math.max(D.cap, me.v - 6.0*dt); window.__l1CapN=(window.__l1CapN|0)+1; window.__l1Last='cap'; window.__l1T=performance.now(); }
+  }catch(e){} }
 }
+/* ★규칙 등급 판정기(dispatcher, u_5436/u_5437/u_5443): 프레임 태그만으로 µs 에 등급. 오판 방향은 항상 상위 등급.
+   T0 쉬움(직진·gap>60·ped>40·sig>60) / T1 중간(추종·회전 준비·차선변경) / T2 어려움(보행자 근접·신호 정지·골목) / T3 엣지(정지거리 안 돌발=교사 brake=1·이탈·명령 만료).
+   /tel: tier, tierN[4](프레임 수), crTier[4](사고 시점 등급), crTier3[4](사고 3초 전 등급 — T0 면 판정기 결함). 3D 에선 tier net 이 이 자리를 맡는다. */
+function tierNow(){
+  try{
+    const T=window.__teach, L=T&&T.last, D=(T&&T.dbg)||{}, g=(T&&T.dbg2)||{};
+    const gap=(typeof D.gap==='number')?D.gap:1e9, ped=(typeof D.ped==='number')?D.ped:1e9, sig=(typeof D.sig==='number')?D.sig:1e9;
+    const aD=(typeof g.aD==='number')?g.aD:1e9, turn=g.aTurn||'S', nl=g.nl||0, rw=g.roadW||0;
+    if((L && L.ok && !L.rev && L.brake>=1 && L.thr===0) || (window.__mdl&&window.__mdl.stale) || me.offroad) return 3;
+    if(ped<30 || sig<60 || (nl<=1 && rw>0 && rw<=6.5)) return 2;
+    if(gap<60 || (aD<200 && turn!=='S') || (g.fin!=null && typeof g.laneF==='number' && Math.abs(g.laneF-g.fin)>0.5)) return 1;
+    return 0;
+  }catch(e){ return 3; }
+}
+function tierTick(){
+  const t=tierNow(); window.__tier=t; const N=window.__tierN||(window.__tierN=[0,0,0,0]); N[t]++;
+  const H=window.__tierHist||(window.__tierHist=[]); const now=performance.now(); H.push([now,t]); while(H.length && now-H[0][0]>4000) H.shift();
+}
+function tierAgo(ms){ const H=window.__tierHist||[]; const now=performance.now(); for(let i=0;i<H.length;i++){ if(now-H[i][0]<=ms) return H[i][1]; } return H.length?H[H.length-1][1]:null; }
+window.__noL1 = /[?&]nol1=1/.test(location.search);
 function setModel(on){
   MDL.on = !!on; MDL.userOff = !on;
   if(!MDL.on) window.__brkT = 0;
@@ -3291,6 +3321,8 @@ function crash(label,heavy){
   if(window.__parked && !auto.on){ window.__crashParkedN=(window.__crashParkedN||0)+1; me.offroad=0; return; }
   if(me.cool>0)return;
   me.cool=.8;me.crashes++;
+  try{ const C=window.__crTier||(window.__crTier=[0,0,0,0]), C3=window.__crTier3||(window.__crTier3=[0,0,0,0]);
+       C[window.__tier|0]++; const a=tierAgo(3000); if(a!=null) C3[a]++; }catch(e){}
   /* ★무엇에 부딪히는지 종류별로 센다(u_5025 진단용).
      'cr=8' 만 봐서는 원인을 모른다 — 추돌인지 보행자인지 차로이탈인지에 따라
      고칠 곳이 완전히 다르다. */
@@ -4779,6 +4811,7 @@ function loop(t){
        하므로, 모는 것만 멈추고 라벨 생산은 유지한다. */
   const T = window.__teach;
   mdlPoll(dt);                                      // 모델 제어채널 폴링(항상)
+  try{ tierTick(); }catch(e){}                       // 등급 판정(항상, µs)
   if(MDL.on){
     /* ★모델이 핸들을 쥔다. driveAuto 는 호출하지 않는다 — 둘이 매 프레임
        me.steer 를 서로 덮어쓰면 누가 모는지 측정이 불가능해진다(u_5026 에서
