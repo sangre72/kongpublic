@@ -529,7 +529,7 @@ function nextPOI(){
 
 /* ---------- 내 차 ---------- */
 var mt;
-function flash(t){const m=document.getElementById('msg');if(!m)return;m.textContent=t;
+function flash(t){ try{ window.__lastFlash=String(t); }catch(_){} const m=document.getElementById('msg');if(!m)return;m.textContent=t;
   m.classList.add('show');clearTimeout(mt);mt=setTimeout(()=>m.classList.remove('show'),1200)}
 const auto={on:0,goal:null,wp:[],i:0,act:'대기'};
 const me={x:0,y:0,ang:0,v:0,steer:0,wm:1.8,hm:4.6,w:1.8*S,h:4.6*S,
@@ -1402,6 +1402,7 @@ function parkCar(){
 }
 window.parkCar=parkCar;
 function planTo(x,y){
+  __probe('planTo');
   window.__ptCnt=(window.__ptCnt||0)+1;
   /* ★2026-09-19: 경로 생성 단계가 '못 도는 유턴'을 발견하면 그 회전을 금지하고 한 번 더 짠다.
      금지는 이 경로에만 유효하다 — 새 계획(재귀 아님)에서는 비운다. */
@@ -1450,7 +1451,7 @@ function planTo(x,y){
       /* ★u_5417: 라우터 계수는 라우팅 '전'에 초기화한다. 경로 생성 블록에서 초기화했더니
          A* 가 끝난 뒤 지워져 금지 횟수가 항상 0 으로 보였다(규칙이 도는지 확인 불가). */
       window.__rtLeftBan=0; window.__rtEval=[]; window.__routeRelaxed=0;
-      const gp=gAstar(sN, tgt, me.ang);
+      __probe('astar:'+sN+'>'+tgt); const _t0=performance.now(); const gp=gAstar(sN, tgt, me.ang); __probe('astar-done:'+Math.round(performance.now()-_t0)+'ms:'+(gp?gp.length:0));
       if(!gp) continue;
       /* ★감사 지적(2026-09-19): 두 번째 출발 후보 gNearest 는 방향을 무시한다. gAstar 의 첫 구간
          방향 검사는 '출발 노드에서 나가는 첫 간선'만 보므로, 노드가 차 뒤에 잡히면 경로가 차가 온
@@ -2409,7 +2410,11 @@ function planTo(x,y){
                       p0: bi>0?[+(wp[bi-1].x/S).toFixed(0),+(wp[bi-1].y/S).toFixed(0)]:null,
                       p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null,
                       pHead:p.slice(0,4), prepU:window.__prepU||0, turnRuns:(window.__turnRuns||[]).slice(0,10).map(r=>[r.i0,r.i1,+(r.cum*57.3).toFixed(0)]), uspanN:window.__uspanN||0, uspanTight:window.__uspanTight||0, uspanList:(window.__uspanList||[]).slice(0,10), uspanOff:window.__uspanOff||0, uspanDbg:window.__uspanDbg||null, uspanErr:window.__uspanErr||null, rtLeftBan:window.__rtLeftBan||0, rtEval:(window.__rtEval||[]).slice(0,12), routeRelaxed:window.__routeRelaxed||0, prepLSkip:window.__prepLSkip||0, prepLone:window.__prepLone||0, prepLWhy:(window.__prepLWhy||[]).slice(0,8), prepL:window.__prepL||0, NP:p.length,
-      offTab: window.__offTab||null, offErr: window.__offErr||null,
+      /* ★2026-09-19 스윕 전구간 route_fail 원인: 긴 경로(연대동문길→여수대교)는 offTab 이 수천 행이라
+         ?tel= GET 요청줄이 python http.server 상한 65,536B 를 넘어 414 로 버려졌다 → /tel 이 2초 시점에 멈춰
+         reload.sh 가 '준비 안 됨'으로 판정. 표는 앞 200·뒤 100행만 싣고 전체 길이를 함께 보낸다. */
+      offTab: (window.__offTab&&window.__offTab.length>400) ? window.__offTab.slice(0,200).concat([['…',window.__offTab.length]], window.__offTab.slice(-100)) : (window.__offTab||null),
+      offTabN: window.__offTab?window.__offTab.length:0, offErr: window.__offErr||null,
       uturnHops:(function(){let c=0;for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]) c++;return c})(),
       uturnPts:(function(){const o=[];for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]){const n=(typeof GNODES!=='undefined'&&GNODES[p[i]])||(typeof NODES!=='undefined'&&NODES[p[i]]); if(n) o.push({x:+(n.x/S).toFixed(1),y:+(n.y/S).toFixed(1)});} return o.slice(0,8)})(),
       /* ★진단(u_5255 '우주선 경로'): 출발부 경로점과 차의 관계를 숫자로 본다 */
@@ -2658,7 +2663,7 @@ function mdlPoll(dt){
       pos: [+(me.x).toFixed(1), +(me.y).toFixed(1), +(me.ang*57.2958).toFixed(1)],
       tlUse: window.__tlUse||0, tlMismatch: window.__tlMismatch||0, tlDbg: window.__tlDbg||null, tlRoute: window.__tlRoute||0, tlRouteErr: window.__tlRouteErr||null,   // turn:lanes(tl) 사용 계측(2026-09-19)
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
-      crashResyncN: window.__crashResyncN||0,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
+      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
@@ -2681,6 +2686,14 @@ function mdlPoll(dt){
       camz: +(cam.z||0).toFixed(4), S: (typeof S!=='undefined'? S : -1)
     }));
   }catch(e){ _tq='?tel='+encodeURIComponent(JSON.stringify({err:String(e&&e.message||e)})); }
+  if(_tq.length>60000){                       // 요청줄 상한(65,536B) 방어 — 핵심 키만 보낸다
+    window.__telTrunc=(window.__telTrunc||0)+1;
+    try{ _tq='?tel='+encodeURIComponent(JSON.stringify({telTrunc:_tq.length, wpLen: auto.wp.length, autoOn: auto.on|0, parked: window.__parked|0,
+      routeM: (auto.cum&&auto.cum.length)? Math.round(auto.cum[auto.cum.length-1]/S) : 0, doneM: Math.round((auto.s||0)/S),
+      v: +me.v.toFixed(2), prog: +((auto.cum&&auto.cum.length? (auto.s||0)/(auto.cum[auto.cum.length-1]||1) : 0)).toFixed(4),
+      pos:[+(me.x).toFixed(1), +(me.y).toFixed(1)], cr: me.crashes|0, crk: window.__crk||{}, tpN: window.__tpN||0, blkStuck: window.__blkStuck||0, blkCenter: window.__blkCenter||0,
+      jsErr: window.__jsErr||'', now: Math.round(performance.now()), arStep: window.__arStep||null})); }catch(e){}
+  }
   fetch('/ctl'+_tq, {cache:'no-store'}).then(r=>r.json()).then(d=>{
     if(d.seq !== MDL.seq){ MDL.seq = d.seq; MDL.rx++;
       MDL.rxT = performance.now(); }   // ★u_5172: 명령 수신 시각(만료 판정용)
@@ -4263,17 +4276,22 @@ reset();sync();
 
 /* ★동적 스트리밍(u_4879) — 차가 청크를 넘어가면 그 주변만 다시 짓는다.
    화면에 보이는 영역만 유지하므로 서울·경기 전역이어도 메모리가 일정하다. */
+window.addEventListener('error', ev=>{ try{ const m=String(ev&&ev.message||'')+' @'+(ev&&ev.filename||'').split('/').pop()+':'+(ev&&ev.lineno)+' '+String(ev&&ev.error&&ev.error.stack||'').slice(0,300); window.__winErr=m; const x=new XMLHttpRequest(); x.open('GET','/ctl?tel='+encodeURIComponent(JSON.stringify({arStep:window.__arStep,winErr:m})),false); x.send(); }catch(e){} });
+window.addEventListener('unhandledrejection', ev=>{ try{ window.__winRej=String(ev&&ev.reason&&(ev.reason.stack||ev.reason)||'').slice(0,300); }catch(e){} });
+/* ★2026-09-19 진단 프로브: 동기 XHR 로 /tel 에 단계 표식을 남긴다(프레임 루프가 죽거나 텔레메트리가 끊겨도 마지막
+   단계가 남는다). 평소엔 표식만 저장하고 전송은 ?probe=1 일 때만 — 동기 XHR 은 프레임을 막는다. */
+function __probe(tag){ window.__arStep=tag; if(!/[?&]probe=1/.test(location.search)) return; try{ const x=new XMLHttpRequest(); x.open('GET','/ctl?tel='+encodeURIComponent(JSON.stringify({arStep:tag,probe:1})),false); x.send(); }catch(e){} }
 function streamWorld(force){
   if(!CH)return;
   const k=chunkKey(me.x/S,me.y/S);
   if(!force&&k===curChunk)return;
   curChunk=k;
-  ROADS_ACTIVE=collectRoads(me.x/S,me.y/S);
-  BLDS_ACTIVE =collectBlds(me.x/S,me.y/S);
-  buildGraph(ROADS_ACTIVE);recalcXR();
-  blds=mkBlds(BLDS_ACTIVE);buildBldGrid();
-  buildCross();buildSignals();buildSigns();buildLamps();
-  respawnTraffic();
+  __probe('sw:collectRoads'); ROADS_ACTIVE=collectRoads(me.x/S,me.y/S);
+  __probe('sw:collectBlds'); BLDS_ACTIVE =collectBlds(me.x/S,me.y/S);
+  __probe('sw:buildGraph'); buildGraph(ROADS_ACTIVE); __probe('sw:recalcXR'); recalcXR();
+  __probe('sw:mkBlds'); blds=mkBlds(BLDS_ACTIVE); __probe('sw:bldGrid'); buildBldGrid();
+  __probe('sw:cross'); buildCross(); __probe('sw:signals'); buildSignals(); __probe('sw:signs'); buildSigns(); __probe('sw:lamps'); buildLamps();
+  __probe('sw:traffic'); respawnTraffic(); __probe('sw:done@'+String(new Error().stack||'').split('\n').slice(2,4).join('|').replace(/https?:\/\/[^ )]*\//g,'').slice(0,160));
 }
 /* 새 영역에 맞춰 교통 재배치(먼 곳 차량은 버린다) */
 function respawnTraffic(){
@@ -4609,11 +4627,13 @@ function drawChip(){
 
 let last=performance.now(),nt=0;
 function loop(t){
+  window.__frameN=(window.__frameN||0)+1; if(window.__frameN<=3 || (window.__autoOnAt && window.__frameN-window.__autoOnAt<=3)) __probe('frame:'+window.__frameN+':auto'+(auto&&auto.on?1:0));
   if(_bldDirty){ _bldDirty=false; try{ refreshBlds(); }catch(e){} }
   if(((window.__rafN|0)%60)===0){ try{
     prefetchBldsAround(me.x/S,me.y/S);
     if(auto.on&&auto.wp.length){ const w=auto.wp[Math.min(auto.wp.length-1,(auto.i|0)+60)]; prefetchBldsAround(w.x/S,w.y/S); }
   }catch(e){} }
+  if(window.__autoOnAt!==undefined && window.__frameN-window.__autoOnAt<=3) __probe('frame-top:'+window.__frameN);
   streamWorld(false);
   const dt=Math.min(.05,(t-last)/1000);last=t;
   /* ★한 프레임에 한 컨트롤러만 차를 몬다(P1, u_5020).
@@ -4637,7 +4657,9 @@ function loop(t){
        꺼놓고 아무도 되돌리지 않는다. 그래서 수집이 '교사 라벨 없음'으로 중단됐다.
        DAgger 의 정의가 '모델이 몰고 교사는 정답만 말한다' 이므로,
        모는 것(T.auto)과 답하는 것(T.compute)을 분리한다. */
+    if(window.__autoOnAt!==undefined && window.__frameN-window.__autoOnAt<=3) __probe('pre-teach:'+window.__frameN);
     try{ if(T) T.last = T.compute(); }catch(e){}   // 라벨은 항상 생산
+    if(window.__autoOnAt!==undefined && window.__frameN-window.__autoOnAt<=3) __probe('post-teach:'+window.__frameN);
   }else if(auto.on && auto.wp.length){
     /* ★내비 경로와 자율주행을 실제로 연결한다(u_5026).
        예전엔 경로가 있으면 driveAuto 가 전부 몰았다. 그런데 driveAuto 는
@@ -4648,11 +4670,13 @@ function loop(t){
          · 어떻게 안전하게    = 교사        → 적신호 정지·차간거리·커브감속·목표속도
        교사의 brake/thr 로 경로 주행의 속도를 덮어써서, 경로를 따라가되
        빨간불에 서고 앞차와 간격을 유지한다. */
+    if(window.__autoOnAt!==undefined && window.__frameN-window.__autoOnAt<=3) __probe('pre-driveAuto:'+window.__frameN);
     driveAuto(dt);                                  // 경로 = 조향(어디로)
+    if(window.__autoOnAt!==undefined && window.__frameN-window.__autoOnAt<=3) __probe('post-driveAuto:'+window.__frameN);
     if(T && T.auto){
       try{
         const a = T.compute();                      // 교사 = 안전(어떻게)
-        T.last = a;
+        if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:compute-ret'); T.last = a;
         window.__tbrk = a ? a.brake : -1;           // 교사 제동값 자체를 화면에 노출
         /* ★교사의 '정지' 지시만 받는다(u_5026 실측 수정).
            처음엔 thr 까지 받아 속도를 통째로 덮어썼는데, 경로주행의 가감속과
@@ -4687,17 +4711,17 @@ function loop(t){
     me.v *= (1 - Math.min(1, dt*4));
     if(T && T.auto){ try{ T.last=T.compute(); }catch(e){} }   // 라벨은 계속 생산
   }
-  step(dt);
-  epTick(dt);
+  if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:step'); step(dt);
+  if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:epTick'); epTick(dt);
   if(crashLit>0)crashLit-=dt;
-  spawnDespawn(dt);
-  rebuildHash();
+  if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:spawn'); spawnDespawn(dt);
+  if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:hash'); rebuildHash(); if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:hash-done');
   // 화면 밖 먼 차량은 계산하지 않는다(보이지도 않고 비전에도 안 잡힘)
   const R2=Math.pow(Math.max(W,H)/cam.z*0.75+220,2);  // 화면 크기에 맞춘 시뮬 반경
-  for(const c of cars){if(!c.alive)continue;
+  if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:cars:'+cars.length); for(const c of cars){if(!c.alive)continue;
     if((c.x-cam.x)**2+(c.y-cam.y)**2>R2)continue;
     stepCar(c,dt)}
-  for(const p of peds){
+  if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:peds:'+peds.length); for(const p of peds){
     if((p.x-cam.x)**2+(p.y-cam.y)**2>R2)continue;
     stepPed(p,dt)}
   /* ★그리기 프레임 제한(2026-09-14 u_4941).
@@ -4706,11 +4730,11 @@ function loop(t){
      (Chrome 을 완전히 종료하면 WindowServer 가 상위에서 사라지는 것으로 확정)
      물리는 매 프레임 돌려 주행 품질을 유지하고, 그리기만 30fps 로 낮춘다.
      비전 모델도 58fps 로 읽으므로 30fps 렌더면 충분하다. */
-  if(t - lastDraw >= DRAW_MS){ lastDraw = t; draw(); }
-  const sp=document.getElementById('sp');if(sp)sp.textContent=KMH(Math.abs(me.v));
+  if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:draw'); if(t - lastDraw >= DRAW_MS){ lastDraw = t; draw(); }
+  if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:ui'); const sp=document.getElementById('sp');if(sp)sp.textContent=KMH(Math.abs(me.v));
   const ac=document.getElementById('ac');if(ac)ac.textContent=auto.on?auto.act:'수동 주행';
   if(t-nt>350){nt=t;const rd=document.getElementById('rd');if(rd)rd.textContent=roadName()}
-  window.__rafN=(window.__rafN|0)+1;
+  if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:raf'); window.__rafN=(window.__rafN|0)+1;
   requestAnimationFrame(_loopSafe);
 }
 /* ★loop 이 한 번이라도 던지면 rAF 재등록이 안 돼 게임이 영원히 멈춘다(u_5126 실측:
@@ -4896,7 +4920,7 @@ setTimeout(()=>{
     /* 2) 이제 로드된 도로 중에서 가장 가까운 '시가지 도로'에 붙인다.
        고르는 규칙·건물 회피는 placeCarNear() 한 곳에 있다(hardReset·pickStart 와 공용).
        여기만 기준이 '강남역'이 아니라 '방금 옮긴 내 위치'라서 metric='proj' 다. */
-    const r2=placeCarNear(me.x, me.y, {metric:'proj', place:true});
+    __probe('setStart:placeCarNear'); const r2=placeCarNear(me.x, me.y, {metric:'proj', place:true}); __probe('setStart:placed:'+(r2?1:0));
     if(!r2){ flash('출발지 근처에 도로가 없습니다'); return false; }
     const bs=r2.seg;
     me.v=0; me.steer=0;
@@ -4920,8 +4944,8 @@ setTimeout(()=>{
      ?auto=0 으로 끌 수 있다. */
   if(!/[?&]auto=0/.test(location.search)) setTimeout(async ()=>{
     try{
-      const sb=document.getElementById('qs'), db=document.getElementById('q');
-      if(!sb||!db) return;
+      window.__arStep='start'; const sb=document.getElementById('qs'), db=document.getElementById('q');
+      if(!sb||!db){ window.__arStep='no-box'; return; }
       /* ★u_5201: 구간을 바꿔 시험할 수 있어야 한다("시청역에서 노원역도 테스트").
          ?from=·?to= 로 넘기면 그 구간으로 경로를 잡는다. 없으면 기존 기본값. */
       const _q=new URLSearchParams(location.search);
@@ -4947,11 +4971,14 @@ setTimeout(()=>{
         resetTeacherLane(); window.__parked=1;
       }
       else{
-        try{ const _c0=search(sb.value)[0]; if(_c0) await prefetchBldsAround(_c0.x,_c0.y); }catch(e){}
-        if(!setStart(sb.value)) return;        // 출발지 배치 실패면 경로도 잡지 않는다
+        /* ★2026-09-19 스윕 30구간 전부 route_fail: 먼 출발지에서 이 await 가 안 풀렸다(arStep 추적). 8초 상한. */
+        __probe('prefetch:search'); const _c0=search(sb.value)[0]; __probe('prefetch:fetch:'+(_c0?_c0.n:'none'));
+        try{ if(_c0) await Promise.race([prefetchBldsAround(_c0.x,_c0.y), new Promise(r=>setTimeout(r,8000))]); }catch(e){ window.__arStep='prefetch-err:'+String(e).slice(0,60); }
+        __probe('prefetched');
+        __probe('setStart'); if(!setStart(sb.value)){ window.__arStep='setStart-fail'; return; }        // 출발지 배치 실패면 경로도 잡지 않는다
       }
-      hits=search(db.value); if(!hits.length){ flash('목적지 없음: '+db.value); return; }
-      sel=0; window.__autoStart=false; pick();  // 경로만 만든다(출발은 사람이)
+      __probe('hits'); hits=search(db.value); if(!hits.length){ window.__arStep='nohits'; flash('목적지 없음: '+db.value); return; }
+      window.__arStep='pick'; sel=0; window.__autoStart=false; pick(); window.__arStep='picked:'+auto.wp.length;  // 경로만 만든다(출발은 사람이)
       /* ★u_5341: sx/sy 로 놓은 차를 뒤 단계가 되돌리면 회귀시험이 성립 안 한다.
          planTo/streamWorld 가 위치를 건드렸으면 원위치로 복구한다. */
       try{ if(window.__sxLock){
@@ -4970,7 +4997,7 @@ setTimeout(()=>{
       if(/[?&]go=1/.test(location.search) && auto.wp.length>1){
         startDrive();
       }
-    }catch(e){ console.warn('auto-route', e); }
+    }catch(e){ console.warn('auto-route', e); try{ window.__autoRouteErr=String(e&&e.stack||e).slice(0,300); }catch(_){} }
   }, 1500);
   if(setBtn) setBtn.onclick = ()=>setStart(sBox?sBox.value:'');
   if(sBox) sBox.onkeydown = e=>{ if(e.key==='Enter'){ e.preventDefault(); setStart(sBox.value); } };
@@ -4995,6 +5022,7 @@ setTimeout(()=>{
        종전과 똑같고(둘 다 와도 __runBusy 로 한 번만 실행), 자동 하네스는
        up 이 없어도 출발한다. */
   function startDrive(){
+    __probe('startDrive:begin');
     if(window.__runBusy) return;             // click+pointerdown 중복 방지
     window.__runBusy = 1; setTimeout(()=>{ window.__runBusy = 0; }, 300);
     window.__runHit=(window.__runHit||0)+1;   // 핸들러 진입 카운터(u_5126 진단)
@@ -5061,7 +5089,7 @@ setTimeout(()=>{
        (실측: 누르기 전 wp_len=59 -> 누른 뒤 wp=0, DRV 가 MODEL 에서 TEACH 로 떨어짐).
        여기서 먼저 스트리밍해 두면 프레임 루프가 다시 만들 일이 없다. */
     try{ if(typeof streamWorld==='function') streamWorld(true); }catch(e){}
-    auto.on = 1; window.__runRet='ok'; window.__runOnAt=performance.now(); sync(); flash('목적지로 출발');
+    auto.on = 1; window.__autoOnAt=window.__frameN||0; __probe('startDrive:autoOn'); window.__runRet='ok'; window.__runOnAt=performance.now(); sync(); flash('목적지로 출발'); __probe('startDrive:end');
   }
   window.__startDrive = startDrive;          // 하네스가 직접 부를 수 있는 경로
   /* ★소프트 리셋(u_5126). 페이지를 다시 안 띄우고 에피소드만 새로 시작한다.

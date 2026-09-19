@@ -560,7 +560,9 @@
 
   /* 교사 조작값 산출 — 조향 -1~1, 스로틀 0~1, 브레이크 0~1 */
   T.compute = function(){
+    if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('tc:laneTarget');
     const lt = laneTarget();
+    if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('tc:lt-done');
     if(!lt) return {steer:0, thr:0, brake:1, ok:false};
     /* ★u_5173 오너 정의: "정면으로 진행하는게 직진".
        기존 diff 는 '차 위치 → 목표점' 각도였다. 그러면 직선 도로인데도
@@ -593,6 +595,7 @@
         if(best!==null) diff = ((best-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
       }
     }
+    if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('tc:obstacle');
     const d = obstacleAhead();
     let brake = 0, thr = 1;
     /* ★u_5192 완주 후 남은 사고 1건(5,030m 추돌)의 원인.
@@ -609,6 +612,7 @@
     /* ★보행자 제동(a_5057). 사고 연쇄의 시작점이 보행자 충돌이었다.
        25m 안이면 감속, 12m 안이면 정지. 차량 제동보다 항상 우선(Math.max)한다 —
        앞차 기준으로 이미 계산된 brake 를 덮어쓰지 않고 더 강한 쪽을 쓴다. */
+    if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('tc:ped');
     const pd = pedAhead();
     /* ★u_5201 주행 중 703m 에서 보행자 사고. 앞차 제동거리는 속도비례로
        고쳤는데 보행자 기준(12m/25m)은 고정인 채로 뒀다 — 같은 결함이다.
@@ -687,6 +691,7 @@
        실측: 목표 50 → 실제 37km/h 에서 정체(thr 0.79).
        여기서는 '이 thr 이면 결국 몇 m/s 가 되는가'가 cap*thr 이라는 점을 이용해
        필요한 thr 을 역산하고, 커브·전방 감속분(thr0)을 상한으로 씌운다. */
+    if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('tc:speed');
     const TGT = (window.__TARGET_KMH || 45) / 3.6;       // m/s
     if(brake === 0){
       const cap = TGT * 1.12;                            // thr=1 일 때 도달 속도
@@ -755,6 +760,7 @@
 
        ⇒ 이탈이 차로 반폭(1.62m)을 넘으면 강하게 되돌린다.
          차로 안에서는 약하게(잔떨림 방지), 밖에서는 세게(법규 위반이므로). */
+    if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('tc:steer');
     const xtK = T.laneMoving ? 0.5 : 1.6;
     const xtTerm = Math.max(-0.6, Math.min(0.6, xt*xtK));
     let steerRaw = Math.max(-1, Math.min(1, diff*1.8 + xtTerm));
