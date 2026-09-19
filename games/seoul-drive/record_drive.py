@@ -18,7 +18,7 @@ screencapture 로 캔버스 영역만 주기적으로 찍고 ffmpeg 로 이어�
 import os, subprocess, sys, time, shutil
 
 REGION = os.environ.get('REGION', '0,25,763,762')   # 게임 캔버스 영역(screencapture -R)
-CHROME_TOP = 75                                     # 탭바+주소창 높이(px)
+CHROME_TOP = 105          # 실측 2026-09-19: 탭바+주소창+색띠 ≈105 논리px(레티나 캡처 210px)
 
 
 def default_crop():
