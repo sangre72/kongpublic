@@ -3024,7 +3024,7 @@ function driveAuto(dt){
   /* ★2026-09-19 스윕 24구간(노블레스아파트, 골목 보행자 사고 6건, 43km/h 로 6.5m 골목 주행) — 도로교통법 제17조·
      안전속도 5030: 이면도로(왕복 1차로·폭 6.5m 이하) 30km/h. 지도의 속도표지(l<4 → 30)와도 일치.
      넓은 도로는 오너 지시(u_5407, 법규 시험 동안 120km/h)대로 목표속도 유지. 교사(teacher.js)도 같은 함수를 쓴다. */
-  try{ const _lim=window.roadLimitKmh(nearestSeg(me.x,me.y)); if(_lim) vmax=Math.min(vmax, _lim/3.6); }catch(e){}
+  try{ const _lim=window.roadLimitKmh((typeof routeSeg==='function'&&routeSeg(me.x,me.y))||nearestSeg(me.x,me.y)); if(_lim) vmax=Math.min(vmax, _lim/3.6); }catch(e){}   // ★경로의 도로 기준 — 교차로에서 옆 골목을 집어 간선을 30 으로 깎지 않게
   if(auto.mergeWait){ vmax=Math.min(vmax, 1.5); window.__mergeWaitN=(window.__mergeWaitN||0)+1; }   // 차로 못 옮김 + 회전 임박: 틈 대기
   if(pedD<PED_STOP_M) vmax=0;
   else if(pedD<PED_SLOW_M) vmax=Math.min(vmax, 3.5);

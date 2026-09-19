@@ -3179,7 +3179,7 @@ function driveAuto(dt){
   /* ★2026-09-19 스윕 24구간(노블레스아파트, 골목 보행자 사고 6건, 43km/h 로 6.5m 골목 주행) — 도로교통법 제17조·
      안전속도 5030: 이면도로(왕복 1차로·폭 6.5m 이하) 30km/h. 지도의 속도표지(l<4 → 30)와도 일치.
      넓은 도로는 오너 지시(u_5407, 법규 시험 동안 120km/h)대로 목표속도 유지. 교사(teacher.js)도 같은 함수를 쓴다. */
-  try{ const _lim=window.roadLimitKmh(nearestSeg(me.x,me.y)); if(_lim) vmax=Math.min(vmax, _lim/3.6); }catch(e){}
+  try{ const _lim=window.roadLimitKmh((typeof routeSeg==='function'&&routeSeg(me.x,me.y))||nearestSeg(me.x,me.y)); if(_lim) vmax=Math.min(vmax, _lim/3.6); }catch(e){}   // ★경로의 도로 기준 — 교차로에서 옆 골목을 집어 간선을 30 으로 깎지 않게
   if(auto.mergeWait){ vmax=Math.min(vmax, 1.5); window.__mergeWaitN=(window.__mergeWaitN||0)+1; }   // 차로 못 옮김 + 회전 임박: 틈 대기
   if(pedD<PED_STOP_M) vmax=0;
   else if(pedD<PED_SLOW_M) vmax=Math.min(vmax, 3.5);
@@ -6003,7 +6003,7 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
        필요한 thr 을 역산하고, 커브·전방 감속분(thr0)을 상한으로 씌운다. */
     if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('tc:speed');
     let TGT = (window.__TARGET_KMH || 45) / 3.6;       // m/s
-    try{ const _lim=window.roadLimitKmh&&window.roadLimitKmh(nearestSeg(me.x,me.y)); if(_lim) TGT=Math.min(TGT, _lim/3.6); }catch(e){}   // 이면도로 30km/h(제17조)
+    try{ const _lim=window.roadLimitKmh&&window.roadLimitKmh((typeof routeSeg==='function'&&routeSeg(me.x,me.y))||nearestSeg(me.x,me.y)); if(_lim) TGT=Math.min(TGT, _lim/3.6); }catch(e){}   // 이면도로 30km/h(제17조), 경로 도로 기준
     if(brake === 0){
       const cap = TGT * 1.12;                            // thr=1 일 때 도달 속도
       const need = Math.max(0, Math.min(1, TGT / cap));  // 목표 유지에 필요한 thr(≈0.89)
