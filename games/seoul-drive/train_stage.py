@@ -35,6 +35,7 @@ STAGES = {
 }
 
 AUG = os.environ.get('AUG', '1') == '1'
+EXTRA_W = float(os.environ.get('EXTRA_W', '2.0'))   # DAgger 라운드 프레임 가중치(2026-09-20)
 def augment(xb):
     """도메인 랜덤화(오너 u_5439, 2026-09-19): 밝기·대비 지터, 가우시안 노이즈, 일부는 흑백 — 그래픽 스타일이 아니라
        도로/차선/장애물 형태에 반응하도록. 검증 배치에는 적용하지 않는다."""
@@ -90,6 +91,11 @@ def load(dirs, stage, replay, rng, extra=()):
         # ★DAgger 라운드도 정지 프레임은 뺀다(2026-09-20 k=2 실측: r202 96% 가 v≈0·brake 라벨 → 다음 모델이 '서 있기'를 배움, 진행 0.6%).
         #   남기는 것: 차가 움직였거나(v>1) 교사가 '가라'(thr>0.3)고 한 프레임 — 출발·복귀 정답은 남고, 앞차 뒤 대기는 follow 단계 몫.
         sel = STAGES[stage](M) if d not in extra else ((M[:, 5] > 1.0) | (Y[:, 1] > 0.3))
+        if d in extra:
+            # ★2026-09-20 k=5 실측: 교사 프레임에선 조향 상관 0.895·lat 추종 −0.885 인데, 모델이 벗어난 프레임(r205, |lat| 3.3m)에선
+            #   lat 추종 −0.16 → 벗어난 상태의 교정을 못 배웠다(공변량 이동). DAgger 라벨은 교사의 '교정'이므로 사고 직전 3초 W=0 이
+            #   오히려 교정 표본을 지운다 → DAgger 라운드는 W=1 로 되돌리고 가중치 extra_w 배.
+            W = np.full(len(Y), float(EXTRA_W), np.float32)
         rest = np.where(~sel)[0]
         rep = rng.choice(rest, int(len(rest) * replay), replace=False) if len(rest) and replay > 0 else np.array([], int)
         idx = np.concatenate([np.where(sel)[0], rep])
