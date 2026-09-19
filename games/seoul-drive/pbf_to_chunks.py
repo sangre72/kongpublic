@@ -64,6 +64,7 @@ class Conv(osmium.SimpleHandler):
         k = self._key(cx, cy)
         if hw in ROAD:
             oneway = t.get('oneway') in ('yes','true','1')
+            oneway_tagged = t.get('oneway') is not None
             def _i(k):
                 try: return int(str(t.get(k)).split(';')[0])
                 except (TypeError, ValueError): return None
@@ -121,6 +122,7 @@ class Conv(osmium.SimpleHandler):
             if lb is not None: rec['lb'] = lb
             if wd is not None: rec['wd'] = wd
             if not tagged: rec['ld'] = 1                # lanes 태그 없음 → 도로등급 기본값 사용(검토 대상)
+            if not oneway_tagged: rec['od'] = 1         # oneway 태그 없음(왕복 기본값) → 연속성 규칙 검토 대상
             self._put(k, 'r', rec)
             self.nroad += 1
         else:
@@ -186,6 +188,27 @@ def main():
             for r in recs: r['l'] = to; r['ls'] = best[2]
             nsib += 1
     print(json.dumps({'sibling_lane_fixes': nsib}), flush=True)
+    # ★2026-09-19 u_5434 "중앙선 주행" 실측(서소문로 1424068313, 176m): oneway 태그 없는 토막이 앞뒤 같은 이름의 일방 사이에서
+    #   왕복으로 모델링돼 실제 없는 중앙선이 그려졌다. 규칙: od(태그 없음) way 의 양쪽 끝점이 각각 같은 이름의 일방 way 끝점과
+    #   맞닿고(1m) 그 이웃들의 차로수가 같으면 일방으로 본다(연속성). 보고서에 남긴다.
+    ends = {}   # (name) -> list of (x,y,rec)
+    for k, v in h.ch.items():
+        for r in v['r']:
+            if r['o'] and r['n']:
+                for pt in (r['p'][0], r['p'][-1]): ends.setdefault(r['n'], []).append((pt[0], pt[1], r))
+    ncont = 0
+    for k, v in h.ch.items():
+        for r in v['r']:
+            if r['o'] or not r.get('od') or not r['n'] or r['n'] not in ends: continue
+            def _nb(pt):
+                for x, y, q in ends[r['n']]:
+                    if q is not r and math.hypot(x - pt[0], y - pt[1]) < 1.0 and q['l'] == r['l']: return q
+                return None
+            a_, b_ = _nb(r['p'][0]), _nb(r['p'][-1])
+            if a_ is not None and b_ is not None and a_ is not b_:
+                r['o'] = True; r['oc'] = 1; ncont += 1
+                h.fixed.append((r['w'], r['n'], r['l'], r['l'], f'oneway-continuity {a_["w"]}/{b_["w"]}'))
+    print(json.dumps({'oneway_continuity_fixes': ncont}), flush=True)
     tot = 0
     for k, v in h.ch.items():
         fp = f'{out}/chunks/{k.replace(",","_")}.json'
