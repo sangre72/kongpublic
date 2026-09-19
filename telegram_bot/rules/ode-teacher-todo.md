@@ -119,4 +119,11 @@ python3 sweep_test.py --pairs /tmp/pairs30.json --secs 600 --out /tmp/sweep60.js
 불가항력 보행자 사고(2초 정지) 뒤 auto.i 가 차 위치보다 뒤에 남아 xt 게이지가 1.6e8 을 찍고,
 ~10초 뒤 복귀 점프(tpPath)가 난다. 주행 결함이 아니라 사고 처리의 뒷정리다.
 할 일: crashHold 해제 시점에 auto.i 를 차 위치의 최근접 경로점으로 즉시 재설정. 그러면 tpPath 가 안 난다.
+→ **완료(2026-09-19, 39a5b57)**: crashResync() 가 해제 시점에 [i-5,i+60] 창에서 재설정. /tel `crashResyncN`.
 (회귀 러너는 사고 후 15초 안의 순간이동을 'post-crash' 로 표시하고 판정에서 뺀다 — 표시는 남는다.)
+
+### 2026-09-19 병렬 정리 결과 (u_5422)
+- turn:lanes(`tl`) 소비 시작(f962969): game.js parseTurnLanes/tlPickLane, teacher laneTarget 전용차로 우선, 경로 'Rtl'/'Ltl' 작성자.
+  /tel `tlUse tlMismatch tlDbg tlRoute`. 지도에 tl 있는 도로 186개 — 회귀 3구간엔 해당 도로 없음(tlUse 0). 30구간 스윕에서 실측할 것.
+- 출발 후보가 차 뒤 노드로 잡히던 결함(3203ea6): 기존 __startBack 검사는 gAstar 의 90° 거부 뒤라 도달불가였다. 15m 뒤/100° 밖 후보 거부, 전부 탈락 시 startRelax=1.
+- 회귀 러너 'FAIL: no result' 2건은 코드가 아니라 렌더러 981MB 재기동 타이밍(reload.sh 1회 재시도)이었다. 재실행 ALL PASS.
