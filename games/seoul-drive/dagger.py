@@ -146,14 +146,15 @@ def episode(net, dev, secs, ep):
             W.append(1.0); TT.append(time.time())
             try:
                 g2 = t.get('g2') or {}
+                _ext = ([float(os.environ.get('ODE_ENV', '0')), float(ep), float(len(X))] if os.environ.get('M_EXT') == '1' else [])   # u_5442: env/ep/fi (M_EXT=1 부터, 밤 수집 형식 유지)
                 M.append([float(t.get('gap') if t.get('gap') is not None else 1e9),
                           float(t.get('ped') if t.get('ped') is not None else 1e9),
                           float(t.get('sig') if t.get('sig') is not None else 1e9),
                           {'S': 0, 'L': 1, 'R': 2, 'U': 3}.get(g2.get('aTurn') or 'S', 0),
                           float(g2.get('aD') if g2.get('aD') is not None else 1e9),
-                          float(d.get('v') or 0), float(g2.get('laneF') or 0), float(g2.get('nl') or 0)])
+                          float(d.get('v') or 0), float(g2.get('laneF') or 0), float(g2.get('nl') or 0)] + _ext)
             except Exception:
-                M.append([1e9, 1e9, 1e9, 0, 1e9, 0.0, 0.0, 0.0])
+                M.append([1e9, 1e9, 1e9, 0, 1e9, 0.0, 0.0, 0.0] + ([float(os.environ.get('ODE_ENV', '0')), float(ep), float(len(X))] if os.environ.get('M_EXT') == '1' else []))
             Y.append([st, th, br, float(d.get('v') or 0),
                       float(t.get('fl') if t.get('fl') is not None else -1.0),
                       float(t.get('fr') if t.get('fr') is not None else -1.0)])
