@@ -129,6 +129,28 @@ def main():
     print(json.dumps({'parsed_s': round(time.time()-t0),
                       'roads': h.nroad, 'blds': h.nbld, 'signals': h.nsig, 'stations': getattr(h,'npoi',0),
                       'chunks': len(h.ch)}), flush=True)
+    # ★2026-09-19 스윕 10·11구간 실측(언주로 218448824): lanes 태그 없는 일방 차도가 기본값 3(9.75m)으로 그려졌는데
+    #   16m 옆의 같은 이름 반대편 차도(908696520)는 lanes=4. 두 구간이 정확히 같은 좌표(1104.7,-1005.2)에서
+    #   도로이탈했다. 규칙: 태그 없는 일방(ld) way 는 40m 안 같은 이름의 태그된 일방 way 차로수를 물려받는다.
+    sib = {}
+    for k, v in h.ch.items():
+        for r in v['r']:
+            if r['o'] and 'ld' not in r and r['n']:
+                mx = sum(x for x, _ in r['p']) / len(r['p']); my = sum(y for _, y in r['p']) / len(r['p'])
+                sib.setdefault(r['n'], []).append((mx, my, r['l'], r['w']))
+    nsib = 0
+    for k, v in h.ch.items():
+        for r in v['r']:
+            if not (r['o'] and r.get('ld') and r['n'] in sib): continue
+            best = None
+            for (x, y) in r['p']:
+                for mx, my, l, w in sib[r['n']]:
+                    d = math.hypot(mx - x, my - y)
+                    if 8 <= d < 40 and (best is None or d < best[0]): best = (d, l, w)   # 4m 짜리는 같은 이름의 연결로/회전차로 — 제외
+            if best and best[1] > r['l']:                                            # 넓히기만 한다(본선을 1차로로 줄이는 사고 방지)
+                h.fixed.append((r['w'], r['n'], r['l'], best[1], f'sibling {best[2]} @{best[0]:.0f}m'))
+                r['l'] = best[1]; r['ls'] = best[2]; nsib += 1
+    print(json.dumps({'sibling_lane_fixes': nsib}), flush=True)
     tot = 0
     for k, v in h.ch.items():
         fp = f'{out}/chunks/{k.replace(",","_")}.json'
