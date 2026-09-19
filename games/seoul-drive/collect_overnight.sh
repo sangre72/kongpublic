@@ -13,6 +13,13 @@ while [ "$(date +%H)" != "07" ] && [ $r -lt 130 ]; do
   if ! python3 -c "
 import json,urllib.request,sys
 d=json.load(urllib.request.urlopen('http://localhost:8901/tel',timeout=5)); sys.exit(0 if (d.get('wpLen') or 0)>100 else 1)"; then echo "route fail, skip"; r=$((r+1)); continue; fi
+  # 정지 데이터 방지(규칙 §2, 2026-09-19 대흥로20안길 헤어핀 실측): 60초 시험 에피소드에서 진행이 없으면(prog<0.005) 그 구간은 건너뛴다
+  python3 dagger.py --round $r --episodes 1 --secs 60 --model none 2>&1 | grep -E '"ep"' | cut -c1-200 > /tmp/dagger_probe_r$r.log
+  if ! python3 -c "
+import json,sys
+try: e=json.loads(open('/tmp/dagger_probe_r$r.log').read().strip().splitlines()[-1]); sys.exit(0 if (e.get('prog_max',0)-e.get('prog_start',0))>=0.005 else 1)
+except Exception: sys.exit(1)"; then echo "no progress in 60s probe — skip"; rm -rf data/dagger_r$r; r=$((r+1)); continue; fi
+  rm -rf data/dagger_r$r
   python3 dagger.py --round $r --episodes 3 --secs 600 --model none 2>&1 | grep -E '"ep"|"round"|err|abort' | cut -c1-260 | tee /tmp/dagger_r$r.log
   s=$(python3 -c "
 import json,glob
