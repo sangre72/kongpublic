@@ -49,22 +49,27 @@ def batch(X, Y, ids):
 
 
 def main(dirs, out, epochs=30):
-    Xs, Ys = [], []
+    Xs, Ys, Ws = [], [], []
     for d in dirs:
         try:
             X = np.load(f'{d}/X.npy'); Y = np.load(f'{d}/Y.npy')[:, :3].astype(np.float32)
         except Exception:
             continue
+        # ★u_5426 프레임 가중치(W.npy, 사고 직전 3초=0). 없으면 전부 1.
+        try: Wt = np.load(f'{d}/W.npy').astype(np.float32)
+        except Exception: Wt = np.ones(len(Y), np.float32)
+        if len(Wt) != len(Y): Wt = np.ones(len(Y), np.float32)
         m = straight_mask(Y)
         if m.sum() < 20:
             continue
-        Xs.append(X[m]); Ys.append(Y[m])
+        Xs.append(X[m]); Ys.append(Y[m]); Ws.append(Wt[m])
         print(json.dumps({'dir': d.split('/')[-1], 'total': len(Y),
                           'straight': int(m.sum())}), flush=True)
     if not Xs:
         print(json.dumps({'error': 'no straight frames'}), flush=True); return
-    X = np.concatenate(Xs); Y = np.concatenate(Ys)
+    X = np.concatenate(Xs); Y = np.concatenate(Ys); Wall = np.concatenate(Ws)
     n = len(X)
+    print(json.dumps({'w0_frames': int((Wall == 0).sum()), 'w_mean': round(float(Wall.mean()), 4)}), flush=True)
     print(json.dumps({'frames': n,
                       'steer_std': round(float(Y[:, 0].std()), 4),
                       'thr_mean': round(float(Y[:, 1].mean()), 3)}), flush=True)
@@ -86,9 +91,10 @@ def main(dirs, out, epochs=30):
         perm = np.random.permutation(tr)
         for i in range(0, len(perm), BS):
             xb, yb = batch(X, Y, perm[i:i+BS])
+            wb = torch.from_numpy(Wall[np.abs(perm[i:i+BS]) - 1]).to(DEV)
             opt.zero_grad()
             o = net(xb)
-            l = mse(o, yb)
+            l = (wb * ((o - yb) ** 2).mean(1)).sum() / wb.sum().clamp_min(1.0)   # 가중 MSE(u_5426)
             # ★u_5172 오너 지적 "경로선은 직선인데 차는 우측으로 커브".
             #   실측: 오드 조향이 100% 양수(평균 +0.046). 학습 데이터는
             #   좌우 균형(양45%/음46%)인데 모델만 편향돼 있었다.

@@ -51,6 +51,9 @@ def episode(net, dev, secs, ep):
     post({'reset': 1, 'on': 1, 'force': 1, 'release': 0})   # 소프트리셋 + 모델 강제 ON
     time.sleep(1.5)
     X, Y = [], []
+    W, TT = [], []                         # ★u_5426 프레임 가중치(사고 직전 3초=0)·프레임 시각
+    M = []                                 # ★u_5427 상황 태그 [gap, ped, sig, turn(0/S 1/L 2/R 3/U), aD, v, laneF, nl] — 커리큘럼 단계 필터용
+    cr_prev = cr0; crk_prev = dict(crk0)
     seen = set()
     t0 = time.time()
     d0 = tel() or {}
@@ -68,6 +71,22 @@ def episode(net, dev, secs, ep):
         if not d:
             time.sleep(0.05); continue
         ntot += 1
+        # ★u_5426 오너: "사고(추돌·충돌)는 가중치를 조절해서 학습이 되게끔". 회피 가능한 사고가 나면
+        #   그 직전 3초 프레임의 가중치를 0 으로 둔다(그 구간의 교사 라벨은 사고로 이어진 행동이다).
+        #   불가항력(정지거리 안 무단횡단)은 라벨이 잘못된 게 아니므로 가중치를 유지한다.
+        try:
+            cr_now = int(d.get('cr') or 0)
+            if cr_now > cr_prev:
+                crk_now = dict(d.get('crk') or {})
+                new_types = [k for k in crk_now if int(crk_now.get(k, 0)) > int(crk_prev.get(k, 0))]
+                if any('불가항력' not in k for k in new_types):
+                    tc = time.time()
+                    for j in range(len(W) - 1, -1, -1):
+                        if TT[j] < tc - 3.0: break
+                        W[j] = 0.0
+                cr_prev = cr_now; crk_prev = crk_now
+        except Exception:
+            pass
         if d.get('drv') == 'MODEL':
             nmodel += 1
         p = float(d.get('prog') or 0)
@@ -121,6 +140,17 @@ def episode(net, dev, secs, ep):
             # ★lane_off(방향없는 스칼라)는 v14 에서 역효과였다 — 건물충돌
             #   41→96건, 거리 2948→1370m. 좌/우를 따로 줘야 '어디로 피하나'를
             #   배운다(net.py 원설계).
+            W.append(1.0); TT.append(time.time())
+            try:
+                g2 = t.get('g2') or {}
+                M.append([float(t.get('gap') if t.get('gap') is not None else 1e9),
+                          float(t.get('ped') if t.get('ped') is not None else 1e9),
+                          float(t.get('sig') if t.get('sig') is not None else 1e9),
+                          {'S': 0, 'L': 1, 'R': 2, 'U': 3}.get(g2.get('aTurn') or 'S', 0),
+                          float(g2.get('aD') if g2.get('aD') is not None else 1e9),
+                          float(d.get('v') or 0), float(g2.get('laneF') or 0), float(g2.get('nl') or 0)])
+            except Exception:
+                M.append([1e9, 1e9, 1e9, 0, 1e9, 0.0, 0.0, 0.0])
             Y.append([st, th, br, float(d.get('v') or 0),
                       float(t.get('fl') if t.get('fl') is not None else -1.0),
                       float(t.get('fr') if t.get('fr') is not None else -1.0)])
@@ -137,10 +167,13 @@ def episode(net, dev, secs, ep):
         'prog_start': round(p_start, 4), 'prog_max': round(pmax, 4),
         'prog_end': round(float(dl.get('prog') or 0), 4),
         'crashes': int(dl.get('cr') or 0) - cr0, 'crash_types': dcr,
+        'w0_frames': int(sum(1 for w in W if w == 0.0)),
         'arrived': arrived, 'secs': round(time.time() - t0, 1),
     }
     return (np.stack(X) if X else None,
-            np.array(Y, dtype=np.float32) if Y else None, stats)
+            np.array(Y, dtype=np.float32) if Y else None, stats,
+            np.array(W, dtype=np.float32) if W else None,
+            np.array(M, dtype=np.float32) if M else None)
 
 
 def main():
@@ -167,14 +200,14 @@ def main():
 
     outd = os.path.join(BASE, 'data', 'dagger_r%d' % a.round)
     os.makedirs(outd, exist_ok=True)
-    AX, AY, ST = [], [], []
+    AX, AY, ST, AW, AM = [], [], [], [], []
     try:
         for i in range(a.episodes):
-            X, Y, s = episode(net, dev, a.secs, i + 1)
+            X, Y, s, Wt, Mt = episode(net, dev, a.secs, i + 1)
             ST.append(s)
             print(json.dumps(s, ensure_ascii=False), flush=True)
             if X is not None:
-                AX.append(X); AY.append(Y)
+                AX.append(X); AY.append(Y); AW.append(Wt); AM.append(Mt)
     finally:
         post({'on': 0, 'steer': 0, 'thr': 0, 'brake': 0})
 
@@ -182,6 +215,8 @@ def main():
         print(json.dumps({'err': 'no frames collected'})); return
     X = np.concatenate(AX); Y = np.concatenate(AY)
     np.save(f'{outd}/X.npy', X); np.save(f'{outd}/Y.npy', Y)
+    np.save(f'{outd}/W.npy', np.concatenate(AW))     # 프레임 가중치(u_5426) — 없으면 학습기는 전부 1 로 본다
+    np.save(f'{outd}/M.npy', np.concatenate(AM))     # 상황 태그(u_5427) — 단계별(커리큘럼) 프레임 선별용
     open(f'{outd}/DONE', 'w').write('ok\n')
     json.dump(ST, open(f'{outd}/episodes.json', 'w'), ensure_ascii=False, indent=1)
 
