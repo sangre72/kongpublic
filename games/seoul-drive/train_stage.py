@@ -24,7 +24,7 @@ import gpu_guard
 DEV = gpu_guard.require_gpu()
 BS = 128
 STAGES = {
-    'straight': lambda M: (M[:, 3] == 0) & (M[:, 0] > 60) & (M[:, 1] > 40) & (M[:, 2] > 60),
+    'straight': lambda M: (M[:, 3] == 0) & (M[:, 0] > 60) & (M[:, 1] > 40) & (M[:, 2] > 60) & (M[:, 5] > 1.0),   # v>1: 정지 프레임은 '서 있기'를 가르친다(ode-training-pitfalls; r110 ep3 1.75% 진행)
     'follow':   lambda M: M[:, 0] < 40,
     'ped':      lambda M: M[:, 1] < 30,
     'signal':   lambda M: M[:, 2] < 60,

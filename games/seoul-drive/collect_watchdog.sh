@@ -4,7 +4,8 @@ while pgrep -f collect_overnight.sh >/dev/null; do
   pid=$(pgrep -f "dagger.py --round" | head -1)
   if [ -n "$pid" ]; then
     sleep 90
-    if pgrep -f "dagger.py --round" >/dev/null; then
+    age=$(ps -o etimes= -p "$pid" 2>/dev/null | tr -d ' '); [ -z "$age" ] && age=0
+    if pgrep -f "dagger.py --round" >/dev/null && [ "$age" -lt 200 ]; then   # 첫 에피소드에서만(늦게 죽이면 앞 에피소드 데이터도 잃는다)
       m=$(python3 -c "
 import json,urllib.request
 try: d=json.load(urllib.request.urlopen('http://localhost:8901/tel',timeout=5)); print(int(d.get('doneM') or 0))
