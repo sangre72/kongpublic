@@ -99,6 +99,12 @@ top: prog routeM v cr crk brk st thr autoOn parked jsErr pedN{tot,near,onroad}
 - 아침: `games/seoul-drive/train_morning.sh`(수집 종료 대기 → `train_stage.py straight 'data/dagger_r1*' ode_s1.pt` → `dagger.py --model ode_s1.pt` 120초 검증 → 텔레그램). 그다음 단계(follow/ped/signal/turn/uturn)는 결과 보고 결정.
 - 레포에 있다: `games/seoul-drive/collect_overnight.sh`.
 
+## D-1. 확장(3D·실영상) 전제 데이터 규격 (오너 u_5442, 2026-09-19)
+- 입력: 픽셀만, `net.preprocess` 공통(256×256). 정답: 조향·스로틀·제동(정규화)·속도(m/s)·좌/우 차로 여유(m) — 도메인 중립 단위.
+- 프레임 태그 `M.npy`: gap, ped, sig, turn, aD, v, laneF, nl + (2026-09-20 추가) **env(도메인)**, **ep(에피소드)**, **fi(프레임 순번)** — 시간 문맥 모델용.
+- 가중치 `W.npy`(사고 직전 3초 0). 증강은 학습 배치에서만.
+- 방법론: 1·2단계 BC → DAgger → 단계별 커리큘럼(가중 손실); 3단계(실영상) 표현 학습/광류 의사 라벨 → 미세조정.
+
 ## D. 재개 방법
 ```bash
 cd games/seoul-drive
