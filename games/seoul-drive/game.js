@@ -131,7 +131,7 @@ function buildGraph(roads){
     const len=Math.hypot(nodes[b].x-nodes[a].x,nodes[b].y-nodes[a].y);
     const ang=Math.atan2(nodes[b].y-nodes[a].y,nodes[b].x-nodes[a].x);
     const _lf=laneFix(w.l,w.o);
-    segs.push({a,b,l:_lf,o:w.o,n:w.n,w:w.w,len,ang,roadW:_lf*LW});
+    segs.push({a,b,l:_lf,o:w.o,n:w.n,w:w.w,tl:w.tl,len,ang,roadW:_lf*LW});   // tl = turn:lanes 원문(없으면 undefined)
     nodes[a].e.push(si);nodes[b].e.push(si);
   }
 }
@@ -143,6 +143,49 @@ const other=(s,n)=>s.a===n?s.b:s.a;
    찍혀 경로선이 4~5차로를 사선으로 가로지른다(오너 스크린샷). 일방통행에 7차로 이상이면 절반으로 본다.
    두 소비처(로컬 segs·전역 GSEGS) 모두 이 한 함수를 거친다. */
 function laneFix(l,o){ l=l||2; if(o && l>=7){ window.__laneFixN=(window.__laneFixN||0)+1; return Math.max(1,Math.floor(l/2)); } return l; }
+
+/* ★turn:lanes(OSM 'tl', pbf_to_chunks.py rec['tl']) 파서 — 순수 함수(2026-09-19).
+   "left|through|through;right" → [['left'],['through'],['through','right']]
+   차로는 진행방향 기준 왼쪽→오른쪽, '|' 가 차로 구분, ';' 가 복수 허용. 빈 토큰(표시 없음)은 'none'.
+   문자열이 아니거나 비면 null. 검증: node games/seoul-drive/test_turn_lanes.js */
+function parseTurnLanes(tl){
+  if(typeof tl!=='string') return null;
+  const s=tl.trim(); if(!s) return null;
+  const out=s.split('|').map(c=>{
+    const t=c.split(';').map(x=>x.trim().toLowerCase()).filter(x=>x.length);
+    return t.length?t:['none'];
+  });
+  return out.length?out:null;
+}
+/* 회전별 목표 차로(0=맨 왼쪽=1차로). R='right' 계열이 있는 가장 왼쪽 차로 / L='left' 계열이 있는 가장 오른쪽 차로 /
+   U='reverse' 가 있으면 그 중 가장 오른쪽, 없으면 L 규칙 / S=cur 에서 가장 가까운 직진 가능(through·none) 차로
+   (left/right 만 있는 회전전용 차로는 피한다). 없으면 -1. 차로수 검증은 tlSetsFor 가 한다. */
+function tlPickLane(sets, turn, cur){
+  if(!sets||!sets.length) return -1;
+  const isR=x=>x==='right'||x==='slight_right'||x==='sharp_right';
+  const isL=x=>x==='left'||x==='slight_left'||x==='sharp_left';
+  const isS=x=>x==='through'||x==='none';
+  if(turn==='R'){ for(let i=0;i<sets.length;i++) if(sets[i].some(isR)) return i; return -1; }
+  if(turn==='U'){ for(let i=sets.length-1;i>=0;i--) if(sets[i].indexOf('reverse')>=0) return i; turn='L'; }
+  if(turn==='L'){ for(let i=sets.length-1;i>=0;i--) if(sets[i].some(isL)) return i; return -1; }
+  if(turn==='S'){
+    const c=(typeof cur==='number'&&!isNaN(cur))?cur:0; let best=-1, bd=1e9;
+    for(let i=0;i<sets.length;i++){ if(!sets[i].some(isS)) continue; const d=Math.abs(i-c); if(d<bd){ bd=d; best=i; } }
+    return best;
+  }
+  return -1;
+}
+/* 간선 sg 의 tl 이 '이 방향 차로수 nl'(일방=l, 왕복=floor(l/2)) 과 맞을 때만 차로 집합을 준다.
+   안 맞으면 데이터 오류(예: lanes 에 도로 전체 차로수가 달린 way, laneFix 로 반 나눈 간선)로 보고 무시 + __tlMismatch.
+   결과는 간선에 캐시(_tlc)한다 — 매 프레임 파싱·중복 카운트 방지. */
+function tlSetsFor(sg, nl){
+  if(!sg || !sg.tl) return null;
+  if(sg._tlc!==undefined && sg._tlcN===nl) return sg._tlc;
+  let sets=parseTurnLanes(sg.tl);
+  if(sets && sets.length!==nl){ window.__tlMismatch=(window.__tlMismatch||0)+1; sets=null; }
+  sg._tlc=sets; sg._tlcN=nl;
+  return sets;
+}
 function nearestSegRaw(x,y){
   let b=null,bd=1e18;
   for(const s of segs){
@@ -953,7 +996,7 @@ function buildGlobalGraph(){
       const nd=r.nd;
       const si=GSEGS.length;
       GSEGS.push({a,b,len,l:laneFix((r.l||2),!!r.o),o:!!r.o,
-                  w:(r.w||0), n:(r.n||''),   // ★u_5414: 이름을 싣는다 — way 가 쪼개져도 같은 도로인지 이걸로 안다
+                  w:(r.w||0), n:(r.n||''), tl:r.tl,   // ★u_5414: 이름을 싣는다 — way 가 쪼개져도 같은 도로인지 이걸로 안다. tl = turn:lanes 원문(2026-09-19)
                   n0:(nd&&i===0)?nd[0]:0,
                   n1:(nd&&i+2===p.length)?nd[1]:0});
       A.e.push(si); B.e.push(si);
@@ -1132,8 +1175,8 @@ function gStartNode(x,y,ang){
   /* ★w/n0/n1 을 새 간선에 승계한다(ar_5053 지적).
      간선을 쪼갤 때 way id 를 안 넘기면, 그 간선에 걸린 회전금지가 조회되지 않아
      출발 직후 첫 교차로에서만 제한이 빠진다. */
-  const s1=GSEGS.length; GSEGS.push({a:sg.a,b:pi,len:la,l:sg.l,o:sg.o,w:sg.w,n:sg.n,n0:sg.n0,n1:sg.n1});
-  const s2=GSEGS.length; GSEGS.push({a:pi,b:sg.b,len:lb,l:sg.l,o:sg.o,w:sg.w,n:sg.n,n0:sg.n0,n1:sg.n1});
+  const s1=GSEGS.length; GSEGS.push({a:sg.a,b:pi,len:la,l:sg.l,o:sg.o,w:sg.w,n:sg.n,tl:sg.tl,n0:sg.n0,n1:sg.n1});
+  const s2=GSEGS.length; GSEGS.push({a:pi,b:sg.b,len:lb,l:sg.l,o:sg.o,w:sg.w,n:sg.n,tl:sg.tl,n0:sg.n0,n1:sg.n1});
   GNODES[sg.a].e.push(s1); GNODES[pi].e.push(s1);
   GNODES[pi].e.push(s2);  GNODES[sg.b].e.push(s2);
   sg.v=1;                                      // 원본 간선은 이제 쓰지 않는다
@@ -1788,6 +1831,30 @@ function planTo(x,y){
         (window.__prepLWhy=window.__prepLWhy||[]).push({i, m:Math.round(acc/S), n:_cand.length, dl:_dirLanes(sgTurn), brk:_brk, tAt:_near});
       }
     }
+    /* ★turn:lanes(tl) 전용 회전차로 → 경로 오프셋(2026-09-19).
+       회전 정점 직전 홉의 간선에 tl 이 있고 이 방향 차로수와 맞으면, 그 홉의 오프셋을 지시된 차로에 둔다:
+         우회전 = 'right' 계열이 있는 가장 왼쪽 차로(작성자 'Rtl'), 좌회전 = 'left' 계열이 있는 가장 오른쪽 차로('Ltl').
+       tl 은 way 진행방향 기준이라 간선이 경로와 같은 방향(sgT.a===p[i-1])일 때만 쓴다.
+       최소 적용 — 정점 직전 한 홉만 덮고, 그 앞은 램프(E4)가 이어준다. 유턴(|각|>150°)은 건드리지 않는다.
+       (우회전 진입홉을 '맨 오른쪽'으로 고정한 시도는 갇힘이 늘어 되돌린 이력이 있다(위 주석). 여기서는
+        지도가 전용차로라고 말하는 홉만 바꾼다 — 기본값과 다른 차로가 나오는 건 우회전 차로가 둘 이상이거나
+        through;right 처럼 겸용 차로가 더 왼쪽에 있을 때다.) 예외는 경로 생성을 죽이지 않고 __tlRouteErr 에 남긴다. */
+    try{
+      window.__tlRoute=0; window.__tlRouteErr=null;
+      for(const [i,_deg] of (window.__turnAtDbg||[])){
+        if(i<1 || i>=NP-1 || Math.abs(_deg)>150) continue;
+        const sgT=edgeOf(p[i-1],p[i]);
+        if(!sgT || !sgT.tl || sgT.a!==p[i-1]) continue;
+        const _nlT = sgT.o ? (sgT.l||1) : Math.max(1, Math.floor((sgT.l||2)/2));
+        const sets=tlSetsFor(sgT,_nlT); if(!sets) continue;
+        const turn=_deg>0?'R':'L';
+        const li=tlPickLane(sets,turn,null); if(li<0) continue;
+        const sgF={...sgT, roadW:(sgT.roadW||(Math.max(1,sgT.l||2)*LW))};
+        offs[i-1]=laneOffset(sgF,1,li);
+        (window.__offWho=window.__offWho||{})[i-1]=(turn==='R'?'Rtl':'Ltl');
+        window.__tlRoute++;
+      }
+    }catch(e){ window.__tlRouteErr=String(e&&e.message||e).slice(0,80); }
     /* ★u_5185 진단: gAstar 는 291노드로 목적지까지 도달하는데(endToTgt=0)
        웨이포인트는 64점 312m 뿐이다. 이 리샘플 단계에서 잘린다.
        NP 와 edgeOf 실패 수를 본다 — edgeOf 가 NS!==GNODES 면 무조건 null 이라
@@ -2571,6 +2638,7 @@ function mdlPoll(dt){
          위치로 오독해 '유턴 지점에서 110초 정지'라는 허위 진단을 냈다(두 번째). 실시간
          좌표는 여기 pos 로만 읽는다. */
       pos: [+(me.x).toFixed(1), +(me.y).toFixed(1), +(me.ang*57.2958).toFixed(1)],
+      tlUse: window.__tlUse||0, tlMismatch: window.__tlMismatch||0, tlDbg: window.__tlDbg||null, tlRoute: window.__tlRoute||0, tlRouteErr: window.__tlRouteErr||null,   // turn:lanes(tl) 사용 계측(2026-09-19)
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       crashResyncN: window.__crashResyncN||0,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,

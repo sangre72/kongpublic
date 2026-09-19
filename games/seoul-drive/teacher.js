@@ -330,7 +330,20 @@
            4차로 좌회전이 계속 재현됨). 좌회전/유턴은 상한을 500m 로 올린다.
            우회전은 기존 상한(250m) 유지 — 오른쪽 끝 차로 하나 옮기는 데
            500m 는 과도하고, 우회전전용차로는 보통 교차로 근처에 있다. */
-        const tgtLane = (aheadTurn === 'L' || aheadTurn === 'U') ? 0 : (nl - 1);
+        let tgtLane = (aheadTurn === 'L' || aheadTurn === 'U') ? 0 : (nl - 1);
+        /* ★turn:lanes(tl) 전용 회전차로(2026-09-19). 현재 간선에 tl(OSM turn:lanes 원문)이 있고 이 방향
+           차로수와 맞으면 기본값(좌=맨 왼쪽/우=맨 오른쪽) 대신 지도가 지시한 차로를 목표로 한다:
+           R = 'right' 계열이 있는 가장 왼쪽 차로, L = 'left' 계열이 있는 가장 오른쪽 차로, U = 'reverse' 차로.
+           tl 은 way 진행방향 기준이라 dir>0 일 때만 쓴다. 차로수 불일치는 game.js tlSetsFor 가 무시+계수한다.
+           예외는 여기서 먹는다(laneTarget 예외 = g2 전멸, 3회 겪음). 사용 횟수 __tlUse, 마지막 결정 __tlDbg. */
+        try{
+          if(dir>0 && sg && sg.tl && typeof tlSetsFor==='function'){
+            const _sets=tlSetsFor(sg, nl);
+            const _li=_sets?tlPickLane(_sets, aheadTurn, T.laneF):-1;
+            if(_li>=0){ tgtLane=_li; window.__tlUse=(window.__tlUse||0)+1;
+                        window.__tlDbg={w:sg.w||null, tl:sg.tl, turn:aheadTurn, lane:_li, nl:nl}; }
+          }
+        }catch(e){ T._tlErr=String(e).slice(0,60); }
         const hops = Math.abs(tgtLane - (T.laneF !== undefined ? T.laneF : 0));
         const vNow = Math.max(me.v, 8.3);              // 최소 30km/h 기준
         /* ★2026-09-18: 우회전 준비거리를 150~400m 로 늘려봤으나 위반은 그대로고
@@ -374,6 +387,16 @@
         const gi  = sg.o ? ((lat + (sg.roadW/2)/S)/(LW/S) - 0.5)
                          : (Math.abs(lat)/(LW/S) - 0.5);
         want = Math.max(0, Math.min(nl-1, Math.round(gi)));
+        /* ★tl 직진(2026-09-19): 회전 규칙이 없는데 경로가 놓인 차로가 회전전용(left/right 만)이면
+           가장 가까운 직진 가능 차로(through·none)로 목표를 옮긴다. 이미 직진 차로면 그대로다. */
+        try{
+          if(ruleWant === null && dir>0 && sg && sg.tl && typeof tlSetsFor==='function'){
+            const _sets=tlSetsFor(sg, nl);
+            const _li=_sets?tlPickLane(_sets, 'S', want):-1;
+            if(_li>=0 && _li!==want){ window.__tlUse=(window.__tlUse||0)+1;
+                                      window.__tlDbg={w:sg.w||null, tl:sg.tl, turn:'S', lane:_li, nl:nl, from:want}; want=_li; }
+          }
+        }catch(e){ T._tlErr=String(e).slice(0,60); }
         // 회전·차로감소 규칙이 있으면 그쪽이 우선한다(경로점은 직진 기준이다)
         if(ruleWant !== null) want = Math.max(0, Math.min(nl-1, ruleWant));
         /* ★u_5189 오너 지적 "한번에 두세개 차로씩 변경하는 운전이 없잖아".
@@ -501,7 +524,7 @@
     T.dbg2 = {nlat: (function(){ try{
                 return +(((-(ns.px-me.x)*Math.sin(sg.ang) + (ns.py-me.y)*Math.cos(sg.ang))/S*dir)).toFixed(2);
               }catch(e){ return null; } })(),
-              err: (T._aErr||T._rErr)||null, need: (T._need===undefined?null:T._need), aNl: aheadNl, aTurn: aheadTurn, aD: aheadDist, want: (T._want===undefined?null:T._want),
+              err: (T._aErr||T._rErr||T._tlErr)||null, need: (T._need===undefined?null:T._need), aNl: aheadNl, aTurn: aheadTurn, aD: aheadDist, want: (T._want===undefined?null:T._want),
               fin: (T._final===undefined?null:T._final),
               lat: +((cross + off/S)).toFixed(2), sw: sg.w || null, nl: nl,
               laneF: +(+(T.laneF||0)).toFixed(2),
