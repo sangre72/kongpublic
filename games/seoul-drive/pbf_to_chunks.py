@@ -90,6 +90,31 @@ class Conv(osmium.SimpleHandler):
             # 지점이므로 끝점 두 개만 있으면 via 판정이 된다.
             rec = {'n': t.get('name',''), 'l': max(1,min(10,lanes)), 'o': oneway, 'p': xy,
                    'w': w.id, 'nd': [kept[0][2], kept[-1][2]]}
+            # ★2026-09-19 스윕 10·11구간 실측(언주로 218448824, 57점 ≈1km): way 를 무게중심 청크 하나에만 넣어
+            #   옆 청크를 지나는 부분이 로컬 그래프에서 사라졌다(전역 라우터는 알고 있어 경로는 그리로 감 →
+            #   onRoad/교사가 '도로 없음' → 도로이탈 13~19회 루프, 두 구간이 같은 좌표에서). 청크 경계에서
+            #   way 를 조각내 각 청크에 자기 조각을 넣는다. 조각은 경계점을 공유해 그래프가 이어진다.
+            pieces = []; cur = [xy[0]]; ck = self._key(*xy[0])
+            for q in xy[1:]:
+                k2 = self._key(*q)
+                cur.append(q)
+                if k2 != ck:
+                    pieces.append((ck, cur)); cur = [q]; ck = k2
+            if len(cur) >= 2: pieces.append((ck, cur))
+            if len(pieces) > 1:
+                for idx, (pk, pp) in enumerate(pieces):
+                    r2 = dict(rec); r2['p'] = pp
+                    r2['nd'] = [kept[0][2] if idx == 0 else None, kept[-1][2] if idx == len(pieces)-1 else None]
+                    r2['pc'] = idx                      # 조각 번호(진단용)
+                    if tl: r2['tl'] = tl
+                    if lf is not None: r2['lf'] = lf
+                    if lb is not None: r2['lb'] = lb
+                    if wd is not None: r2['wd'] = wd
+                    if not tagged: r2['ld'] = 1
+                    self._put(pk, 'r', r2)
+                self.nroad += 1
+                self.nsplit = getattr(self, 'nsplit', 0) + 1
+                return
             # 추가 필드(게임이 아직 안 읽음 — 전용 회전차로 등 다음 단계용). 있을 때만 싣는다.
             if tl: rec['tl'] = tl                      # turn:lanes  예: "left|through|through;right"
             if lf is not None: rec['lf'] = lf
@@ -127,7 +152,7 @@ def main():
     h = Conv(bbox)
     h.apply_file(pbf, locations=True, idx='flex_mem')
     print(json.dumps({'parsed_s': round(time.time()-t0),
-                      'roads': h.nroad, 'blds': h.nbld, 'signals': h.nsig, 'stations': getattr(h,'npoi',0),
+                      'roads': h.nroad, 'blds': h.nbld, 'signals': h.nsig, 'stations': getattr(h,'npoi',0), 'split_ways': getattr(h,'nsplit',0),
                       'chunks': len(h.ch)}), flush=True)
     # ★2026-09-19 스윕 10·11구간 실측(언주로 218448824): lanes 태그 없는 일방 차도가 기본값 3(9.75m)으로 그려졌는데
     #   16m 옆의 같은 이름 반대편 차도(908696520)는 lanes=4. 두 구간이 정확히 같은 좌표(1104.7,-1005.2)에서
@@ -139,17 +164,27 @@ def main():
                 mx = sum(x for x, _ in r['p']) / len(r['p']); my = sum(y for _, y in r['p']) / len(r['p'])
                 sib.setdefault(r['n'], []).append((mx, my, r['l'], r['w']))
     nsib = 0
+    # ★청크 경계 분할 뒤엔 한 way 가 여러 조각이다 — 상속은 way 단위로(조각마다 다르면 3/3/4/3 처럼 폭이 들쭉날쭉).
+    byw = {}
     for k, v in h.ch.items():
         for r in v['r']:
-            if not (r['o'] and r.get('ld') and r['n'] in sib): continue
-            best = None
+            if r['o'] and r.get('ld') and r['n'] in sib: byw.setdefault(r['w'], []).append(r)
+    for wid, recs in byw.items():
+        best = None
+        for r in recs:
             for (x, y) in r['p']:
                 for mx, my, l, w in sib[r['n']]:
                     d = math.hypot(mx - x, my - y)
                     if 8 <= d < 40 and (best is None or d < best[0]): best = (d, l, w)   # 4m 짜리는 같은 이름의 연결로/회전차로 — 제외
-            if best and best[1] > r['l']:                                            # 넓히기만 한다(본선을 1차로로 줄이는 사고 방지)
-                h.fixed.append((r['w'], r['n'], r['l'], best[1], f'sibling {best[2]} @{best[0]:.0f}m'))
-                r['l'] = best[1]; r['ls'] = best[2]; nsib += 1
+        if not best: continue
+        # ★2026-09-19 실측(신촌로 1006160948 3→4 @10m): 형제와의 간격보다 넓어지면 두 차도가 겹쳐
+        #   경로/최근접 도로 판정이 뒤섞인다(스윕 신촌역 회귀). 폭 ≤ 간격−1m 로 상한.
+        cap = int((best[0] - 1.0) // 3.25)
+        to = min(best[1], cap)
+        if to > recs[0]['l']:
+            h.fixed.append((wid, recs[0]['n'], recs[0]['l'], to, f'sibling {best[2]} @{best[0]:.0f}m' + (f' cap{cap}' if to < best[1] else '') + f' x{len(recs)}'))
+            for r in recs: r['l'] = to; r['ls'] = best[2]
+            nsib += 1
     print(json.dumps({'sibling_lane_fixes': nsib}), flush=True)
     tot = 0
     for k, v in h.ch.items():

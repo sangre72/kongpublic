@@ -34,8 +34,16 @@ for c in cs:
     crashT=[t for k,t in ev if k=='crash']
     post=sum(1 for k,t in ev if k=='teleport' and any(0<=t-c<=15 for c in crashT))
     if post: print('    (post-crash 순간이동 %d건 — 판정에서 제외)'%post); r['tpN']=max(0,r.get('tpN',0)-post); r['blkStuck']=max(0,r.get('blkStuck',0)-post)
+    # 2026-09-19: 'cr' 기대값은 회피가능 사고만 센다(불가항력 보행자는 오너 규칙상 기록만)
+    try:
+        _un=sum(v for k,v in (r.get('crk') or {}).items() if '불가항력' in k); r['cr']=max(0,(r.get('cr') or 0)-_un)
+        if _un: print('    (불가항력 %d건 — 판정에서 제외)'%_un)
+    except Exception: pass
     for k,v in c['expect'].items():
         got=r.get(k)
+        if k=='min_driven_m':                      # 2026-09-19: 기어가기(60초 54m)도 실패로 — 최소 주행거리 기대값
+            if (got:=r.get('driven_m',0)) < v: print(f"    ★REGRESSION driven_m: expect ≥{v}, got {got}"); bad+=1
+            continue
         if got!=v: print(f"    ★REGRESSION {k}: expect {v}, got {got}"); bad+=1
 print(f"\n{'ALL PASS' if not bad else str(bad)+' REGRESSION(S)'}")
 sys.exit(1 if bad else 0)

@@ -939,9 +939,14 @@ function astar(s,t){
   G[st0]=0; F[st0]=h(s,t);
   const open=[{n:s, si:-1, k:st0}];
   let guard=0;
-  while(open.length && guard++ < 200000){
-    open.sort((a,b)=>F[a.k]-F[b.k]);
-    const cur=open.shift();
+  /* ★2026-09-19: 전역 gAstar 와 같은 이유로 힙 + 시간예산(2초). */
+  const _hp=[]; const hpush=(e)=>{ _hp.push(e); let i=_hp.length-1; while(i>0){ const j=(i-1)>>1; if(F[_hp[j].k]<=F[_hp[i].k]) break; [_hp[i],_hp[j]]=[_hp[j],_hp[i]]; i=j; } };
+  const hpop=()=>{ const top=_hp[0], last=_hp.pop(); if(_hp.length){ _hp[0]=last; let i=0; for(;;){ const l=2*i+1, r=l+1; let m=i; if(l<_hp.length&&F[_hp[l].k]<F[_hp[m].k]) m=l; if(r<_hp.length&&F[_hp[r].k]<F[_hp[m].k]) m=r; if(m===i) break; [_hp[i],_hp[m]]=[_hp[m],_hp[i]]; i=m; } } return top; };
+  for(const e of open) hpush(e); open.length=0;
+  const _t0=performance.now();
+  while(_hp.length && guard++ < 200000){
+    if((guard&1023)===0 && performance.now()-_t0>2000){ window.__astarTimeout=(window.__astarTimeout||0)+1; return null; }
+    const cur=hpop();
     if(cur.n===t){
       const p=[cur.n]; let k=cur.k;
       while(came[k]!==undefined){ const pv=came[k]; p.unshift(pv.n); k=pv.k; }
@@ -964,7 +969,7 @@ function astar(s,t){
       const ng=(G[cur.k]||0)+segs[si].len+(_isU?(UTURN_PEN+((SEGSj[si].roadW||((SEGSj[si].l||2)*LW))<11*S?UTURN_PEN:0)):0);
       if(G[nk]===undefined||ng<G[nk]){
         G[nk]=ng; F[nk]=ng+h(nb,t); came[nk]={n:cur.n,k:cur.k};
-        if(!seen.has(nk)) open.push({n:nb, si:si, k:nk});
+        if(!seen.has(nk)) hpush({n:nb, si:si, k:nk});
       }
     }
   }
@@ -1273,13 +1278,20 @@ function gAstar(s,t,startAng,relax){
         UTURN_MINW=(window.__uminw!==undefined?window.__uminw:19.5)*S;
   const key=(n,si)=>n+'|'+si;
   const st={n:s,si:-1};
-  const G={[key(s,-1)]:0}, came={}, open=[st], seen=new Set();
+  const G={[key(s,-1)]:0}, came={}, seen=new Set();
   const h=(a)=>Math.hypot(GNODES[a].x-GNODES[t].x,GNODES[a].y-GNODES[t].y);
   const F={[key(s,-1)]:h(s)};
+  /* ★2026-09-19 스윕 17구간(삼호한숲아파트→예술공원로, 지도 남서 끝) 실측: 목적지에 못 닿는 탐색이
+     open.sort() 를 매 반복 하며(O(n²log n)) 페이지를 60초 넘게 얼렸다(probe: astar 에서 멈춤). 이진 힙 +
+     3초 시간예산. 예산을 넘기면 null → 완화/로컬 탐색으로 넘어가고 화면은 살아 있다. */
+  const open=[]; const hpush=(e)=>{ open.push(e); let i=open.length-1; while(i>0){ const j=(i-1)>>1; if(open[j].f<=open[i].f) break; [open[i],open[j]]=[open[j],open[i]]; i=j; } };
+  const hpop=()=>{ const top=open[0], last=open.pop(); if(open.length){ open[0]=last; let i=0; for(;;){ const l=2*i+1, r=l+1; let m=i; if(l<open.length&&open[l].f<open[m].f) m=l; if(r<open.length&&open[r].f<open[m].f) m=r; if(m===i) break; [open[i],open[m]]=[open[m],open[i]]; i=m; } } return top; };
+  hpush({n:s,si:-1,f:F[key(s,-1)]});
+  const _t0=performance.now(); window.__astarTimeout=0;
   let guard=0;
   while(open.length && guard++<400000){
-    open.sort((a,b)=>F[key(a.n,a.si)]-F[key(b.n,b.si)]);
-    const cur=open.shift(), ck=key(cur.n,cur.si);
+    if((guard&1023)===0 && performance.now()-_t0>3000){ window.__astarTimeout=(window.__astarTimeout||0)+1; return null; }
+    const cur=hpop(), ck=key(cur.n,cur.si);
     if(cur.n===t){
       const p=[cur.n]; let k=ck;
       while(came[k]!==undefined){ const pv=came[k]; p.unshift(pv.n); k=key(pv.n,pv.si); }
@@ -1367,7 +1379,7 @@ function gAstar(s,t,startAng,relax){
       const nk=key(nb,si);
       if(G[nk]===undefined||ng<G[nk]){
         came[nk]={n:cur.n,si:cur.si}; G[nk]=ng; F[nk]=ng+h(nb);
-        if(!seen.has(nk)) open.push({n:nb,si});
+        if(!seen.has(nk)) hpush({n:nb,si,f:F[nk]});
       }
     }
   }
@@ -1521,6 +1533,17 @@ function planTo(x,y){
     }
     if(p) break;                                 // 2026-09-19 u_5417 감사: 1차(strict)에서 찾았으면 2차 안 돈다
     }
+  }
+  /* ★2026-09-19 #15 실측(arTrail): 배치된 헤딩 기준으로는 출발 노드에서 합법 출구가 없어(첫 홉 90° 거부·일방) gAstar 가
+     두 패스 모두 0.9초 만에 '경로 없음'. 실제 운전은 그 자리에서 돌아 나가면 된다 — 세 번째 패스: 출발 헤딩 반전 허용,
+     __startTurnaround 로 표시(경로 첫 구간이 차 뒤이므로 driveAuto 의 뒤점 처리/유턴이 이어받는다). */
+  if(!p){
+    try{ window.__startTurnaround=0;
+      const _tg=gNearest(x,y); const _cs=[gStartNode(me.x,me.y,me.ang+Math.PI), gNearest(me.x,me.y)];
+      for(const sN of _cs){ if(sN===undefined||sN<0) continue;
+        __probe('astar-turn:'+sN+'>'+_tg); const gp=gAstar(sN,_tg,me.ang+Math.PI); __probe('astar-turn-done:'+(gp?gp.length:0));
+        if(gp && gp.length>=2){ p=gp; NS=GNODES; window.__startTurnaround=1; try{ flash('⚠ 출발 방향 반전(되돌아 나감)'); }catch(e){} break; } }
+    }catch(e){ window.__startTurnErr=String(e).slice(0,60); }
   }
   if(!p){ p=astar(nearestNode(me.x,me.y),nearestNode(x,y)); NS=nodes; }
   if(!p){ flash('경로 없음'); window.__planFail=(window.__planFail||0)+1; return; }
@@ -1843,6 +1866,23 @@ function planTo(x,y){
         (window.__prepLWhy=window.__prepLWhy||[]).push({i, m:Math.round(acc/S), n:_cand.length, dl:_dirLanes(sgTurn), brk:_brk, tAt:_near});
       }
     }
+    /* ★★2026-09-19 u_5429 오너 "1차로에서 3차로 가는 좌회전이 어디 있어": 호는 1차로로 끝나는데 진출 홉이 기본값(주행차로=맨 오른쪽)
+       이라 30m 유지 뒤 램프가 바로 3차로로 옮겼다. 제25조: 좌회전은 1차로에서 1차로로. 좌회전 정점 뒤 150m 는 1차로를 유지한다(작성자
+       'Lexit'). 그 안에 우회전 정점이 오면 그 정점의 준비구간(Rtl/tl)이 우선이므로 거기서 멈춘다. 방향당 2차로 이상 도로만. */
+    try{
+      window.__lexit=0;
+      for(const [ai,_deg] of (window.__turnAtDbg||[])){
+        if(!(_deg<0) || Math.abs(_deg)>150) continue;                              // 좌회전만(유턴 제외)
+        let acc=0;
+        for(let k=ai;k<NP-1 && acc<150*S;k++){
+          if(k>ai && _turnAt.has(k)) break;                                          // 다음 회전 정점에서 멈춤
+          const sg=edgeOf(p[k],p[k+1]); if(!sg) break;
+          const nl=sg.o?(sg.l||1):Math.max(1,Math.floor((sg.l||2)/2)); if(nl<2) break;
+          if(((window.__offWho||{})[k]||'base')==='base'){ offs[k]=laneOffset({...sg, roadW:(sg.roadW||(Math.max(1,sg.l||2)*LW))}, 1, 0); window.__offWho[k]='Lexit'; window.__lexit++; }
+          acc+=segLen(k);
+        }
+      }
+    }catch(e){ window.__lexitErr=String(e).slice(0,60); }
     /* ★turn:lanes(tl) 전용 회전차로 → 경로 오프셋(2026-09-19).
        회전 정점 직전 홉의 간선에 tl 이 있고 이 방향 차로수와 맞으면, 그 홉의 오프셋을 지시된 차로에 둔다:
          우회전 = 'right' 계열이 있는 가장 왼쪽 차로(작성자 'Rtl'), 좌회전 = 'left' 계열이 있는 가장 오른쪽 차로('Ltl').
@@ -2028,7 +2068,7 @@ function planTo(x,y){
          바닥(LW*0.3)에 걸리면 호 끝점이 다리와 어긋나 이음매에서 튄다
          (실측 우150: Rl 이 0.97m 바닥에 걸려 표본당 99.4도). 바닥에 걸리지
          않도록 Rc 쪽을 먼저 키운다 — 차로 반경이 최소 LW*0.5 는 되게. */
-      const RLMIN=LW*0.5;
+      const RLMIN=5.5*S;   /* 2026-09-19 실측 2차: 시뮬 차의 최소회전반경 = 축거 2.76m / tan(0.9·0.62rad) ≈ 4.4m → 4m 호도 언더스티어로 바깥 가장자리(대흥로20안길 60초 54m). 차로 반경 하한 5.5m(법정 소형 6m 에 근접). */   /* ★2026-09-19 #18: 골목(6.5m) 코너에서 차로 반경이 3.5−1.63=1.9m 로 나와 물리적으로 못 돌고 바깥 가장자리로 밀렸다(최소회전반경 6m). 차로 반경 하한 4m — 코너에서 반대 차로를 물고 도는 실제 골목 주행과 같다. */
       /* ★★2026-09-19 실측(u_5419 스크린샷 '경로가 조각남'): 종전 Rl=Rc-sgnD*|o| 는 차로가 항상
          중심선 오른쪽(o>0)이라고 가정했다. 일방통행 1차로는 o<0(중심선 왼쪽)이라 좌회전에서
          '안쪽' 차로를 '바깥쪽'으로 계산 → 반경이 Rc+4.88(정답 Rc-4.88), 호 끝이 반대편 kerb 로
@@ -2193,6 +2233,56 @@ function planTo(x,y){
         window.__uspanDbg={i0,i1,R:+(R/S).toFixed(2),D:+(Math.abs(D)/S).toFixed(2),inner:+(inner/S).toFixed(1),sc:+(sc/S).toFixed(1),cutX:+((sX-sc)/S).toFixed(1),deg:+(r.cum*57.3).toFixed(0)};
       }catch(e){ window.__uspanErr=String(e&&e.message||e).slice(0,80); }
     }
+    /* ★★2026-09-19 u_5428 오너 "좌회전 아직 중간에 한번 꺾어 가는 것도 있던데. 보통 좌회전은 한번에 나선으로":
+       지도상 한 교차로가 꼭짓점 2개(각 ~45°)로 그려지면 코너가 '호+토막+호' 두 조각이 된다. 같은 방향의
+       sharp 꼭짓점이 30m 안에 연달아 있는 회전(turnRuns 의 s0<s1)은 진입선·진출선의 교점 V 를 가상 꼭짓점으로
+       삼아 호 하나로 그린다. 토막 홉은 건너뛴다(유턴의 skipLeg 와 같은 방식). 유턴(148°↑)은 제외. */
+    window.__mergedTurns=0; window.__mergedList=[];
+    try{
+      for(const r of (window.__turnRuns||[])){
+        const s0=r.s0, s1=r.s1; if(!(s0>=1 && s1>s0 && s1<=NP-2)) continue;
+        if(Math.abs(r.cum) < 0.70 || Math.abs(r.cum) > Math.PI*0.82) continue;
+        let stub=0; for(let k=s0;k<s1;k++) stub+=segLen(k); if(stub > 30*S) continue;
+        if(uspan[s0-1] || skipLeg[s0] || skipLeg[s1-1]) continue;                    // 유턴 구간과 겹침
+        const a1=segAng(s0-1), a2=segAng(s1);
+        const d=((a2-a1+Math.PI*3)%(Math.PI*2))-Math.PI; if(Math.abs(d)<0.35 || Math.sign(d)!==Math.sign(r.cum)) continue;
+        const P=nodeAt(s0), Q=nodeAt(s1);
+        const c1=Math.cos(a1), s1n=Math.sin(a1), c2=Math.cos(a2), s2n=Math.sin(a2);
+        const den=c1*s2n - s1n*c2; if(Math.abs(den)<1e-6) continue;
+        const tA=((Q.x-P.x)*s2n - (Q.y-P.y)*c2)/den;                                  // V = P + tA·(c1,s1n)
+        const V={x:P.x+c1*tA, y:P.y+s1n*tA};
+        const dV0=Math.hypot(V.x-P.x,V.y-P.y), dV1=Math.hypot(V.x-Q.x,V.y-Q.y);
+        if(tA<0 || dV0>40*S || dV1>40*S) continue;                                   // 교점이 뒤쪽/너무 멀면 비정상
+        const legIn=Math.hypot(V.x-nodeAt(s0-1).x, V.y-nodeAt(s0-1).y), legOut=Math.hypot(nodeAt(s1+1).x-V.x, nodeAt(s1+1).y-V.y);
+        const half=d/2, t=Math.abs(Math.tan(half)), interior=Math.PI-Math.abs(d);
+        const sh=Math.sin(interior/2); const shs=Math.abs(sh)<0.05?0.05:sh;
+        /* 가상 꼭짓점은 실제 꼭짓점보다 dV 만큼 앞에 있으므로 접선이 단일 꼭짓점의 교차로 반경(8.8m)을 넘는 게 정상 —
+           다리 길이 45% 와 30m 만 상한으로 둔다(실측 서소문로: need 17.8 vs cap 8.8 로 병합이 한 번도 안 됐다). */
+        const Tcap=Math.min(legIn-3*S, legOut-3*S, 30*S);   // 가상 꼭짓점 기준 다리 안에만 들어오면 된다(실측 need 17.8 vs 0.45·leg=13.7)
+        const gA=edgeOf(p[s0-1],p[s0]), gB=edgeOf(p[s1],p[s1+1]);
+        const rwA=gA?(gA.roadW||((gA.l||2)*LW)):0, rwB=gB?(gB.roadW||((gB.l||2)*LW)):0;
+        const narrow=Math.min(rwA||1e9, rwB||1e9); const rmin=Math.min(RMIN, Math.max(3.5*S, (narrow||RMIN)*0.5));
+        let Rc=Math.max(rmin, LW/(t<0.05?0.05:t));
+        const needT=Math.max(dV0,dV1)+0.5*S;                                          // 호가 두 꼭짓점을 모두 덮어야 한다
+        if(Rc*t < needT) Rc = needT/(t<0.05?0.05:t);
+        if(Rc*t > Tcap) { window.__mergedList.push({s0,s1,skip:'Tcap',need:+(needT/S).toFixed(1),cap:+(Tcap/S).toFixed(1)}); continue; }
+        const o1=offs[s0-1];
+        const lnOf=(sg,ln)=> sg ? laneOffset({...sg, roadW:(sg.roadW||(Math.max(1,sg.l||2)*LW))}, 1, ln) : o1;
+        const oX=(()=>{ if(!gB) return o1; const a=lnOf(gB,0), b=laneOff(gB); return Math.max(Math.min(a,b), Math.min(Math.max(a,b), o1)); })();
+        const sgnD=d>=0?1:-1; const RLMIN=5.5*S;   /* 2026-09-19 실측 2차: 시뮬 차의 최소회전반경 = 축거 2.76m / tan(0.9·0.62rad) ≈ 4.4m → 4m 호도 언더스티어로 바깥 가장자리(대흥로20안길 60초 54m). 차로 반경 하한 5.5m(법정 소형 6m 에 근접). */   /* ★2026-09-19 #18: 골목(6.5m) 코너에서 차로 반경이 3.5−1.63=1.9m 로 나와 물리적으로 못 돌고 바깥 가장자리로 밀렸다(최소회전반경 6m). 차로 반경 하한 4m — 코너에서 반대 차로를 물고 도는 실제 골목 주행과 같다. */
+        const oMin=Math.min(o1,oX), oMax=Math.max(o1,oX); const rlNeed=Rc - sgnD*(sgnD>0?oMax:oMin); if(rlNeed<RLMIN) Rc += RLMIN-rlNeed;
+        const Rl=Rc - sgnD*o1; const bis=a1+half; const nx=-Math.sin(bis)*sgnD, ny=Math.cos(bis)*sgnD;
+        const Cox=V.x+nx*(Rc/shs), Coy=V.y+ny*(Rc/shs); const Tc=Rc*t;
+        const P0x=V.x-c1*Tc, P0y=V.y-s1n*Tc, P2x=V.x+c2*Tc, P2y=V.y+s2n*Tc;
+        const A0=Math.atan2(P0y-Coy,P0x-Cox), A2=Math.atan2(P2y-Coy,P2x-Cox);
+        const geom={Cox,Coy,R:Rl,A0,A2,T0:Tc-dV0,T2:Tc-dV1,Rc,sgnD,o1,oX};
+        corner[s0]={a1,a2,d,half,T:Math.max(0,Tc-dV0),T2:0,g:geom};                 // 호는 홉 s0-1 끝에 그린다
+        for(let k=s0+1;k<s1;k++) corner[k]=null;
+        corner[s1]={a1,a2,d,half,T:0,T2:Math.max(0,Tc-dV1),g:null,oX};             // 진출 홉 s1 의 시작 절단만
+        for(let k=s0;k<s1;k++) skipLeg[k]=1;
+        window.__mergedTurns++; window.__mergedList.push({s0,s1,deg:+(d*57.3).toFixed(0),stub:+(stub/S).toFixed(1),R:+(Rc/S).toFixed(1),T:+(Tc/S).toFixed(1)});
+      }
+    }catch(e){ window.__mergedErr=String(e&&e.message||e).slice(0,80); }
     for(let i=0;i<NP-1;i++){
       if(skipLeg[i]) continue;                    // 반원 유턴 내부 다리
       const A=nodeAt(i), B=nodeAt(i+1), a=segAng(i), L=segLen(i), off=offs[i];
@@ -2223,7 +2313,7 @@ function planTo(x,y){
       const [_hpS,_hnS]=_split(i);       // 이 홉의 시작 경계
       const [_hpE,_hnE]=_split(i+1);     // 이 홉의 끝 경계
       const _straightStart = !(corner[i] || uexit[i]);
-      const offPrev=(uexit[i] ? uexit[i].oX : (corner[i] && corner[i].g.oX!==undefined ? corner[i].g.oX : (i>0 ? offs[i-1] : off)));   // 코너/유턴 진출: 진출 도로 차로로 잘린 오프셋에서 램프 시작
+      const offPrev=(uexit[i] ? uexit[i].oX : (corner[i] && corner[i].g && corner[i].g.oX!==undefined ? corner[i].g.oX : (corner[i] && corner[i].oX!==undefined ? corner[i].oX : (i>0 ? offs[i-1] : off))));   // 코너/유턴 진출: 진출 도로 차로로 잘린 오프셋에서 램프 시작
       const _dOff=off-offPrev;
       const t0 = corner[i]   ? corner[i].T2  : (uexit[i] ? Math.max(0,uexit[i].cut) : 0);   // 시작쪽에서 자를 길이
       const t1 = corner[i+1] ? corner[i+1].T : (uspan[i] && uspan[i].sc<0 ? -uspan[i].sc : 0); // 끝쪽에서 자를 길이
@@ -2267,7 +2357,7 @@ function planTo(x,y){
       }
       // 4) 이 구간의 끝이 코너면 이등분선 호를 붙인다.
       const c=window.__NOARC?null:corner[i+1];
-      if(c){
+      if(c && c.g){
         /* ★코너는 위에서 미리 구한 원(중심 g.Cox,g.Coy · 반경 g.R)의 접점
            F0→F2 구간 호를 그대로 4등분해 낸다. 접점이 다리 리샘플의 끝점과
            같으므로 이음매에서 끊김이 없다. */
@@ -2417,7 +2507,7 @@ function planTo(x,y){
                       // 끊긴 지점 앞뒤 좌표(m). 경로가 어디서 튀는지 본다.
                       p0: bi>0?[+(wp[bi-1].x/S).toFixed(0),+(wp[bi-1].y/S).toFixed(0)]:null,
                       p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null,
-                      pHead:p.slice(0,4), prepU:window.__prepU||0, turnRuns:(window.__turnRuns||[]).slice(0,10).map(r=>[r.i0,r.i1,+(r.cum*57.3).toFixed(0)]), uspanN:window.__uspanN||0, uspanTight:window.__uspanTight||0, uspanList:(window.__uspanList||[]).slice(0,10), uspanOff:window.__uspanOff||0, uspanDbg:window.__uspanDbg||null, uspanErr:window.__uspanErr||null, rtLeftBan:window.__rtLeftBan||0, rtEval:(window.__rtEval||[]).slice(0,12), routeRelaxed:window.__routeRelaxed||0, prepLSkip:window.__prepLSkip||0, prepLone:window.__prepLone||0, prepLWhy:(window.__prepLWhy||[]).slice(0,8), prepL:window.__prepL||0, NP:p.length,
+                      pHead:p.slice(0,4), prepU:window.__prepU||0, turnRuns:(window.__turnRuns||[]).slice(0,10).map(r=>[r.i0,r.i1,+(r.cum*57.3).toFixed(0),r.s0,r.s1]), mergedTurns:window.__mergedTurns||0, lexit:window.__lexit||0, lexitErr:window.__lexitErr||null, mergedList:(window.__mergedList||[]).slice(0,8), mergedErr:window.__mergedErr||null, uspanN:window.__uspanN||0, uspanTight:window.__uspanTight||0, uspanList:(window.__uspanList||[]).slice(0,10), uspanOff:window.__uspanOff||0, uspanDbg:window.__uspanDbg||null, uspanErr:window.__uspanErr||null, rtLeftBan:window.__rtLeftBan||0, rtEval:(window.__rtEval||[]).slice(0,12), routeRelaxed:window.__routeRelaxed||0, prepLSkip:window.__prepLSkip||0, prepLone:window.__prepLone||0, prepLWhy:(window.__prepLWhy||[]).slice(0,8), prepL:window.__prepL||0, NP:p.length,
       /* ★2026-09-19 스윕 전구간 route_fail 원인: 긴 경로(연대동문길→여수대교)는 offTab 이 수천 행이라
          ?tel= GET 요청줄이 python http.server 상한 65,536B 를 넘어 414 로 버려졌다 → /tel 이 2초 시점에 멈춰
          reload.sh 가 '준비 안 됨'으로 판정. 표는 앞 200·뒤 100행만 싣고 전체 길이를 함께 보낸다. */
@@ -2461,8 +2551,10 @@ function rebuildHash(){
      내가 가만히 서 있어도 그대로 통과·충돌 → 피할 방법이 없는 사고였다. */
   {const k=hkey(me.x,me.y);let a=hgrid.get(k);if(!a){a=[];hgrid.set(k,a)}a.push(me)}
 }
-function gap(c,range){
+function gap(c,range,band){
   range=range||40*S;let b=range;
+  /* ★2026-09-19 용답15길 실측: 골목 코너에서 앞차가 옆으로 비껴 서 있으면 ±0.62차로 띠 밖 → gap 11 인데 추돌. 골목은 차도 전폭이 '앞'이다(band 인자). */
+  const _band=band||LW*.62;
   const ca=Math.cos(c.ang),sa=Math.sin(c.ang);
   const i0=(c.x/HG)|0,j0=(c.y/HG)|0;
   const r=Math.ceil(range/HG);
@@ -2477,7 +2569,7 @@ function gap(c,range){
       /* ★2026-09-19 실측(충정로7길 1269m, 스크린샷): 교차로에서 대각선으로 한 차로 옆에 선 NPC 는
          중심점이 ±0.62차로 띠 밖이라 '앞차 없음'(gap 40)인데 차체는 내 진로에 걸쳐 있었다.
          접촉 → 속도가 정지한 NPC 에 묶임 → 갇힘 판정 → 순간이동. 상대 차폭의 절반을 띠에 더한다. */
-      if(Math.abs(l) < LW*.62 + (o.w||0)*0.5) b=f;
+      if(Math.abs(l) < _band + (o.w||0)*0.5) b=f;
     }
   }
   return b;
@@ -2671,7 +2763,7 @@ function mdlPoll(dt){
       pos: [+(me.x).toFixed(1), +(me.y).toFixed(1), +(me.ang*57.2958).toFixed(1)],
       tlUse: window.__tlUse||0, tlMismatch: window.__tlMismatch||0, tlDbg: window.__tlDbg||null, tlRoute: window.__tlRoute||0, tlRouteErr: window.__tlRouteErr||null,   // turn:lanes(tl) 사용 계측(2026-09-19)
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
-      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
+      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
@@ -2918,9 +3010,13 @@ function driveAuto(dt){
      Ld=6, R=8 → 2.25m. 실측 xt 와 일치. 급한 곡률에서는 하한을 낮춘다(3.5m → 0.77m). */
   /* ★위 가설로 Ld 하한을 곡률에 따라 3.5m 까지 낮춰봤으나 복귀 2→3 으로 악화, 되돌림.
      xt 증가는 코너 커팅이 아니라 호(arc) 기하 자체가 도로 밖으로 나가는 쪽을 의심. */
+  /* ★2026-09-19 #18: 왕복 1차로 골목(폭 ≤6.5m)에서 6m 룩어헤드는 굽이에서 안쪽을 잘라 차가 가장자리로 밀린다(여유 0.72m).
+     골목은 4~8m 로 짧게 본다. */
+  const _alley=(()=>{ try{ const rs=(typeof routeSeg==='function'&&routeSeg(me.x,me.y))||nearestSeg(me.x,me.y); const sg=rs&&rs.s; if(!sg) return false;
+                          const rw=sg.roadW||((sg.l||2)*LW); const nl=sg.o?(sg.l||1):Math.max(1,Math.floor((sg.l||2)/2)); return nl<=1 && rw<=6.5*S+0.01; }catch(e){ return false; } })();
   const Ld = off > 6
     ? Math.max(4, Math.min(8, 4 + 0.3*me.v))       // 복귀: 짧게 → 급히 붙는다
-    : Math.max(6, Math.min(16, 0.9*me.v));         // 정상: 속도비례
+    : (_alley ? Math.max(4, Math.min(8, 0.9*me.v)) : Math.max(6, Math.min(16, 0.9*me.v)));         // 정상: 속도비례(골목은 짧게)
   /* ★gp/otOff 는 여기서 계산한다(u_5126 실사고 수정).
      추월 오프셋을 쓰는 조향 코드가 선언보다 42줄 위에 삽입돼 있어서
      `const otOff` 의 TDZ(temporal dead zone)에 걸렸다 — driveAuto 가 매 프레임
@@ -2936,7 +3032,7 @@ function driveAuto(dt){
      ⇒ 탐지범위를 반응거리보다 항상 크게(정지거리×1.4, 최소 40m) 잡는다. 없음 = 범위값 그대로. */
   const _needG = me.v*0.7 + (me.v*me.v)/(2*4.0);
   const _gpRange = Math.max(40, _needG*1.4)*S;
-  const gp=gap(me, _gpRange);
+  const gp=gap(me, _gpRange, _alley ? LW*1.0 : undefined);   // 골목(왕복 1차로)은 차도 전폭(±3.25m)을 앞으로 본다
   /* ★추월은 driveAuto 에 두지 않는다(u_5138 오너 지적).
      driveAuto 는 '수식 주행'이고, 여기에 기능을 넣으면 모델이 아니라 루틴이 잘 가게 된다.
      추월 판단은 teacher.js 에만 있다 — 교사가 시연하고, 그게 라벨이 되고, 모델이 배운다.
@@ -3188,6 +3284,9 @@ function crashResync(){
   window.__crashResyncN=(window.__crashResyncN||0)+1;
 }
 function crash(label,heavy){
+  /* ★2026-09-19 소공로 sx 실측(arTrail): 출발 전 주차 상태에서 '차로 이탈 시도'가 나 auto.on=0 분기의 hardReset() 이 경로를
+     지웠다(두 번). 서 있는 차는 사고를 낼 수 없다 — 주차·미출발이면 사고로 세지 않는다(u_5041 대기중 NPC 추돌 제외와 같은 원칙). */
+  if(window.__parked && !auto.on){ window.__crashParkedN=(window.__crashParkedN||0)+1; me.offroad=0; return; }
   if(me.cool>0)return;
   me.cool=.8;me.crashes++;
   /* ★무엇에 부딪히는지 종류별로 센다(u_5025 진단용).
@@ -3286,6 +3385,7 @@ function crash(label,heavy){
          내비게이션 중에 그러면 사고 한 번에 경로가 사라진다 — 사람이 쓰는
          내비는 그렇게 동작하지 않는다. 학습 에피소드일 때만 전체 리셋한다. */
       if(auto.on && auto.wp.length){ respawnOnRoad(); me.v=0; crashResync(); }   // A6 2026-09-19 해제 시 auto.i 재동기화
+      else if(auto.wp.length){ respawnOnRoad(); me.v=0; }                          // 경로가 있으면(출발 전) 경로를 지우지 않는다
       else hardReset();
     }, 600);
   }
@@ -3519,10 +3619,15 @@ function step(dt){
        발동해 회전을 끊고 경로점으로 순간이동시켰다. 회전 중엔 저속·정지·후진이
        전부 의도된 동작이라 '못 가고 있음'이 아니다 — 반드시 제외해야 한다. */
     const _da0=window.__da||{}; const _wantStop = (auto.kt) || (_da0.vmax!==undefined && _da0.vmax<1.0) || (_da0.gp!==undefined && _da0.gp<11) || ((window.__tbrk||0)>0.2);
-    if(auto.on && moved < 0.02 && !window.__parked && me.cool<=0 && !_wantStop){
-      window.__stuckT=(window.__stuckT||0)+dt;
+    /* ★2026-09-19 #18 실측(tpTrace, 대흥로20안길): 차가 0.3~0.9m/s 로 기어가는데 프레임당 이동이 4~8mm(≈120fps)라
+       '프레임당 0.02m 미만 = 안 움직임' 에 걸려 1.2초 뒤 순간이동. 프레임 기준은 프레임률에 종속된다 —
+       '1.2초 동안 0.15m 미만 이동'으로 바꾼다(거리 누적). */
+    window.__stuckAcc=(window.__stuckAcc||0)+moved; window.__stuckWin=(window.__stuckWin||0)+dt;
+    let _slow=false; if(window.__stuckWin>=0.4){ _slow = window.__stuckAcc < 0.05; window.__stuckAcc=0; window.__stuckWin=0; }
+    if(auto.on && _slow && !window.__parked && me.cool<=0 && !_wantStop){
+      window.__stuckT=(window.__stuckT||0)+0.4;
       if(window.__stuckT > 1.2){ blockT = Math.max(blockT||0, 1.1); window.__blkStuck=(window.__blkStuck||0)+1; }   // 복귀 발동
-    }else window.__stuckT=Math.max(0,(window.__stuckT||0)-dt*0.5);
+    }else if(window.__stuckWin===0) window.__stuckT=Math.max(0,(window.__stuckT||0)-0.2);
   }
   if(blockT>1.0 && auto.on && auto.wp.length>1){
     /* ★막힌 그 점이 아니라 '몇 점 앞'으로 보낸다(u_5056).
@@ -3546,6 +3651,7 @@ function step(dt){
     me.v=0; me.offroad=0; me.cool=1.2; blockT=0; auto.mergeWait=0; auto.mergeHold=0; auto.stall=0;   // 순간이동 뒤 대기·교착 상태 초기화(2026-09-19)
     auto.i=j;
     if(auto.cum && j<auto.cum.length){ auto.s=auto.cum[j]; auto.k=Math.max(1,j); }
+    try{ window.__tpTrace=(window.__frTrace||[]).slice(); }catch(e){}
     window.__tpN=(window.__tpN||0)+1;      // u_5227 순간이동 계측
     window.__tpPath=(window.__tpPath||0)+1;
     /* ★2026-09-19: 어디서 났는지 남긴다 — 위치 없는 계수는 두 번이나 재현부터 다시 해야 했다. */
@@ -3574,7 +3680,7 @@ function step(dt){
                nn: nn?{d:+(nn.d/S).toFixed(2),half:+(nn.s.roadW*0.5/S).toFixed(2),w:nn.s.w,n:nn.s.n}:null,
                wpW:(auto.wp[Math.min(auto.i,auto.wp.length-1)]||{}).sg?.w, i:auto.i, n:(window.__offRev&&window.__offRev.n||0)+1}; }catch(e){ window.__offRevErr=String(e).slice(0,60); }
         me.x=px0; me.y=py0;
-        me.v*=0.55;
+        me.v*=0.55; window.__frRevert=1;
       }
       me.offroad+=dt;
       /* ★경계에 붙어 멈춘 차를 사고로 세지 않는다(u_5169 실측).
@@ -3595,7 +3701,7 @@ function step(dt){
           const cx = A.x+vx*t, cy = A.y+vy*t;
           const d = Math.hypot(me.x-cx, me.y-cy) || 1;
           me.x += (cx-me.x)/d * 0.6*S*dt*10;
-          me.y += (cy-me.y)/d * 0.6*S*dt*10;
+          me.y += (cy-me.y)/d * 0.6*S*dt*10; window.__frNudge=1;
         }
       }
       const lim = window.__COLLECT_RECOVER ? 6.0 : 0.9;   // 수집 중엔 복귀할 시간을 준다
@@ -3614,6 +3720,12 @@ function step(dt){
             sw:SIDEWALK_M, kind:(r.edge>SIDEWALK_M*S?'도로이탈':'인도침범'),
             n:((window.__offDbg&&window.__offDbg.n)||0)+1};
         }catch(e){}
+        /* ★2026-09-19 언주로(1104,-1005)m 도로이탈 13회 루프 진단: 이 순간 onRoad 가 본 도로들을 남긴다. */
+        try{ const cand=[]; for(const sg2 of segs){ const A=nodes[sg2.a],B=nodes[sg2.b]; if(!A||!B) continue;
+               const vx=B.x-A.x,vy=B.y-A.y,L2=vx*vx+vy*vy; if(L2<1) continue; let t=((me.x-A.x)*vx+(me.y-A.y)*vy)/L2; t=Math.max(0,Math.min(1,t));
+               const dd=Math.hypot(A.x+vx*t-me.x,A.y+vy*t-me.y); if(dd<14*S) cand.push({w:sg2.w,n:sg2.n,d:+(dd/S).toFixed(2),half:+(sg2.roadW*0.5/S).toFixed(2),l:sg2.l,o:sg2.o?1:0}); }
+             cand.sort((a,b)=>a.d-b.d);
+             window.__offCrash={x:+(me.x/S).toFixed(1),y:+(me.y/S).toFixed(1),edge:+(r.edge/S).toFixed(2),rw:r.s?r.s.w:null,rn:r.s?r.s.n:null,cand:cand.slice(0,6),i:auto.i,xt:(window.__da&&window.__da.xt)||null,n:(window.__offCrash&&window.__offCrash.n||0)+1}; }catch(e){}
         crash(r.edge>SIDEWALK_M*S?'도로 이탈':'인도 침범',false)}
       /* ★이 가지도 교착 카운터를 올린다(a_5170 실사고).
          여기엔 blockT 증가가 없어서, 차가 도로 '밖'에 떨어지면 위의 경로복귀
@@ -4301,7 +4413,7 @@ window.addEventListener('error', ev=>{ try{ const m=String(ev&&ev.message||'')+'
 window.addEventListener('unhandledrejection', ev=>{ try{ window.__winRej=String(ev&&ev.reason&&(ev.reason.stack||ev.reason)||'').slice(0,300); }catch(e){} });
 /* ★2026-09-19 진단 프로브: 동기 XHR 로 /tel 에 단계 표식을 남긴다(프레임 루프가 죽거나 텔레메트리가 끊겨도 마지막
    단계가 남는다). 평소엔 표식만 저장하고 전송은 ?probe=1 일 때만 — 동기 XHR 은 프레임을 막는다. */
-function __probe(tag){ window.__arStep=tag; if(!/[?&]probe=1/.test(location.search)) return; try{ const x=new XMLHttpRequest(); x.open('GET','/ctl?tel='+encodeURIComponent(JSON.stringify({arStep:tag,probe:1})),false); x.send(); }catch(e){} }
+function __probe(tag){ window.__arStep=tag; try{ (window.__arTrail=window.__arTrail||[]).push(tag.slice(0,60)); if(window.__arTrail.length>30) window.__arTrail.shift(); }catch(e){} if(!/[?&]probe=1/.test(location.search)) return; try{ const x=new XMLHttpRequest(); x.open('GET','/ctl?tel='+encodeURIComponent(JSON.stringify({arStep:tag,probe:1})),false); x.send(); }catch(e){} }
 function streamWorld(force){
   if(!CH)return;
   const k=chunkKey(me.x/S,me.y/S);
@@ -4734,6 +4846,10 @@ function loop(t){
   }
   if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:step'); step(dt);
   if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:epTick'); epTick(dt);
+  /* ★2026-09-19 #18 골목 갇힘→순간이동 추적: 마지막 40프레임(속도·이동량·되돌림·밀기·도로판정)을 링버퍼로 남긴다 */
+  try{ const _tr=(window.__frTrace=window.__frTrace||[]); const _r=onRoad(me.x,me.y);
+       _tr.push([+(me.v).toFixed(2), +(Math.hypot(me.x-(window.__frPx||me.x), me.y-(window.__frPy||me.y))/S).toFixed(3), window.__frRevert|0, window.__frNudge|0, _r.ok?1:0, +((_r.edge||0)/S).toFixed(2), +(window.__stuckT||0).toFixed(2), +(me.offroad||0).toFixed(2)]);
+       if(_tr.length>40) _tr.shift(); window.__frPx=me.x; window.__frPy=me.y; window.__frRevert=0; window.__frNudge=0; }catch(e){}
   if(crashLit>0)crashLit-=dt;
   if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:spawn'); spawnDespawn(dt);
   if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:hash'); rebuildHash(); if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:hash-done');

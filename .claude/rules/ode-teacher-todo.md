@@ -89,6 +89,13 @@ g2 : aD aNl aTurn(S/L/R) err fin(최종차로목표) laneF lat nd nlat need nl o
 top: prog routeM v cr crk brk st thr autoOn parked jsErr pedN{tot,near,onroad}
 ```
 
+## D-0. 수집 시작 (오너 u_5431 2026-09-19 19:5x — "학습 데이터는 언제 만드냐")
+- 관문(E) 대신 오너 결정(u_5426): 회전·전용차로가 법규대로 확인됐으면 시작, 잔여 사고는 가중치(W.npy)로.
+- 밤샘 루프: `games/seoul-drive/collect_overnight.sh [시작라운드]` — 라운드 r=100.. 마다 `pairs30.json[(r-100)%30]` 을 로드 →
+  `dagger.py --round r --episodes 3 --secs 600 --model bc_final.pt` → `data/dagger_r<r>/{X,Y,W,M}.npy` → 라운드 통계 텔레그램. 07:00 정지.
+- 아침: `python3 train_stage.py straight 'data/dagger_r1*' ode_s1.pt` → 실주행 검증(모델 주행) → 다음 단계(follow/ped/signal/turn/uturn).
+- 레포에 있다: `games/seoul-drive/collect_overnight.sh`.
+
 ## D. 재개 방법
 ```bash
 cd games/seoul-drive
@@ -141,3 +148,11 @@ python3 sweep_test.py --pairs /tmp/pairs30.json --secs 600 --out /tmp/sweep60.js
 100초에 보행자 사고 78건 = 사람이 낼 수 없는 수. 원인은 주행이 아니라 시뮬 — 친 보행자를 지우지 않아 차 밑에서 매 프레임 재충돌,
 정지 상태라 전부 '불가항력'으로 분류(67건). 수정 882e7e2(친 보행자 즉시 제거, /tel `pedHitRm`).
 규칙: 사고 폭증 구간은 먼저 `crash_watch` 로 위치·ped 값·doneM 을 본다 — 교사 ped=1e9 인데 보행자 사고면 유령 충돌이다.
+
+### 2026-09-19 스윕 후속 — 확정된 '하지 말 것' 추가
+- **프레임당 문턱값 금지**(B1 의 거리상수와 같은 부류): 갇힘 감지 '프레임당 2cm' 가 120fps 에서 기어가는 차를 갇힘으로 셌다. 시간 창으로 잰다.
+- **way 는 지나는 모든 청크에**: 무게중심 청크 하나면 긴 도로가 옆 청크에서 사라진다(라우터는 알고 주행기는 모름). `/tel offCrash` 로 확인.
+- **주차·미출발 차는 사고를 못 낸다**: 출발 전 도로이탈 판정이 hardReset 을 불러 경로를 지웠다.
+- **골목 코너 차로 반경 하한 4m**: 3.5−1.63=1.9m 호는 못 돈다. 좁은 도로 갇힘·추돌 패턴의 공통 뿌리였다.
+- **좌회전 두 조각 → 가상 꼭짓점 호 하나**(u_5428): 교차로가 꼭짓점 2개면 진입선·진출선 교점으로 합친다(`mergedTurns`).
+- A6(사고 후 재동기화)·유령 보행자·mergeWait 래치·A* 시간예산·골목 30km/h — 전부 이 날 수정, 회귀 케이스 9개로 고정.
