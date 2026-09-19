@@ -26,17 +26,18 @@ def tier_labels(M, Y):
     return t
 
 class TierNet(nn.Module):
-    """수 레이어 초소형 CNN — 서브 밀리초 목표(256px 입력을 64px 로 줄여 본다)."""
-    def __init__(self, n=4):
+    """수 레이어 초소형 CNN — 서브 밀리초 목표. 입력 해상도는 도메인별(오너 u_5445): 2D 64~128, 3D/실영상 128~224."""
+    def __init__(self, n=4, res=64):
         super().__init__()
+        self.res = res
         self.f = nn.Sequential(
-            nn.AvgPool2d(4),                                   # 256→64
+            nn.AvgPool2d(max(1, 256 // res)),                  # 256→res
             nn.Conv2d(3, 16, 5, 2, 2), nn.ReLU(), nn.Conv2d(16, 32, 3, 2, 1), nn.ReLU(),
             nn.Conv2d(32, 64, 3, 2, 1), nn.ReLU(), nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Linear(64, n))
     def forward(self, x): return self.f(x)
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('dirs'); ap.add_argument('out'); ap.add_argument('--epochs', type=int, default=15)
+    ap = argparse.ArgumentParser(); ap.add_argument('dirs'); ap.add_argument('out'); ap.add_argument('--epochs', type=int, default=15); ap.add_argument('--res', type=int, default=64)
     a = ap.parse_args()
     Xs, Ts = [], []
     for d in [d for p in a.dirs.split(',') for d in sorted(glob.glob(p))]:
@@ -47,9 +48,9 @@ def main():
     if not Xs: print(json.dumps({'error': 'no data'})); return
     X = np.concatenate(Xs); T = np.concatenate(Ts); n = len(X)
     dist = {int(k): int(v) for k, v in zip(*np.unique(T, return_counts=True))}
-    print(json.dumps({'frames': n, 'tier_dist': dist}), flush=True)
+    print(json.dumps({'frames': n, 'tier_dist': dist, 'res': a.res}), flush=True)
     rng = np.random.default_rng(0); idx = rng.permutation(n); cut = int(n * 0.85); tr, va = idx[:cut], idx[cut:]
-    net = TierNet().to(DEV); gpu_guard.assert_on_gpu(net)
+    net = TierNet(res=a.res).to(DEV); gpu_guard.assert_on_gpu(net)
     # 클래스 불균형: 희소 등급(T2·T3) 가중 — 놓치면 위험한 쪽을 더 벌한다
     w = torch.tensor([1.0 / max(1, dist.get(k, 1)) for k in range(4)], dtype=torch.float32); w = (w / w.sum() * 4).to(DEV)
     opt = torch.optim.Adam(net.parameters(), 1e-3); ce = nn.CrossEntropyLoss(weight=w)
@@ -73,7 +74,7 @@ def main():
         if score > best: best = score; torch.save(net.state_dict(), a.out)
         print(json.dumps({'ep': ep, 'loss': round(tot / len(perm), 4), 'acc': round(acc, 3), 'recall': {k: (round(v, 3) if v is not None else None) for k, v in rec.items()},
                           'recall_conf_up': {k: (round(v, 3) if v is not None else None) for k, v in rec2.items()}}), flush=True)
-    print(json.dumps({'done': a.out, 'best_hard_recall': round(best, 3)}), flush=True)
+    print(json.dumps({'done': a.out, 'best_hard_recall': round(best, 3), 'res': a.res}), flush=True)
 
 if __name__ == '__main__':
     main()
