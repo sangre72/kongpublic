@@ -2663,7 +2663,7 @@ function mdlPoll(dt){
       pos: [+(me.x).toFixed(1), +(me.y).toFixed(1), +(me.ang*57.2958).toFixed(1)],
       tlUse: window.__tlUse||0, tlMismatch: window.__tlMismatch||0, tlDbg: window.__tlDbg||null, tlRoute: window.__tlRoute||0, tlRouteErr: window.__tlRouteErr||null,   // turn:lanes(tl) 사용 계측(2026-09-19)
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
-      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
+      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
@@ -3645,7 +3645,12 @@ function step(dt){
          내 과실' 규칙과 같은 원칙). */
       if(me.v < 0.5) _un = true;
       crash(_un ? '보행자 돌발(불가항력)' : '보행자 사고', true);
+      /* ★2026-09-19 스윕 12구간(송정12바길) 실측: 100초에 보행자 사고 78건(불가항력 67). 부딪힌 보행자를
+         지우지 않아 차 밑에 겹친 채로 매 프레임 다시 충돌 → 정지 상태라 전부 불가항력으로 집계됐다.
+         교사 ped=1e9(못 봄)인 채 사고만 쌓이는 '유령 연쇄'. 친 보행자는 즉시 치운다(사고 1건은 그대로). */
+      p.hit = 1; window.__pedHitRm = (window.__pedHitRm||0) + 1;
     }}
+  for(let i=peds.length-1;i>=0;i--) if(peds[i].hit) peds.splice(i,1);
 }
 function stepCar(c,dt){
   const s=segs[c.si];
