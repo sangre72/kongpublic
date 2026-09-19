@@ -6,7 +6,9 @@ log = sys.argv[1] if len(sys.argv) > 1 else '/tmp/sweep_crash.log'
 t0 = sys.argv[2] if len(sys.argv) > 2 else '20:45'
 S = 6.0
 rows = [json.loads(l) for l in open(log) if l.strip()]
-rows = [r for r in rows if r.get('t', '') >= t0 and (r.get('cr') or 0) > 0]
+# 자정 넘김: t0 이후 또는 t0 보다 작은(다음 날 새벽) 시각도 포함. 로그가 하루 안이라는 가정.
+wrap = lambda t: t >= t0 or t < '12:00'
+rows = [r for r in rows if wrap(r.get('t', '')) and (r.get('cr') or 0) > 0]
 seen = {}; cl = collections.defaultdict(list)
 for r in rows:
     key = (r['load'], r['cr'])
