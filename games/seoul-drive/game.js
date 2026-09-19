@@ -1962,6 +1962,7 @@ function mdlPoll(dt){
       blkLast: window.__blkLast||null, blkHist: window.__blkHist||null,   // 구속 발동 문맥
       startK: (window.__startK===undefined?null:window.__startK),         // 출발 경로점 인덱스
       tpBld: window.__tpBld||0, tpPath: window.__tpPath||0,
+      crashResyncN: window.__crashResyncN||0,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
@@ -2370,6 +2371,23 @@ function respawnOnRoad(){
   me.ang=ang;me.v=0;me.offroad=0;me.cool=1.0;
   resetTeacherLane();      // 다른 차로수의 도로로 옮겨갔을 수 있다(PART B)
 }
+/* ★A6 2026-09-19: 사고 정지(crashHold) 해제 시 경로 인덱스 재동기화.
+   respawnOnRoad() 가 차를 옮긴 뒤에도 auto.i 가 뒤에 남아 xt 게이지가 1.6e8 을 찍고
+   ~10초 뒤 tpPath 순간이동이 났다(reg6 실측). 창 [i-5, i+60] 안의 최근접 점으로만 맞춘다
+   (전 경로 탐색 금지 — u_5038 의 뒤쪽 점 오조준 재발 방지). */
+function crashResync(){
+  if(!(auto.on && auto.wp.length>1)) return;
+  const i0=Math.max(0, auto.i-5), i1=Math.min(auto.wp.length-1, auto.i+60);
+  let j=auto.i, bd=1e18;
+  for(let i=i0;i<=i1;i++){
+    const d=(auto.wp[i].x-me.x)**2+(auto.wp[i].y-me.y)**2;
+    if(d<bd){bd=d;j=i}
+  }
+  if(j===auto.i) return;
+  auto.i=j;
+  if(auto.cum && j<auto.cum.length){ auto.s=auto.cum[j]; auto.k=Math.max(1,j); }
+  window.__crashResyncN=(window.__crashResyncN||0)+1;
+}
 function crash(label,heavy){
   if(me.cool>0)return;
   me.cool=.8;me.crashes++;
@@ -2468,7 +2486,7 @@ function crash(label,heavy){
          hardReset() 은 차를 출발지로 순간이동시키고 auto.wp 까지 비운다.
          내비게이션 중에 그러면 사고 한 번에 경로가 사라진다 — 사람이 쓰는
          내비는 그렇게 동작하지 않는다. 학습 에피소드일 때만 전체 리셋한다. */
-      if(auto.on && auto.wp.length){ respawnOnRoad(); me.v=0; }
+      if(auto.on && auto.wp.length){ respawnOnRoad(); me.v=0; crashResync(); }   // A6 2026-09-19 해제 시 auto.i 재동기화
       else hardReset();
     }, 600);
   }
@@ -2516,7 +2534,8 @@ function step(dt){
   if(crashHold){
     crashHoldT=(crashHoldT||0)+dt;
     if(crashHoldT>2){ crashHold=0; crashLit=0; crashHoldT=0;
-      const _el=document.getElementById('crash'); if(_el)_el.style.opacity=0; }
+      const _el=document.getElementById('crash'); if(_el)_el.style.opacity=0;
+      crashResync(); }   // A6 2026-09-19 강제 해제 경로도 auto.i 재동기화
     else { me.v=0; return; }
   } else crashHoldT=0;
   const AC=5.2,BR=9.0,VMAX=17;                    // m/s
