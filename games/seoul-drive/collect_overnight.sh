@@ -1,7 +1,7 @@
 #!/bin/bash
-# 밤샘 수집(u_5431 2026-09-19): 라운드마다 다른 스윕 구간(pairs30.json)을 로드 → dagger 3에피소드×600초(W/M 저장) → 라운드 통계 텔레그램. 07:00 또는 30라운드까지.
+# 밤샘 수집(u_5431): 라운드마다 다른 스윕 구간을 로드 → dagger 3에피소드×600초 → 라운드 통계 텔레그램. 07:00 까지.
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive
-# (원본은 검증 배치 뒤에 시작하도록 대기했다 — 레포 판은 즉시 시작. 사용: bash collect_overnight.sh [시작라운드])
+export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8
 echo "=== collection start $(date +%H:%M:%S) ==="
 python3 /Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/notify_telegram.py "[오드 수집] 시작 $(date +%H:%M). 라운드=구간 하나, 3에피소드×600초, W/M 저장. 라운드마다 보고." >/dev/null 2>&1
 r=${1:-100}
@@ -18,7 +18,7 @@ d=json.load(urllib.request.urlopen('http://localhost:8901/tel',timeout=5)); sys.
 import json,glob
 try:
   st=json.load(open('data/dagger_r$r/episodes.json')); fr=sum(e.get('frames',0) for e in st); cr=sum(e.get('crashes',0) for e in st); w0=sum(e.get('w0_frames',0) for e in st)
-  print(f'라운드 $r $f→$t: 프레임 {fr}, 사고 {cr}(가중치0 프레임 {w0}), 모델주행 {[e.get(\"model_pct\") for e in st]}%, 진행 {[e.get(\"prog_max\") for e in st]}')
+  print('라운드 $r $f > $t: 프레임 %d, 사고 %d(가중치0 프레임 %d), 모델주행 %s%%, 진행 %s' % (fr, cr, w0, [e.get('model_pct') for e in st], [e.get('prog_max') for e in st]))
 except Exception as e: print(f'라운드 $r: 결과 없음 ({e})')")
   echo "$s"; python3 /Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/notify_telegram.py "[오드 수집] $s" >/dev/null 2>&1
   r=$((r+1))
