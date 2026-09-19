@@ -4,7 +4,15 @@ while pgrep -f collect_overnight.sh >/dev/null; do
   pid=$(pgrep -f "dagger.py --round" | head -1)
   if [ -n "$pid" ]; then
     sleep 90
-    age=$(ps -o etimes= -p "$pid" 2>/dev/null | tr -d ' '); [ -z "$age" ] && age=0
+    et=$(ps -o etime= -p "$pid" 2>/dev/null | tr -d ' '); age=$(python3 -c "
+import sys; t='$et'
+try:
+    d=0
+    if '-' in t: d,t=t.split('-')
+    p=[int(x) for x in t.split(':')]
+    while len(p)<3: p=[0]+p
+    print(int(d)*86400+p[0]*3600+p[1]*60+p[2])
+except Exception: print(0)")
     if pgrep -f "dagger.py --round" >/dev/null && [ "$age" -lt 200 ]; then   # 첫 에피소드에서만(늦게 죽이면 앞 에피소드 데이터도 잃는다)
       m=$(python3 -c "
 import json,urllib.request
