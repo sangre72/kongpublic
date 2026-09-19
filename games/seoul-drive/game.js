@@ -681,9 +681,12 @@ function routeSeg(x,y){
     const _scan=(set)=>{ let b=null; for(const s of segs){ if(!set.has(s.w)) continue; const A=nodes[s.a],B=nodes[s.b]; if(!A||!B) continue;
       const vx=B.x-A.x,vy=B.y-A.y,L=vx*vx+vy*vy; let t=L?((x-A.x)*vx+(y-A.y)*vy)/L:0;t=Math.max(0,Math.min(1,t));
       const px=A.x+vx*t,py=A.y+vy*t,d=Math.hypot(px-x,py-y); if(!b||d<b.d)b={d,s,t,px,py}; } return b; };
-    if(wids.size){ const b0=_scan(wids); if(b0 && b0.d<=b0.s.roadW*0.5) return b0; }
-    for(let k=Math.max(0,auto.i-3); k<=Math.min(auto.wp.length-1,auto.i+3); k++){ const q=auto.wp[k]; if(q && q.sg && q.sg.w) wids.add(q.sg.w); }
-    if(!wids.size) return null;
+    if(wids.size){ const b0=_scan(wids); if(b0 && b0.d<=b0.s.roadW*0.5){ window.__rsHit=(window.__rsHit||0)+1; return b0; } }
+    for(const W of [3,12,40]){
+      for(let k=Math.max(0,auto.i-W); k<=Math.min(auto.wp.length-1,auto.i+W); k++){ const q=auto.wp[k]; if(q && q.sg && q.sg.w) wids.add(q.sg.w); }
+      if(wids.size) break;
+    }
+    if(!wids.size){ window.__rsMiss=(window.__rsMiss||0)+1; return null; }
     let best=null;
     for(const s of segs){
       if(!wids.has(s.w)) continue;
@@ -1801,6 +1804,15 @@ function planTo(x,y){
          회전은 진입 차로 하나로 끝낸다(o=o1). 진출 차로가 다르면 회전이 끝난 뒤
          직선에서 램프로 옮긴다(E4). */
       const o1=offs[i-1], o2=offs[i], o=o1;
+      /* ★★2026-09-19 u_5419 실측(offRev: 서소문로 516388936, d=4.88=반폭, 차가 kerb 에 고정):
+         진입 오프셋(통일로 4차로 1차로 = -4.88)을 진출 도로(서소문로 3차로, 1차로 = -3.25)에
+         그대로 30m 유지하면 경로선이 진출 도로 가장자리선 위에 놓인다. 오프셋은 미터가 아니라
+         '차로'다 — 진출 도로의 차로 범위 [안쪽차로, 주행차로] 로 자른다. 호는 진입 오프셋에서
+         이 값까지 반경을 선형 보간해 이음매 없이 잇는다. */
+      const _sgX=edgeOf(p[i],p[i+1]);
+      const _lnOf=(sg,ln)=> sg ? laneOffset({...sg, roadW:(sg.roadW||(Math.max(1,sg.l||2)*LW))}, 1, ln) : o1;
+      const oX=(()=>{ if(!_sgX) return o1; const a=_lnOf(_sgX,0), b=laneOff(_sgX);
+                      return Math.max(Math.min(a,b), Math.min(Math.max(a,b), o1)); })();
       const V=nodeAt(i);
       /* ★코너는 '중심선 원 하나 + 차로 반경'으로 잡는다(최종형, 실측 도출).
          중심선에 반경 Rc 로 접하는 원을 그리고, 차로 주행선은 그 원과 동심이되
@@ -1898,8 +1910,15 @@ function planTo(x,y){
          (실측 우150: Rl 이 0.97m 바닥에 걸려 표본당 99.4도). 바닥에 걸리지
          않도록 Rc 쪽을 먼저 키운다 — 차로 반경이 최소 LW*0.5 는 되게. */
       const RLMIN=LW*0.5;
-      if(sgnD>0 && Rc-Math.abs(o)<RLMIN) Rc=RLMIN+Math.abs(o);
-      const Rl=Rc - sgnD*Math.abs(o);                     // 차로 반경
+      /* ★★2026-09-19 실측(u_5419 스크린샷 '경로가 조각남'): 종전 Rl=Rc-sgnD*|o| 는 차로가 항상
+         중심선 오른쪽(o>0)이라고 가정했다. 일방통행 1차로는 o<0(중심선 왼쪽)이라 좌회전에서
+         '안쪽' 차로를 '바깥쪽'으로 계산 → 반경이 Rc+4.88(정답 Rc-4.88), 호 끝이 반대편 kerb 로
+         9.8m 튀고 그 뒤 유지구간이 -4.88 로 되돌아와 경로선이 조각났다. 부호 그대로 쓴다:
+         우회전(sgnD=+1) 오른쪽 차로(o>0)=안쪽 → Rc-o, 좌회전(sgnD=-1) 왼쪽 차로(o<0)=안쪽 → Rc+o. */
+      const _oMin=Math.min(o, oX), _oMax=Math.max(o, oX);
+      const _rlNeed = Rc - sgnD*(sgnD>0?_oMax:_oMin);     // 호 위에서 가장 작은 차로 반경
+      if(_rlNeed<RLMIN) Rc += RLMIN-_rlNeed;
+      const Rl=Rc - sgnD*o;                                // 차로 반경(진입)
       const bis=a1+half;                                   // 이등분 방향
       const nx=-Math.sin(bis)*sgnD, ny=Math.cos(bis)*sgnD; // 회전 안쪽 법선
       const Cox=V.x+nx*(Rc/shs), Coy=V.y+ny*(Rc/shs);
@@ -1909,7 +1928,7 @@ function planTo(x,y){
       const P2x=V.x+Math.cos(a2)*Tc, P2y=V.y+Math.sin(a2)*Tc;
       const A0=Math.atan2(P0y-Coy,P0x-Cox), A2=Math.atan2(P2y-Coy,P2x-Cox);
       // 다리에서 잘라낼 길이 = 중심선 접점까지 거리(차로 호도 같은 지점에서 이어진다)
-      const geom={Cox,Coy,R:Rl,A0,A2,T0:Tc,T2:Tc};
+      const geom={Cox,Coy,R:Rl,A0,A2,T0:Tc,T2:Tc,Rc,sgnD,o1:o,oX};
       corner[i]={a1,a2,d,half,T:Math.max(0,geom.T0),T2:Math.max(0,geom.T2),g:geom};
     }
     /* ★'뒤로 가는' 점은 버린다.
@@ -2085,7 +2104,7 @@ function planTo(x,y){
       const [_hpS,_hnS]=_split(i);       // 이 홉의 시작 경계
       const [_hpE,_hnE]=_split(i+1);     // 이 홉의 끝 경계
       const _straightStart = !(corner[i] || uexit[i]);
-      const offPrev=(uexit[i] ? uexit[i].oX : (i>0 ? offs[i-1] : off));   // 코너/유턴 진출: 진입 오프셋에서 램프 시작
+      const offPrev=(uexit[i] ? uexit[i].oX : (corner[i] && corner[i].g.oX!==undefined ? corner[i].g.oX : (i>0 ? offs[i-1] : off)));   // 코너/유턴 진출: 진출 도로 차로로 잘린 오프셋에서 램프 시작
       const _dOff=off-offPrev;
       const t0 = corner[i]   ? corner[i].T2  : (uexit[i] ? Math.max(0,uexit[i].cut) : 0);   // 시작쪽에서 자를 길이
       const t1 = corner[i+1] ? corner[i+1].T : (uspan[i] && uspan[i].sc<0 ? -uspan[i].sc : 0); // 끝쪽에서 자를 길이
@@ -2121,10 +2140,11 @@ function planTo(x,y){
         if(u.sc>0){ const m=Math.max(1,Math.round(u.sc/RS)); for(let k=1;k<=m;k++){ const f=k/m; push(u.E[0]+(u.Pe[0]-u.E[0])*f, u.E[1]+(u.Pe[1]-u.E[1])*f, _sgLeg); } }
         window.__wpSrcTag='u';
         const N=6;                                                     // ¼원당 15°/표본
-        for(let k=1;k<=N;k++){ const ang=u.A0+u.rot*(Math.PI/2)*(k/N); push(u.C1[0]+Math.cos(ang)*u.R, u.C1[1]+Math.sin(ang)*u.R); }
+        const _sgX=edgeOf(p[u.i1],p[u.i1+1])||_sgLeg;
+        for(let k=1;k<=N;k++){ const ang=u.A0+u.rot*(Math.PI/2)*(k/N); push(u.C1[0]+Math.cos(ang)*u.R, u.C1[1]+Math.sin(ang)*u.R, _sgLeg); }
         { const Lq=Math.hypot(u.Q2[0]-u.Q1[0],u.Q2[1]-u.Q1[1]); const m=Math.max(1,Math.round(Lq/RS));
-          for(let k=1;k<=m;k++){ const f=k/m; push(u.Q1[0]+(u.Q2[0]-u.Q1[0])*f, u.Q1[1]+(u.Q2[1]-u.Q1[1])*f); } }
-        for(let k=1;k<=N;k++){ const ang=u.B0+u.rot*(Math.PI/2)*(k/N); push(u.C2[0]+Math.cos(ang)*u.R, u.C2[1]+Math.sin(ang)*u.R); }
+          for(let k=1;k<=m;k++){ const f=k/m; push(u.Q1[0]+(u.Q2[0]-u.Q1[0])*f, u.Q1[1]+(u.Q2[1]-u.Q1[1])*f, edgeOf(p[u.i1-1],p[u.i1])||_sgLeg); } }
+        for(let k=1;k<=N;k++){ const ang=u.B0+u.rot*(Math.PI/2)*(k/N); push(u.C2[0]+Math.cos(ang)*u.R, u.C2[1]+Math.sin(ang)*u.R, _sgX); }
       }
       // 4) 이 구간의 끝이 코너면 이등분선 호를 붙인다.
       const c=window.__NOARC?null:corner[i+1];
@@ -2142,7 +2162,8 @@ function planTo(x,y){
         window.__wpSrcTag='a';
         for(let k=0;k<=N;k++){
           const ang=A0+dA*(k/N);
-          push(g.Cox+Math.cos(ang)*g.R, g.Coy+Math.sin(ang)*g.R);
+          const _Rk=(g.Rc!==undefined) ? g.Rc - g.sgnD*(g.o1+(g.oX-g.o1)*(k/N)) : g.R;   // 진입차로→진출차로 반경 보간
+          push(g.Cox+Math.cos(ang)*_Rk, g.Coy+Math.sin(ang)*_Rk, _sgLeg);   // ★호 점도 도로를 들고 간다(routeSeg 용)
         }
       }
     }
@@ -2330,7 +2351,10 @@ function gap(c,range){
       const f=dx*ca+dy*sa;
       if(f<=0||f>=b)continue;
       const l=-dx*sa+dy*ca;
-      if(Math.abs(l)<LW*.62)b=f;
+      /* ★2026-09-19 실측(충정로7길 1269m, 스크린샷): 교차로에서 대각선으로 한 차로 옆에 선 NPC 는
+         중심점이 ±0.62차로 띠 밖이라 '앞차 없음'(gap 40)인데 차체는 내 진로에 걸쳐 있었다.
+         접촉 → 속도가 정지한 NPC 에 묶임 → 갇힘 판정 → 순간이동. 상대 차폭의 절반을 띠에 더한다. */
+      if(Math.abs(l) < LW*.62 + (o.w||0)*0.5) b=f;
     }
   }
   return b;
@@ -2522,7 +2546,7 @@ function mdlPoll(dt){
          위치로 오독해 '유턴 지점에서 110초 정지'라는 허위 진단을 냈다(두 번째). 실시간
          좌표는 여기 pos 로만 읽는다. */
       pos: [+(me.x).toFixed(1), +(me.y).toFixed(1), +(me.ang*57.2958).toFixed(1)],
-      mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
+      tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
@@ -3365,6 +3389,8 @@ function step(dt){
     if(auto.cum && j<auto.cum.length){ auto.s=auto.cum[j]; auto.k=Math.max(1,j); }
     window.__tpN=(window.__tpN||0)+1;      // u_5227 순간이동 계측
     window.__tpPath=(window.__tpPath||0)+1;
+    /* ★2026-09-19: 어디서 났는지 남긴다 — 위치 없는 계수는 두 번이나 재현부터 다시 해야 했다. */
+    try{ (window.__tpLog=window.__tpLog||[]).push({m:Math.round((auto.cum&&auto.cum[Math.max(0,auto.i-3)]||0)/S), x:+(px0/S).toFixed(1), y:+(py0/S).toFixed(1), v:+(me.v).toFixed(1), stuck:window.__stuckT>1.2?1:0, off:me.offroad?1:0, hop:_hop}); if(window.__tpLog.length>12) window.__tpLog.shift(); }catch(e){}
     flash('경로 복귀');
   }
   const r=onRoad(me.x,me.y);
@@ -3382,6 +3408,12 @@ function step(dt){
          그래서 한 번 벗어나면 복구를 못 한다(실측: 사고 100% 가 차로이탈).
          수집 모드에서만 이탈을 허용하고, 교사가 도로로 되돌아오는 과정을 녹화한다. */
       if(!window.__COLLECT_RECOVER){
+        /* ★2026-09-19: 왜 '도로 밖'인지 남긴다(충정로7길 1272m 고정 위치 갇힘 추적용). */
+        try{ const rs=routeSeg(me.x,me.y); const nn=nearestSeg(me.x,me.y);
+             window.__offRev={x:+(me.x/S).toFixed(1),y:+(me.y/S).toFixed(1),
+               rs: rs?{d:+(rs.d/S).toFixed(2),half:+(rs.s.roadW*0.5/S).toFixed(2),w:rs.s.w,n:rs.s.n}:null,
+               nn: nn?{d:+(nn.d/S).toFixed(2),half:+(nn.s.roadW*0.5/S).toFixed(2),w:nn.s.w,n:nn.s.n}:null,
+               wpW:(auto.wp[Math.min(auto.i,auto.wp.length-1)]||{}).sg?.w, i:auto.i, n:(window.__offRev&&window.__offRev.n||0)+1}; }catch(e){ window.__offRevErr=String(e).slice(0,60); }
         me.x=px0; me.y=py0;
         me.v*=0.55;
       }
