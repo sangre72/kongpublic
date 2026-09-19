@@ -2840,7 +2840,7 @@ function driveModel(dt){
      사실은 굳은 명령의 관성일 수 있다).
      ⇒ 0.5초 이상 새 명령이 없으면 입력을 버리고 서서히 멈춘다. */
   const _age = MDL.rxT ? (performance.now() - MDL.rxT) : 1e9;
-  if(_age > 500){
+  if(_age > 150){   // ★u_5437 지연 설계: 20Hz 폴링 3회 누락(150ms) 이면 보수 기본(감속·직진). 종전 500ms=120km/h 에서 17m.
     me.v -= 3.0*dt; if(me.v < 0) me.v = 0;     // 타력주행으로 감속
     me.steer = 0;                               // 조향도 중립으로
     window.__mdl = {st:0, thr:0, brk:0, rx:MDL.rx, err:MDL.err, stale:1};

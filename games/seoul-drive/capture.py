@@ -86,13 +86,15 @@ def _grab_cli():
         return None
 
 
-def grab_canvas():
-    """게임 캔버스만 (툴바 제외) 반환. 실패시 None."""
+# ★2026-09-19 재측정: 단독 호출 CGWindowListCreateImage(rect, OnScreenOnly, Nominal) 는 6~14ms 였지만, grab_canvas 의
+#   Quartz 분기로 돌리면 09-15 실측 그대로 30.0s/프레임이 재현됐다(4회 연속 30.0s). CLI(1.6s) 가 여전히 덜 나쁘다.
+#   ⇒ 기본은 CLI. 진짜 해법은 페이지가 canvas.toDataURL 로 프레임을 /frame 에 밀어주는 방식(내일).
+CAPTURE_PREFER_CLI = True   # False 면 Quartz 를 먼저 시도(현재 30s/프레임 — 쓰지 말 것)
+
+def _grab_quartz():
+    """Quartz 창 캡처(in-process, 6~14ms). 실패 시 None."""
     if 'rect' not in _cache and find_window() is None:
         return None
-    a = _grab_cli()
-    if a is not None:
-        return a
     img = CG.CGWindowListCreateImage(
         _cache['rect'], CG.kCGWindowListOptionOnScreenOnly,
         CG.kCGNullWindowID, CG.kCGWindowImageNominalResolution)
@@ -115,6 +117,21 @@ def grab_canvas():
 #    주행 판단에는 문제 없다(화면이 안 바뀌었으면 같은 판단이 맞다).
 #    단 학습 데이터 수집에는 중복이 쌓이므로 seq 번호로 새 프레임만 받을 것.
 _bg = {'frame': None, 'seq': 0, 'run': False, 'th': None}
+
+def grab_canvas():
+    """게임 캔버스만 (툴바 제외) 반환. 실패시 None."""
+    if 'rect' not in _cache and find_window() is None:
+        return None
+    # ★2026-09-19 실측(u_5437 지연 병목): screencapture CLI 1.64s/프레임 vs Quartz CGWindowListCreateImage 6~14ms.
+    #   위 주석의 'Quartz API 가 죽음'은 이 기계에서 더 이상 사실이 아니다 → Quartz 를 먼저, 실패(None)할 때만 CLI.
+    if not CAPTURE_PREFER_CLI:
+        q = _grab_quartz()
+        if q is not None:
+            return q
+    a = _grab_cli()
+    if a is not None:
+        return a
+    return _grab_quartz()
 
 def clear_selection():
     """캔버스 빈 곳을 한 번 클릭해 텍스트 전체선택을 푼다.
