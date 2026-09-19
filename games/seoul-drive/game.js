@@ -674,11 +674,19 @@ let _lastSeg=null, _lastSegT=0;
 function routeSeg(x,y){
   try{
     if(!auto || !auto.on || !auto.wp || !auto.wp.length) return null;
-    const q=auto.wp[Math.min(auto.i, auto.wp.length-1)]; const wid=q && q.sg && q.sg.w;
-    if(!wid) return null;
+    /* 현재 인덱스의 way 를 먼저 — 차가 그 안에 있으면 그게 답이다. 창(±3)은 인덱스가 어긋났을 때만.
+       (실측: 유턴 지점에서 ±6 창이 양쪽 차도를 다 포함해 lat 부호가 매 프레임 뒤집혔다) */
+    const q0=auto.wp[Math.min(auto.i, auto.wp.length-1)]; const w0=q0 && q0.sg && q0.sg.w;
+    const wids=new Set(); if(w0) wids.add(w0);
+    const _scan=(set)=>{ let b=null; for(const s of segs){ if(!set.has(s.w)) continue; const A=nodes[s.a],B=nodes[s.b]; if(!A||!B) continue;
+      const vx=B.x-A.x,vy=B.y-A.y,L=vx*vx+vy*vy; let t=L?((x-A.x)*vx+(y-A.y)*vy)/L:0;t=Math.max(0,Math.min(1,t));
+      const px=A.x+vx*t,py=A.y+vy*t,d=Math.hypot(px-x,py-y); if(!b||d<b.d)b={d,s,t,px,py}; } return b; };
+    if(wids.size){ const b0=_scan(wids); if(b0 && b0.d<=b0.s.roadW*0.5) return b0; }
+    for(let k=Math.max(0,auto.i-3); k<=Math.min(auto.wp.length-1,auto.i+3); k++){ const q=auto.wp[k]; if(q && q.sg && q.sg.w) wids.add(q.sg.w); }
+    if(!wids.size) return null;
     let best=null;
     for(const s of segs){
-      if(s.w!==wid) continue;
+      if(!wids.has(s.w)) continue;
       const A=nodes[s.a],B=nodes[s.b]; if(!A||!B) continue;
       const vx=B.x-A.x,vy=B.y-A.y,L=vx*vx+vy*vy;
       let t=L?((x-A.x)*vx+(y-A.y)*vy)/L:0;t=Math.max(0,Math.min(1,t));
@@ -1232,6 +1240,7 @@ function gAstar(s,t,startAng,relax){
       const sg=GSEGS[si];
       if(!gSegAllows(sg, cur.n)) continue;          // 일방통행 역주행 금지
       if(gTurnBlocked(cur.si, cur.n, si)) continue; // ★회전금지(a_5053)
+      if(window.__dynBan && cur.si>=0 && window.__dynBan.has(cur.si+'|'+cur.n+'|'+si)) continue;   // ★불가능 유턴(경로 생성이 알려준 것)
       const nb=(sg.a===cur.n)?sg.b:sg.a;
       /* ★첫 구간은 차가 지금 향한 방향으로만 나간다(u_5048).
          오너: "건너편으로 차가 가려고 이동하는데. 가운데는 분리선이고
@@ -1345,6 +1354,10 @@ function parkCar(){
 window.parkCar=parkCar;
 function planTo(x,y){
   window.__ptCnt=(window.__ptCnt||0)+1;
+  /* ★2026-09-19: 경로 생성 단계가 '못 도는 유턴'을 발견하면 그 회전을 금지하고 한 번 더 짠다.
+     금지는 이 경로에만 유효하다 — 새 계획(재귀 아님)에서는 비운다. */
+  if(!window.__replanning){ window.__replanN=0; window.__dynBan=new Set(); }
+  window.__replanning=0; window.__replanWant=0;
   buildGlobalGraph();
   /* ★이전 경로에서 gStartNode 가 주입한 노드/간선을 되돌린다(ar_5051 경고).
      gStartNode 는 차 투영점을 실제 노드로 끼워넣어 매칭 정확도를 확보한다
@@ -1568,8 +1581,8 @@ function planTo(x,y){
        곡선 램프(꼭짓점당 40° 미만)도 누적으로 잡힌다. 라우터의 누적 규칙과 같은 자. */
     const _turnAt=new Set(); window.__turnAtDbg=[]; window.__turnRuns=[];
     {
-      let cum=0, apex=-1, flagged=false, runStart=1, runEnd=1;
-      const _end=()=>{ if(flagged){ _turnAt.add(apex); window.__turnAtDbg.push([apex, +(cum*57.3).toFixed(0)]); window.__turnRuns.push({i0:runStart,i1:runEnd,cum}); } cum=0; apex=-1; flagged=false; };
+      let cum=0, apex=-1, flagged=false, runStart=1, runEnd=1, sharp0=-1, sharp1=-1;
+      const _end=()=>{ if(flagged){ _turnAt.add(apex); window.__turnAtDbg.push([apex, +(cum*57.3).toFixed(0)]); window.__turnRuns.push({i0:runStart,i1:runEnd,cum,s0:sharp0,s1:sharp1}); } cum=0; apex=-1; flagged=false; sharp0=-1; sharp1=-1; };
       for(let i=1;i<NP-1;i++){
         const d=((segAng(i)-segAng(i-1)+Math.PI*3)%(Math.PI*2))-Math.PI;
         const straightLong = Math.abs(d)<0.03 && segLen(i)>15*S;
@@ -1580,6 +1593,7 @@ function planTo(x,y){
         if(bends && cum!==0 && Math.sign(d)!==Math.sign(cum) && Math.abs(d)>=0.15) _end();
         if(bends && cum===0) runStart=i;
         if(bends) runEnd=i;
+        if(Math.abs(d)>=0.35){ if(sharp0<0) sharp0=i; sharp1=i; }   // 실제 꺾임(20°↑) 범위 — 완만한 곡선은 제외
         if(bends || cum!==0) cum+=d;                           // 구간 밖의 미세 흔들림은 무시
         if(apex<0 && Math.abs(cum)>=0.35) apex=i;
         if(!flagged && Math.abs(cum)>=0.70) flagged=true;
@@ -1943,13 +1957,16 @@ function planTo(x,y){
        간격 D 를 지름으로 하는 원. 분리대 폭이 더해져 R=D/2 가 최소회전반경(6m)을 넘는다.
        내부 꼭짓점의 코너·다리는 건너뛰고 반원으로 잇는다. 회전 방향은 축 가정 없이
        실제 진행벡터로 정한다. R<5m 면(틈이 좁음) 종전 방식 유지. */
-    const uspan={}, uexit={}, skipLeg={}; window.__uspanN=0; window.__uspanTight=0; window.__uspanOff=0;
+    const uspan={}, uexit={}, skipLeg={}; window.__uspanN=0; window.__uspanTight=0; window.__uspanOff=0; window.__uspanList=[];
     for(const r of (window.__turnRuns||[])){
       try{
         if(Math.abs(r.cum) < Math.PI*0.82) continue;
-        const i0=r.i0, i1=r.i1; if(i0<1 || i1>NP-2) continue;
+        /* ★실측(신촌역 hops 56~58): 구간 시작이 코너 38m 전의 완만한 곡선 꼭짓점이라 내부길이 49.9m 로
+           40m 조건에 걸려 반원이 안 만들어졌다(링크 자체는 12m). 유턴 기하는 '실제로 꺾이는' 꼭짓점
+           (20°↑) 사이로 잡는다. */
+        const i0=(r.s0>=1?r.s0:r.i0), i1=(r.s1>=1?r.s1:r.i1); if(i0<1 || i1>NP-2){ (window.__uspanList=window.__uspanList||[]).push({i0,i1,skip:'bounds'}); continue; }
         let inner=0; for(let k=i0;k<i1;k++) inner+=segLen(k);
-        if(inner > 40*S) continue;
+        if(inner > 40*S){ (window.__uspanList=window.__uspanList||[]).push({i0,i1,inner:+(inner/S).toFixed(1),skip:'inner>40'}); continue; }
         const a1=segAng(i0-1), a2=segAng(i1);
         const u1x=Math.cos(a1), u1y=Math.sin(a1), n1x=-Math.sin(a1), n1y=Math.cos(a1);
         const n2x=-Math.sin(a2), n2y=Math.cos(a2);
@@ -1957,11 +1974,30 @@ function planTo(x,y){
            유턴이 1차로→3차로가 된다. 진출 직선에서 램프로 우측 이동한다. */
         const _lane1=(sg)=> sg ? laneOffset({...sg, roadW:(sg.roadW||(Math.max(1,sg.l||2)*LW))}, 1, 0) : LW*0.5;
         const sgX=edgeOf(p[i1],p[i1+1]);
-        const oE=offs[i0-1], oX=_lane1(sgX);
+        const oE=offs[i0-1]; let oX=_lane1(sgX);
         const N0=nodeAt(i0), N1=nodeAt(i1);
-        const E0x=N0.x+n1x*oE, E0y=N0.y+n1y*oE, X0x=N1.x+n2x*oX, X0y=N1.y+n2y*oX;
-        const dx=X0x-E0x, dy=X0y-E0y;
-        const D=dx*n1x+dy*n1y;                                       // 부호 있는 가로 간격
+        const E0x=N0.x+n1x*oE, E0y=N0.y+n1y*oE;
+        let X0x=N1.x+n2x*oX, X0y=N1.y+n2y*oX;
+        let dx=X0x-E0x, dy=X0y-E0y;
+        let D=dx*n1x+dy*n1y;                                         // 부호 있는 가로 간격
+        /* ★실측(신촌역 성산로, hops 57~58): 1차로선 간격 D=4.9m — 분리대가 좁아 반경 5.5m 로는 어떤
+           한 번 쓸기로도 맞은편 1차로에 못 내린다(두 호의 가로 이동은 항상 2R). 실제 운전자는 좁은
+           분리도로에서 바깥 차로로 내린다. 진출 차로를 한 칸씩 바깥으로 옮겨 D≥11m 가 되는 첫 차로로. */
+        { const nlX = sgX ? (sgX.o ? (sgX.l||1) : Math.max(1,Math.floor((sgX.l||2)/2))) : 1;
+          /* '바깥쪽'은 진출 도로 자기 좌표계의 고정 방향이라 D 의 부호로 못 정한다(실측: 첫 시도가
+             분리대 쪽으로 가서 |D| 가 줄고 끝남). 양쪽을 다 재서 간격이 넓어지는 쪽으로 간다. */
+          const oX0=oX;
+          for(let k=1; k<nlX && Math.abs(D) < 11.0*S; k++){
+            let bestT=null;
+            for(const sgnT of [1,-1]){
+              const oTry = oX0 + sgnT*k*LW;
+              const xx=N1.x+n2x*oTry, yy=N1.y+n2y*oTry;
+              const Dt=(xx-E0x)*n1x+(yy-E0y)*n1y;
+              if(Math.abs(Dt) > Math.abs(D) && (!bestT || Math.abs(Dt)>Math.abs(bestT.Dt))) bestT={oTry,xx,yy,Dt};
+            }
+            if(!bestT) break;
+            oX=bestT.oTry; X0x=bestT.xx; X0y=bestT.yy; dx=X0x-E0x; dy=X0y-E0y; D=bestT.Dt; window.__uspanWide=k;
+          } }
         /* ★재추출 지도 실측: 충정로 분리대 틈의 1차로선 간격 D=11.33m(옛 지도 17.8). 6.0m 로는 12m 가
            필요해 거부됐고 코너 두 개로 그려져 274m 에서 다시 갇혔다. 6.0 은 도로설계 기준값이고 승용차
            실제 최소회전반경은 5.3~5.6m 다. D≥11m 면 반경 = D/2 (5.5~6.0 사이로 고정). */
@@ -1969,7 +2005,18 @@ function planTo(x,y){
         window.__uspanDbg={i0,i1,D:+(Math.abs(D)/S).toFixed(2),oE:+(oE/S).toFixed(2),oX:+(oX/S).toFixed(2),
                            lE:sgX?null:null, exitL:sgX?(sgX.l||0):null, exitO:sgX?(sgX.o?1:0):null, exitW:sgX?(sgX.w||0):null,
                            entryW:(edgeOf(p[i0-1],p[i0])||{}).w||0, inner:+(inner/S).toFixed(1), deg:+(r.cum*57.3).toFixed(0), stage:'pre-D'};
-        if(Math.abs(D) < 11.0*S){ window.__uspanTight++; continue; }   // 틈이 회전지름(≥11m)보다 좁다: 종전 방식
+        (window.__uspanList=window.__uspanList||[]).push({i0,i1,D:+(Math.abs(D)/S).toFixed(1),inner:+(inner/S).toFixed(1),ok:Math.abs(D)>=11.0*S?1:0});
+        if(Math.abs(D) < 11.0*S){
+          window.__uspanTight++;
+          /* ★실측(신촌역 316m): 2차로 일방 한 쌍 사이 6m 틈의 유턴 — 바깥 차로가 하나뿐이라 넓혀도 9.25m.
+             코너 두 개로 그리면 경로가 도로 밖 1.6m 로 나가 차가 되돌려져 갇힌다. 라우터의 유턴 폭 검사는
+             '같은 간선 되돌기'만 보고 이런 링크 경유 유턴은 못 본다. 여기서 안 되는 걸 알았으니 라우터에
+             그 회전(진입간선|경유노드|링크간선)을 금지시키고 다시 짠다(최대 2회). */
+          try{ const eS=edgeOf(p[i0-1],p[i0]), lS=edgeOf(p[i0],p[i0+1]);
+               const ei=GSEGS.indexOf(eS), li=GSEGS.indexOf(lS);
+               if(ei>=0 && li>=0){ (window.__dynBan=window.__dynBan||new Set()).add(ei+'|'+p[i0]+'|'+li); window.__replanWant=1; } }catch(e){}
+          continue;
+        }
         /* ★실측: 반원(R=D/2=8.9~12m)은 틈 중앙에서 R 만큼 앞으로 나가 6.5m 횡단도로를 넘쳤다(267m 갇힘).
            실제 운전 = ¼원(R) + 틈을 가로지르는 직선(D−2R) + ¼원(R). 앞으로 나가는 거리 = R 로 최소.
            시작 접점 sc 는 횡단도로 안에서 끝나게 둔다: s_gap + w/2 − R (단, 횡단도로에 들어선 뒤). */
@@ -2130,6 +2177,11 @@ function planTo(x,y){
      경로 첫 점이 뒤에 있으면 차가 그 자리에서 유턴한다 — 불법이고, 사람이
      운전하는 방식도 아니다. 진행방향 기준으로 이미 지난 점은 건너뛰고
      '앞에 있는 첫 점'부터 따라간다. */
+  if(window.__replanWant && (window.__replanN||0)<2){
+    window.__replanN=(window.__replanN||0)+1; window.__replanning=1; window.__replanWant=0;
+    try{ flash('경로 재계획('+window.__replanN+'): 못 도는 유턴 회피'); }catch(e){}
+    return planTo(x,y);
+  }
   auto.wp=wp;
   auto.ktPts=window.__ktPtsTmp||[]; window.__ktPtsTmp=null; auto.kt=null; window.__ktN=auto.ktPts.length; window.__ktDone=0;
   /* ★차 뒤의 '첫 몇 점'만 건너뛴다(u_5033, u_5035 수정).
@@ -2225,7 +2277,7 @@ function planTo(x,y){
                       // 끊긴 지점 앞뒤 좌표(m). 경로가 어디서 튀는지 본다.
                       p0: bi>0?[+(wp[bi-1].x/S).toFixed(0),+(wp[bi-1].y/S).toFixed(0)]:null,
                       p1: bi>0?[+(wp[bi].x/S).toFixed(0),+(wp[bi].y/S).toFixed(0)]:null,
-                      pHead:p.slice(0,4), prepU:window.__prepU||0, turnRuns:(window.__turnRuns||[]).slice(0,10).map(r=>[r.i0,r.i1,+(r.cum*57.3).toFixed(0)]), uspanN:window.__uspanN||0, uspanTight:window.__uspanTight||0, uspanOff:window.__uspanOff||0, uspanDbg:window.__uspanDbg||null, uspanErr:window.__uspanErr||null, rtLeftBan:window.__rtLeftBan||0, rtEval:(window.__rtEval||[]).slice(0,12), routeRelaxed:window.__routeRelaxed||0, prepLSkip:window.__prepLSkip||0, prepLone:window.__prepLone||0, prepLWhy:(window.__prepLWhy||[]).slice(0,8), prepL:window.__prepL||0, NP:p.length,
+                      pHead:p.slice(0,4), prepU:window.__prepU||0, turnRuns:(window.__turnRuns||[]).slice(0,10).map(r=>[r.i0,r.i1,+(r.cum*57.3).toFixed(0)]), uspanN:window.__uspanN||0, uspanTight:window.__uspanTight||0, uspanList:(window.__uspanList||[]).slice(0,10), uspanOff:window.__uspanOff||0, uspanDbg:window.__uspanDbg||null, uspanErr:window.__uspanErr||null, rtLeftBan:window.__rtLeftBan||0, rtEval:(window.__rtEval||[]).slice(0,12), routeRelaxed:window.__routeRelaxed||0, prepLSkip:window.__prepLSkip||0, prepLone:window.__prepLone||0, prepLWhy:(window.__prepLWhy||[]).slice(0,8), prepL:window.__prepL||0, NP:p.length,
       offTab: window.__offTab||null, offErr: window.__offErr||null,
       uturnHops:(function(){let c=0;for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]) c++;return c})(),
       uturnPts:(function(){const o=[];for(let i=1;i<p.length-1;i++) if(p[i-1]===p[i+1]){const n=(typeof GNODES!=='undefined'&&GNODES[p[i]])||(typeof NODES!=='undefined'&&NODES[p[i]]); if(n) o.push({x:+(n.x/S).toFixed(1),y:+(n.y/S).toFixed(1)});} return o.slice(0,8)})(),
@@ -2470,7 +2522,7 @@ function mdlPoll(dt){
          위치로 오독해 '유턴 지점에서 110초 정지'라는 허위 진단을 냈다(두 번째). 실시간
          좌표는 여기 pos 로만 읽는다. */
       pos: [+(me.x).toFixed(1), +(me.y).toFixed(1), +(me.ang*57.2958).toFixed(1)],
-      ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
+      mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
@@ -2738,6 +2790,33 @@ function driveAuto(dt){
     P.x += -Math.sin(me.ang)*otOff;
     P.y +=  Math.cos(me.ang)*otOff;
   }
+  /* ★★2026-09-19 실측(신촌역 883~914m, 0.25초 폴링+스샷): 경로가 1차로로 옮기라는데 그 차로에 NPC 가
+     나란히 있었다. 경로 오프셋을 교통과 무관하게 따르니 옆차와 접촉 → 속도가 옆차에 묶이고 위치가
+     되돌려져(속도 12 인데 이동 0) 갇힘 판정. 차로 변경은 목표 차로의 차량을 방해하면 안 된다
+     (도로교통법 제19조·제17조의2). 직선에서 경로가 옆 차로에 있고 그 차로 띠(±0.6차로)에
+     차가 앞 15m·뒤 12m 안에 있으면, 이번 프레임은 경로와 평행하게 '지금 차로'를 유지한다(보류). */
+  try{
+    const dP=((P.ang-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+    if(Math.abs(dP) < 0.26){                                     // 직선(경로 헤딩 ≈ 내 헤딩)일 때만
+      const sa=Math.sin(me.ang), ca=Math.cos(me.ang);
+      const lp=-(P.x-me.x)*sa+(P.y-me.y)*ca;                     // 경로점의 내 기준 가로 오프셋(px)
+      if(Math.abs(lp) > 1.2*S){                                  // 차로 변경 중
+        let busy=false;
+        for(const c of cars){ if(!c.alive) continue;
+          const dx=c.x-me.x, dy=c.y-me.y;
+          const f=(dx*ca+dy*sa)/S, l=(-dx*sa+dy*ca);
+          if(f>-12 && f<15 && Math.abs(l-lp) < LW*0.6){ busy=true; break; }
+        }
+        if(busy){ P.x += sa*lp; P.y -= ca*lp; window.__mergeHoldN=(window.__mergeHoldN||0)+1; auto.mergeHold=1;
+          /* 곡선 40m 안인데 아직 못 옮겼으면 서서 틈을 기다린다 — 회전에서 풀리면서 두 차로를 가로질러
+             추돌한 실측(894m, xt 6.5). 실제 운전도 그렇다. */
+          try{ const Q=posAt(auto.s+40*S); const dQ=((Q.ang-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+               if(Math.abs(dQ)>0.26) auto.mergeWait=1; else auto.mergeWait=0; }catch(e){ auto.mergeWait=0; }
+        }
+        else { auto.mergeHold=0; auto.mergeWait=0; }
+      } else auto.mergeHold=0;
+    }
+  }catch(e){}
   let alpha=((Math.atan2(P.y-me.y,P.x-me.x)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
   const Lreal=Math.max(3, Math.hypot(P.x-me.x,P.y-me.y)/S);
   let delta=Math.atan2(2*wb*Math.sin(alpha), Lreal);   // rad
@@ -2781,6 +2860,7 @@ function driveAuto(dt){
      다른 판단을 냈다. 사본을 없애야 그 갈라짐이 다시 안 생긴다. */
   const pedD=pedBrakeDist();
   let vmax=vmaxCurve;
+  if(auto.mergeWait){ vmax=Math.min(vmax, 1.5); window.__mergeWaitN=(window.__mergeWaitN||0)+1; }   // 차로 못 옮김 + 회전 임박: 틈 대기
   if(pedD<PED_STOP_M) vmax=0;
   else if(pedD<PED_SLOW_M) vmax=Math.min(vmax, 3.5);
   if(off>6) vmax=Math.max(vmax, 4.5);              // 복귀 중엔 최소한의 추진력 유지
