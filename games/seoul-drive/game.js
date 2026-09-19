@@ -2764,7 +2764,7 @@ function mdlPoll(dt){
       tlUse: window.__tlUse||0, tlMismatch: window.__tlMismatch||0, tlDbg: window.__tlDbg||null, tlRoute: window.__tlRoute||0, tlRouteErr: window.__tlRouteErr||null,   // turn:lanes(tl) 사용 계측(2026-09-19)
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       pushN: window.__pushN|0, pushOn: window.__pushOn?1:0, frPush: window.__frPush||null,
-      tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
+      tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, ovlEscN: window.__ovlEscN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
       crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
@@ -3777,6 +3777,7 @@ function step(dt){
      서 있는 건 운전자 과실이 아니므로 대기 상태에서는 제외한다. */
   const waiting = (!auto.on && auto.wp.length>1 && me.v<0.5)
               || (auto.stall > 5 && me.v < 3);        // 교착 탈출 서행 중(u_5050)
+  let _ovlStop=false;
   for(const c of cars){if(!c.alive)continue;
     if(obb(me,c)){
       /* ★내가 들이받은 것만 내 사고다(u_5061 F1-2).
@@ -3787,8 +3788,15 @@ function step(dt){
       const ahead = ((c.x-me.x)*fx + (c.y-me.y)*fy) > 0;
       const iAmFaster = me.v > (c.v||0) + 0.5;
       if(!waiting && ahead && iAmFaster) crash(c.n+' 추돌',c.t==='truck');
-      else if(!waiting){ me.v=Math.min(me.v, Math.max(0,(c.v||0))); }  // 밀리지만 사고 아님
+      else if(!waiting){ me.v=Math.min(me.v, Math.max(0,(c.v||0)));   // 밀리지만 사고 아님
+        /* ★2026-09-20 DAgger k=2/k=3 실측: 추돌 뒤 복귀해도 모델이 다시 밀고 들어가 정지 NPC 와 겹친 채 v 가 매 프레임 0 으로 잘려
+           100초 정지(진행 0.6%/1.4%, 모델 thr 0.9·교사 thr 1.0 인데 v=0). 교사(driveAuto)엔 stall 탈출이 있지만 모델 주행엔 없다.
+           정지 NPC 와 3초 넘게 겹치면 8m 물러나 재출발(respawnOnRoad + crashResync). /tel ovlEscN. */
+        if((c.v||0)<0.3){ _ovlStop=true; window.__ovlT=(window.__ovlT||0)+dt;
+          if(window.__ovlT>3){ window.__ovlT=0; window.__ovlEscN=(window.__ovlEscN|0)+1; try{ respawnOnRoad(); crashResync(); }catch(e){} } }
+      }
     }}
+  if(!_ovlStop) window.__ovlT=0;
   for(const p of peds){
     if(obb(me,{x:p.x,y:p.y,ang:me.ang,w:1.4*S,h:1.4*S})){
       /* ★u_5206: 회피 가능했는지 분류한다.
