@@ -131,7 +131,7 @@ function buildGraph(roads){
     const len=Math.hypot(nodes[b].x-nodes[a].x,nodes[b].y-nodes[a].y);
     const ang=Math.atan2(nodes[b].y-nodes[a].y,nodes[b].x-nodes[a].x);
     const _lf=laneFix(w.l,w.o);
-    segs.push({a,b,l:_lf,o:w.o,n:w.n,len,ang,roadW:_lf*LW});
+    segs.push({a,b,l:_lf,o:w.o,n:w.n,w:w.w,len,ang,roadW:_lf*LW});
     nodes[a].e.push(si);nodes[b].e.push(si);
   }
 }
@@ -665,7 +665,32 @@ function nearestSeg(x,y){
    차선변경·회피·추월이 정확히 이 상황이라, 그 동작을 할 때마다 게임이 끊겼다.
    ⇒ 직전 프레임의 도로를 기억해두고, 그 도로 위에 있으면 그걸로 판정한다. */
 let _lastSeg=null, _lastSegT=0;
+/* ★★2026-09-19 실측(재추출 지도, 충정로7길 1002~1258m 폴링): 나란한 두 way(보정된 4차로 통일로와
+   lanes 태그 없는 이웃 way, 기본 3차로)가 겹쳐 있어 '가장 가까운 중심선'이 10m 마다 바뀐다.
+   교사의 nl 4↔3, lat -4.9↔+3.7 요동, 모니터 계측불일치, 그리고 차가 자기 차도 안에 있는데
+   '도로 밖'으로 판정돼 매 프레임 되돌려지고(속도 11.9인데 이동 0) 갇힘→순간이동까지 이 하나다.
+   차가 어느 도로 위에 있는지는 추측할 필요가 없다 — 경로가 그 도로를 안다(경로점이 way 를 들고 있다).
+   ⇒ 경로의 현재 way 에 속한 렌더 구간 중 가장 가까운 것을 '내 도로'로 먼저 쓴다. */
+function routeSeg(x,y){
+  try{
+    if(!auto || !auto.on || !auto.wp || !auto.wp.length) return null;
+    const q=auto.wp[Math.min(auto.i, auto.wp.length-1)]; const wid=q && q.sg && q.sg.w;
+    if(!wid) return null;
+    let best=null;
+    for(const s of segs){
+      if(s.w!==wid) continue;
+      const A=nodes[s.a],B=nodes[s.b]; if(!A||!B) continue;
+      const vx=B.x-A.x,vy=B.y-A.y,L=vx*vx+vy*vy;
+      let t=L?((x-A.x)*vx+(y-A.y)*vy)/L:0;t=Math.max(0,Math.min(1,t));
+      const px=A.x+vx*t,py=A.y+vy*t,d=Math.hypot(px-x,py-y);
+      if(!best||d<best.d)best={d,s,t,px,py};
+    }
+    return best;
+  }catch(e){ return null; }
+}
 function onRoad(x,y){
+  const rs=routeSeg(x,y);
+  if(rs && rs.d<=rs.s.roadW*.5){ _lastSeg=rs.s; _lastSegT=performance.now(); return{ok:true, d:rs.d, s:rs.s, px:rs.px, py:rs.py, edge:rs.d-rs.s.roadW*.5}; }
   const n=nearestSeg(x,y);
   if(!n)return{ok:false,d:1e9,s:null};
   /* 직전 도로가 아직 유효하면(1.5초 이내) 그 도로 기준도 같이 본다 */
@@ -1937,8 +1962,14 @@ function planTo(x,y){
         const E0x=N0.x+n1x*oE, E0y=N0.y+n1y*oE, X0x=N1.x+n2x*oX, X0y=N1.y+n2y*oX;
         const dx=X0x-E0x, dy=X0y-E0y;
         const D=dx*n1x+dy*n1y;                                       // 부호 있는 가로 간격
-        const R=UTURN_R;                                             // 법정 최소회전반경 6.0m
-        if(Math.abs(D) < 2*R){ window.__uspanTight++; continue; }   // 틈이 회전지름보다 좁다: 종전 방식
+        /* ★재추출 지도 실측: 충정로 분리대 틈의 1차로선 간격 D=11.33m(옛 지도 17.8). 6.0m 로는 12m 가
+           필요해 거부됐고 코너 두 개로 그려져 274m 에서 다시 갇혔다. 6.0 은 도로설계 기준값이고 승용차
+           실제 최소회전반경은 5.3~5.6m 다. D≥11m 면 반경 = D/2 (5.5~6.0 사이로 고정). */
+        const R=Math.max(5.5*S, Math.min(UTURN_R, Math.abs(D)/2));
+        window.__uspanDbg={i0,i1,D:+(Math.abs(D)/S).toFixed(2),oE:+(oE/S).toFixed(2),oX:+(oX/S).toFixed(2),
+                           lE:sgX?null:null, exitL:sgX?(sgX.l||0):null, exitO:sgX?(sgX.o?1:0):null, exitW:sgX?(sgX.w||0):null,
+                           entryW:(edgeOf(p[i0-1],p[i0])||{}).w||0, inner:+(inner/S).toFixed(1), deg:+(r.cum*57.3).toFixed(0), stage:'pre-D'};
+        if(Math.abs(D) < 11.0*S){ window.__uspanTight++; continue; }   // 틈이 회전지름(≥11m)보다 좁다: 종전 방식
         /* ★실측: 반원(R=D/2=8.9~12m)은 틈 중앙에서 R 만큼 앞으로 나가 6.5m 횡단도로를 넘쳤다(267m 갇힘).
            실제 운전 = ¼원(R) + 틈을 가로지르는 직선(D−2R) + ¼원(R). 앞으로 나가는 거리 = R 로 최소.
            시작 접점 sc 는 횡단도로 안에서 끝나게 둔다: s_gap + w/2 − R (단, 횡단도로에 들어선 뒤). */

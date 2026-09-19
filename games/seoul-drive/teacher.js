@@ -80,7 +80,10 @@
        (다른 함수까지 죽는 것)를 반복하지 않는다. */
   let _ltSeg = null, _ltT = 0;
   function laneTarget(){
-    const n = nearestSeg(me.x, me.y);
+    /* ★2026-09-19: '내 도로'는 경로가 안다. 나란한 way 가 겹치면 최근접 중심선이 10m 마다 바뀌어
+       nl 4↔3, lat -4.9↔+3.7 로 요동했다(실측). 경로의 현재 way 위 구간이 있으면 그걸 먼저 쓴다. */
+    let n = (typeof routeSeg==='function') ? routeSeg(me.x, me.y) : null;
+    if(!n || n.d > n.s.roadW*0.6) n = nearestSeg(me.x, me.y);
     if(!n) return null;
     let sg = n.s;
     const hdOf = s2 => { const dd=((me.ang - s2.ang + Math.PI*3)%(Math.PI*2))-Math.PI; return Math.abs(Math.abs(dd)>Math.PI/2?Math.PI-Math.abs(dd):dd); };
