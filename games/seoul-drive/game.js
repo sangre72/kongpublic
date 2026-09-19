@@ -1393,25 +1393,39 @@ function planTo(x,y){
        방향 맞는 점 → 그냥 최근접 점 순으로 시도해서 첫 성공을 쓴다. */
     const tgt=gNearest(x,y);
     const cands=[gStartNode(me.x,me.y,me.ang), gNearest(me.x,me.y)];
+    /* ★2026-09-19 u_5417 감사: 출발 후보 선별을 두 단계로 돈다.
+       1차(strict) = 아래 '차 뒤 출발점' 검사를 적용. 전부 탈락하면 2차(relaxed) = 옛 동작으로
+       되돌리고 __startRelax=1 로 표시한다(경로 자체가 없어지는 것보다는 낫다 — u_5035 교훈). */
+    window.__startRelax=0; window.__startBehind=0;
+    for(const strict of [1,0]){
+    if(!strict){ if(!window.__startBehind) break; window.__startRelax=1; }   // 1차에서 탈락한 후보가 있을 때만 2차
     for(const sN of cands){
       if(sN===undefined||sN<0) continue;
       /* ★u_5417: 라우터 계수는 라우팅 '전'에 초기화한다. 경로 생성 블록에서 초기화했더니
          A* 가 끝난 뒤 지워져 금지 횟수가 항상 0 으로 보였다(규칙이 도는지 확인 불가). */
       window.__rtLeftBan=0; window.__rtEval=[]; window.__routeRelaxed=0;
       const gp=gAstar(sN, tgt, me.ang);
-      /* ★감사 지적(2026-09-19): 완화(relax) 경로는 차로 가로지르기 규칙을 끈 경로다. 조용히 달리면
-         합법 경로와 구분이 안 된다. 화면에 띄우고 콘솔에 남긴다. 실측으로는 아직 0 건. */
-      if(window.__routeRelaxed){ try{ flash('⚠ 합법 경로 없음 — 완화 경로'); console.warn('routeRelaxed', sN, tgt); }catch(e){} window.__routeRelaxedN=(window.__routeRelaxedN||0)+1; }
       if(!gp) continue;
       /* ★감사 지적(2026-09-19): 두 번째 출발 후보 gNearest 는 방향을 무시한다. gAstar 의 첫 구간
          방향 검사는 '출발 노드에서 나가는 첫 간선'만 보므로, 노드가 차 뒤에 잡히면 경로가 차가 온
          길을 되짚게 되고 차는 제자리에서 돌아야 한다("직진 잘 가다 제자리 유턴"). 어느 후보든
          첫 경로 구간이 차 진행방향과 90° 넘게 어긋나면 그 경로는 버린다. */
+      /* ★2026-09-19 u_5417 감사(재검): 위 첫-홉 각도 검사는 gAstar 가 cur.si===-1 에서 이미 90° 로
+         거르므로(u_5048) 여기서는 절대 걸리지 않았다(__startBack 항상 0). 실제 구멍은 '출발 노드가
+         차 뒤에 있는 것'이다 — gNearest 는 뒤 60m 노드도 돌려주고(60m 검사만 있음), 그 노드에서
+         앞으로 나가는 홉은 각도 검사를 통과한다. 그러면 처음 4~12점(RS=5m)이 차 뒤에 놓이는데
+         u_5033 뒤점 건너뛰기는 최대 3점(15m)만 잡아 auto.i 가 뒤의 점을 가리키고 차는 제자리 유턴을
+         한다. ⇒ 출발 노드가 진행방향으로 15m(=뒤점 상한 3×RS) 넘게 뒤면 후보 탈락. 각도는 100° 로.
+         1차(strict)에서만 적용, 전부 탈락 시 2차에서 옛 동작(__startRelax=1). */
       if(gp.length>=2){
         const a0=GNODES[gp[0]], a1=GNODES[gp[1]];
         const ea=Math.atan2(a1.y-a0.y, a1.x-a0.x);
         const dd=Math.abs(((ea-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI);
-        if(dd > Math.PI/2){ window.__startBack=(window.__startBack||0)+1; continue; }
+        const behind=-((a0.x-me.x)*Math.cos(me.ang)+(a0.y-me.y)*Math.sin(me.ang));   // 양수 = 출발 노드가 차 뒤 (m·S)
+        if(strict && (dd > Math.PI*100/180 || behind > 15*S)){
+          window.__startBack=(window.__startBack||0)+1; window.__startBehind=Math.max(window.__startBehind, +(behind/S).toFixed(1), 0.1);
+          continue;
+        }
       }
       /* ★경로는 '내 차가 있는 도로'에서 시작해야 한다(u_5038 오너 지시).
          출발노드가 차에서 60m 넘게 떨어져 있으면 그건 옆 도로다 — 그런 경로는
@@ -1437,9 +1451,20 @@ function planTo(x,y){
         const e=GNODES[gp[gp.length-1]], t2=GNODES[tgt];
         window.__planDbg = {nodes:gp.length,
           endToTgt:+(Math.hypot(e.x-t2.x,e.y-t2.y)/S).toFixed(0),
-          tgtToMe:+(Math.hypot(t2.x-me.x,t2.y-me.y)/S).toFixed(0)};
+          tgtToMe:+(Math.hypot(t2.x-me.x,t2.y-me.y)/S).toFixed(0),
+          /* ★2026-09-19 u_5417 감사: 완화/뒤출발 표시를 /tel(planDbg)에 남긴다 — flash 는 다음 flash 에 덮인다 */
+          routeRelaxed:window.__routeRelaxed||0, startRelax:window.__startRelax||0, startBehind:window.__startBehind||0, startBack:window.__startBack||0};
       }catch(err){}
+      /* ★감사 지적(2026-09-19): 완화(relax) 경로는 차로 가로지르기 규칙을 끈 경로다. 조용히 달리면
+         합법 경로와 구분이 안 된다. 화면에 띄우고 콘솔에 남긴다. 실측으로는 아직 0 건.
+         ★2026-09-19 u_5417 감사: 표시 시점을 '채택 직후'로 옮겼다. 종전엔 gAstar 직후에 띄워서, 그 후보가
+         뒤에서 탈락(60m·도로밖 검사)하고 다음 후보가 합법이면 화면엔 ⚠ 가 뜨는데 __routeRelaxed 는 0 인
+         모순이 났다(허위 경보·카운터 과다). 실제로 달리게 되는 경로에 대해서만 알린다. */
+      if(window.__routeRelaxed){ try{ flash('⚠ 합법 경로 없음 — 완화 경로'); console.warn('routeRelaxed', sN, tgt); }catch(e){} window.__routeRelaxedN=(window.__routeRelaxedN||0)+1; }
+      if(window.__startRelax){ try{ flash('⚠ 출발 후보 전부 차 뒤 — 옛 방식 출발'); console.warn('startRelax', sN, window.__startBehind); }catch(e){} }
       p=gp; NS=GNODES; break;
+    }
+    if(p) break;                                 // 2026-09-19 u_5417 감사: 1차(strict)에서 찾았으면 2차 안 돈다
     }
   }
   if(!p){ p=astar(nearestNode(me.x,me.y),nearestNode(x,y)); NS=nodes; }
