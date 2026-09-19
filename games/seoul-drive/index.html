@@ -1997,8 +1997,23 @@ function planTo(x,y){
        (우회전 진입홉을 '맨 오른쪽'으로 고정한 시도는 갇힘이 늘어 되돌린 이력이 있다(위 주석). 여기서는
         지도가 전용차로라고 말하는 홉만 바꾼다 — 기본값과 다른 차로가 나오는 건 우회전 차로가 둘 이상이거나
         through;right 처럼 겸용 차로가 더 왼쪽에 있을 때다.) 예외는 경로 생성을 죽이지 않고 __tlRouteErr 에 남긴다. */
+    /* ★2026-09-19 실측(소공로 379943276 through|through|right|right, 직진 경로): 기본값 '주행차로=맨 오른쪽'이
+       우회전 전용차로였다 — 직진하면서 전용차로로 그려진 경로선. 전용차로 도로에서 기본 차로가 through 가
+       아니면 가장 가까운 through 차로로 옮긴다(작성자 'Stl'). 'base' 홉만 건드린다(Lprep 등은 회전 의도). */
     try{
       window.__tlRoute=0; window.__tlRouteErr=null;
+      for(let i=0;i<NP-1;i++){
+        if((window.__offWho||{})[i]!=='base') continue;
+        const sgS=edgeOf(p[i],p[i+1]); if(!sgS || !sgS.tl || sgS.a!==p[i]) continue;
+        const _nlS = sgS.o ? (sgS.l||1) : Math.max(1, Math.floor((sgS.l||2)/2));
+        const sets=tlSetsFor(sgS,_nlS); if(!sets) continue;
+        const sgF={...sgS, roadW:(sgS.roadW||(Math.max(1,sgS.l||2)*LW))};
+        let k=0, kd=1e9; for(let q=0;q<_nlS;q++){ const dd=Math.abs(laneOffset(sgF,1,q)-offs[i]); if(dd<kd){ kd=dd; k=q; } }
+        const thru=x=>x==='through'||x==='none';
+        if(sets[k] && sets[k].some(thru)) continue;
+        const k2=tlPickLane(sets,'S',k); if(k2<0 || k2===k) continue;
+        offs[i]=laneOffset(sgF,1,k2); window.__offWho[i]='Stl'; window.__tlRoute++;
+      }
       for(const [i,_deg] of (window.__turnAtDbg||[])){
         if(i<1 || i>=NP-1 || Math.abs(_deg)>150) continue;
         const sgT=edgeOf(p[i-1],p[i]);
