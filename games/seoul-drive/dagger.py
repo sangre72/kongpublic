@@ -65,7 +65,7 @@ def episode(net, dev, secs, ep):
     pmax = p_start
     nmodel = ntot = 0
     dup = nolabel = nodecode = 0
-    last_st, frozen = None, 0
+    last_st, frozen, frozen_t = None, 0, 0
     arrived = False
 
     while time.time() - t0 < secs:
@@ -105,12 +105,16 @@ def episode(net, dev, secs, ep):
                 break
             time.sleep(0.03); continue
         st, th, br = float(t['st']), float(t['th']), float(t.get('br', 0))
-        if last_st is not None and abs(st - last_st) < 1e-9:
+        # ★2026-09-20 r109 실측: 신호 대기(st=0, v=0)에서 200프레임(1.3fps=150초) 동일 라벨 → '교사 정지'로 오판·에피소드 중단.
+        #   정지 중 동일 라벨은 정상 — 움직이는데(v>1) 조향이 120초 넘게 완전히 같을 때만 죽은 것으로 본다.
+        _v_now = float(d.get('v') or 0)
+        if last_st is not None and abs(st - last_st) < 1e-9 and _v_now > 1.0:
+            if frozen == 0: frozen_t = time.time()
             frozen += 1
         else:
-            frozen = 0
+            frozen = 0; frozen_t = 0
         last_st = st
-        if frozen > 200:                      # 교사가 죽으면 상수 라벨이 쌓인다
+        if frozen and frozen_t and time.time() - frozen_t > 120:   # 교사가 죽으면 상수 라벨이 쌓인다(주행 중 120초)
             print(json.dumps({'ep': ep, 'abort': 'teacher frozen'}), flush=True)
             break
 
