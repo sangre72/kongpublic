@@ -128,7 +128,8 @@ def episode(net, dev, secs, ep):
         x = preprocess(f, device=dev)[None]
         if net is not None:
             with torch.no_grad():
-                o = net(x)[0].cpu().numpy()
+                _vt = torch.tensor([[float(d.get('v') or 0) / 30.0]], device=dev)   # 속도 입력(u_5461)
+                o = (net(x, _vt) if getattr(net, 'vin', False) else net(x))[0].cpu().numpy()
             post({'on': 1, 'force': 1, 'steer': float(o[0]),
                   'thr': float(o[1]), 'brake': float(o[2])})
 
@@ -217,7 +218,7 @@ def main():
     else:
         sd = torch.load(mp, map_location=dev)
         out = sd[list(sd)[-1]].shape[0]
-        net = DriveNet(out=out).to(dev)
+        net = DriveNet(out=out, vin=any(k.startswith('hv.') for k in sd)).to(dev)   # hv.* 키가 있으면 속도 입력 구조
         net.load_state_dict(sd); net.eval()
     if net is not None: assert_on_gpu(net)
 

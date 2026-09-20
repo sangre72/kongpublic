@@ -64,8 +64,9 @@ def augment(xb):
             xb[i, :, y0:y0 + h, x0:x0 + w] = torch.rand(1).item()
     return xb.clamp_(0, 1)
 
-def batch(X, Y, ids, train=False):
+def batch(X, Y, ids, train=False, V=None):
     real = np.abs(ids) - 1
+    vb = torch.from_numpy(V[real]).to(DEV) if V is not None else None
     xb = torch.from_numpy(np.ascontiguousarray(X[real])).float().div_(255.)
     yb = Y[real].copy()
     flip = ids < 0
@@ -73,16 +74,16 @@ def batch(X, Y, ids, train=False):
         xb[flip] = torch.flip(xb[flip], dims=[3]); yb[flip, 0] *= -1
     xb = xb.to(DEV)
     if train and AUG: xb = augment(xb)
-    return xb, torch.from_numpy(yb).to(DEV)
+    return xb, torch.from_numpy(yb).to(DEV), vb
 
 def load(dirs, stage, replay, rng, extra=()):
     """extra = DAgger 라운드(모델이 몰고 교사가 라벨) — 단계 필터를 거치지 않고 전 프레임(W 가중)을 넣는다.
        모델이 실제로 가는 상태(차선 이탈·복귀)의 정답이 핵심이라 상황 태그로 걸러내면 안 된다."""
-    Xs, Ys, Ws, nsel, nrep = [], [], [], 0, 0
+    Xs, Ys, Ws, Vs, nsel, nrep = [], [], [], [], 0, 0
     extra = set(extra)
     for d in list(dirs) + [e for e in extra if e not in dirs]:
         try:
-            X = np.load(f'{d}/X.npy'); Y = np.load(f'{d}/Y.npy')[:, :3].astype(np.float32); M = np.load(f'{d}/M.npy')
+            X = np.load(f'{d}/X.npy'); Yf = np.load(f'{d}/Y.npy').astype(np.float32); Y = Yf[:, :3]; V = (Yf[:, 3] / 30.0).astype(np.float32); M = np.load(f'{d}/M.npy')
         except Exception as e:
             print(json.dumps({'skip': d, 'why': str(e)[:60]}), flush=True); continue
         try: W = np.load(f'{d}/W.npy').astype(np.float32)
@@ -108,10 +109,10 @@ def load(dirs, stage, replay, rng, extra=()):
         rep = rng.choice(rest, int(len(rest) * replay), replace=False) if len(rest) and replay > 0 else np.array([], int)
         idx = np.concatenate([np.where(sel)[0], rep])
         if len(idx) == 0: continue
-        Xs.append(X[idx]); Ys.append(Y[idx]); Ws.append(W[idx]); nsel += int(sel.sum()); nrep += len(rep)
+        Xs.append(X[idx]); Ys.append(Y[idx]); Ws.append(W[idx]); Vs.append(V[idx]); nsel += int(sel.sum()); nrep += len(rep)
         print(json.dumps({'dir': d.split('/')[-1], 'total': len(Y), 'stage': int(sel.sum()), 'replay': len(rep), 'extra': int(d in extra)}), flush=True)
     if not Xs: return None
-    return np.concatenate(Xs), np.concatenate(Ys), np.concatenate(Ws), nsel, nrep
+    return np.concatenate(Xs), np.concatenate(Ys), np.concatenate(Ws), nsel, nrep, np.concatenate(Vs)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -124,14 +125,14 @@ def main():
     extra = [d for p in a.extra.split(',') if p for d in sorted(glob.glob(p))]
     got = load(dirs, a.stage, a.replay, rng, extra)
     if not got: print(json.dumps({'error': 'no frames for stage', 'stage': a.stage})); return
-    X, Y, W, nsel, nrep = got; n = len(X)
+    X, Y, W, nsel, nrep, V = got; n = len(X)
     print(json.dumps({'stage': a.stage, 'aug': AUG, 'frames': n, 'stage_frames': nsel, 'replay_frames': nrep, 'w0': int((W == 0).sum()),
                       'steer_std': round(float(Y[:, 0].std()), 4), 'thr_mean': round(float(Y[:, 1].mean()), 3),
                       'stopped_pct': round(100 * float((Y[:, 1] < 0.05).mean()), 1)}), flush=True)
     if nsel < 200: print(json.dumps({'warn': 'stage frames < 200 — collect more of this situation first'}), flush=True)
     idx = rng.permutation(n); cut = int(n * 0.85)
     tr = np.concatenate([idx[:cut] + 1, -(idx[:cut] + 1)]); va = np.concatenate([idx[cut:] + 1, -(idx[cut:] + 1)])
-    net = DriveNet(out=3).to(DEV); gpu_guard.assert_on_gpu(net)
+    net = DriveNet(out=3, vin=True).to(DEV); gpu_guard.assert_on_gpu(net)   # 속도 입력(u_5461)
     if a.init:
         net.load_state_dict(torch.load(a.init, map_location=DEV)); print(json.dumps({'init': a.init}), flush=True)
     opt = torch.optim.Adam(net.parameters(), 5e-4 if a.init else 1e-3, weight_decay=1e-4)
@@ -139,15 +140,15 @@ def main():
     for ep in range(a.epochs):
         net.train(); tot = 0.0; perm = rng.permutation(tr)
         for i in range(0, len(perm), BS):
-            ids = perm[i:i+BS]; xb, yb = batch(X, Y, ids, train=True); wb = torch.from_numpy(W[np.abs(ids) - 1]).to(DEV)
-            opt.zero_grad(); o = net(xb)
+            ids = perm[i:i+BS]; xb, yb, vb = batch(X, Y, ids, train=True, V=V); wb = torch.from_numpy(W[np.abs(ids) - 1]).to(DEV)
+            opt.zero_grad(); o = net(xb, vb)
             l = (wb * ((o - yb) ** 2).mean(1)).sum() / wb.sum().clamp_min(1.0)
-            of = net(torch.flip(xb, dims=[3])); l = l + 0.5 * ((o[:, 0] + of[:, 0]) ** 2).mean()   # 좌우 대칭(bias 억제)
+            of = net(torch.flip(xb, dims=[3]), vb); l = l + 0.5 * ((o[:, 0] + of[:, 0]) ** 2).mean()   # 좌우 대칭(bias 억제)
             l.backward(); opt.step(); tot += l.item() * len(ids)
         net.eval(); vs = 0.0; c = 0
         with torch.no_grad():
             for i in range(0, len(va), BS):
-                ids = va[i:i+BS]; xb, yb = batch(X, Y, ids); vs += ((net(xb) - yb) ** 2).mean().item() * len(ids); c += len(ids)
+                ids = va[i:i+BS]; xb, yb, vb = batch(X, Y, ids, V=V); vs += ((net(xb, vb) - yb) ** 2).mean().item() * len(ids); c += len(ids)
         vl = vs / max(1, c)
         if vl < best: best = vl; torch.save(net.state_dict(), a.out)
         print(json.dumps({'ep': ep, 'train': round(tot / len(perm), 5), 'val': round(vl, 5)}), flush=True)

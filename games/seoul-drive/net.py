@@ -29,7 +29,7 @@ class DriveNet(nn.Module):
       강제된다(auxiliary task). 추론 때는 앞의 3개만 쓰면 되므로 비용은 0에 가깝다.
       색 대비 실측: 도로 vs 인도 = 80(구분 쉬움), 인도 vs 건물 = 16.8(안 구분되지만
       둘 다 '못 가는 곳'이라 문제되지 않는다)."""
-    def __init__(self, out=3):
+    def __init__(self, out=3, vin=True):
         super().__init__()
         self.f = nn.Sequential(
             nn.Conv2d(3, 16, 5, 2), nn.ReLU(),
@@ -47,15 +47,26 @@ class DriveNet(nn.Module):
         self.h = nn.Sequential(nn.Flatten(), nn.Linear(128 * 6 * 6, 256), nn.ReLU(),
                                nn.Dropout(0.1), nn.Linear(256, 96), nn.ReLU(),
                                nn.Linear(96, out))
+        # ★속도 입력(오너 승인 u_5461, 2026-09-20). 한 장의 그림으로는 '서 있어야 하나 / 가야 하나'가 구분되지 않아
+        #   정지 고정이 세 번 반복됐다(ode_s1_2·s2·s2b). PilotNet/CIL/DART 계열이 전부 속도를 넣는 이유. 계기판 값이지 특권정보가 아니다.
+        #   v/30 (m/s 정규화) 한 값을 FC 첫 층 출력에 이어 붙인다. vin=False 면 종전 구조(옛 가중치 호환).
+        self.vin = vin
+        if vin:
+            self.hv = nn.Sequential(nn.Linear(256 + 1, 96), nn.ReLU(), nn.Linear(96, out))
 
-    def forward(self, x, raw=False):
+    def forward(self, x, v=None, raw=False):
         """raw=True 면 활성화 전 로짓을 준다(학습에서 제동 채널에 BCE 를 걸 때 필요).
 
         ★u_5170 실사고: 제동을 BCEWithLogitsLoss 로 학습해 놓고 추론에서 tanh 를
           태웠다. 학습은 로짓을 올리는데 tanh 가 음수로 눌러버려서, 실주행 제동이
           -0.846 이 나왔다(제동이 아니라 가속 쪽). 학습·추론 경로를 맞춘다.
           steer 는 -1~1 이라 tanh, thr/brake 는 0~1 이라 sigmoid 가 맞다."""
-        o = self.h(self.f(x))
+        if self.vin:
+            z = self.h[0:3](self.f(x))                       # Flatten → Linear(4608,256) → ReLU
+            if v is None: v = torch.zeros(x.shape[0], 1, device=x.device, dtype=z.dtype)
+            o = self.hv(torch.cat([z, v.reshape(-1, 1).to(z.dtype)], dim=1))
+        else:
+            o = self.h(self.f(x))
         if raw:
             return o
         return torch.cat([torch.tanh(o[:, :1]), torch.sigmoid(o[:, 1:])], dim=1)
