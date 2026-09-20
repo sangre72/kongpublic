@@ -2850,13 +2850,22 @@ function driveModel(dt){
      사실은 굳은 명령의 관성일 수 있다).
      ⇒ 0.5초 이상 새 명령이 없으면 입력을 버리고 서서히 멈춘다. */
   const _age = MDL.rxT ? (performance.now() - MDL.rxT) : 1e9;
-  if(_age > 150){   // ★u_5437 지연 설계: 20Hz 폴링 3회 누락(150ms) 이면 보수 기본(감속·직진). 종전 500ms=120km/h 에서 17m.
+  /* ★2026-09-20 u_5481 '갈지자' 실측: 모델 파이프(캡처→추론→/ctl 20Hz)는 명령이 75~150ms 늦고, 150ms 이상 비면 조향 0 으로 떨궈
+     좌우가 번갈아 튀었다(교사 명령을 같은 파이프로 흘려도 xt 0.2↔0.9m 진동, GEOM 직접은 진동 없음). 두 가지를 고친다:
+     ① 빈 구간 400ms 까지는 마지막 조향을 유지(감속만), 그 뒤에야 중립 ② 조향 변화율 제한 초당 4(교사 MAXRATE 와 동일) — 늦게 온 큰 명령이 한 프레임에 꺾지 않게. */
+  if(_age > 400){
     me.v -= 3.0*dt; if(me.v < 0) me.v = 0;     // 타력주행으로 감속
-    me.steer = 0;                               // 조향도 중립으로
+    me.steer = 0;                               // 조향 중립
     window.__mdl = {st:0, thr:0, brk:0, rx:MDL.rx, err:MDL.err, stale:1};
     return;
   }
-  me.steer = Math.max(-0.9, Math.min(0.9, MDL.steer));
+  if(_age > 150){                               // 150~400ms: 마지막 조향 유지, 가속만 끊는다
+    me.v -= 1.5*dt; if(me.v < 0) me.v = 0;
+    window.__mdl = {st:me.steer, thr:0, brk:0, rx:MDL.rx, err:MDL.err, stale:1};
+    return;
+  }
+  { const _want = Math.max(-0.9, Math.min(0.9, MDL.steer)), _lim = 4.0*dt;
+    me.steer = Math.max(me.steer - _lim, Math.min(me.steer + _lim, _want)); }
   /* ★브레이크는 '절대 임계'가 아니라 '스로틀과의 비교'로 판단한다(u_5101 실사고).
      실측: 모델이 thr=0.96 과 brk=0.84 를 동시에 냈고, brk>0.5 하드 게이트가
      이겨서 차가 영원히 서 있었다(화면 DRV=MODEL v=0).
