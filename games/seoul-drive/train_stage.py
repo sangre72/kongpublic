@@ -36,6 +36,7 @@ STAGES = {
 
 AUG = os.environ.get('AUG', '1') == '1'
 EXTRA_W = float(os.environ.get('EXTRA_W', '2.0'))   # DAgger 라운드 프레임 가중치(2026-09-20)
+XT_MAX = float(os.environ.get('XT_MAX', '0.6'))    # 경로 추적오차 상한(m) — 이보다 벗어난 교사 프레임은 W=0 (u_5478)
 def augment(xb):
     """도메인 랜덤화(오너 u_5439, 2026-09-19): 밝기·대비 지터, 가우시안 노이즈, 일부는 흑백 — 그래픽 스타일이 아니라
        도로/차선/장애물 형태에 반응하도록. 검증 배치에는 적용하지 않는다."""
@@ -88,6 +89,19 @@ def load(dirs, stage, replay, rng, extra=()):
             print(json.dumps({'skip': d, 'why': str(e)[:60]}), flush=True); continue
         try: W = np.load(f'{d}/W.npy').astype(np.float32)
         except Exception: W = np.ones(len(Y), np.float32)
+        # ★u_5478(2026-09-20): '차선 잘 지킨 구간만' — Q.npy [xt, tpN, cr, t] 가 있으면 xt<XT_MAX 이고 순간이동·사고 시각 ±3초 밖인 프레임만 남긴다(가상 샘플링 synth 는 제외 안 함).
+        try:
+            Q = np.load(f'{d}/Q.npy')
+            if len(Q) == len(Y) and not os.environ.get('NO_QFILTER'):
+                ok = Q[:, 0] < XT_MAX
+                ev = np.where((np.diff(Q[:, 1]) > 0) | (np.diff(Q[:, 2]) > 0))[0] + 1
+                for e in ev:
+                    ok &= ~(np.abs(Q[:, 3] - Q[e, 3]) <= 3.0)
+                if ok.sum() < len(Y):
+                    W = W.copy(); W[~ok] = 0.0
+                    print(json.dumps({'dir': d.split('/')[-1], 'qfilter_dropped': int((~ok).sum()), 'of': len(Y)}), flush=True)
+        except Exception:
+            pass
         if not (len(M) == len(Y) == len(W)): print(json.dumps({'skip': d, 'why': 'len mismatch'})); continue
         # ★DAgger 라운드도 정지 프레임은 뺀다(2026-09-20 k=2 실측: r202 96% 가 v≈0·brake 라벨 → 다음 모델이 '서 있기'를 배움, 진행 0.6%).
         #   남기는 것: 차가 움직였거나(v>1) 교사가 '가라'(thr>0.3)고 한 프레임 — 출발·복귀 정답은 남고, 앞차 뒤 대기는 follow 단계 몫.
