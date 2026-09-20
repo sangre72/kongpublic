@@ -1884,6 +1884,28 @@ function planTo(x,y){
           acc+=segLen(k);
         }
       }
+      /* ★★2026-09-21 u_5484 "교차로에서 1차로 가다 4차로로 가는 건 어느 나라 법규냐": Lexit 150m 가 끝나는 홉에서 기본값(주행차로=맨 오른쪽)이
+         바로 이어져 언주로(편도 4차로)에서 −4.88→+4.88, 3개 차로를 18m 안에(교차로 앞) 건너뛰었다. 차로를 옮길 이유가 없으면 옮기지 않는다:
+         Lexit 뒤 같은 도로(같은 이름·차로수·일방성)가 이어지는 동안은 1차로를 그대로 유지한다(작성자 'Lhold'). 다음 회전 준비(Rtl/Lprep 등,
+         base 가 아닌 작성자)나 도로가 바뀌는 곳에서 멈춘다. /tel lhold. */
+      window.__lhold=0;
+      /* 다음 우회전 정점까지 남은 거리(홉 j 시작 기준). 우회전은 맨 오른쪽 차로에서 해야 하므로(제25조), 그 준비거리
+         ((차로수−1)×50m + 30m) 안에 들어오면 1차로 유지를 끝내고 기본값(맨 오른쪽)으로 돌아간다 — 안 그러면 1차로에서 우회전하게 된다. */
+      const _rightAt=[]; for(const [ai,_deg] of (window.__turnAtDbg||[])){ if(_deg>0 && _deg<=150) _rightAt.push(ai); }
+      const _toRight=new Array(NP).fill(1e18);
+      { let nxt=1e18, acc=0; for(let j=NP-2;j>=0;j--){ if(_rightAt.indexOf(j+1)>=0){ nxt=0; } acc=(nxt>=1e18)?1e18:nxt+segLen(j); _toRight[j]=(nxt>=1e18)?1e18:nxt; nxt=acc; } }
+      for(let k=1;k<NP-1;k++){
+        if((window.__offWho||{})[k-1]!=='Lexit' || (window.__offWho||{})[k]!=='base') continue;
+        const sg0=edgeOf(p[k-1],p[k]); if(!sg0) continue;
+        for(let j=k;j<NP-1;j++){
+          if((window.__offWho||{})[j]!=='base' || _turnAt.has(j)) break;
+          const sg=edgeOf(p[j],p[j+1]); if(!sg) break;
+          if(!((sg.n&&sg.n===sg0.n) && (sg.l||0)===(sg0.l||0) && !!sg.o===!!sg0.o)) break;
+          const nl=sg.o?(sg.l||1):Math.max(1,Math.floor((sg.l||2)/2)); if(nl<2) break;
+          if(_toRight[j] < ((nl-1)*50+30)*S) break;                               // 우회전 준비구간 진입 → 유지 종료
+          offs[j]=laneOffset({...sg, roadW:(sg.roadW||(Math.max(1,sg.l||2)*LW))}, 1, 0); window.__offWho[j]='Lhold'; window.__lhold++;
+        }
+      }
     }catch(e){ window.__lexitErr=String(e).slice(0,60); }
     /* ★turn:lanes(tl) 전용 회전차로 → 경로 오프셋(2026-09-19).
        회전 정점 직전 홉의 간선에 tl 이 있고 이 방향 차로수와 맞으면, 그 홉의 오프셋을 지시된 차로에 둔다:
@@ -2767,6 +2789,7 @@ function mdlPoll(dt){
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       pushN: window.__pushN|0, pushOn: window.__pushOn?1:0, frPush: window.__frPush||null,
       daShadow: window.__daShadow||null,
+      lhold: window.__lhold|0,
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
       sigNear: (function(){try{const n=performance.now();return signals.map(q=>({d:Math.hypot(q.x-me.x,q.y-me.y)/S,q})).sort((a,b)=>a.d-b.d).slice(0,4).map(z=>({d:+z.d.toFixed(1),x:+(z.q.x/S).toFixed(1),y:+(z.q.y/S).toFixed(1),sx:+(z.q.sx/S).toFixed(1),sy:+(z.q.sy/S).toFixed(1),nx:+(nodes[z.q.node].x/S).toFixed(1),ny:+(nodes[z.q.node].y/S).toFixed(1),tw:+z.q.tw.toFixed(2),rw:+(z.q.rw/S).toFixed(1),ow:z.q.ow,red:sigRed(z.q,n)?1:0}))}catch(e){return String(e).slice(0,40)}})(),
