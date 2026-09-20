@@ -2905,13 +2905,14 @@ window.__PERTURB_S = (function(){ const m=/[?&]perturb=([0-9.]+)/.exec(location.
 window.__synth = /[?&]synth=1/.test(location.search);
 /* 상태 유지 시간(ms). 처음 150 은 /tel(20Hz) 라벨과 프레임을 맞추려던 값이었는데, 라벨을 프레임 헤더(X-Lbl)에 같은 순간에 싣게 돼
    그 이유가 사라졌다. 푸시 간격(≈66ms)보다 짧으면 의미 없으므로 50 = 프레임마다 새 상태(오너 u_5468). ?synthms= 로 조정. */
-window.__SYNTH_MS = (function(){ const m=/[?&]synthms=([0-9]+)/.exec(location.search); return m? +m[1] : 50; })();
+window.__SYNTH_MS = (function(){ const m=/[?&]synthms=([0-9]+)/.exec(location.search); return m? +m[1] : 100; })();
 function synthTick(t){
   const W=auto.wp, N=W.length; if(!N || !auto.cum || auto.cum.length<N) return;
   if(window.__synthT && t-window.__synthT < window.__SYNTH_MS) return;
   window.__synthT = t;
   /* 경로를 따라 조금씩 전진(3~40점)하며 샘플링 — 지도 전역 무작위 점프는 청크 스트리밍 때문에 프레임률이 1fps 로 무너졌다(실측 32장/30초). */
-  const j=1+(((window.__synthJ|0)+3+Math.floor(Math.random()*38)) % (N-2)); window.__synthJ=j;
+  /* 보폭 3~12점(≈30~120m): 실측 배치 1회 ≈160ms(청크·건물 스트리밍)가 병목 — 50ms 유지가 150ms 보다 샘플이 적었다(39 vs 259/20초). 보폭을 줄여 스트리밍을 줄인다. */
+  const j=1+(((window.__synthJ|0)+3+Math.floor(Math.random()*10)) % (N-2)); window.__synthJ=j;
   const a=W[j-1], b=W[j]; const ang=Math.atan2(b.y-a.y, b.x-a.x);
   const off=(Math.random()*12-6)*S, herr=(Math.random()*80-40)*Math.PI/180;
   me.x=b.x-Math.sin(ang)*off; me.y=b.y+Math.cos(ang)*off; me.ang=ang+herr;
