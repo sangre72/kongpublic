@@ -2764,6 +2764,7 @@ function mdlPoll(dt){
       tlUse: window.__tlUse||0, tlMismatch: window.__tlMismatch||0, tlDbg: window.__tlDbg||null, tlRoute: window.__tlRoute||0, tlRouteErr: window.__tlRouteErr||null,   // turn:lanes(tl) 사용 계측(2026-09-19)
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       pushN: window.__pushN|0, pushOn: window.__pushOn?1:0, frPush: window.__frPush||null,
+      perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
       tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, ovlEscN: window.__ovlEscN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
       crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
@@ -2891,6 +2892,7 @@ function tierTick(){
 }
 function tierAgo(ms){ const H=window.__tierHist||[]; const now=performance.now(); for(let i=0;i<H.length;i++){ if(now-H[i][0]<=ms) return H[i][1]; } return H.length?H[H.length-1][1]:null; }
 window.__noL1 = /[?&]nol1=1/.test(location.search);
+window.__PERTURB_S = (function(){ const m=/[?&]perturb=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();
 function setModel(on){
   MDL.on = !!on; MDL.userOff = !on;
   if(!MDL.on) window.__brkT = 0;
@@ -4848,6 +4850,19 @@ function loop(t){
        빨간불에 서고 앞차와 간격을 유지한다. */
     if(window.__autoOnAt!==undefined && window.__frameN-window.__autoOnAt<=3) __probe('pre-driveAuto:'+window.__frameN);
     driveAuto(dt);                                  // 경로 = 조향(어디로)
+    /* ★교사 수집용 의도적 이탈(2026-09-20, u_5455). 교사 3만 장 전부 차로 중앙이라 '벗어났다 돌아오기' 시연이 0장이었고,
+       오드는 반대 차로로 흘러간 뒤 못 돌아왔다(k=6~8 실측 반대차로 40~50%). ?perturb=<초> 면 그 주기로 0.6~1.2초 동안 조향을
+       ±0.35~0.7 로 덮어쓴다(DART 식). 라벨은 여전히 교사 정답(T.compute)이라 '밀려나는 동안 되돌리는 조향'이 기록된다.
+       속도 3m/s 이상·회전 200m 밖·앞차 30m 밖일 때만(사고 유발 방지). /tel perturbN, perturbOn. */
+    if(window.__PERTURB_S>0){ try{
+      const P=window.__pt||(window.__pt={t:0,on:0,left:0,sgn:1});
+      const g=(T&&T.dbg2)||{}, D=(T&&T.dbg)||{};
+      P.t+=dt;
+      if(!P.on && P.t>=window.__PERTURB_S && me.v>3 && !((typeof g.aD==='number') && g.aD<200) && !((typeof D.gap==='number') && D.gap<30) && !((typeof D.ped==='number') && D.ped<40)){
+        P.on=1; P.left=0.6+Math.random()*0.6; P.sgn=(Math.random()<0.5?-1:1); P.amp=0.35+Math.random()*0.35; P.t=0; window.__perturbN=(window.__perturbN|0)+1; }
+      if(P.on){ me.steer=P.sgn*P.amp; P.left-=dt; if(P.left<=0){ P.on=0; P.t=0; } }
+      window.__perturbOn=P.on;
+    }catch(e){} }
     if(window.__autoOnAt!==undefined && window.__frameN-window.__autoOnAt<=3) __probe('post-driveAuto:'+window.__frameN);
     if(T && T.auto){
       try{
