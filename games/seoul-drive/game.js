@@ -2902,7 +2902,10 @@ window.__PERTURB_S = (function(){ const m=/[?&]perturb=([0-9.]+)/.exec(location.
    차로 오프셋 −6~+6m·방향 오차 −40~+40°·속도 0~30m/s 로 차를 재배치 → driveAuto 가 그 자리에서 낼 조향(__da.st)과 교사 속도 제어가
    라벨(프레임 푸시 헤더 X-Lbl 로 같은 프레임에 실림). step()(물리·충돌)은 건너뛴다. 2D 고정 렌더에선 화면→조향 관계가 길과 무관하므로
    전 상태 공간을 균일하게 덮는 편이 교란 주행보다 정확하고 빠르다(13장/초). /tel synthN. */
-window.__synth = /[?&]synth=1/.test(location.search); window.__SYNTH_MS = 150;
+window.__synth = /[?&]synth=1/.test(location.search);
+/* 상태 유지 시간(ms). 처음 150 은 /tel(20Hz) 라벨과 프레임을 맞추려던 값이었는데, 라벨을 프레임 헤더(X-Lbl)에 같은 순간에 싣게 돼
+   그 이유가 사라졌다. 푸시 간격(≈66ms)보다 짧으면 의미 없으므로 50 = 프레임마다 새 상태(오너 u_5468). ?synthms= 로 조정. */
+window.__SYNTH_MS = (function(){ const m=/[?&]synthms=([0-9]+)/.exec(location.search); return m? +m[1] : 50; })();
 function synthTick(t){
   const W=auto.wp, N=W.length; if(!N || !auto.cum || auto.cum.length<N) return;
   if(window.__synthT && t-window.__synthT < window.__SYNTH_MS) return;
