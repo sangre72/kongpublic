@@ -101,6 +101,14 @@ def preprocess(canvas_rgb, size=IMG, device=None, bgr=True):
     #   학습·추론 '양쪽' 경로가 이 함수를 쓰므로 여기서 자르면 둘이 항상 일치하고,
     #   앞으로 UI 를 어떻게 고쳐도 모델 입력은 영향을 받지 않는다.
     c = c[int(round(c.shape[0] * UI_CROP_TOP)):, :, :]
+    # ★중앙 크롭(2026-09-20, ode_s3 실측: 속도 입력으로 정지는 풀렸지만 300초 순간이동 80회 = 차선유지 실패). 256px 에서 차선 <1px 라
+    #   ODE_CROP=<비율> 이면 UI 제거 후 화면의 중앙 (비율×H)×(비율×W) 만 남겨 256 으로 줄인다 — 유효 해상도 1/비율 배. 수집·학습·추론이
+    #   전부 이 함수를 거치므로 env 만 같으면 일치한다(수집 스크립트와 검증 스크립트에 같은 값을 export).
+    _cc = float(__import__('os').environ.get('ODE_CROP', '1.0') or 1.0)
+    if 0.2 < _cc < 1.0:
+        H0, W0 = c.shape[0], c.shape[1]; h, w = int(H0 * _cc), int(W0 * _cc)
+        y0, x0 = (H0 - h) // 2, (W0 - w) // 2
+        c = c[y0:y0 + h, x0:x0 + w, :]
     dev = device if device is not None else (
         'mps' if torch.backends.mps.is_available() else 'cpu')
     # ★capture.grab_canvas() 는 BGR view 를 준다(팬시 인덱싱 복사를 피하려고).
