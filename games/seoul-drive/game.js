@@ -314,6 +314,8 @@ function buildSignals(){
         x:N.x+Math.cos(toward+Math.PI)*d-Math.sin(toward)*lat,
         y:N.y+Math.sin(toward+Math.PI)*d+Math.cos(toward)*lat,
         ang:toward, node:ni, t0, period,
+        // ★정지 바(2026-09-20 ode_s2b): 정지선 중심·도로폭 — 빨간불이면 진입 차로 위에 빨간 바를 그린다(draw 참조)
+        sx:N.x+Math.cos(toward+Math.PI)*d, sy:N.y+Math.sin(toward+Math.PI)*d, rw:sg.roadW, tw:toward, ow:sg.o?1:0,
         // 직교 현시: 도로 방향(가로/세로)에 따라 위상 반전
         phase: (Math.abs(Math.cos(sg.ang))>0.5)?0:1
       });
@@ -2765,6 +2767,8 @@ function mdlPoll(dt){
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       pushN: window.__pushN|0, pushOn: window.__pushOn?1:0, frPush: window.__frPush||null,
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
+      sigNear: (function(){try{const n=performance.now();return signals.map(q=>({d:Math.hypot(q.x-me.x,q.y-me.y)/S,q})).sort((a,b)=>a.d-b.d).slice(0,4).map(z=>({d:+z.d.toFixed(1),x:+(z.q.x/S).toFixed(1),y:+(z.q.y/S).toFixed(1),sx:+(z.q.sx/S).toFixed(1),sy:+(z.q.sy/S).toFixed(1),nx:+(nodes[z.q.node].x/S).toFixed(1),ny:+(nodes[z.q.node].y/S).toFixed(1),tw:+z.q.tw.toFixed(2),rw:+(z.q.rw/S).toFixed(1),ow:z.q.ow,red:sigRed(z.q,n)?1:0}))}catch(e){return String(e).slice(0,40)}})(),
+      sigBarN: (function(){try{return signals.filter(q=>q.sx!==undefined).length}catch(e){return -1}})(), sigRedN: (function(){try{const n=performance.now();return signals.filter(q=>sigRed(q,n)).length}catch(e){return -1}})(), sigN: (typeof signals!=='undefined')?signals.length:-1,
       tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, ovlEscN: window.__ovlEscN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
       crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i}})(), tbrk: window.__tbrk,
@@ -4068,6 +4072,16 @@ function draw(){
           CNN 이 배울 수 있어야 한다. 색 점으로는 그 특징이 안 생긴다.
         도로 방향(sg.ang)에 맞춰 회전시켜, 마주 오는 방향에서 정면으로 보이게 한다. */
      const RED=sigRed(sg,now);
+     /* ★빨간불 정지 바(2026-09-20, ode_s2b 실패 원인). 256px 모델 입력에서 신호등 함체는 2~3px 라 빨강/초록이 구분되지 않았다
+        (실측: 빨간불 brake 0.98 = 파란불 brake 0.98 → 정지 장면이면 무조건 제동). 운전자가 실제로 보는 '큰' 신호 정보의 2D 등가물로
+        정지선 위 진입 차로 절반에 0.8m 빨간 바를 빨간불일 때만 그린다. 파란불엔 아무것도 없다(초록 바 없음 — '없음=가라'). */
+     if(RED && sg.sx!==undefined){
+       g.save(); g.translate(sg.sx,sg.sy); g.rotate(sg.tw);
+       const half = sg.ow ? sg.rw : sg.rw*0.5;      // 일방통행은 전폭, 왕복은 진행방향 오른쪽 절반
+       g.fillStyle='#ff2d18'; g.fillRect(-0.4*S, sg.ow?-sg.rw*0.5:0, 0.8*S, half);
+       g.strokeStyle='rgba(255,255,255,.9)'; g.lineWidth=1; g.strokeRect(-0.4*S, sg.ow?-sg.rw*0.5:0, 0.8*S, half);
+       g.restore();
+     }
      const LW_=1.55*S, LH=1.55*S;            // 등 하나 크기
      const BW=LW_*4+0.9*S, BH=LH+0.7*S;      // 함체
      g.save();
