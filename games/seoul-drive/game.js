@@ -2811,6 +2811,7 @@ function mdlPoll(dt){
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       pushN: window.__pushN|0, pushOn: window.__pushOn?1:0, frPush: window.__frPush||null,
       daShadow: window.__daShadow||null,
+      mdlTgt: window.__mdlTgt||null,
       lhold: window.__lhold|0,
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
@@ -2852,6 +2853,7 @@ function mdlPoll(dt){
     if(d.seq !== MDL.seq){ MDL.seq = d.seq; MDL.rx++;
       MDL.rxT = performance.now(); }   // ★u_5172: 명령 수신 시각(만료 판정용)
     MDL.steer = +d.steer||0; MDL.thr = +d.thr||0; MDL.brake = +d.brake||0;
+    MDL.tgt = !!(+d.tgt); MDL.dOff = +d.dOff||0; MDL.vT = (d.vT===undefined||d.vT===null)?-1:+d.vT;   // 목표 오프셋 인터페이스(2026-09-21)
     /* on 은 페이지 버튼이 주도권을 갖는다. 파이썬이 on=1 을 보내면 켜지지만,
        사람이 화면에서 끄면 그게 이긴다(안전: 폭주하면 손으로 끌 수 있어야 한다). */
     /* ★force=1 이면 사람이 꺼둔 것도 무시하고 켠다(u_5133).
@@ -3148,7 +3150,10 @@ function driveAuto(dt){
      driveAuto 는 '수식 주행'이고, 여기에 기능을 넣으면 모델이 아니라 루틴이 잘 가게 된다.
      추월 판단은 teacher.js 에만 있다 — 교사가 시연하고, 그게 라벨이 되고, 모델이 배운다.
      (모델 주행 중에는 driveAuto 자체가 호출되지 않으므로 여기 코드는 학습과 무관하다.) */
-  const otOff = 0;
+  /* ★목표 오프셋 인터페이스(2026-09-21, 관문 실측: 조향값 직접 주입 파이프는 3/3 실패, 교사 직접은 3/3 통과). 상위(모델)는 '경로선 대비 가로
+     오프셋(m)·목표 속도'만 내고, 이 추종기가 60fps 로 따른다. 지연·이산화에 둔감. /ctl tgt=1,dOff,vT → window.__mdlTgt. 400ms 넘게 새 명령이
+     없으면 오프셋 0(경로선 그대로). */
+  const _mt=window.__mdlTgt; const otOff = (_mt && typeof _mt.dOff==='number' && (performance.now()-_mt.t)<400) ? _mt.dOff*S : 0;
   const P=posAt(auto.s + Ld*S);
   if(otOff){                                   // 추월 중이면 목표를 옆 차로로 민다
     P.x += -Math.sin(me.ang)*otOff;
@@ -3232,6 +3237,7 @@ function driveAuto(dt){
      안전속도 5030: 이면도로(왕복 1차로·폭 6.5m 이하) 30km/h. 지도의 속도표지(l<4 → 30)와도 일치.
      넓은 도로는 오너 지시(u_5407, 법규 시험 동안 120km/h)대로 목표속도 유지. 교사(teacher.js)도 같은 함수를 쓴다. */
   try{ const _lim=window.roadLimitKmh((typeof routeSeg==='function'&&routeSeg(me.x,me.y))||nearestSeg(me.x,me.y)); if(_lim) vmax=Math.min(vmax, _lim/3.6); }catch(e){}   // ★경로의 도로 기준 — 교차로에서 옆 골목을 집어 간선을 30 으로 깎지 않게
+  if(window.__mdlTgt && typeof window.__mdlTgt.vT==='number' && window.__mdlTgt.vT>=0 && (performance.now()-window.__mdlTgt.t)<400) vmax=Math.min(vmax, window.__mdlTgt.vT);   // 목표 속도(상위 모델)
   if(auto.mergeWait){ vmax=Math.min(vmax, 1.5); window.__mergeWaitN=(window.__mergeWaitN||0)+1; }   // 차로 못 옮김 + 회전 임박: 틈 대기
   if(pedD<PED_STOP_M) vmax=0;
   else if(pedD<PED_SLOW_M) vmax=Math.min(vmax, 3.5);
@@ -4918,8 +4924,14 @@ function loop(t){
     /* ★그림자 경로추종(2026-09-20): 모델이 몰 때도 driveAuto 가 '지금 낼 조향'을 계산하되 적용하지 않는다(상태 복원).
        용도 = (a) DAgger 라벨 = 실제 몰던 제어기의 출력(규칙 D-00, teacher.js 조향은 상관 0.08 로 폐기) (b) '추종기를 모델 파이프로'
        대조 실험(dagger --model pipe). /tel daShadow. */
+    if(MDL.tgt){   // ★목표 오프셋 모드: 추종기가 몰고 모델은 오프셋·속도만 준다
+      window.__mdlTgt={dOff:+MDL.dOff||0, vT:(typeof MDL.vT==='number'?MDL.vT:-1), t:MDL.rxT||0};
+      try{ driveAuto(dt); window.__daShadow={st:+me.steer.toFixed(4), v:+me.v.toFixed(3)}; }catch(e){ window.__daShadowErr=String(e).slice(0,60); }
+      window.__mdl={st:me.steer, thr:0, brk:0, rx:MDL.rx, err:MDL.err, stale:0, tgt:1};
+    }else{
     try{ const _s0=me.steer, _v0=me.v; driveAuto(dt); window.__daShadow={st:+me.steer.toFixed(4), v:+me.v.toFixed(3)}; me.steer=_s0; me.v=_v0; }catch(e){ window.__daShadowErr=String(e).slice(0,60); }
     driveModel(dt);
+    }
     /* 진행률은 모델이 몰 때도 반드시 갱신한다 — 이게 평가지표 그 자체다. */
     try{ if(auto.wp.length) trackProgress(); }catch(e){}
     /* ★모델이 몰 때는 교사가 '몰지 않아도' 정답은 계속 계산한다(u_5158 DAgger).
