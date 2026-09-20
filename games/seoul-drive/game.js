@@ -2766,6 +2766,7 @@ function mdlPoll(dt){
       tlUse: window.__tlUse||0, tlMismatch: window.__tlMismatch||0, tlDbg: window.__tlDbg||null, tlRoute: window.__tlRoute||0, tlRouteErr: window.__tlRouteErr||null,   // turn:lanes(tl) 사용 계측(2026-09-19)
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       pushN: window.__pushN|0, pushOn: window.__pushOn?1:0, frPush: window.__frPush||null,
+      daShadow: window.__daShadow||null,
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
       sigNear: (function(){try{const n=performance.now();return signals.map(q=>({d:Math.hypot(q.x-me.x,q.y-me.y)/S,q})).sort((a,b)=>a.d-b.d).slice(0,4).map(z=>({d:+z.d.toFixed(1),x:+(z.q.x/S).toFixed(1),y:+(z.q.y/S).toFixed(1),sx:+(z.q.sx/S).toFixed(1),sy:+(z.q.sy/S).toFixed(1),nx:+(nodes[z.q.node].x/S).toFixed(1),ny:+(nodes[z.q.node].y/S).toFixed(1),tw:+z.q.tw.toFixed(2),rw:+(z.q.rw/S).toFixed(1),ow:z.q.ow,red:sigRed(z.q,n)?1:0}))}catch(e){return String(e).slice(0,40)}})(),
@@ -4869,6 +4870,10 @@ function loop(t){
        me.steer 를 서로 덮어쓰면 누가 모는지 측정이 불가능해진다(u_5026 에서
        경로 vs 교사가 정확히 그렇게 싸워 사고가 8→23회로 늘었다).
        단 진행률·웨이포인트 추적은 계속 돌아야 평가가 되므로 auto 상태는 둔다. */
+    /* ★그림자 경로추종(2026-09-20): 모델이 몰 때도 driveAuto 가 '지금 낼 조향'을 계산하되 적용하지 않는다(상태 복원).
+       용도 = (a) DAgger 라벨 = 실제 몰던 제어기의 출력(규칙 D-00, teacher.js 조향은 상관 0.08 로 폐기) (b) '추종기를 모델 파이프로'
+       대조 실험(dagger --model pipe). /tel daShadow. */
+    try{ const _s0=me.steer, _v0=me.v; driveAuto(dt); window.__daShadow={st:+me.steer.toFixed(4), v:+me.v.toFixed(3)}; me.steer=_s0; me.v=_v0; }catch(e){ window.__daShadowErr=String(e).slice(0,60); }
     driveModel(dt);
     /* 진행률은 모델이 몰 때도 반드시 갱신한다 — 이게 평가지표 그 자체다. */
     try{ if(auto.wp.length) trackProgress(); }catch(e){}

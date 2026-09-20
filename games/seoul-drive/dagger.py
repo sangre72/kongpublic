@@ -18,6 +18,7 @@
 사용: python3 dagger.py --round 1 --episodes 10 --secs 45 --model bc_final.pt
 """
 import argparse, hashlib, json, os, subprocess, sys, time, urllib.request
+PIPE = False   # --model pipe (2026-09-20 대조 실험)
 import numpy as np, torch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -48,7 +49,7 @@ def post(d):
 
 def episode(net, dev, secs, ep):
     """한 에피소드: 모델이 몰고 교사 라벨을 모은다. (frames, stats)"""
-    if net is None: post({'reset': 1, 'on': 0, 'force': 0, 'release': 1, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 리셋만, 모델 OFF
+    if net is None and not PIPE: post({'reset': 1, 'on': 0, 'force': 0, 'release': 1, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 리셋만, 모델 OFF
     else: post({'reset': 1, 'on': 1, 'force': 1, 'release': 0})   # 소프트리셋 + 모델 강제 ON
     time.sleep(1.5)
     X, Y = [], []
@@ -59,7 +60,7 @@ def episode(net, dev, secs, ep):
     LK = {'n': 0, 'on': 0, 'off': 0, 'lat': 0.0, 'err': 0.0, 'outlane': 0}
     LABEL_SRC = ['teacher']   # ★2026-09-20 차선유지 지표. lat=도로중심선 기준 부호 오프셋, off=교사 목표차로 오프셋 → |lat−off| 가 차로 오차
     t0 = time.time()
-    if net is None: post({'on': 0, 'force': 0, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 모델 조작 해제 → GEOM/교사가 몬다(안 그러면 drv=MODEL 에 명령 없음 → v=0·순간이동 연쇄)
+    if net is None and not PIPE: post({'on': 0, 'force': 0, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 모델 조작 해제 → GEOM/교사가 몬다(안 그러면 drv=MODEL 에 명령 없음 → v=0·순간이동 연쇄)
     d0 = tel() or {}
     p_start = float(d0.get('prog') or 0)
     cr0 = int(d0.get('cr') or 0)
@@ -115,6 +116,9 @@ def episode(net, dev, secs, ep):
         _da = d.get('da') or {}
         if net is None and isinstance(_da.get('st'), (int, float)):
             st = float(_da['st']); LABEL_SRC[0] = 'driveAuto'
+        _sh = d.get('daShadow') or {}
+        if (net is not None or PIPE) and isinstance(_sh.get('st'), (int, float)):
+            st = float(_sh['st']); LABEL_SRC[0] = 'daShadow'   # 모델 주행 중 라벨 = 그림자 경로추종 조향(규칙 D-00)
         # ★프레임 헤더 라벨(2026-09-20): 푸시된 프레임과 같은 순간의 라벨(X-Lbl). /tel 은 20Hz 비동기라 가상 샘플링(150ms 마다 상태 교체)에선
         #   프레임/라벨이 어긋난다. 헤더가 있으면 그것을 쓴다(캡처 뒤에 덮어씀 — 아래 grab 이후 적용).
         # ★2026-09-20 r109 실측: 신호 대기(st=0, v=0)에서 200프레임(1.3fps=150초) 동일 라벨 → '교사 정지'로 오판·에피소드 중단.
@@ -144,6 +148,8 @@ def episode(net, dev, secs, ep):
         except Exception:
             pass
         x = preprocess(f, device=dev)[None]
+        if PIPE:   # ★대조 실험: 경로추종기의 조향(그림자)+교사 속도제어를 모델과 같은 파이프(13fps·/ctl·150ms 신선도)로 흘린다
+            post({'on': 1, 'force': 1, 'steer': st, 'thr': th, 'brake': br})
         if net is not None:
             with torch.no_grad():
                 _vt = torch.tensor([[float(d.get('v') or 0) / 30.0]], device=dev)   # 속도 입력(u_5461)
@@ -232,7 +238,11 @@ def main():
     mp = a.model if os.path.isabs(a.model) else os.path.join(BASE, a.model)
     # ★2026-09-19 u_5431: bc_final.pt 는 옛 DriveNet 구조(h.0/h.2)라 현재 망(h.1/h.4/h.6)에 안 들어간다. 1단계(직진) 데이터는
     #   교사가 몰아 만든다 — `--model none` 이면 추론·조작을 건너뛰고 화면+교사 라벨+W/M 만 저장한다(BC 먼저, DAgger 는 새 모델 뒤).
-    if a.model == 'none':
+    global PIPE
+    PIPE = (a.model == 'pipe')
+    if PIPE:
+        net = None; print(json.dumps({'mode': 'teacher-pipe', 'note': 'driveAuto shadow steer + teacher thr/brake via /ctl at capture rate'}), flush=True)
+    elif a.model == 'none':
         net = None; print(json.dumps({'mode': 'teacher-drive', 'note': 'no model; GEOM/teacher drives'}), flush=True)
     else:
         sd = torch.load(mp, map_location=dev)
