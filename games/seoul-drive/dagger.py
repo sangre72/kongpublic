@@ -56,7 +56,7 @@ def episode(net, dev, secs, ep):
     P = []                                 # ★2026-09-20 모델 출력(조향·스로틀·제동) — 사후 분석용(P.npy). k=7 '왜 서 있나'를 못 봤다.
     M = []                                 # ★u_5427 상황 태그 [gap, ped, sig, turn(0/S 1/L 2/R 3/U), aD, v, laneF, nl] — 커리큘럼 단계 필터용
     seen = set()
-    LK = {'n': 0, 'on': 0, 'off': 0, 'lat': 0.0}   # ★2026-09-20 차선유지 지표(도로 위 비율·도로 밖 비율·|lat| 평균)
+    LK = {'n': 0, 'on': 0, 'off': 0, 'lat': 0.0, 'err': 0.0, 'outlane': 0}   # ★2026-09-20 차선유지 지표. lat=도로중심선 기준 부호 오프셋, off=교사 목표차로 오프셋 → |lat−off| 가 차로 오차
     t0 = time.time()
     if net is None: post({'on': 0, 'force': 0, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 모델 조작 해제 → GEOM/교사가 몬다(안 그러면 drv=MODEL 에 명령 없음 → v=0·순간이동 연쇄)
     d0 = tel() or {}
@@ -157,6 +157,9 @@ def episode(net, dev, secs, ep):
                     if isinstance(_lat, (int, float)) and isinstance(_rw, (int, float)) and _rw > 0:
                         LK['n'] += 1; LK['lat'] += abs(_lat); LK['off'] += int(abs(_lat) > _rw / 2 + 0.5)
                         LK['on'] += int(bool(d.get('onroad', 1)))
+                        _off = g2.get('off')
+                        if isinstance(_off, (int, float)):
+                            _e = abs(_lat - _off); LK['err'] += _e; LK['outlane'] += int(_e > 1.63)
                 except Exception: pass
                 _ext = ([float(os.environ.get('ODE_ENV', '0')), float(ep), float(len(X))] if os.environ.get('M_EXT') == '1' else [])   # u_5442: env/ep/fi (M_EXT=1 부터, 밤 수집 형식 유지)
                 M.append([float(t.get('gap') if t.get('gap') is not None else 1e9),
@@ -188,6 +191,7 @@ def episode(net, dev, secs, ep):
         'arrived': arrived, 'secs': round(time.time() - t0, 1),
         'onroad_pct': round(100 * LK['on'] / max(1, LK['n']), 1), 'offroad_pct': round(100 * LK['off'] / max(1, LK['n']), 1),
         'lat_abs_m': round(LK['lat'] / max(1, LK['n']), 2), 'tpN': int(dl.get('tpN') or 0),
+        'lane_err_m': round(LK['err'] / max(1, LK['n']), 2), 'outlane_pct': round(100 * LK['outlane'] / max(1, LK['n']), 1),
     }
     return (np.stack(X) if X else None,
             np.array(Y, dtype=np.float32) if Y else None, stats,
