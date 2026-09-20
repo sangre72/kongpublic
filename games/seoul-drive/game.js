@@ -4927,6 +4927,10 @@ function loop(t){
     if(MDL.tgt){   // ★목표 오프셋 모드: 추종기가 몰고 모델은 오프셋·속도만 준다
       window.__mdlTgt={dOff:+MDL.dOff||0, vT:(typeof MDL.vT==='number'?MDL.vT:-1), t:MDL.rxT||0};
       try{ driveAuto(dt); window.__daShadow={st:+me.steer.toFixed(4), v:+me.v.toFixed(3)}; }catch(e){ window.__daShadowErr=String(e).slice(0,60); }
+      /* 교사의 '정지' 지시(앞차·보행자·적신호)는 GEOM 가지와 동일하게 적용 — pipe2 1차 실측: 순간이동 0 이지만 보행자 사고 2/1/2(정지 지시 누락). Layer 1. */
+      try{ if(T){ const a=T.compute(); T.last=a; window.__tbrk = a ? a.brake : -1;
+        if(a && a.ok!==false && a.brake>0.5){ window.__brkT=(window.__brkT||0)+dt; if(window.__brkT<20){ me.v -= me.v*Math.min(1, dt*3.2*a.brake); if(a.brake>=1) me.v=Math.min(me.v, 0.4); } }
+        else window.__brkT=0; } }catch(e){}
       window.__mdl={st:me.steer, thr:0, brk:0, rx:MDL.rx, err:MDL.err, stale:0, tgt:1};
     }else{
     try{ const _s0=me.steer, _v0=me.v; driveAuto(dt); window.__daShadow={st:+me.steer.toFixed(4), v:+me.v.toFixed(3)}; me.steer=_s0; me.v=_v0; }catch(e){ window.__daShadowErr=String(e).slice(0,60); }
