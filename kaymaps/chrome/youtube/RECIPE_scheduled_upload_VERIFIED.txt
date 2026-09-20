@@ -407,3 +407,12 @@ I4 [System Events 경유 메뉴 클릭 불가]: 권한 거부(-1743). 순수 kon
 ★PIN 검증 주의(u_5067): 고정 여부는 공개 페이지·oembed API 로 읽을 수 없다. 표본 2편만 실측하고
   12/12 로 보고하지 말 것 — '댓글만 달고 미고정'은 과거 실제 발생한 실패모드다(u_4833).
   전수 확인은 Studio 댓글 화면에서 각 영상별 '고정함' 라벨 a11y 매칭으로 한다.
+
+===== 2026-09-20 배치 실측 추가(12/12 공개 완료, tools/ 갱신) =====
+★TOOLS(repo): kaymaps/chrome/youtube/tools/up_public.sh <NN>  (제목파일 /tmp/yt_titles_<DATE>.txt 12줄 = /fortune/titles/<DATE> API 의 title+' '+hashtags, DIR 상수만 날짜 교체)
+  · 모든 클릭 = a11y 라벨 조회(co/clk 헬퍼): 만들기·다음·공개(AXRadioButton)·게시·닫기. 하드좌표 0. 창 폭 바뀌면(1800px) 옛 좌표는 240px 빗나감(실측).
+  · 제목 입력칸 = AXTextArea "동영상을 설명하는 제목 추가…"(라벨 grep "제목 추가"). ¬"AXTextField 첫번째"(=스튜디오 검색창, 오타 사고 1회).
+  · 드롭 = 캡션 "동영상 파일을 드래그…" 좌표의 y−100(원 중심).
+  · ★게시 직후 "동영상 처리 중"(SD 처리 전 게시) 다이얼로그 = 성공 신호(공개 예약됨). 단 다음 업로드 전에 반드시 닫아야 함 — 안 닫으면 만들기 메뉴가 안 열려 "no upload entry" 로 2회 실패. esc 로는 안 닫힘 → AXButton "닫기" 클릭.
+★ID 수집: tools/getids_list.sh(콘텐츠 목록 AXLink 클릭→주소창 URL) + 하단 행은 a11y 에 없음(창 높이 1150 에서 12행 중 3행 누락) → 창 높이를 화면 최대(1289)로 키우면 11/12, 마지막 1개는 스튜디오 검색창("9월 20일 쥐띠")→결과 카드 AXStaticText 클릭(tools/getids_search.sh 참고, ★bash 3.2 는 declare -A 불가 → case 문으로).
+★zsh 주의: 인라인 명령에서 "$C"(="1104 788") 를 kongtrol 인자로 넘기면 단어분할이 안 됨 → ${=C}. 스크립트는 bash 로.

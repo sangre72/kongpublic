@@ -60,3 +60,5 @@ Studio > 콘텐츠 > Shorts 목록의 **댓글수 컬럼**이 가장 빠르다.
 ===== 도구 =====
 cmt.sh(1건: 댓글+고정) · typecmt.sh(줄단위 타이핑) · run.sh(list.tsv 순회 + state 마킹)
 원본: ar_5328 배치 scratchpad. 새로 만들지 말고 **이걸 복사해서 경로만 바꿔 쓴다**.
+
+2026-09-20: tools/run.sh 는 날짜·D 경로 2곳만 바꿔 복사해 씀(a20). list.tsv 는 12간지 순서로 정렬 후 실행. 12/12 pinned, 영상당 ≈65초.
