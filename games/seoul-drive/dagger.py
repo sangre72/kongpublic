@@ -115,6 +115,8 @@ def episode(net, dev, secs, ep):
         _da = d.get('da') or {}
         if net is None and isinstance(_da.get('st'), (int, float)):
             st = float(_da['st']); LABEL_SRC[0] = 'driveAuto'
+        # ★프레임 헤더 라벨(2026-09-20): 푸시된 프레임과 같은 순간의 라벨(X-Lbl). /tel 은 20Hz 비동기라 가상 샘플링(150ms 마다 상태 교체)에선
+        #   프레임/라벨이 어긋난다. 헤더가 있으면 그것을 쓴다(캡처 뒤에 덮어씀 — 아래 grab 이후 적용).
         # ★2026-09-20 r109 실측: 신호 대기(st=0, v=0)에서 200프레임(1.3fps=150초) 동일 라벨 → '교사 정지'로 오판·에피소드 중단.
         #   정지 중 동일 라벨은 정상 — 움직이는데(v>1) 조향이 120초 넘게 완전히 같을 때만 죽은 것으로 본다.
         _v_now = float(d.get('v') or 0)
@@ -133,6 +135,14 @@ def episode(net, dev, secs, ep):
         if f is None:                          # 빨간 사고 오버레이 등 — 데이터 아님
             nodecode += 1
             time.sleep(0.02); continue
+        try:
+            _lb = C.push_stats().get('lbl') if hasattr(C, 'push_stats') else None
+            if net is None and isinstance(_lb, dict) and isinstance(_lb.get('st'), (int, float)):
+                st = float(_lb['st']); th = float(_lb.get('th') if _lb.get('th') is not None else th); br = float(_lb.get('br') if _lb.get('br') is not None else br)
+                if isinstance(_lb.get('v'), (int, float)): d['v'] = float(_lb['v'])
+                LABEL_SRC[0] = 'frame-hdr'
+        except Exception:
+            pass
         x = preprocess(f, device=dev)[None]
         if net is not None:
             with torch.no_grad():

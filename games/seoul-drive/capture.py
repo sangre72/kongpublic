@@ -111,6 +111,10 @@ def _grab_push(wait=None):
                 if a is None:
                     _push['fail'] += 1; return None
                 _push['seq'] = seq; _push['n'] += 1; _push['fail'] = 0
+                try:
+                    import json as _j; _push['lbl'] = _j.loads(r.headers.get('X-Lbl') or 'null')   # 같은 프레임의 라벨
+                except Exception:
+                    _push['lbl'] = None
                 return a
         except Exception:
             _push['fail'] += 1

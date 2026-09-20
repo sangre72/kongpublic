@@ -2766,6 +2766,7 @@ function mdlPoll(dt){
       tlUse: window.__tlUse||0, tlMismatch: window.__tlMismatch||0, tlDbg: window.__tlDbg||null, tlRoute: window.__tlRoute||0, tlRouteErr: window.__tlRouteErr||null,   // turn:lanes(tl) 사용 계측(2026-09-19)
       tpLog: window.__tpLog||[], offRev: window.__offRev||null, offRevErr: window.__offRevErr||null, rsHit: window.__rsHit||0, rsMiss: window.__rsMiss||0, mergeHoldN: window.__mergeHoldN||0, mergeWaitN: window.__mergeWaitN||0, dynBanN: (window.__dynBan?window.__dynBan.size:0), replanN: window.__replanN||0, ktN: window.__ktN||0, ktDone: window.__ktDone||0, ktDbg: window.__ktDbg||null, ktErr: window.__ktErr||null,
       pushN: window.__pushN|0, pushOn: window.__pushOn?1:0, frPush: window.__frPush||null,
+      synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
       sigNear: (function(){try{const n=performance.now();return signals.map(q=>({d:Math.hypot(q.x-me.x,q.y-me.y)/S,q})).sort((a,b)=>a.d-b.d).slice(0,4).map(z=>({d:+z.d.toFixed(1),x:+(z.q.x/S).toFixed(1),y:+(z.q.y/S).toFixed(1),sx:+(z.q.sx/S).toFixed(1),sy:+(z.q.sy/S).toFixed(1),nx:+(nodes[z.q.node].x/S).toFixed(1),ny:+(nodes[z.q.node].y/S).toFixed(1),tw:+z.q.tw.toFixed(2),rw:+(z.q.rw/S).toFixed(1),ow:z.q.ow,red:sigRed(z.q,n)?1:0}))}catch(e){return String(e).slice(0,40)}})(),
       sigBarN: (function(){try{return signals.filter(q=>q.sx!==undefined).length}catch(e){return -1}})(), sigRedN: (function(){try{const n=performance.now();return signals.filter(q=>sigRed(q,n)).length}catch(e){return -1}})(), sigN: (typeof signals!=='undefined')?signals.length:-1,
@@ -2897,6 +2898,24 @@ function tierTick(){
 function tierAgo(ms){ const H=window.__tierHist||[]; const now=performance.now(); for(let i=0;i<H.length;i++){ if(now-H[i][0]<=ms) return H[i][1]; } return H.length?H[H.length-1][1]:null; }
 window.__noL1 = /[?&]nol1=1/.test(location.search);
 window.__PERTURB_S = (function(){ const m=/[?&]perturb=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();
+/* ★가상 데이터 샘플러(오너 u_5467, 2026-09-20): 주행하지 않고 상태를 무작위로 놓는다. ?synth=1 이면 SYNTH_MS 마다 경로 위 임의 점에
+   차로 오프셋 −6~+6m·방향 오차 −40~+40°·속도 0~30m/s 로 차를 재배치 → driveAuto 가 그 자리에서 낼 조향(__da.st)과 교사 속도 제어가
+   라벨(프레임 푸시 헤더 X-Lbl 로 같은 프레임에 실림). step()(물리·충돌)은 건너뛴다. 2D 고정 렌더에선 화면→조향 관계가 길과 무관하므로
+   전 상태 공간을 균일하게 덮는 편이 교란 주행보다 정확하고 빠르다(13장/초). /tel synthN. */
+window.__synth = /[?&]synth=1/.test(location.search); window.__SYNTH_MS = 150;
+function synthTick(t){
+  const W=auto.wp, N=W.length; if(!N || !auto.cum || auto.cum.length<N) return;
+  if(window.__synthT && t-window.__synthT < window.__SYNTH_MS) return;
+  window.__synthT = t;
+  /* 경로를 따라 조금씩 전진(3~40점)하며 샘플링 — 지도 전역 무작위 점프는 청크 스트리밍 때문에 프레임률이 1fps 로 무너졌다(실측 32장/30초). */
+  const j=1+(((window.__synthJ|0)+3+Math.floor(Math.random()*38)) % (N-2)); window.__synthJ=j;
+  const a=W[j-1], b=W[j]; const ang=Math.atan2(b.y-a.y, b.x-a.x);
+  const off=(Math.random()*12-6)*S, herr=(Math.random()*80-40)*Math.PI/180;
+  me.x=b.x-Math.sin(ang)*off; me.y=b.y+Math.cos(ang)*off; me.ang=ang+herr;
+  me.v=Math.random()*30; me.steer=0; me.offroad=0; me.cool=0; window.__parked=0;
+  auto.on=true; auto.k=j; auto.i=j; auto.s=auto.cum[j]; auto.stall=0; blockT=0; bldStuck=0; crashHold=0; crashHoldT=0; window.__stuckT=0; window.__stuckAcc=0;
+  window.__synthN=(window.__synthN|0)+1;
+}
 function setModel(on){
   MDL.on = !!on; MDL.userOff = !on;
   if(!MDL.on) window.__brkT = 0;
@@ -4836,6 +4855,7 @@ function loop(t){
   const T = window.__teach;
   mdlPoll(dt);                                      // 모델 제어채널 폴링(항상)
   try{ tierTick(); }catch(e){}                       // 등급 판정(항상, µs)
+  if(window.__synth && !MDL.on){ try{ synthTick(t); }catch(e){ window.__synthErr=String(e).slice(0,80); } }
   if(MDL.on){
     /* ★모델이 핸들을 쥔다. driveAuto 는 호출하지 않는다 — 둘이 매 프레임
        me.steer 를 서로 덮어쓰면 누가 모는지 측정이 불가능해진다(u_5026 에서
@@ -4916,7 +4936,7 @@ function loop(t){
     me.v *= (1 - Math.min(1, dt*4));
     if(T && T.auto){ try{ T.last=T.compute(); }catch(e){} }   // 라벨은 계속 생산
   }
-  if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:step'); step(dt);
+  if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:step'); if(!window.__synth) step(dt);
   if((window.__autoOnAt!==undefined && (window.__frameN-window.__autoOnAt)<=3 && typeof __probe==='function')) __probe('lp:epTick'); epTick(dt);
   /* ★2026-09-19 #18 골목 갇힘→순간이동 추적: 마지막 40프레임(속도·이동량·되돌림·밀기·도로판정)을 링버퍼로 남긴다 */
   try{ const _tr=(window.__frTrace=window.__frTrace||[]); const _r=onRoad(me.x,me.y);
@@ -4957,7 +4977,10 @@ function loop(t){
       const bin = atob(du.slice(du.indexOf(',')+1)); const u8 = new Uint8Array(bin.length);
       for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
       const _pt1 = performance.now();
-      fetch('/frame', {method:'POST', body:u8, cache:'no-store', headers:{'Content-Type':'image/jpeg'}})
+      let _lbl='';
+      try{ const T=window.__teach, L=(T&&T.last)||{}, D=window.__da||{};
+           _lbl=JSON.stringify({st:(typeof D.st==='number')?+D.st.toFixed(4):null, th:(typeof L.thr==='number')?+L.thr.toFixed(4):null, br:(typeof L.brake==='number')?+L.brake.toFixed(4):null, v:+me.v.toFixed(3), synth:window.__synth?1:0, n:window.__synthN|0}); }catch(e){}
+      fetch('/frame', {method:'POST', body:u8, cache:'no-store', headers:{'Content-Type':'image/jpeg', 'X-Lbl':_lbl}})
         .then(()=>{ window.__pushN=(window.__pushN|0)+1; const D=window.__frPush=window.__frPush||{blobMs:0,postMs:0,kb:0,n:0}; D.n++; D.blobMs+=_pt1-_pt0; D.postMs+=performance.now()-_pt1; D.kb+=u8.length/1024; })
         .catch(()=>{}).finally(()=>{ window.__pushBusy = 0; });
     }catch(e){ window.__pushBusy = 0; }
