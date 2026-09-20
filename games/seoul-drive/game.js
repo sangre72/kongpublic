@@ -756,8 +756,13 @@ function routeSeg(x,y){
   }catch(e){ return null; }
 }
 function onRoad(x,y){
+  /* ★2026-09-21 만리재로16안길 125° 골목 코너 실측(offRev d=3.25~3.28 vs half 3.25, 60프레임 연속 되돌림 → 정지 → 순간이동):
+     차로 호가 두 직사각형의 합집합 바깥 모서리 틈을 스친다. 실제 교차로는 포장된 면이 더 넓다 — 노드(교차점) 근처(반폭+6m)에서는
+     반폭에 1.2m(차 반폭+오차)를 더 허용한다. 직선 구간 판정은 그대로. */
+  const _jn=(sg)=>{ const A=nodes[sg.a],B=nodes[sg.b]; if(!A||!B) return 0; const r=sg.roadW*.5+6*S;
+                    return (Math.hypot(A.x-x,A.y-y)<r||Math.hypot(B.x-x,B.y-y)<r)?1.2*S:0; };
   const rs=routeSeg(x,y);
-  if(rs && rs.d<=rs.s.roadW*.5){ _lastSeg=rs.s; _lastSegT=performance.now(); return{ok:true, d:rs.d, s:rs.s, px:rs.px, py:rs.py, edge:rs.d-rs.s.roadW*.5}; }
+  if(rs && rs.d<=rs.s.roadW*.5+_jn(rs.s)){ _lastSeg=rs.s; _lastSegT=performance.now(); return{ok:true, d:rs.d, s:rs.s, px:rs.px, py:rs.py, edge:rs.d-rs.s.roadW*.5}; }
   const n=nearestSeg(x,y);
   if(!n)return{ok:false,d:1e9,s:null};
   /* 직전 도로가 아직 유효하면(1.5초 이내) 그 도로 기준도 같이 본다 */
@@ -774,7 +779,7 @@ function onRoad(x,y){
     }
     }
   }
-  const ok=n.d<=n.s.roadW*.5;
+  const ok=n.d<=n.s.roadW*.5+_jn(n.s);
   if(ok){ _lastSeg=n.s; _lastSegT=performance.now(); }
   /* ★u_5199 오너 지적 "합류도로인데 도로를 벗어났다고 나온다". 실측으로 확인 —
      이탈 판정 순간 차 주변 도로가
