@@ -1549,6 +1549,23 @@ function planTo(x,y){
   }
   if(!p){ p=astar(nearestNode(me.x,me.y),nearestNode(x,y)); NS=nodes; }
   if(!p){ flash('경로 없음'); window.__planFail=(window.__planFail||0)+1; return; }
+  /* ★2026-09-21 대흥로20안길(회귀 9): 경로 첫 62m 안에 164° 헤어핀(골목이 되꺾임). 6.5m 골목에서 차는 그 각을 한 번에 못 돌아
+     54m 에서 기어가다 멈춘다(K턴 미구현). 실제 운전자는 막다른 골목에선 차를 돌려 나간다 — 출발 80m 안 누적 회전 ≥150° 면
+     차를 헤어핀 끝 노드에 '나가는 방향'으로 놓고 그 앞 홉을 버린다(startSkipHairpin). 이후 구간은 그대로. /tel startSkipHairpin. */
+  try{ window.__startSkipHairpin=0;
+    const _NSx=NS; let acc=0, cum=0, prevA=null, jEnd=-1;
+    for(let i=0;i<p.length-1 && acc<80*S;i++){
+      const A=_NSx[p[i]], B=_NSx[p[i+1]]; if(!A||!B) break;
+      const a=Math.atan2(B.y-A.y,B.x-A.x);
+      if(prevA!==null){ let d=((a-prevA+Math.PI*3)%(Math.PI*2))-Math.PI; cum+=d; if(Math.abs(cum)*180/Math.PI>=150){ jEnd=i; break; } }
+      prevA=a; acc+=Math.hypot(B.x-A.x,B.y-A.y);
+    }
+    if(jEnd>=1 && jEnd<p.length-1){
+      const A=_NSx[p[jEnd]], B=_NSx[p[jEnd+1]];
+      me.x=A.x; me.y=A.y; me.ang=Math.atan2(B.y-A.y,B.x-A.x); me.v=0; me.steer=0;
+      p=p.slice(jEnd); window.__startSkipHairpin=1; try{ flash('⚠ 출발 헤어핀 건너뜀(골목 출구에서 출발)'); }catch(e){}
+    }
+  }catch(e){ window.__startSkipErr=String(e).slice(0,60); }
   /* ★u_5261 실측(신촌역 출발, 114m 지점 갇힘→복귀): 유턴을 허용하자 A* 가 출발점에서
      4.6m 앞 노드로 갔다가 되돌아오는 경로를 냈다. 차는 아직 서 있으니 처음부터
      되돌아오는 방향을 보고 출발하면 된다 — 맨 앞의 '갔다 오는' 두 홉을 잘라낸다. */
@@ -2795,7 +2812,7 @@ function mdlPoll(dt){
       sigNear: (function(){try{const n=performance.now();return signals.map(q=>({d:Math.hypot(q.x-me.x,q.y-me.y)/S,q})).sort((a,b)=>a.d-b.d).slice(0,4).map(z=>({d:+z.d.toFixed(1),x:+(z.q.x/S).toFixed(1),y:+(z.q.y/S).toFixed(1),sx:+(z.q.sx/S).toFixed(1),sy:+(z.q.sy/S).toFixed(1),nx:+(nodes[z.q.node].x/S).toFixed(1),ny:+(nodes[z.q.node].y/S).toFixed(1),tw:+z.q.tw.toFixed(2),rw:+(z.q.rw/S).toFixed(1),ow:z.q.ow,red:sigRed(z.q,n)?1:0}))}catch(e){return String(e).slice(0,40)}})(),
       sigBarN: (function(){try{return signals.filter(q=>q.sx!==undefined).length}catch(e){return -1}})(), sigRedN: (function(){try{const n=performance.now();return signals.filter(q=>sigRed(q,n)).length}catch(e){return -1}})(), sigN: (typeof signals!=='undefined')?signals.length:-1,
       tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, ovlEscN: window.__ovlEscN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
-      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
+      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, startSkipHairpin: window.__startSkipHairpin||0, startSkipErr: window.__startSkipErr||null, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i,st:d.st,df:d.df}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
