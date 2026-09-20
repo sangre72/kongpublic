@@ -17,12 +17,14 @@ d=json.load(urllib.request.urlopen('http://localhost:8901/tel',timeout=5)); sys.
   rm -rf data/dagger_r$r
   python3 dagger.py --round $r --episodes 2 --secs 600 --model none 2>&1 | grep -E '"ep"|"round"|err|abort' | cut -c1-300 | tee /tmp/dagger_r$r.log
   pn=$(curl -s localhost:8901/tel | python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('perturbN'))")
-  s=$(python3 -c "
-import json
+  # ★한글을 -c 인자에 넣으면 nohup 환경에서 'surrogates not allowed'(2026-09-20 r301/302 보고 누락). 환경변수로 넘긴다.
+  s=$(R=$r F="$f" T="$t" PN="$pn" python3 -c "
+import json,os
+r=os.environ['R']
 try:
-  st=json.load(open('data/dagger_r$r/episodes.json')); fr=sum(e.get('frames',0) for e in st); cr=sum(e.get('crashes',0) for e in st)
-  print('교란 라운드 $r $f > $t: 프레임 %d, 사고 %d, 교란 $pn회, 진행 %s' % (fr, cr, [e.get('prog_max') for e in st]))
-except Exception as e: print('라운드 $r: 결과 없음 (%s)' % e)")
+  st=json.load(open('data/dagger_r%s/episodes.json' % r)); fr=sum(e.get('frames',0) for e in st); cr=sum(e.get('crashes',0) for e in st)
+  print('%s %s %s > %s: %s %d, %s %d, %s %s, %s %s' % ('\uad50\ub780 \ub77c\uc6b4\ub4dc', r, os.environ['F'], os.environ['T'], '\ud504\ub808\uc784', fr, '\uc0ac\uace0', cr, '\uad50\ub780', os.environ['PN'], '\uc9c4\ud589', [e.get('prog_max') for e in st]))
+except Exception as e: print('round %s: no result (%s)' % (r, e))")
   echo "$s"; python3 $NT "[오드 수집·이탈복귀] $s" >/dev/null 2>&1
   r=$((r+1))
 done
