@@ -56,7 +56,8 @@ def episode(net, dev, secs, ep):
     P = []                                 # ★2026-09-20 모델 출력(조향·스로틀·제동) — 사후 분석용(P.npy). k=7 '왜 서 있나'를 못 봤다.
     M = []                                 # ★u_5427 상황 태그 [gap, ped, sig, turn(0/S 1/L 2/R 3/U), aD, v, laneF, nl] — 커리큘럼 단계 필터용
     seen = set()
-    LK = {'n': 0, 'on': 0, 'off': 0, 'lat': 0.0, 'err': 0.0, 'outlane': 0}   # ★2026-09-20 차선유지 지표. lat=도로중심선 기준 부호 오프셋, off=교사 목표차로 오프셋 → |lat−off| 가 차로 오차
+    LK = {'n': 0, 'on': 0, 'off': 0, 'lat': 0.0, 'err': 0.0, 'outlane': 0}
+    LABEL_SRC = ['teacher']   # ★2026-09-20 차선유지 지표. lat=도로중심선 기준 부호 오프셋, off=교사 목표차로 오프셋 → |lat−off| 가 차로 오차
     t0 = time.time()
     if net is None: post({'on': 0, 'force': 0, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 모델 조작 해제 → GEOM/교사가 몬다(안 그러면 drv=MODEL 에 명령 없음 → v=0·순간이동 연쇄)
     d0 = tel() or {}
@@ -107,6 +108,13 @@ def episode(net, dev, secs, ep):
                 break
             time.sleep(0.03); continue
         st, th, br = float(t['st']), float(t['th']), float(t.get('br', 0))
+        # ★2026-09-20 17:03 근본 원인: 교사 주행 수집에서 차를 모는 건 driveAuto(경로 추종)인데 조향 라벨은 teacher.js 값이었다.
+        #   실측 60초: 교사 st 평균 −0.39 vs 실제 적용 st +0.02, 상관 0.08(교사 목표차로가 차 위치보다 4.6m 오른쪽).
+        #   8만 장이 전부 '다른 차로로 꺾는 조향'을 가르쳤다 → 반대차로 이탈·순간이동 90회/300초. 조향 라벨 = 실제로 차를 몬 조향(da.st,
+        #   driveAuto 가 교란 덮어쓰기 전에 계산한 값). 스로틀·제동은 교사 값이 그대로 적용되므로 유지. 모델 주행(DAgger)은 종전대로(교사).
+        _da = d.get('da') or {}
+        if net is None and isinstance(_da.get('st'), (int, float)):
+            st = float(_da['st']); LABEL_SRC[0] = 'driveAuto'
         # ★2026-09-20 r109 실측: 신호 대기(st=0, v=0)에서 200프레임(1.3fps=150초) 동일 라벨 → '교사 정지'로 오판·에피소드 중단.
         #   정지 중 동일 라벨은 정상 — 움직이는데(v>1) 조향이 120초 넘게 완전히 같을 때만 죽은 것으로 본다.
         _v_now = float(d.get('v') or 0)
@@ -193,6 +201,7 @@ def episode(net, dev, secs, ep):
         'onroad_pct': round(100 * LK['on'] / max(1, LK['n']), 1), 'offroad_pct': round(100 * LK['off'] / max(1, LK['n']), 1),
         'lat_abs_m': round(LK['lat'] / max(1, LK['n']), 2), 'tpN': int(dl.get('tpN') or 0),
         'lane_err_m': round(LK['err'] / max(1, LK['n']), 2), 'outlane_pct': round(100 * LK['outlane'] / max(1, LK['n']), 1),
+        'label_src': LABEL_SRC[0],
     }
     return (np.stack(X) if X else None,
             np.array(Y, dtype=np.float32) if Y else None, stats,
