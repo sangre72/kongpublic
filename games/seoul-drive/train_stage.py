@@ -101,7 +101,10 @@ def load(dirs, stage, replay, rng, extra=()):
         #   이유 없는 정지(교착·출발 대기)는 한 장의 그림으로는 '가야 할 때'와 구분이 안 돼 정지를 가르친다.
         _stopped = M[:, 5] <= 1.0
         _reason = (M[:, 2] < 60) | (M[:, 0] < 20) | (M[:, 1] < 30)
-        rest = np.where(~sel & ~(_stopped & ~_reason))[0]
+        # ★2026-09-20 ode_s2 실측: 위 필터가 '파란불로 바뀐 뒤 출발' 프레임(v≈0, sig 없음, 교사 thr>0.3)까지 지워 정지 표본이 전부
+        #   '빨간불 대기(brake)'만 남았다 → 모델이 정지 장면에서 brake 0.95 고정(300초 83m). 교사가 '가라'(thr>0.3)면 남긴다.
+        _go = Y[:, 1] > 0.3
+        rest = np.where(~sel & ~(_stopped & ~_reason & ~_go))[0]
         rep = rng.choice(rest, int(len(rest) * replay), replace=False) if len(rest) and replay > 0 else np.array([], int)
         idx = np.concatenate([np.where(sel)[0], rep])
         if len(idx) == 0: continue
