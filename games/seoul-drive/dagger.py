@@ -53,6 +53,7 @@ def episode(net, dev, secs, ep):
     time.sleep(1.5)
     X, Y = [], []
     W, TT = [], []                         # ★u_5426 프레임 가중치(사고 직전 3초=0)·프레임 시각
+    P = []                                 # ★2026-09-20 모델 출력(조향·스로틀·제동) — 사후 분석용(P.npy). k=7 '왜 서 있나'를 못 봤다.
     M = []                                 # ★u_5427 상황 태그 [gap, ped, sig, turn(0/S 1/L 2/R 3/U), aD, v, laneF, nl] — 커리큘럼 단계 필터용
     seen = set()
     LK = {'n': 0, 'on': 0, 'off': 0, 'lat': 0.0}   # ★2026-09-20 차선유지 지표(도로 위 비율·도로 밖 비율·|lat| 평균)
@@ -169,6 +170,7 @@ def episode(net, dev, secs, ep):
             Y.append([st, th, br, float(d.get('v') or 0),
                       float(t.get('fl') if t.get('fl') is not None else -1.0),
                       float(t.get('fr') if t.get('fr') is not None else -1.0)])
+            P.append([float(o[0]), float(o[1]), float(o[2])] if net is not None else [0.0, 0.0, 0.0])
         time.sleep(0.02)
 
     dl = tel() or {}
@@ -190,7 +192,8 @@ def episode(net, dev, secs, ep):
     return (np.stack(X) if X else None,
             np.array(Y, dtype=np.float32) if Y else None, stats,
             np.array(W, dtype=np.float32) if W else None,
-            np.array(M, dtype=np.float32) if M else None)
+            np.array(M, dtype=np.float32) if M else None,
+            np.array(P, dtype=np.float32) if P else None)
 
 
 def main():
@@ -222,14 +225,14 @@ def main():
 
     outd = os.path.join(BASE, 'data', 'dagger_r%d' % a.round)
     os.makedirs(outd, exist_ok=True)
-    AX, AY, ST, AW, AM = [], [], [], [], []
+    AX, AY, ST, AW, AM = [], [], [], [], []; AP = []
     try:
         for i in range(a.episodes):
-            X, Y, s, Wt, Mt = episode(net, dev, a.secs, i + 1)
+            X, Y, s, Wt, Mt, Pt = episode(net, dev, a.secs, i + 1)
             ST.append(s)
             print(json.dumps(s, ensure_ascii=False), flush=True)
             if X is not None:
-                AX.append(X); AY.append(Y); AW.append(Wt); AM.append(Mt)
+                AX.append(X); AY.append(Y); AW.append(Wt); AM.append(Mt); AP.append(Pt)
     finally:
         post({'on': 0, 'steer': 0, 'thr': 0, 'brake': 0})
 
@@ -239,6 +242,7 @@ def main():
     np.save(f'{outd}/X.npy', X); np.save(f'{outd}/Y.npy', Y)
     np.save(f'{outd}/W.npy', np.concatenate(AW))     # 프레임 가중치(u_5426) — 없으면 학습기는 전부 1 로 본다
     np.save(f'{outd}/M.npy', np.concatenate(AM))     # 상황 태그(u_5427) — 단계별(커리큘럼) 프레임 선별용
+    np.save(f'{outd}/P.npy', np.concatenate(AP))     # 모델 출력(2026-09-20) — Y(교사)와 나란히
     open(f'{outd}/DONE', 'w').write('ok\n')
     json.dump(ST, open(f'{outd}/episodes.json', 'w'), ensure_ascii=False, indent=1)
 
