@@ -96,7 +96,7 @@ def episode(net, dev, secs, ep):
             nmodel += 1
         p = float(d.get('prog') or 0)
         pmax = max(pmax, p)
-        if p >= 0.95:
+        if p >= 0.95 and not d.get('synth'):   # 가상 샘플링(synth)은 경로를 순환하므로 '도착'으로 끝내지 않는다(2026-09-20 r400: 68초 925장에서 조기 종료)
             arrived = True
             break
 
