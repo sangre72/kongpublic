@@ -2917,6 +2917,10 @@ function synthTick(t){
   const off=(Math.random()*12-6)*S, herr=(Math.random()*80-40)*Math.PI/180;
   me.x=b.x-Math.sin(ang)*off; me.y=b.y+Math.cos(ang)*off; me.ang=ang+herr;
   me.v=Math.random()*30; me.steer=0; me.offroad=0; me.cool=0; window.__parked=0;
+  /* ★카메라 즉시 고정(2026-09-20 ode_s6 실패 원인): draw() 의 카메라는 위치 0.12·회전 0.18 씩 따라오는 저역통과라, 100ms 마다 방향을
+     ±40° 바꾸는 가상 배치에선 매 프레임 카메라가 차 방향과 어긋난 채 그려졌다(차가 화면 앵커에도 없음). 라벨(차 방향 기준 조향)과
+     그림이 안 맞아 모델이 학습 데이터 자체를 못 배웠다(자기 데이터 조향 상관 0.195). 배치와 동시에 카메라를 차에 맞춘다. */
+  cam.x=me.x; cam.y=me.y; camA=me.ang+Math.PI/2;
   auto.on=true; auto.k=j; auto.i=j; auto.s=auto.cum[j]; auto.stall=0; blockT=0; bldStuck=0; crashHold=0; crashHoldT=0; window.__stuckT=0; window.__stuckAcc=0;
   window.__synthN=(window.__synthN|0)+1;
 }
