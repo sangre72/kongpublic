@@ -96,7 +96,12 @@ def load(dirs, stage, replay, rng, extra=()):
             #   lat 추종 −0.16 → 벗어난 상태의 교정을 못 배웠다(공변량 이동). DAgger 라벨은 교사의 '교정'이므로 사고 직전 3초 W=0 이
             #   오히려 교정 표본을 지운다 → DAgger 라운드는 W=1 로 되돌리고 가중치 extra_w 배.
             W = np.full(len(Y), float(EXTRA_W), np.float32)
-        rest = np.where(~sel)[0]
+        # ★2026-09-20 k=8 실측(P.npy): 정지 프레임 2,503장에서 모델 brake 0.79·thr 0.14 vs 교사 thr 0.45·brake 0.02 → '서 있기'가 다시 학습됨.
+        #   재생(replay) 표본의 정지 프레임은 이유가 화면에 보일 때(적신호 sig<60·앞차 gap<20·보행자 ped<30)만 남긴다.
+        #   이유 없는 정지(교착·출발 대기)는 한 장의 그림으로는 '가야 할 때'와 구분이 안 돼 정지를 가르친다.
+        _stopped = M[:, 5] <= 1.0
+        _reason = (M[:, 2] < 60) | (M[:, 0] < 20) | (M[:, 1] < 30)
+        rest = np.where(~sel & ~(_stopped & ~_reason))[0]
         rep = rng.choice(rest, int(len(rest) * replay), replace=False) if len(rest) and replay > 0 else np.array([], int)
         idx = np.concatenate([np.where(sel)[0], rep])
         if len(idx) == 0: continue
