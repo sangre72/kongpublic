@@ -20,6 +20,7 @@ def load(dirs, H):
             print(json.dumps({'skip': d, 'why': str(e)[:60]}), flush=True); continue
         n = len(Yf)
         if n <= H + 1: continue
+        if X.ndim != 4 or X.shape[1] != 3: print(json.dumps({'skip': d, 'why': 'X channels %s' % str(X.shape[1:])}), flush=True); continue   # 프레임 스택 평가 라운드(6ch) 제외
         idx = np.arange(0, n - H)
         try:
             Q = np.load(f'{d}/Q.npy')
