@@ -11,26 +11,28 @@ from net import DriveNet
 from train_stage import augment, AUG
 DEV = gpu_guard.require_gpu(); BS = 64
 XT_MAX = float(os.environ.get('XT_MAX', '0.6'))
+LP_MAX = 12.0   # lp 인코딩 범위 ±12m: (lp+12)/24. dagger.py 디코딩과 반드시 일치
 
-def load(dirs):
+def load(dirs, synth=()):
     Xs, Ys, Vs, Ws = [], [], [], []
-    for d in dirs:
+    synth = set(synth)
+    for d in list(dirs) + [x for x in synth if x not in dirs]:
         try:
             X = np.load(f'{d}/X.npy'); Yf = np.load(f'{d}/Y.npy').astype(np.float32); L = np.load(f'{d}/L.npy').astype(np.float32)
         except Exception as e:
             print(json.dumps({'skip': d, 'why': str(e)[:60]}), flush=True); continue
         if not (len(X) == len(Yf) == len(L)): print(json.dumps({'skip': d, 'why': 'len'})); continue
-        ok = np.isfinite(L[:, 0]) & (np.abs(L[:, 0]) <= 8.0)
+        ok = np.isfinite(L[:, 0]) & (np.abs(L[:, 0]) <= LP_MAX)
         try:
             Q = np.load(f'{d}/Q.npy')
-            if len(Q) == len(Yf):
+            if len(Q) == len(Yf) and d not in synth:
                 ok &= Q[:, 0] < XT_MAX
                 ev = np.where((np.diff(Q[:, 1]) > 0) | (np.diff(Q[:, 2]) > 0))[0] + 1
                 for e in ev: ok &= ~(np.abs(Q[:, 3] - Q[e, 3]) <= 3.0)
         except Exception: pass
         idx = np.where(ok)[0]
         if len(idx) == 0: continue
-        Y = np.stack([Yf[idx, 0], Yf[idx, 1], Yf[idx, 2], (L[idx, 0] + 8.0) / 16.0], 1).astype(np.float32)
+        Y = np.stack([Yf[idx, 0], Yf[idx, 1], Yf[idx, 2], (L[idx, 0] + LP_MAX) / (2 * LP_MAX)], 1).astype(np.float32)
         Xs.append(X[idx]); Ys.append(Y); Vs.append((Yf[idx, 3] / 30.0).astype(np.float32)); Ws.append(np.ones(len(idx), np.float32))
         print(json.dumps({'dir': d.split('/')[-1], 'total': len(X), 'kept': int(len(idx)), 'lp_std': round(float(L[idx, 0].std()), 2)}), flush=True)
     if not Xs: return None
@@ -46,13 +48,14 @@ def batch(X, Y, V, ids, train=False):
     return xb, torch.from_numpy(yb).to(DEV), torch.from_numpy(V[real]).to(DEV)
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('dirs'); ap.add_argument('out'); ap.add_argument('--epochs', type=int, default=15); ap.add_argument('--init', default=None)
+    ap = argparse.ArgumentParser(); ap.add_argument('dirs'); ap.add_argument('out'); ap.add_argument('--epochs', type=int, default=15); ap.add_argument('--init', default=None); ap.add_argument('--synth', default='', help='가상 샘플링 라운드 글롭(쉼표) — xt/이벤트 필터 제외(상태를 일부러 벗어나게 놓은 데이터)')
     a = ap.parse_args(); rng = np.random.default_rng(0)
     dirs = [d for p in a.dirs.split(',') for d in sorted(glob.glob(p))]
-    got = load(dirs)
+    synth = [d for p in a.synth.split(',') if p for d in sorted(glob.glob(p))]
+    got = load(dirs, synth)
     if not got: print(json.dumps({'error': 'no frames'})); return
     X, Y, V, W = got; n = len(X)
-    print(json.dumps({'frames': n, 'lp_mean_m': round(float(Y[:, 3].mean() * 16 - 8), 2), 'lp_std_m': round(float(Y[:, 3].std() * 16), 2)}), flush=True)
+    print(json.dumps({'frames': n, 'lp_mean_m': round(float(Y[:, 3].mean() * 2 * LP_MAX - LP_MAX), 2), 'lp_std_m': round(float(Y[:, 3].std() * 2 * LP_MAX), 2)}), flush=True)
     idx = rng.permutation(n); cut = int(n * 0.85)
     tr = np.concatenate([idx[:cut] + 1, -(idx[:cut] + 1)]); va = np.concatenate([idx[cut:] + 1, -(idx[cut:] + 1)])
     net = DriveNet(out=4, vin=True).to(DEV); gpu_guard.assert_on_gpu(net)
@@ -69,7 +72,7 @@ def main():
         with torch.no_grad():
             for i in range(0, len(va), BS):
                 ids = va[i:i+BS]; xb, yb, vb = batch(X, Y, V, ids); o = net(xb, vb)
-                vs += (((o - yb) ** 2) * wcol).mean().item() * len(ids); lpe += (torch.abs(o[:, 3] - yb[:, 3]) * 16).sum().item(); c += len(ids)
+                vs += (((o - yb) ** 2) * wcol).mean().item() * len(ids); lpe += (torch.abs(o[:, 3] - yb[:, 3]) * 2 * LP_MAX).sum().item(); c += len(ids)
         vl = vs / max(1, c)
         if vl < best: best = vl; torch.save(net.state_dict(), a.out)
         print(json.dumps({'ep': ep, 'train': round(tot / len(perm), 5), 'val': round(vl, 5), 'lp_mae_m': round(lpe / max(1, c), 3)}), flush=True)
