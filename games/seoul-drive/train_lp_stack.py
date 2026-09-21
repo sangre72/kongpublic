@@ -15,8 +15,9 @@ XT_MAX_DAGGER = float(os.environ.get('XT_MAX_DAGGER', '4.0'))
 LP_MAX = 12.0   # lp 인코딩 범위 ±12m: (lp+12)/24. dagger.py 디코딩과 반드시 일치
 
 def load(dirs, synth=()):
+    """메모리: 직전 프레임을 복사하지 않는다(8.8만 장×2 = 35GB 로 조용히 죽었다, 2026-09-22 00:0x). 전체 X 를 하나로 잇고 kept 인덱스·직전 인덱스만 든다."""
     Xs, Ys, Vs, Ws = [], [], [], []
-    Xp = []   # 직전 프레임(같은 라운드 안에서 idx-1; 첫 프레임은 자기 자신)
+    GI, GP = [], []; base = 0   # 전역 인덱스(kept), 전역 직전 인덱스
     synth = set(synth)
     for d in list(dirs) + [x for x in synth if x not in dirs]:
         try:
@@ -37,14 +38,14 @@ def load(dirs, synth=()):
         idx = np.where(ok)[0]
         if len(idx) == 0: continue
         Y = np.stack([Yf[idx, 0], Yf[idx, 1], Yf[idx, 2], (L[idx, 0] + LP_MAX) / (2 * LP_MAX)], 1).astype(np.float32)
-        Xs.append(X[idx]); Xp.append(X[np.maximum(idx - 1, 0)]); Ys.append(Y); Vs.append((Yf[idx, 3] / 30.0).astype(np.float32)); Ws.append(np.ones(len(idx), np.float32))
+        Xs.append(X); GI.append(base + idx); GP.append(base + np.maximum(idx - 1, 0)); base += len(X); Ys.append(Y); Vs.append((Yf[idx, 3] / 30.0).astype(np.float32)); Ws.append(np.ones(len(idx), np.float32))
         print(json.dumps({'dir': d.split('/')[-1], 'total': len(X), 'kept': int(len(idx)), 'lp_std': round(float(L[idx, 0].std()), 2)}), flush=True)
     if not Xs: return None
-    return np.concatenate(Xs), np.concatenate(Ys), np.concatenate(Vs), np.concatenate(Ws), np.concatenate(Xp)
+    return np.concatenate(Xs), np.concatenate(Ys), np.concatenate(Vs), np.concatenate(Ws), (np.concatenate(GI), np.concatenate(GP))
 
 def batch(X, Y, V, ids, train=False, XP=None):
-    real = np.abs(ids) - 1
-    xb = torch.cat([torch.from_numpy(np.ascontiguousarray(XP[real])).float().div_(255.), torch.from_numpy(np.ascontiguousarray(X[real])).float().div_(255.)], dim=1); yb = Y[real].copy(); flip = ids < 0
+    real = np.abs(ids) - 1; gi, gp = XP[0][real], XP[1][real]
+    xb = torch.cat([torch.from_numpy(np.ascontiguousarray(X[gp])).float().div_(255.), torch.from_numpy(np.ascontiguousarray(X[gi])).float().div_(255.)], dim=1); yb = Y[real].copy(); flip = ids < 0
     if flip.any():
         xb[flip] = torch.flip(xb[flip], dims=[3]); yb[flip, 0] *= -1; yb[flip, 3] = 1.0 - yb[flip, 3]   # 좌우 반전: lp 부호 반전
     xb = xb.to(DEV)
@@ -58,7 +59,7 @@ def main():
     synth = [d for p in a.synth.split(',') if p for d in sorted(glob.glob(p))]
     got = load(dirs, synth)
     if not got: print(json.dumps({'error': 'no frames'})); return
-    X, Y, V, W, XP = got; n = len(X)
+    X, Y, V, W, XP = got; n = len(Y)
     print(json.dumps({'frames': n, 'lp_mean_m': round(float(Y[:, 3].mean() * 2 * LP_MAX - LP_MAX), 2), 'lp_std_m': round(float(Y[:, 3].std() * 2 * LP_MAX), 2)}), flush=True)
     idx = rng.permutation(n); cut = int(n * 0.85)
     tr = np.concatenate([idx[:cut] + 1, -(idx[:cut] + 1)]); va = np.concatenate([idx[cut:] + 1, -(idx[cut:] + 1)])
