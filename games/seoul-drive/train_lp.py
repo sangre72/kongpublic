@@ -11,6 +11,7 @@ from net import DriveNet
 from train_stage import augment, AUG
 DEV = gpu_guard.require_gpu(); BS = 64
 XT_MAX = float(os.environ.get('XT_MAX', '0.6'))
+XT_MAX_DAGGER = float(os.environ.get('XT_MAX_DAGGER', '4.0'))
 LP_MAX = 12.0   # lp 인코딩 범위 ±12m: (lp+12)/24. dagger.py 디코딩과 반드시 일치
 
 def load(dirs, synth=()):
@@ -26,7 +27,9 @@ def load(dirs, synth=()):
         try:
             Q = np.load(f'{d}/Q.npy')
             if len(Q) == len(Yf) and d not in synth:
-                ok &= Q[:, 0] < XT_MAX
+                # DAgger 라운드(모델 주행, r9xx)는 '벗어난 상태의 교정'이 목적이라 xt 상한을 넓게(경로를 잃은 프레임만 제외); 교사 라운드는 XT_MAX.
+                _xm = XT_MAX_DAGGER if '/dagger_r9' in d else XT_MAX
+                ok &= Q[:, 0] < _xm
                 ev = np.where((np.diff(Q[:, 1]) > 0) | (np.diff(Q[:, 2]) > 0))[0] + 1
                 for e in ev: ok &= ~(np.abs(Q[:, 3] - Q[e, 3]) <= 3.0)
         except Exception: pass
