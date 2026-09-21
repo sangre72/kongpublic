@@ -56,6 +56,7 @@ def episode(net, dev, secs, ep):
     W, TT = [], []                         # ★u_5426 프레임 가중치(사고 직전 3초=0)·프레임 시각
     P = []                                 # ★2026-09-20 모델 출력(조향·스로틀·제동) — 사후 분석용(P.npy). k=7 '왜 서 있나'를 못 봤다.
     Q = []                                 # ★2026-09-20 u_5478 프레임 품질 [xt(경로추적오차 m), tpN, cr, t] — '차선 잘 지킨 구간만' 선별용(Q.npy)
+    LP = []                                # ★2026-09-21 앞점 라벨 [lp(m, +=오른쪽), ld(m)] — 차 기준 앞점 인터페이스(tgt mode=2) 학습용(L.npy)
     M = []                                 # ★u_5427 상황 태그 [gap, ped, sig, turn(0/S 1/L 2/R 3/U), aD, v, laneF, nl] — 커리큘럼 단계 필터용
     seen = set()
     LK = {'n': 0, 'on': 0, 'off': 0, 'lat': 0.0, 'err': 0.0, 'outlane': 0}
@@ -161,8 +162,11 @@ def episode(net, dev, secs, ep):
             with torch.no_grad():
                 _vt = torch.tensor([[float(d.get('v') or 0) / 30.0]], device=dev)   # 속도 입력(u_5461)
                 o = (net(x, _vt) if getattr(net, 'vin', False) else net(x))[0].cpu().numpy()
-            post({'on': 1, 'force': 1, 'steer': float(o[0]),
-                  'thr': float(o[1]), 'brake': float(o[2])})
+            if len(o) >= 4:   # ★앞점 모델(out=4): o[3]=(lp+8)/16 → lp. 조향은 페이지 추종기, 속도는 규칙(교사 정지 지시 포함). 2026-09-21 (A)
+                post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': float(o[3]) * 16.0 - 8.0, 'ld': 10.0, 'vT': -1})
+            else:
+                post({'on': 1, 'force': 1, 'steer': float(o[0]),
+                      'thr': float(o[1]), 'brake': float(o[2])})
 
         # --- 저장: 모델이 본 화면 + 교사의 정답 ---
         h = hashlib.md5(np.ascontiguousarray(f).tobytes()).digest()
@@ -206,6 +210,8 @@ def episode(net, dev, secs, ep):
                       float(t.get('fl') if t.get('fl') is not None else -1.0),
                       float(t.get('fr') if t.get('fr') is not None else -1.0)])
             P.append([float(o[0]), float(o[1]), float(o[2])] if net is not None else [0.0, 0.0, 0.0])
+            _lbh = C.push_stats().get('lbl') if hasattr(C, 'push_stats') else None
+            LP.append([float(_lbh['lp']), float(_lbh.get('ld') or 10.0)] if isinstance(_lbh, dict) and isinstance(_lbh.get('lp'), (int, float)) else [float('nan'), float('nan')])
             _dq = d.get('da') or {}; Q.append([float(_dq.get('xt') if isinstance(_dq.get('xt'), (int, float)) else 99.0), float(d.get('tpN') or 0), float(d.get('cr') or 0), time.time() - t0])
         time.sleep(0.02)
 
@@ -232,7 +238,8 @@ def episode(net, dev, secs, ep):
             np.array(W, dtype=np.float32) if W else None,
             np.array(M, dtype=np.float32) if M else None,
             np.array(P, dtype=np.float32) if P else None,
-            np.array(Q, dtype=np.float32) if Q else None)
+            np.array(Q, dtype=np.float32) if Q else None,
+            np.array(LP, dtype=np.float32) if LP else None)
 
 
 def main():
@@ -268,14 +275,14 @@ def main():
 
     outd = os.path.join(BASE, 'data', 'dagger_r%d' % a.round)
     os.makedirs(outd, exist_ok=True)
-    AX, AY, ST, AW, AM = [], [], [], [], []; AP = []; AQ = []
+    AX, AY, ST, AW, AM = [], [], [], [], []; AP = []; AQ = []; AL = []
     try:
         for i in range(a.episodes):
-            X, Y, s, Wt, Mt, Pt, Qt = episode(net, dev, a.secs, i + 1)
+            X, Y, s, Wt, Mt, Pt, Qt, Lt = episode(net, dev, a.secs, i + 1)
             ST.append(s)
             print(json.dumps(s, ensure_ascii=False), flush=True)
             if X is not None:
-                AX.append(X); AY.append(Y); AW.append(Wt); AM.append(Mt); AP.append(Pt); AQ.append(Qt)
+                AX.append(X); AY.append(Y); AW.append(Wt); AM.append(Mt); AP.append(Pt); AQ.append(Qt); AL.append(Lt)
     finally:
         post({'on': 0, 'steer': 0, 'thr': 0, 'brake': 0})
 
@@ -287,6 +294,7 @@ def main():
     np.save(f'{outd}/M.npy', np.concatenate(AM))     # 상황 태그(u_5427) — 단계별(커리큘럼) 프레임 선별용
     np.save(f'{outd}/P.npy', np.concatenate(AP))     # 모델 출력(2026-09-20) — Y(교사)와 나란히
     np.save(f'{outd}/Q.npy', np.concatenate(AQ))     # 프레임 품질 [xt, tpN, cr, t] (u_5478) — 학습기가 xt<0.6·순간이동/사고 ±3초 제외에 쓴다
+    np.save(f'{outd}/L.npy', np.concatenate(AL))     # 앞점 라벨 [lp, ld] (2026-09-21, tgt mode=2)
     open(f'{outd}/DONE', 'w').write('ok\n')
     json.dump(ST, open(f'{outd}/episodes.json', 'w'), ensure_ascii=False, indent=1)
 
