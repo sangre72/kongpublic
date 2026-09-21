@@ -50,6 +50,7 @@ def post(d):
 
 def episode(net, dev, secs, ep):
     """한 에피소드: 모델이 몰고 교사 라벨을 모은다. (frames, stats)"""
+    post({'tgt': 0, 'mode': 1, 'dOff': 0.0, 'vT': -1, 'lp': 0.0})   # ★에피소드마다 목표 인터페이스 상태 초기화(서버 _ctl 은 프로세스 간 잔존)
     if net is None and not PIPE: post({'reset': 1, 'on': 0, 'force': 0, 'release': 1, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 리셋만, 모델 OFF
     else: post({'reset': 1, 'on': 1, 'force': 1, 'release': 0})   # 소프트리셋 + 모델 강제 ON
     time.sleep(1.5)
@@ -158,7 +159,7 @@ def episode(net, dev, secs, ep):
             if isinstance(_lb3, dict) and isinstance(_lb3.get('lp'), (int, float)):
                 post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': float(_lb3['lp']), 'ld': float(_lb3.get('ld') or 10.0), 'vT': -1})
         elif PIPE == 'pipe2':   # ★목표 오프셋 인터페이스 검증: 오프셋 0·속도 미지정 → 추종기 그대로(관문과 같아야 함)
-            post({'on': 1, 'force': 1, 'tgt': 1, 'dOff': 0.0, 'vT': -1})
+            post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 1, 'dOff': 0.0, 'vT': -1})   # ★mode=1 명시: 서버 _ctl 에 남은 mode=2·lp(앞점 모델 잔재)가 그대로 적용돼 제자리 회전(u_5504)
         elif PIPE:   # ★대조 실험: 경로추종기의 조향(그림자)+교사 속도제어를 모델과 같은 파이프(13fps·/ctl·150ms 신선도)로 흘린다
             post({'on': 1, 'force': 1, 'steer': st, 'thr': th, 'brake': br})
         if net is not None:
