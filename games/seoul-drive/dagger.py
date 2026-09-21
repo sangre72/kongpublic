@@ -163,7 +163,7 @@ def episode(net, dev, secs, ep):
                 _vt = torch.tensor([[float(d.get('v') or 0) / 30.0]], device=dev)   # 속도 입력(u_5461)
                 o = (net(x, _vt) if getattr(net, 'vin', False) else net(x))[0].cpu().numpy()
             if len(o) >= 4:   # ★앞점 모델(out=4): o[3]=(lp+8)/16 → lp. 조향은 페이지 추종기, 속도는 규칙(교사 정지 지시 포함). 2026-09-21 (A)
-                post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': float(o[3]) * 24.0 - 12.0, 'ld': 10.0, 'vT': -1})   # LP_MAX=12 (train_lp.py 와 일치)
+                post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': float(o[3]) * 24.0 - 12.0, 'ld': -1, 'vT': -1})   # ld=-1: 페이지 Ld(라벨과 동일 기준)   # LP_MAX=12 (train_lp.py 와 일치)
             else:
                 post({'on': 1, 'force': 1, 'steer': float(o[0]),
                       'thr': float(o[1]), 'brake': float(o[2])})

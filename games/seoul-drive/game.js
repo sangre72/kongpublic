@@ -2820,7 +2820,7 @@ function mdlPoll(dt){
       sigBarN: (function(){try{return signals.filter(q=>q.sx!==undefined).length}catch(e){return -1}})(), sigRedN: (function(){try{const n=performance.now();return signals.filter(q=>sigRed(q,n)).length}catch(e){return -1}})(), sigN: (typeof signals!=='undefined')?signals.length:-1,
       tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, ovlEscN: window.__ovlEscN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
       crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, startSkipHairpin: window.__startSkipHairpin||0, startSkipErr: window.__startSkipErr||null, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
-      da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i,st:d.st,df:d.df}})(), tbrk: window.__tbrk,
+      da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i,st:d.st,df:d.df,lp:d.lp,ld:d.ld}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
       qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();
@@ -3198,7 +3198,8 @@ function driveAuto(dt){
   const _lpLab=(-(P.x-me.x)*_sa+(P.y-me.y)*_ca)/S, _ldLab=((P.x-me.x)*_ca+(P.y-me.y)*_sa)/S;
   const _mt2=window.__mdlTgt; let _Pt=P;
   if(_mt2 && _mt2.mode===2 && (performance.now()-_mt2.t)<400 && typeof _mt2.lp==='number'){
-    const _ld=Math.max(3,Math.min(20,(+_mt2.ld||Ld)))*S, _lp=Math.max(-8,Math.min(8,+_mt2.lp))*S;
+    /* ld<=0 이면 페이지의 속도·골목 기반 Ld 를 그대로 쓴다 — 라벨 lp 가 그 Ld 에서 측정됐으므로 추론도 같은 Ld 여야 한다(고정 10m 로 넣자 골목 코너에서 안쪽으로 파고들어 건물 충돌 70회, 2026-09-21 17:00). */
+    const _ld=((+_mt2.ld)>0 ? Math.max(3,Math.min(20,+_mt2.ld)) : Ld/S)*S, _lp=Math.max(-8,Math.min(8,+_mt2.lp))*S;
     _Pt={x: me.x+_ca*_ld-_sa*_lp, y: me.y+_sa*_ld+_ca*_lp, ang: me.ang};
     window.__tgt2N=(window.__tgt2N|0)+1;
   }
