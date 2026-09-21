@@ -48,10 +48,10 @@ def augment(xb):
     xb = xb + torch.randn_like(xb) * 0.03
     g = torch.rand(n, device=xb.device) < 0.25                            # 25% 흑백
     if g.any():
-        gray = xb[g].mean(dim=1, keepdim=True).expand(-1, 3, -1, -1)
+        gray = xb[g].mean(dim=1, keepdim=True).expand(-1, xb.shape[1], -1, -1)
         xb = xb.clone(); xb[g] = gray
     # u_5440: 채널별 색 지터(±0.05), 흐림(다운→업샘플, 30%), 가림 사각형(실차·표지판에 가려짐 흉내, 30%)
-    xb = xb + (torch.rand(n, 3, 1, 1, device=xb.device) - 0.5) * 0.10
+    xb = xb + (torch.rand(n, xb.shape[1], 1, 1, device=xb.device) - 0.5) * 0.10
     bl = torch.rand(n, device=xb.device) < 0.30
     if bl.any():
         small = torch.nn.functional.interpolate(xb[bl], scale_factor=0.5, mode='bilinear', align_corners=False)
