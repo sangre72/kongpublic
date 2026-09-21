@@ -2813,6 +2813,7 @@ function mdlPoll(dt){
       daShadow: window.__daShadow||null,
       mdlTgt: window.__mdlTgt||null,
       tgt2N: window.__tgt2N|0,
+      lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0,
       lhold: window.__lhold|0,
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
@@ -2947,6 +2948,7 @@ function tierTick(){
 }
 function tierAgo(ms){ const H=window.__tierHist||[]; const now=performance.now(); for(let i=0;i<H.length;i++){ if(now-H[i][0]<=ms) return H[i][1]; } return H.length?H[H.length-1][1]:null; }
 window.__noL1 = /[?&]nol1=1/.test(location.search);
+window.__lpRawMode = /[?&]lpraw=1/.test(location.search);
 window.__PERTURB_S = (function(){ const m=/[?&]perturb=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();
 /* ★가상 데이터 샘플러(오너 u_5467, 2026-09-20): 주행하지 않고 상태를 무작위로 놓는다. ?synth=1 이면 SYNTH_MS 마다 경로 위 임의 점에
    차로 오프셋 −6~+6m·방향 오차 −40~+40°·속도 0~30m/s 로 차를 재배치 → driveAuto 가 그 자리에서 낼 조향(__da.st)과 교사 속도 제어가
@@ -3199,7 +3201,15 @@ function driveAuto(dt){
   const _mt2=window.__mdlTgt; let _Pt=P;
   if(_mt2 && _mt2.mode===2 && (performance.now()-_mt2.t)<400 && typeof _mt2.lp==='number'){
     /* ld<=0 이면 페이지의 속도·골목 기반 Ld 를 그대로 쓴다 — 라벨 lp 가 그 Ld 에서 측정됐으므로 추론도 같은 Ld 여야 한다(고정 10m 로 넣자 골목 코너에서 안쪽으로 파고들어 건물 충돌 70회, 2026-09-21 17:00). */
-    const _ld=((+_mt2.ld)>0 ? Math.max(3,Math.min(20,+_mt2.ld)) : Ld/S)*S, _lp=Math.max(-8,Math.min(8,+_mt2.lp))*S;
+    /* ★앞점 시간 평활(2026-09-21 u_5495 "갈지자": 12초 실측 모델 lp −4.5→+0.4→+5.9→−4.0m, 정답 ±2m). 단일 프레임 판단의 떨림을
+       추종기가 그대로 따라갔다. 지수평활(시정수 0.35초) + 변화율 제한 6m/s. ?lpraw=1 이면 끔(원값 측정용). /tel lpSm. */
+    let _lpRaw=Math.max(-8,Math.min(8,+_mt2.lp));
+    if(!window.__lpRawMode){
+      const _a=1-Math.exp(-dt/0.35), _prev=(typeof window.__lpSm==='number')?window.__lpSm:_lpRaw;
+      let _n=_prev+(_lpRaw-_prev)*_a; const _lim=6.0*dt; _n=Math.max(_prev-_lim, Math.min(_prev+_lim, _n));
+      window.__lpSm=_n; _lpRaw=_n;
+    }
+    const _ld=((+_mt2.ld)>0 ? Math.max(3,Math.min(20,+_mt2.ld)) : Ld/S)*S, _lp=_lpRaw*S;
     _Pt={x: me.x+_ca*_ld-_sa*_lp, y: me.y+_sa*_ld+_ca*_lp, ang: me.ang};
     window.__tgt2N=(window.__tgt2N|0)+1;
   }
