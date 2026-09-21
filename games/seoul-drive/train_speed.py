@@ -10,6 +10,7 @@ import gpu_guard
 from net import DriveNet
 from train_stage import augment, AUG
 DEV = gpu_guard.require_gpu(); BS = 64
+LABEL = os.environ.get('SPEED_LABEL', 'future')   # future = 1초 뒤 실제 v / vmax = 규칙 목표속도(L.npy[:,2])
 
 def load(dirs, H):
     Xs, Ys, Vs = [], [], []
@@ -31,6 +32,12 @@ def load(dirs, H):
                 idx = idx[ok]
         except Exception: pass
         vT = np.clip(Yf[idx + H, 3] / 30.0, 0, 1)
+        if LABEL == 'vmax':   # 규칙(추종기)의 목표속도 — 모델 주행 라운드(DAgger)에서도 유효한 라벨. L.npy 3열(2026-09-22 이후 수집분).
+            try:
+                L = np.load(f'{d}/L.npy')
+                if L.shape[1] >= 3 and np.isfinite(L[idx, 2]).mean() > 0.9: vT = np.clip(np.nan_to_num(L[idx, 2], nan=0.0) / 30.0, 0, 1)
+                else: print(json.dumps({'skip': d, 'why': 'no vmax label'}), flush=True); continue
+            except Exception: print(json.dumps({'skip': d, 'why': 'no L.npy'}), flush=True); continue
         Y = np.stack([Yf[idx, 0], Yf[idx, 1], Yf[idx, 2], vT], 1).astype(np.float32)
         Xs.append(X[idx]); Ys.append(Y); Vs.append((Yf[idx, 3] / 30.0).astype(np.float32))
         print(json.dumps({'dir': d.split('/')[-1], 'total': n, 'kept': int(len(idx)), 'vT_mean': round(float(vT.mean() * 30), 1)}), flush=True)

@@ -5076,7 +5076,7 @@ function loop(t){
       const _pt1 = performance.now();
       let _lbl='';
       try{ const T=window.__teach, L=(T&&T.last)||{}, D=window.__da||{};
-           _lbl=JSON.stringify({lp:(typeof D.lp==='number')?D.lp:null, ld:(typeof D.ld==='number')?D.ld:null, st:(typeof D.st==='number')?+D.st.toFixed(4):null, th:(typeof L.thr==='number')?+L.thr.toFixed(4):null, br:(typeof L.brake==='number')?+L.brake.toFixed(4):null, v:+me.v.toFixed(3), synth:window.__synth?1:0, n:window.__synthN|0}); }catch(e){}
+           _lbl=JSON.stringify({vmax:(typeof D.vmax==='number')?+D.vmax.toFixed(2):null, lp:(typeof D.lp==='number')?D.lp:null, ld:(typeof D.ld==='number')?D.ld:null, st:(typeof D.st==='number')?+D.st.toFixed(4):null, th:(typeof L.thr==='number')?+L.thr.toFixed(4):null, br:(typeof L.brake==='number')?+L.brake.toFixed(4):null, v:+me.v.toFixed(3), synth:window.__synth?1:0, n:window.__synthN|0}); }catch(e){}
       fetch('/frame', {method:'POST', body:u8, cache:'no-store', headers:{'Content-Type':'image/jpeg', 'X-Lbl':_lbl}})
         .then(()=>{ window.__pushN=(window.__pushN|0)+1; const D=window.__frPush=window.__frPush||{blobMs:0,postMs:0,kb:0,n:0}; D.n++; D.blobMs+=_pt1-_pt0; D.postMs+=performance.now()-_pt1; D.kb+=u8.length/1024; })
         .catch(()=>{}).finally(()=>{ window.__pushBusy = 0; });

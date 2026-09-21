@@ -217,7 +217,7 @@ def episode(net, dev, secs, ep):
                       float(t.get('fr') if t.get('fr') is not None else -1.0)])
             P.append([float(o[0]), float(o[1]), float(o[2])] if net is not None else [0.0, 0.0, 0.0])
             _lbh = C.push_stats().get('lbl') if hasattr(C, 'push_stats') else None
-            LP.append([float(_lbh['lp']), float(_lbh.get('ld') or 10.0)] if isinstance(_lbh, dict) and isinstance(_lbh.get('lp'), (int, float)) else [float('nan'), float('nan')])
+            LP.append([float(_lbh['lp']), float(_lbh.get('ld') or 10.0), float(_lbh['vmax']) if isinstance(_lbh.get('vmax'), (int, float)) else float('nan')] if isinstance(_lbh, dict) and isinstance(_lbh.get('lp'), (int, float)) else [float('nan'), float('nan'), float('nan')])   # [lp, ld, vmax(규칙 목표속도 m/s)]
             _dq = d.get('da') or {}; Q.append([float(_dq.get('xt') if isinstance(_dq.get('xt'), (int, float)) else 99.0), float(d.get('tpN') or 0), float(d.get('cr') or 0), time.time() - t0])
         time.sleep(0.02)
 
