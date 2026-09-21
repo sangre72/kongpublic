@@ -150,6 +150,8 @@ def episode(net, dev, secs, ep):
         except Exception:
             pass
         x = preprocess(f, device=dev)[None]
+        if net is not None and getattr(net, 'in_ch', 3) == 6:   # 프레임 스택: [직전, 현재]
+            _xp = globals().get('_PREV_X'); x = torch.cat([_xp if _xp is not None else x, x], dim=1); globals()['_PREV_X'] = x[:, 3:]
         if PIPE == 'pipe3':   # ★차 기준 앞점 인터페이스 검증: 직전 프레임 라벨(lp, ld)을 그대로 되돌려 준다(모델이 완벽할 때의 상한)
             _lb3 = C.push_stats().get('lbl') if hasattr(C, 'push_stats') else None
             if isinstance(_lb3, dict) and isinstance(_lb3.get('lp'), (int, float)):
@@ -263,7 +265,7 @@ def main():
     else:
         sd = torch.load(mp, map_location=dev)
         out = sd[list(sd)[-1]].shape[0]
-        net = DriveNet(out=out, vin=any(k.startswith('hv.') for k in sd)).to(dev)   # hv.* 키가 있으면 속도 입력 구조
+        net = DriveNet(out=out, vin=any(k.startswith('hv.') for k in sd), in_ch=int(sd['f.0.weight'].shape[1])).to(dev)   # hv.* 키 = 속도 입력, f.0 입력채널 = 프레임 스택 여부
         net.load_state_dict(sd); net.eval()
     if net is not None: assert_on_gpu(net)
 

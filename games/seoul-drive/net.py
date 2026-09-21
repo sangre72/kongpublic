@@ -29,10 +29,11 @@ class DriveNet(nn.Module):
       강제된다(auxiliary task). 추론 때는 앞의 3개만 쓰면 되므로 비용은 0에 가깝다.
       색 대비 실측: 도로 vs 인도 = 80(구분 쉬움), 인도 vs 건물 = 16.8(안 구분되지만
       둘 다 '못 가는 곳'이라 문제되지 않는다)."""
-    def __init__(self, out=3, vin=True):
+    def __init__(self, out=3, vin=True, in_ch=3):
         super().__init__()
+        self.in_ch = in_ch   # 6 = 프레임 스택(현재+직전, 2026-09-21 갈지자 대책: 단일 프레임엔 운동 단서가 없다)
         self.f = nn.Sequential(
-            nn.Conv2d(3, 16, 5, 2), nn.ReLU(),
+            nn.Conv2d(in_ch, 16, 5, 2), nn.ReLU(),
             nn.Conv2d(16, 32, 3, 2), nn.ReLU(),
             nn.Conv2d(32, 64, 3, 2), nn.ReLU(),
             nn.Conv2d(64, 96, 3, 2), nn.ReLU(),
