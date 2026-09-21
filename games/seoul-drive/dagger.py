@@ -149,7 +149,11 @@ def episode(net, dev, secs, ep):
         except Exception:
             pass
         x = preprocess(f, device=dev)[None]
-        if PIPE == 'pipe2':   # ★목표 오프셋 인터페이스 검증: 오프셋 0·속도 미지정 → 추종기 그대로(관문과 같아야 함)
+        if PIPE == 'pipe3':   # ★차 기준 앞점 인터페이스 검증: 직전 프레임 라벨(lp, ld)을 그대로 되돌려 준다(모델이 완벽할 때의 상한)
+            _lb3 = C.push_stats().get('lbl') if hasattr(C, 'push_stats') else None
+            if isinstance(_lb3, dict) and isinstance(_lb3.get('lp'), (int, float)):
+                post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': float(_lb3['lp']), 'ld': float(_lb3.get('ld') or 10.0), 'vT': -1})
+        elif PIPE == 'pipe2':   # ★목표 오프셋 인터페이스 검증: 오프셋 0·속도 미지정 → 추종기 그대로(관문과 같아야 함)
             post({'on': 1, 'force': 1, 'tgt': 1, 'dOff': 0.0, 'vT': -1})
         elif PIPE:   # ★대조 실험: 경로추종기의 조향(그림자)+교사 속도제어를 모델과 같은 파이프(13fps·/ctl·150ms 신선도)로 흘린다
             post({'on': 1, 'force': 1, 'steer': st, 'thr': th, 'brake': br})
@@ -244,7 +248,7 @@ def main():
     # ★2026-09-19 u_5431: bc_final.pt 는 옛 DriveNet 구조(h.0/h.2)라 현재 망(h.1/h.4/h.6)에 안 들어간다. 1단계(직진) 데이터는
     #   교사가 몰아 만든다 — `--model none` 이면 추론·조작을 건너뛰고 화면+교사 라벨+W/M 만 저장한다(BC 먼저, DAgger 는 새 모델 뒤).
     global PIPE
-    PIPE = a.model if a.model in ('pipe', 'pipe2') else False
+    PIPE = a.model if a.model in ('pipe', 'pipe2', 'pipe3') else False
     if PIPE:
         net = None; print(json.dumps({'mode': 'teacher-'+str(PIPE), 'note': 'driveAuto shadow steer + teacher thr/brake via /ctl at capture rate'}), flush=True)
     elif a.model == 'none':

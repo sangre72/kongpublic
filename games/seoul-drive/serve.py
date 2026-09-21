@@ -21,7 +21,7 @@ import functools, http.server, socketserver, os, json, threading
 PORT = 8901
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-_ctl = {'on': 0, 'steer': 0.0, 'thr': 0.0, 'brake': 0.0, 'seq': 0, 'rst': 0, 'tgt': 0, 'dOff': 0.0, 'vT': -1.0,
+_ctl = {'on': 0, 'steer': 0.0, 'thr': 0.0, 'brake': 0.0, 'seq': 0, 'rst': 0, 'tgt': 0, 'dOff': 0.0, 'vT': -1.0, 'mode': 1, 'lp': 0.0, 'ld': 10.0,
         'teach': '', 'force': 0, 'release': 0}   # teach = 교사 모드(fwd|left|right|off), u_5144
 # ★rst = 소프트리셋 요청 카운터(u_5126). 페이지가 값이 바뀐 걸 보면 한 번 리셋한다.
 #   새 엔드포인트/연결을 만들지 않고 이미 20Hz 로 도는 /ctl 폴링에 얹는다.
@@ -117,7 +117,7 @@ class H(http.server.SimpleHTTPRequestHandler):
         except Exception:
             self.send_error(400); return
         with _lock:
-            for k in ('on', 'steer', 'thr', 'brake', 'force', 'release', 'tgt', 'dOff', 'vT'):
+            for k in ('on', 'steer', 'thr', 'brake', 'force', 'release', 'tgt', 'dOff', 'vT', 'mode', 'lp', 'ld'):
                 if k in d:
                     _ctl[k] = float(d[k])
             # ★teach(교사 모드)는 문자열이라 float 변환 대상이 아니다(u_5153).

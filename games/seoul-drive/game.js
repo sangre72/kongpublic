@@ -2812,6 +2812,7 @@ function mdlPoll(dt){
       pushN: window.__pushN|0, pushOn: window.__pushOn?1:0, frPush: window.__frPush||null,
       daShadow: window.__daShadow||null,
       mdlTgt: window.__mdlTgt||null,
+      tgt2N: window.__tgt2N|0,
       lhold: window.__lhold|0,
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
@@ -2854,6 +2855,7 @@ function mdlPoll(dt){
       MDL.rxT = performance.now(); }   // ★u_5172: 명령 수신 시각(만료 판정용)
     MDL.steer = +d.steer||0; MDL.thr = +d.thr||0; MDL.brake = +d.brake||0;
     MDL.tgt = !!(+d.tgt); MDL.dOff = +d.dOff||0; MDL.vT = (d.vT===undefined||d.vT===null)?-1:+d.vT;   // 목표 오프셋 인터페이스(2026-09-21)
+    MDL.mode = +d.mode||1; MDL.lp = (d.lp===undefined||d.lp===null)?null:+d.lp; MDL.ld = (d.ld===undefined||d.ld===null)?null:+d.ld;
     /* on 은 페이지 버튼이 주도권을 갖는다. 파이썬이 on=1 을 보내면 켜지지만,
        사람이 화면에서 끄면 그게 이긴다(안전: 폭주하면 손으로 끌 수 있어야 한다). */
     /* ★force=1 이면 사람이 꺼둔 것도 무시하고 켠다(u_5133).
@@ -3190,8 +3192,18 @@ function driveAuto(dt){
       } else auto.mergeHold=0;
     }
   }catch(e){}
-  let alpha=((Math.atan2(P.y-me.y,P.x-me.x)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
-  const Lreal=Math.max(3, Math.hypot(P.x-me.x,P.y-me.y)/S);
+  /* ★차 기준 앞점 인터페이스 tgt mode=2 (2026-09-21 u_5489 진행(A)): 상위(모델)가 '전방 ld m·가로 lp m'의 앞점을 주면 지도 경로 대신 그 점을 추종.
+     라벨(__da.lp/ld) = 지도 경로가 이 프레임에 실제로 쓴 앞점의 차 기준 좌표. 화면만 보고 '경로선이 앞 15m 에서 어디 있나'를 맞히는 문제가 된다. */
+  const _sa=Math.sin(me.ang), _ca=Math.cos(me.ang);
+  const _lpLab=(-(P.x-me.x)*_sa+(P.y-me.y)*_ca)/S, _ldLab=((P.x-me.x)*_ca+(P.y-me.y)*_sa)/S;
+  const _mt2=window.__mdlTgt; let _Pt=P;
+  if(_mt2 && _mt2.mode===2 && (performance.now()-_mt2.t)<400 && typeof _mt2.lp==='number'){
+    const _ld=Math.max(3,Math.min(20,(+_mt2.ld||Ld)))*S, _lp=Math.max(-8,Math.min(8,+_mt2.lp))*S;
+    _Pt={x: me.x+_ca*_ld-_sa*_lp, y: me.y+_sa*_ld+_ca*_lp, ang: me.ang};
+    window.__tgt2N=(window.__tgt2N|0)+1;
+  }
+  let alpha=((Math.atan2(_Pt.y-me.y,_Pt.x-me.x)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+  const Lreal=Math.max(3, Math.hypot(_Pt.x-me.x,_Pt.y-me.y)/S);
   let delta=Math.atan2(2*wb*Math.sin(alpha), Lreal);   // rad
   /* ★u_5190 실사고: 경로선은 3차로 중앙(8.13m)에 정확히 놓였고 교사도 그걸
      목표로 잡는데(7.28m), 차는 12.17m 를 달렸다 — 4.89m 밖.
@@ -3315,7 +3327,7 @@ function driveAuto(dt){
   me.v+=(vmax-me.v)*Math.min(1,dt*2.0);
   auto.act=gp<11*S?'정지 — 전방 장애물':gp<28*S?'감속 — 차간유지'
     :auto.curv>0.05?'선회 중':(auto.s>=total-25*S)?'목적지 접근':'주행 중';
-  window.__da={st:me.steer, df:alpha, i:auto.i, n:N,
+  window.__da={st:me.steer, df:alpha, i:auto.i, n:N, lp:+_lpLab.toFixed(3), ld:+_ldLab.toFixed(2),
                d:Lreal, xt:auto.xt||0, s:auto.s/S, tot:total/S, vc:vmaxCurve,
                gp:gp/S, vmax:vmax, stall:auto.stall||0, brk:window.__brkT||0, ped:pedD,
                blk:blockT||0, bst:bldStuck||0, cool:me.cool||0, hold:crashHold||0};
@@ -4925,7 +4937,7 @@ function loop(t){
        용도 = (a) DAgger 라벨 = 실제 몰던 제어기의 출력(규칙 D-00, teacher.js 조향은 상관 0.08 로 폐기) (b) '추종기를 모델 파이프로'
        대조 실험(dagger --model pipe). /tel daShadow. */
     if(MDL.tgt){   // ★목표 오프셋 모드: 추종기가 몰고 모델은 오프셋·속도만 준다
-      window.__mdlTgt={dOff:+MDL.dOff||0, vT:(typeof MDL.vT==='number'?MDL.vT:-1), t:MDL.rxT||0};
+      window.__mdlTgt={dOff:+MDL.dOff||0, vT:(typeof MDL.vT==='number'?MDL.vT:-1), t:MDL.rxT||0, mode:(+MDL.mode||1), lp:(typeof MDL.lp==='number'?MDL.lp:null), ld:(typeof MDL.ld==='number'?MDL.ld:null)};
       try{ driveAuto(dt); window.__daShadow={st:+me.steer.toFixed(4), v:+me.v.toFixed(3)}; }catch(e){ window.__daShadowErr=String(e).slice(0,60); }
       /* 교사의 '정지' 지시(앞차·보행자·적신호)는 GEOM 가지와 동일하게 적용 — pipe2 1차 실측: 순간이동 0 이지만 보행자 사고 2/1/2(정지 지시 누락). Layer 1. */
       try{ if(T){ const a=T.compute(); T.last=a; window.__tbrk = a ? a.brake : -1;
@@ -5053,7 +5065,7 @@ function loop(t){
       const _pt1 = performance.now();
       let _lbl='';
       try{ const T=window.__teach, L=(T&&T.last)||{}, D=window.__da||{};
-           _lbl=JSON.stringify({st:(typeof D.st==='number')?+D.st.toFixed(4):null, th:(typeof L.thr==='number')?+L.thr.toFixed(4):null, br:(typeof L.brake==='number')?+L.brake.toFixed(4):null, v:+me.v.toFixed(3), synth:window.__synth?1:0, n:window.__synthN|0}); }catch(e){}
+           _lbl=JSON.stringify({lp:(typeof D.lp==='number')?D.lp:null, ld:(typeof D.ld==='number')?D.ld:null, st:(typeof D.st==='number')?+D.st.toFixed(4):null, th:(typeof L.thr==='number')?+L.thr.toFixed(4):null, br:(typeof L.brake==='number')?+L.brake.toFixed(4):null, v:+me.v.toFixed(3), synth:window.__synth?1:0, n:window.__synthN|0}); }catch(e){}
       fetch('/frame', {method:'POST', body:u8, cache:'no-store', headers:{'Content-Type':'image/jpeg', 'X-Lbl':_lbl}})
         .then(()=>{ window.__pushN=(window.__pushN|0)+1; const D=window.__frPush=window.__frPush||{blobMs:0,postMs:0,kb:0,n:0}; D.n++; D.blobMs+=_pt1-_pt0; D.postMs+=performance.now()-_pt1; D.kb+=u8.length/1024; })
         .catch(()=>{}).finally(()=>{ window.__pushBusy = 0; });
