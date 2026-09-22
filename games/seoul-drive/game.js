@@ -5534,16 +5534,19 @@ setTimeout(()=>{
 if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스크립트 끝까지 도달 표시
 
 
-/* ★오너 u_5518(2026-09-22): 화면 우측 '모델 활동' 패널. DOM 오버레이라 캔버스(모델 입력 프레임)엔 안 들어가고
-   화면 녹화(record_drive)에는 찍힌다. 누가 핸들·가속을 쥐고 있는지, 등급, Layer1 개입, 사고/복귀, 최근 이벤트. */
+/* ★오너 u_5518/u_5519(2026-09-22): right-side 'ODE activity' panel, English (owner). DOM overlay — not part of the canvas the model sees,
+   but captured by screen recording. Shows who holds steering/speed, tier, Layer1 interventions, crashes/recoveries, recent events. */
 (function(){
   if(typeof document==='undefined') return;
   const el=document.createElement('div'); el.id='mdlPanel';
   el.style.cssText='position:fixed;right:8px;top:150px;width:236px;z-index:9999;background:rgba(20,22,30,.82);color:#e8e8ee;font:10.5px/1.45 Menlo,monospace;padding:8px 10px;border-radius:8px;pointer-events:none;white-space:pre;box-shadow:0 2px 8px rgba(0,0,0,.3)';
   document.body.appendChild(el);
-  let lpMs=0, mdlMs=0, last=performance.now(), lastLp=null, lastSp=null;
+  let lpMs=0, mdlMs=0, last=performance.now();
   const kmh=v=>(typeof v==='number'&&v>=0)?(v*3.6).toFixed(0)+'km/h':'—';
-  const TN=['T0 쉬움','T1 중간','T2 어려움','T3 엣지'];
+  const TN=['T0 easy','T1 medium','T2 hard','T3 edge'];
+  const EN=s=>String(s).replace('정지중 접촉(불가항력)','stopped contact (unavoidable)').replace('보행자 돌발(불가항력)','pedestrian dart-out (unavoidable)')
+                       .replace('보행자 사고','pedestrian').replace('복귀(순간이동)','recovery (teleport)').replace('사고: ','crash: ')
+                       .replace('추돌','rear-end').replace('충돌','collision').replace('도로이탈','off-road').replace('건물','building').replace('차로 이탈','lane departure');
   setInterval(function(){
     try{
       const now=performance.now(), dt=now-last; last=now;
@@ -5552,19 +5555,19 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
       if(on) mdlMs+=dt; if(lpOn) lpMs+=dt;
       const tier=window.__tier, da=window.__da||{}, L1=window.__l1T&&(now-window.__l1T<800)?window.__l1Last:null;
       const crk=window.__crk||{}; let un=0, av=0; for(const k in crk){ if(k.indexOf('불가항력')>=0) un+=crk[k]; else av+=crk[k]; }
-      const ev=(window.__evLog||[]).slice(-5).map(e=>((e[0]/1000)|0)+'s '+e[1]).join('\n');
+      const ev=(window.__evLog||[]).slice(-5).map(e=>((e[0]/1000)|0)+'s '+EN(e[1])).join('\n');
       el.textContent=
-        '오드 활동   '+(on?'● 모델 주행':'○ 규칙 주행')+'\n'+
-        '조향: '+(lpOn?'모델(앞점 '+(+T.lp||0).toFixed(1)+'m)':'규칙 추종기')+'\n'+
-        '속도: '+(spOn?'모델 목표 '+kmh(T.vT):'규칙')+'  현재 '+kmh(me.v)+'\n'+
-        '규칙 상한 '+kmh(da.vmax)+'  등급 '+(typeof tier==='number'?TN[tier]:'—')+'\n'+
-        '모델 조향 '+(lpMs/1000).toFixed(0)+'s / 모델 주행 '+(mdlMs/1000).toFixed(0)+'s ('+(mdlMs>0?(100*lpMs/mdlMs).toFixed(0):'0')+'%)\n'+
-        'L1 개입: 정지 '+(window.__l1N|0)+' 상한 '+(window.__l1CapN|0)+(L1?'  ◀'+L1:'')+'\n'+
-        '보행자 예측제동 '+(window.__pedPredN|0)+'  교착정리 '+(window.__npcDeadlockRm|0)+'\n'+
-        '사고 회피가능 '+av+' / 불가항력 '+un+'   복귀 '+(window.__tpN|0)+'\n'+
-        (M.stale?'모델 명령 지연(stale)\n':'')+
-        '진행 '+((typeof auto!=='undefined'&&auto.cum&&auto.cum.length)?(100*(auto.s||0)/(auto.cum[auto.cum.length-1]||1)).toFixed(1)+'%':'—')+'\n'+
-        (ev?'— 최근 —\n'+ev:'');
+        'ODE activity   '+(on?'● MODEL driving':'○ RULE driving')+'\n'+
+        'Steer: '+(lpOn?'model (lookahead '+(+T.lp||0).toFixed(1)+'m)':'rule follower')+'\n'+
+        'Speed: '+(spOn?'model target '+kmh(T.vT):'rule')+'  now '+kmh(me.v)+'\n'+
+        'Rule cap '+kmh(da.vmax)+'  tier '+(typeof tier==='number'?TN[tier]:'—')+'\n'+
+        'Model steer '+(lpMs/1000).toFixed(0)+'s / model drive '+(mdlMs/1000).toFixed(0)+'s ('+(mdlMs>0?(100*lpMs/mdlMs).toFixed(0):'0')+'%)\n'+
+        'L1: stop '+(window.__l1N|0)+'  cap '+(window.__l1CapN|0)+(L1?'  ◀'+L1:'')+'\n'+
+        'Ped predict-brake '+(window.__pedPredN|0)+'  deadlock clear '+(window.__npcDeadlockRm|0)+'\n'+
+        'Crashes avoidable '+av+' / unavoidable '+un+'   recover '+(window.__tpN|0)+'\n'+
+        (M.stale?'model command stale\n':'')+
+        'Progress '+((typeof auto!=='undefined'&&auto.cum&&auto.cum.length)?(100*(auto.s||0)/(auto.cum[auto.cum.length-1]||1)).toFixed(1)+'%':'—')+'\n'+
+        (ev?'— recent —\n'+ev:'');
     }catch(e){ el.textContent='panel err '+e; }
   }, 250);
 })();
