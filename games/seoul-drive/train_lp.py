@@ -3,7 +3,7 @@
    입력 = 화면(256, ODE_CROP 적용된 X.npy) + 속도(v/30). 출력 4 = [steer(미사용), thr, brake, (lp+8)/16].
    라벨: Y.npy [st, th, br, v, ...] + L.npy [lp, ld]. 프레임 품질 Q.npy 가 있으면 xt<XT_MAX·이벤트 ±3초 밖만.
    사용: python3 train_lp.py 'data/dagger_r7*,data/dagger_r8*' ode_lp1.pt [--epochs 15] [--init prev.pt]"""
-import argparse, glob, json, os, sys
+import os, argparse, glob, json, os, sys
 import numpy as np, torch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gpu_guard
@@ -17,9 +17,13 @@ LP_MAX = 12.0   # lp 인코딩 범위 ±12m: (lp+12)/24. dagger.py 디코딩과 
 def load(dirs, synth=()):
     Xs, Ys, Vs, Ws = [], [], [], []
     synth = set(synth)
+    # ★2026-09-22 밤샘 lp9 OOM(14.5만 장 ≈28GB + concatenate 복사 = 51GB 초과, 메시지 없이 죽음): X 는 mmap 으로 열고
+    #   선택 프레임만 미리 잡아둔 배열에 채운다(복사 1회). 오래된 기본 라운드(r85*~r91*)는 STRIDE 로 솎는다(최신 DAgger·교란 라운드는 전부).
+    STRIDE = int(os.environ.get('LP_STRIDE', '1'))
+    plan = []   # (d, idx, Y, V)
     for d in list(dirs) + [x for x in synth if x not in dirs]:
         try:
-            X = np.load(f'{d}/X.npy'); Yf = np.load(f'{d}/Y.npy').astype(np.float32); L = np.load(f'{d}/L.npy').astype(np.float32)
+            X = np.load(f'{d}/X.npy', mmap_mode='r'); Yf = np.load(f'{d}/Y.npy').astype(np.float32); L = np.load(f'{d}/L.npy').astype(np.float32)
         except Exception as e:
             print(json.dumps({'skip': d, 'why': str(e)[:60]}), flush=True); continue
         if not (len(X) == len(Yf) == len(L)): print(json.dumps({'skip': d, 'why': 'len'})); continue
@@ -34,12 +38,18 @@ def load(dirs, synth=()):
                 for e in ev: ok &= ~(np.abs(Q[:, 3] - Q[e, 3]) <= 3.0)
         except Exception: pass
         idx = np.where(ok)[0]
+        if STRIDE > 1 and d not in synth and ('/dagger_r8' in d or '/dagger_r91' in d): idx = idx[::STRIDE]
         if len(idx) == 0: continue
         Y = np.stack([Yf[idx, 0], Yf[idx, 1], Yf[idx, 2], (L[idx, 0] + LP_MAX) / (2 * LP_MAX)], 1).astype(np.float32)
-        Xs.append(X[idx]); Ys.append(Y); Vs.append((Yf[idx, 3] / 30.0).astype(np.float32)); Ws.append(np.ones(len(idx), np.float32))
+        plan.append((d, idx, Y, (Yf[idx, 3] / 30.0).astype(np.float32)))
         print(json.dumps({'dir': d.split('/')[-1], 'total': len(X), 'kept': int(len(idx)), 'lp_std': round(float(L[idx, 0].std()), 2)}), flush=True)
-    if not Xs: return None
-    return np.concatenate(Xs), np.concatenate(Ys), np.concatenate(Vs), np.concatenate(Ws)
+    if not plan: return None
+    N = sum(len(i) for _, i, _, _ in plan); shp = np.load(f'{plan[0][0]}/X.npy', mmap_mode='r').shape[1:]
+    print(json.dumps({'frames': int(N), 'gb': round(N * int(np.prod(shp)) / 1e9, 1)}), flush=True)
+    XA = np.empty((N,) + tuple(shp), np.uint8); o = 0
+    for d, idx, _, _ in plan:
+        X = np.load(f'{d}/X.npy', mmap_mode='r'); XA[o:o + len(idx)] = X[idx]; o += len(idx); del X
+    return XA, np.concatenate([y for _, _, y, _ in plan]), np.concatenate([v for _, _, _, v in plan]), np.ones(N, np.float32)
 
 def batch(X, Y, V, ids, train=False):
     real = np.abs(ids) - 1
