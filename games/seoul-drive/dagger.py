@@ -224,7 +224,7 @@ def episode(net, dev, secs, ep):
             Y.append([st, th, br, float(d.get('v') or 0),
                       float(t.get('fl') if t.get('fl') is not None else -1.0),
                       float(t.get('fr') if t.get('fr') is not None else -1.0)])
-            P.append([float(o[0]), float(o[1]), float(o[2])] if net is not None else [0.0, 0.0, 0.0])
+            P.append([float(o[0]), float(o[1]), float(o[2]), float(o[3]) if len(o) > 3 else 0.0] if net is not None else [0.0, 0.0, 0.0, 0.0])   # 4열: lp 또는 vT 헤드(2026-09-22)
             TN.append([float(_nt), float(_nc), float(_ntraw)])
             _lbh = C.push_stats().get('lbl') if hasattr(C, 'push_stats') else None
             LP.append([float(_lbh['lp']), float(_lbh.get('ld') or 10.0), float(_lbh['vmax']) if isinstance(_lbh.get('vmax'), (int, float)) else float('nan')] if isinstance(_lbh, dict) and isinstance(_lbh.get('lp'), (int, float)) else [float('nan'), float('nan'), float('nan')])   # [lp, ld, vmax(규칙 목표속도 m/s)]
@@ -279,7 +279,7 @@ def main():
     if a.tier:
         from train_tier import TierNet
         _tp = a.tier if os.path.isabs(a.tier) else os.path.join(BASE, a.tier)
-        TIER = TierNet(res=64).to(dev); TIER.load_state_dict(torch.load(_tp, map_location=dev)); TIER.eval(); gpu_guard.assert_on_gpu(TIER)
+        TIER = TierNet(res=64).to(dev); TIER.load_state_dict(torch.load(_tp, map_location=dev)); TIER.eval(); assert_on_gpu(TIER)
         print(json.dumps({'tier_net': a.tier}), flush=True)
     if PIPE:
         net = None; print(json.dumps({'mode': 'teacher-'+str(PIPE), 'note': 'driveAuto shadow steer + teacher thr/brake via /ctl at capture rate'}), flush=True)
