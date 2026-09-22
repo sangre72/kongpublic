@@ -3457,6 +3457,7 @@ function crash(label,heavy){
   if(window.__parked && !auto.on){ window.__crashParkedN=(window.__crashParkedN||0)+1; me.offroad=0; return; }
   if(me.cool>0)return;
   me.cool=.8;me.crashes++;
+  try{ (window.__evLog=window.__evLog||[]).push([performance.now(), '사고: '+label]); if(window.__evLog.length>30) window.__evLog.shift(); }catch(e){}
   try{ const C=window.__crTier||(window.__crTier=[0,0,0,0]), C3=window.__crTier3||(window.__crTier3=[0,0,0,0]);
        C[window.__tier|0]++; const a=tierAgo(3000); if(a!=null) C3[a]++; }catch(e){}
   try{ if(typeof window.__ntier==='number'){ const N=window.__crNTier||(window.__crNTier=[0,0,0,0]), N3=window.__crNTier3||(window.__crNTier3=[0,0,0,0]); N[window.__ntier]++; const H=window.__ntierHist||[], now=performance.now(); let a=null; for(const h of H){ if(now-h[0]<=3000){ a=h[1]; break; } } if(a!=null) N3[a]++; } }catch(e){}
@@ -3668,7 +3669,7 @@ function step(dt){
          맞다. 차를 3점 앞으로 순간이동시키는 건 주행 실패다. 그런데
          crash() 를 안 부르므로 사고 집계에 한 번도 안 잡혔다 —
          점수는 깨끗한데 실제로는 못 가고 있던 것이다. 최소한 센다. */
-      window.__tpN=(window.__tpN||0)+1;
+      window.__tpN=(window.__tpN||0)+1; try{ (window.__evLog=window.__evLog||[]).push([performance.now(), '복귀(순간이동)']); }catch(e){}
       window.__tpBld=(window.__tpBld||0)+1;
       flash('건물 끼임 복구');
     }
@@ -5531,3 +5532,39 @@ setTimeout(()=>{
                         idx:IDX.length, auto:auto.on, wp:auto.wp.length});
 })();
 if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스크립트 끝까지 도달 표시
+
+
+/* ★오너 u_5518(2026-09-22): 화면 우측 '모델 활동' 패널. DOM 오버레이라 캔버스(모델 입력 프레임)엔 안 들어가고
+   화면 녹화(record_drive)에는 찍힌다. 누가 핸들·가속을 쥐고 있는지, 등급, Layer1 개입, 사고/복귀, 최근 이벤트. */
+(function(){
+  if(typeof document==='undefined') return;
+  const el=document.createElement('div'); el.id='mdlPanel';
+  el.style.cssText='position:fixed;right:8px;top:150px;width:236px;z-index:9999;background:rgba(20,22,30,.82);color:#e8e8ee;font:10.5px/1.45 Menlo,monospace;padding:8px 10px;border-radius:8px;pointer-events:none;white-space:pre;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+  document.body.appendChild(el);
+  let lpMs=0, mdlMs=0, last=performance.now(), lastLp=null, lastSp=null;
+  const kmh=v=>(typeof v==='number'&&v>=0)?(v*3.6).toFixed(0)+'km/h':'—';
+  const TN=['T0 쉬움','T1 중간','T2 어려움','T3 엣지'];
+  setInterval(function(){
+    try{
+      const now=performance.now(), dt=now-last; last=now;
+      const M=window.__mdl||{}, T=window.__mdlTgt||{}, on=(typeof MDL!=='undefined'&&MDL.on&&!M.stale);
+      const lpOn=on&&T.mode===2, spOn=on&&typeof T.vT==='number'&&T.vT>=0;
+      if(on) mdlMs+=dt; if(lpOn) lpMs+=dt;
+      const tier=window.__tier, da=window.__da||{}, L1=window.__l1T&&(now-window.__l1T<800)?window.__l1Last:null;
+      const crk=window.__crk||{}; let un=0, av=0; for(const k in crk){ if(k.indexOf('불가항력')>=0) un+=crk[k]; else av+=crk[k]; }
+      const ev=(window.__evLog||[]).slice(-5).map(e=>((e[0]/1000)|0)+'s '+e[1]).join('\n');
+      el.textContent=
+        '오드 활동   '+(on?'● 모델 주행':'○ 규칙 주행')+'\n'+
+        '조향: '+(lpOn?'모델(앞점 '+(+T.lp||0).toFixed(1)+'m)':'규칙 추종기')+'\n'+
+        '속도: '+(spOn?'모델 목표 '+kmh(T.vT):'규칙')+'  현재 '+kmh(me.v)+'\n'+
+        '규칙 상한 '+kmh(da.vmax)+'  등급 '+(typeof tier==='number'?TN[tier]:'—')+'\n'+
+        '모델 조향 '+(lpMs/1000).toFixed(0)+'s / 모델 주행 '+(mdlMs/1000).toFixed(0)+'s ('+(mdlMs>0?(100*lpMs/mdlMs).toFixed(0):'0')+'%)\n'+
+        'L1 개입: 정지 '+(window.__l1N|0)+' 상한 '+(window.__l1CapN|0)+(L1?'  ◀'+L1:'')+'\n'+
+        '보행자 예측제동 '+(window.__pedPredN|0)+'  교착정리 '+(window.__npcDeadlockRm|0)+'\n'+
+        '사고 회피가능 '+av+' / 불가항력 '+un+'   복귀 '+(window.__tpN|0)+'\n'+
+        (M.stale?'모델 명령 지연(stale)\n':'')+
+        '진행 '+((typeof auto!=='undefined'&&auto.cum&&auto.cum.length)?(100*(auto.s||0)/(auto.cum[auto.cum.length-1]||1)).toFixed(1)+'%':'—')+'\n'+
+        (ev?'— 최근 —\n'+ev:'');
+    }catch(e){ el.textContent='panel err '+e; }
+  }, 250);
+})();
