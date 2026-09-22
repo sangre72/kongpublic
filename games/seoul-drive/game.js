@@ -3246,6 +3246,14 @@ function driveAuto(dt){
     _lfm=_Qs.map(Q=>+(((Q.x-me.x)*_ca+(Q.y-me.y)*_sa)/S).toFixed(2)); }catch(e){ _lpm=null; _lfm=null; }
   window.__lpm=_lpm; window.__lfm=_lfm;
   const _mt2=window.__mdlTgt; let _Pt=P;
+  if(_mt2 && _mt2.mode===3 && (performance.now()-_mt2.t)<400 && Array.isArray(_mt2.pts) && _mt2.pts.length===8){
+    /* ★07:4x 8점(횡 4 + 전방 4): 차 기준 경로점 (fwd_i, lat_i) 를 호 길이로 이어 Ld 지점을 보간 → 급코너에서도 코너 안쪽으로 안 파고든다. */
+    const _P=[[0,0]]; for(let i=0;i<4;i++) _P.push([Math.max(0.5,+_mt2.pts[4+i]||0), Math.max(-30,Math.min(30,+_mt2.pts[i]||0))]);
+    const _ldm=Math.max(3,Math.min(40,Ld/S)); let _acc=0, _tx=_P[4][0], _ty=_P[4][1];
+    for(let i=0;i<4;i++){ const dx=_P[i+1][0]-_P[i][0], dy=_P[i+1][1]-_P[i][1], seg=Math.hypot(dx,dy)||1e-6;
+      if(_acc+seg>=_ldm){ const t=(_ldm-_acc)/seg; _tx=_P[i][0]+dx*t; _ty=_P[i][1]+dy*t; break; } _acc+=seg; }
+    _Pt={x: me.x+_ca*_tx*S-_sa*_ty*S, y: me.y+_sa*_tx*S+_ca*_ty*S, ang: me.ang}; window.__tgt3N=(window.__tgt3N|0)+1; _mt2.mode=0;
+  }
   if(_mt2 && _mt2.mode===3 && (performance.now()-_mt2.t)<400 && Array.isArray(_mt2.pts) && _mt2.pts.length===4){
     /* ★u_5547 다점 앞점 추종(2026-09-22): 모델이 준 10/20/40/80m 앞 횡오프셋 4점을 차 기준 경로로 보고, 페이지 Ld 거리에서의 횡오프셋을 선형보간해
        단일 앞점으로 환산(아래 mode 2 경로 재사용). 멀리 곡률을 보고 온 4점이므로 한 점보다 안정적이다. */

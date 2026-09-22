@@ -120,7 +120,7 @@ class H(http.server.SimpleHTTPRequestHandler):
             for k in ('on', 'steer', 'thr', 'brake', 'force', 'release', 'tgt', 'dOff', 'vT', 'mode', 'lp', 'ld', 'ntier', 'nconf', 'lat', 'inf'):
                 if k in d:
                     _ctl[k] = float(d[k])
-            if isinstance(d.get('pts'), list) and len(d['pts']) == 4: _ctl['pts'] = [float(z) for z in d['pts']]   # ★u_5547 다점 앞점(10/20/40/80m 횡오프셋)
+            if isinstance(d.get('pts'), list) and len(d['pts']) in (4, 8): _ctl['pts'] = [float(z) for z in d['pts']]   # ★u_5547 다점 앞점(10/20/40/80m 횡오프셋)
             elif 'mode' in d and float(d['mode']) != 3: _ctl['pts'] = None
             # ★teach(교사 모드)는 문자열이라 float 변환 대상이 아니다(u_5153).
             #   기존엔 허용 키 목록에 없어서 POST 가 조용히 무시됐고, 그래서
