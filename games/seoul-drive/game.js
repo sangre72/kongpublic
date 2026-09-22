@@ -3246,7 +3246,8 @@ function driveAuto(dt){
   if(_mt2 && _mt2.mode===3 && (performance.now()-_mt2.t)<400 && Array.isArray(_mt2.pts) && _mt2.pts.length===4){
     /* ★u_5547 다점 앞점 추종(2026-09-22): 모델이 준 10/20/40/80m 앞 횡오프셋 4점을 차 기준 경로로 보고, 페이지 Ld 거리에서의 횡오프셋을 선형보간해
        단일 앞점으로 환산(아래 mode 2 경로 재사용). 멀리 곡률을 보고 온 4점이므로 한 점보다 안정적이다. */
-    const _dd=[10,20,40,80], _pp=_mt2.pts.map(z=>Math.max(-8,Math.min(8,+z||0))); const _ldm=Math.max(3,Math.min(80,Ld/S)); let _lpi=_pp[3];
+    /* ★07:1x 실측(r 검증 2): 80~90km/h 에선 Ld 가 40~80m 라 오차 2.6~9.7m 인 먼 점을 조향 목표로 써서 0.5초 만에 xt 0→4m(복귀 5회). 조향 목표는 정확한 10/20m 점 사이(≤20m)로만 보간하고, 먼 점은 곡률 예고용으로 남긴다. */
+    const _dd=[10,20,40,80], _pp=_mt2.pts.map(z=>Math.max(-8,Math.min(8,+z||0))); const _ldm=Math.max(3,Math.min(20,Ld/S)); let _lpi=_pp[3];
     for(let i=0;i<3;i++){ if(_ldm<=_dd[i+1]){ const t=(_ldm-_dd[i])/(_dd[i+1]-_dd[i]); _lpi=_pp[i]+( _pp[i+1]-_pp[i])*Math.max(0,Math.min(1,t)); break; } }
     if(_ldm<_dd[0]) _lpi=_pp[0]*(_ldm/_dd[0]);
     _mt2.mode=2; _mt2.lp=_lpi; _mt2.ld=-1; window.__tgt3N=(window.__tgt3N|0)+1;

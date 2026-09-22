@@ -34,7 +34,7 @@ def prep(arr):   # BGRA 창 프레임 → (1,3,256,256) float32 RGB 0~1 (net.pre
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--secs', type=float, default=300); ap.add_argument('--speed', default=None, help='속도 모델 mlpackage; 없으면 속도는 규칙(vT=-1)'); ap.add_argument('--lp', default=None)
-    ap.add_argument('--lp-tier', type=int, default=0); ap.add_argument('--fps', type=int, default=60); a = ap.parse_args()
+    ap.add_argument('--lp-tier', type=int, default=0); ap.add_argument('--fps', type=int, default=60); ap.add_argument('--lp-vmax', type=float, default=15.0, help='모델 조향 중 속도 상한 m/s(07:1x 실측: 25m/s 에서 차로 이탈)'); a = ap.parse_args()
     ms = ct.models.MLModel(a.speed, compute_units=ct.ComputeUnit.ALL) if a.speed else None; ml = ct.models.MLModel(a.lp, compute_units=ct.ComputeUnit.ALL) if a.lp else None
     lp_vdim = 1
     if ml is not None:
@@ -63,6 +63,7 @@ def main():
             elif down >= a.fps // 2: hold = 0
         model_now = ml is not None and hold >= a.fps
         if model_now != prev_model: handovers += 1; prev_model = model_now
+        if model_now: vT = min(vT, a.lp_vmax) if vT >= 0 else a.lp_vmax   # ★모델 조향 중 속도 상한
         if model_now:   # 1초 이상 이양 등급 유지 시 모델 조향
             vl = vin
             if lp_vdim == 8:
