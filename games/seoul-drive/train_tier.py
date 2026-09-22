@@ -44,6 +44,7 @@ def main():
         try: X = np.load(f'{d}/X.npy'); Y = np.load(f'{d}/Y.npy'); M = np.load(f'{d}/M.npy')
         except Exception: continue
         if not (len(X) == len(M) == len(Y)): continue
+        if X.ndim != 4 or X.shape[1] != 3: continue   # 프레임 스택 평가 라운드(6ch) 제외(2026-09-22)
         Xs.append(X); Ts.append(tier_labels(M, Y))
     if not Xs: print(json.dumps({'error': 'no data'})); return
     X = np.concatenate(Xs); T = np.concatenate(Ts); n = len(X)
