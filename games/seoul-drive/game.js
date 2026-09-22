@@ -2885,7 +2885,7 @@ function mdlPoll(dt){
     MDL.tgt = !!(+d.tgt); MDL.dOff = +d.dOff||0; MDL.vT = (d.vT===undefined||d.vT===null)?-1:+d.vT;   // 목표 오프셋 인터페이스(2026-09-21)
     const _pm=MDL.mode; MDL.mode = +d.mode||1; MDL.lat=(typeof d.lat==='number')?d.lat:-1; MDL.inf=(typeof d.inf==='number')?d.inf:-1;
     if(MDL.on && _pm!==undefined && _pm!==MDL.mode) window.__evPush(MDL.mode===2?'steer handover → model':'steer handover → rule');
-    MDL.lp = (d.lp===undefined||d.lp===null)?null:+d.lp; MDL.ld = (d.ld===undefined||d.ld===null)?null:+d.ld;
+    MDL.lp = (d.lp===undefined||d.lp===null)?null:+d.lp; MDL.pts = Array.isArray(d.pts)?d.pts:null; MDL.ld = (d.ld===undefined||d.ld===null)?null:+d.ld;
     if(typeof d.ntier==='number' && d.ntier>=0){ window.__ntier=d.ntier|0; window.__nconf=+d.nconf||0; const H=window.__ntierHist||(window.__ntierHist=[]); const now=performance.now(); H.push([now,d.ntier|0]); while(H.length && now-H[0][0]>4000) H.shift(); }   // 관제망 등급(2026-09-22)
     /* on 은 페이지 버튼이 주도권을 갖는다. 파이썬이 on=1 을 보내면 켜지지만,
        사람이 화면에서 끄면 그게 이긴다(안전: 폭주하면 손으로 끌 수 있어야 한다). */
@@ -3013,7 +3013,7 @@ function synthTick(t){
   /* ★카메라 즉시 고정(2026-09-20 ode_s6 실패 원인): draw() 의 카메라는 위치 0.12·회전 0.18 씩 따라오는 저역통과라, 100ms 마다 방향을
      ±40° 바꾸는 가상 배치에선 매 프레임 카메라가 차 방향과 어긋난 채 그려졌다(차가 화면 앵커에도 없음). 라벨(차 방향 기준 조향)과
      그림이 안 맞아 모델이 학습 데이터 자체를 못 배웠다(자기 데이터 조향 상관 0.195). 배치와 동시에 카메라를 차에 맞춘다. */
-  cam.x=me.x; cam.y=me.y; camA=me.ang+Math.PI/2;
+  cam.x=me.x+Math.cos(me.ang)*CAM_LEAD*S; cam.y=me.y+Math.sin(me.ang)*CAM_LEAD*S; camA=me.ang+Math.PI/2;
   auto.on=true; auto.k=j; auto.i=j; auto.s=auto.cum[j]; auto.stall=0; blockT=0; bldStuck=0; crashHold=0; crashHoldT=0; window.__stuckT=0; window.__stuckAcc=0;
   window.__synthN=(window.__synthN|0)+1;
 }
@@ -3243,6 +3243,14 @@ function driveAuto(dt){
   let _lpm=null; try{ _lpm=[10,20,40,80].map(dm=>{ const Q=posAt(auto.s+dm*S); return +((-(Q.x-me.x)*_sa+(Q.y-me.y)*_ca)/S).toFixed(2); }); }catch(e){ _lpm=null; }
   window.__lpm=_lpm;
   const _mt2=window.__mdlTgt; let _Pt=P;
+  if(_mt2 && _mt2.mode===3 && (performance.now()-_mt2.t)<400 && Array.isArray(_mt2.pts) && _mt2.pts.length===4){
+    /* ★u_5547 다점 앞점 추종(2026-09-22): 모델이 준 10/20/40/80m 앞 횡오프셋 4점을 차 기준 경로로 보고, 페이지 Ld 거리에서의 횡오프셋을 선형보간해
+       단일 앞점으로 환산(아래 mode 2 경로 재사용). 멀리 곡률을 보고 온 4점이므로 한 점보다 안정적이다. */
+    const _dd=[10,20,40,80], _pp=_mt2.pts.map(z=>Math.max(-8,Math.min(8,+z||0))); const _ldm=Math.max(3,Math.min(80,Ld/S)); let _lpi=_pp[3];
+    for(let i=0;i<3;i++){ if(_ldm<=_dd[i+1]){ const t=(_ldm-_dd[i])/(_dd[i+1]-_dd[i]); _lpi=_pp[i]+( _pp[i+1]-_pp[i])*Math.max(0,Math.min(1,t)); break; } }
+    if(_ldm<_dd[0]) _lpi=_pp[0]*(_ldm/_dd[0]);
+    _mt2.mode=2; _mt2.lp=_lpi; _mt2.ld=-1; window.__tgt3N=(window.__tgt3N|0)+1;
+  }
   if(_mt2 && _mt2.mode===2 && (performance.now()-_mt2.t)<400 && typeof _mt2.lp==='number'){
     /* ld<=0 이면 페이지의 속도·골목 기반 Ld 를 그대로 쓴다 — 라벨 lp 가 그 Ld 에서 측정됐으므로 추론도 같은 Ld 여야 한다(고정 10m 로 넣자 골목 코너에서 안쪽으로 파고들어 건물 충돌 70회, 2026-09-21 17:00). */
     /* ★앞점 시간 평활(2026-09-21 u_5495 "갈지자": 12초 실측 모델 lp −4.5→+0.4→+5.9→−4.0m, 정답 ±2m). 단일 프레임 판단의 떨림을
@@ -4102,10 +4110,14 @@ function _stepPed(p,dt,s){
 
 /* ---------- 렌더 ---------- */
 const cam={x:0,y:0,z:1};
+const CAM_LEAD=(function(){ try{ const m=/[?&]lead=(-?[0-9.]+)/.exec(location.search); if(m) return +m[1]; }catch(e){} return (typeof window.__CAM_LEAD==='number')?window.__CAM_LEAD:25; })();
 var camA=0;   // 카메라 회전각(차 진행방향이 화면 위)
 function draw(){
   g.fillStyle=C('--bg');g.fillRect(0,0,W,H);
-  cam.x+=(me.x-cam.x)*.12;cam.y+=(me.y-cam.y)*.12;
+  /* ★u_5547/u_5548 카메라 전방 리드(2026-09-22): 사람처럼 앞을 멀리 보게 화면 중심을 진행방향으로 CAM_LEAD m 당긴다(기본 25m, ?lead= 로 변경).
+     모델 입력(중앙 크롭)이 차 뒤 ~13m~앞 ~63m 를 보게 된다. 수집·학습·추론 전부 같은 값이어야 한다(새 데이터셋 기준). */
+  const _ldx=me.x+Math.cos(me.ang)*CAM_LEAD*S, _ldy=me.y+Math.sin(me.ang)*CAM_LEAD*S;
+  cam.x+=(_ldx-cam.x)*.12;cam.y+=(_ldy-cam.y)*.12;
   const zoom=cam.z;
   /* ★차 전방이 항상 화면 위쪽이 되도록 맵을 회전한다(u_4920).
      실제 내비·주행 시점과 같다. 이래야 '직진 = 화면에서 위로 뻗은 길'이 되어
@@ -5014,7 +5026,7 @@ function loop(t){
        용도 = (a) DAgger 라벨 = 실제 몰던 제어기의 출력(규칙 D-00, teacher.js 조향은 상관 0.08 로 폐기) (b) '추종기를 모델 파이프로'
        대조 실험(dagger --model pipe). /tel daShadow. */
     if(MDL.tgt){   // ★목표 오프셋 모드: 추종기가 몰고 모델은 오프셋·속도만 준다
-      window.__mdlTgt={dOff:+MDL.dOff||0, vT:(typeof MDL.vT==='number'?MDL.vT:-1), t:MDL.rxT||0, mode:(+MDL.mode||1), lp:(typeof MDL.lp==='number'?MDL.lp:null), ld:(typeof MDL.ld==='number'?MDL.ld:null)};
+      window.__mdlTgt={dOff:+MDL.dOff||0, vT:(typeof MDL.vT==='number'?MDL.vT:-1), t:MDL.rxT||0, mode:(+MDL.mode||1), lp:(typeof MDL.lp==='number'?MDL.lp:null), ld:(typeof MDL.ld==='number'?MDL.ld:null), pts:(Array.isArray(MDL.pts)?MDL.pts:null)};
       try{ driveAuto(dt); window.__daShadow={st:+me.steer.toFixed(4), v:+me.v.toFixed(3)}; }catch(e){ window.__daShadowErr=String(e).slice(0,60); }
       /* 교사의 '정지' 지시(앞차·보행자·적신호)는 GEOM 가지와 동일하게 적용 — pipe2 1차 실측: 순간이동 0 이지만 보행자 사고 2/1/2(정지 지시 누락). Layer 1. */
       try{ if(T){ const a=T.compute(); T.last=a; window.__tbrk = a ? a.brake : -1;

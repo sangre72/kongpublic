@@ -21,7 +21,7 @@ import functools, http.server, socketserver, os, json, threading
 PORT = 8901
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-_ctl = {'on': 0, 'steer': 0.0, 'thr': 0.0, 'brake': 0.0, 'seq': 0, 'rst': 0, 'tgt': 0, 'dOff': 0.0, 'vT': -1.0, 'mode': 1, 'lp': 0.0, 'ld': 10.0, 'ntier': -1, 'nconf': 0.0, 'lat': -1.0, 'inf': -1.0,
+_ctl = {'on': 0, 'steer': 0.0, 'thr': 0.0, 'brake': 0.0, 'seq': 0, 'rst': 0, 'tgt': 0, 'dOff': 0.0, 'vT': -1.0, 'mode': 1, 'lp': 0.0, 'ld': 10.0, 'ntier': -1, 'nconf': 0.0, 'lat': -1.0, 'inf': -1.0, 'pts': None,
         'teach': '', 'force': 0, 'release': 0}   # teach = 교사 모드(fwd|left|right|off), u_5144
 # ★rst = 소프트리셋 요청 카운터(u_5126). 페이지가 값이 바뀐 걸 보면 한 번 리셋한다.
 #   새 엔드포인트/연결을 만들지 않고 이미 20Hz 로 도는 /ctl 폴링에 얹는다.
@@ -120,6 +120,8 @@ class H(http.server.SimpleHTTPRequestHandler):
             for k in ('on', 'steer', 'thr', 'brake', 'force', 'release', 'tgt', 'dOff', 'vT', 'mode', 'lp', 'ld', 'ntier', 'nconf', 'lat', 'inf'):
                 if k in d:
                     _ctl[k] = float(d[k])
+            if isinstance(d.get('pts'), list) and len(d['pts']) == 4: _ctl['pts'] = [float(z) for z in d['pts']]   # ★u_5547 다점 앞점(10/20/40/80m 횡오프셋)
+            elif 'mode' in d and float(d['mode']) != 3: _ctl['pts'] = None
             # ★teach(교사 모드)는 문자열이라 float 변환 대상이 아니다(u_5153).
             #   기존엔 허용 키 목록에 없어서 POST 가 조용히 무시됐고, 그래서
             #   '좌회전 수집' 단계인데 좌 25 / 우 350 이 나왔다 — 모드가 안 바뀐 것이다.
