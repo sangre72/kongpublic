@@ -191,7 +191,7 @@ def episode(net, dev, secs, ep):
                             _g2 = ((d.get('tch') or {}).get('g2') or {}); _vl = torch.tensor(cond_vec(d.get('v'), _g2.get('aTurn') or 'S', _g2.get('aD'), _g2.get('laneF'), _g2.get('nl'))[None], device=dev)
                         _ol = (LPNET(x[:, :3], _vl) if getattr(LPNET, 'vin', False) else LPNET(x[:, :3]))[0].cpu().numpy()
                     LPST['lp'] += 1
-                    if len(_ol) >= 7: post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 3, 'pts': [float(_ol[3 + j]) * 96.0 - 48.0 for j in range(4)], 'ld': -1, 'vT': _vT})   # ★다점 → mode=3
+                    if len(_ol) >= 7: post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 3, 'pts': [float(_ol[3 + j]) * 128.0 - 64.0 for j in range(4)], 'ld': -1, 'vT': _vT})   # ★다점 → mode=3
                     else: post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': float(_ol[3]) * 24.0 - 12.0, 'ld': -1, 'vT': _vT})
                 else:
                     LPST['rule'] += 1
