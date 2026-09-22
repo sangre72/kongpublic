@@ -14,7 +14,7 @@ XT_MAX = float(os.environ.get('XT_MAX', '0.6'))
 XT_MAX_DAGGER = float(os.environ.get('XT_MAX_DAGGER', '4.0'))
 COND = os.environ.get('LP_COND', '0') == '1'   # ★u_5546: 경로 의도 조건부 앞점 모델(vdim=8)
 MULTI = os.environ.get('LP_MULTI', '0') == '1'   # ★u_5547 다점: 출력 = st,th,br + lp10/20/40/80(±LP_MAX_M m, (lp+M)/(2M)), L.npy 7열 필요
-LP_MAX_M = 24.0
+LP_MAX_M = 48.0   # 가상 샘플링(헤딩 ±40°)에서 80m 앞점 횡오프셋이 50m 까지 나옴(u_5554)
 LP_MAX = 12.0   # lp 인코딩 범위 ±12m: (lp+12)/24. dagger.py 디코딩과 반드시 일치
 
 def load(dirs, synth=()):
