@@ -13,7 +13,8 @@ DEV = gpu_guard.require_gpu(); BS = 64
 XT_MAX = float(os.environ.get('XT_MAX', '0.6'))
 XT_MAX_DAGGER = float(os.environ.get('XT_MAX_DAGGER', '4.0'))
 LAZY = os.environ.get('LP_MMAP', '1') == '1'   # ★u_5555 기본 1: 디스크 배치 읽기(RAM 최소)
-COND = os.environ.get('LP_COND', '0') == '1'   # ★u_5546: 경로 의도 조건부 앞점 모델(vdim=8)
+COND = os.environ.get('LP_COND', '0') in ('1', '9')
+COND9 = os.environ.get('LP_COND', '0') == '9'   # 목표 차로 포함(vdim 9)   # ★u_5546: 경로 의도 조건부 앞점 모델(vdim=8)
 MULTI = os.environ.get('LP_MULTI', '0') == '1'
 MULTI8 = os.environ.get('LP_MULTI8', '0') == '1'   # ★07:4x: 횡오프셋 4 + 전방거리 4(L.npy 7~10열, 0~100m → /100) = 출력 11   # ★u_5547 다점: 출력 = st,th,br + lp10/20/40/80(±LP_MAX_M m, (lp+M)/(2M)), L.npy 7열 필요
 LP_MAX_M = 64.0   # 가상 샘플링(헤딩 ±40°)에서 80m 앞점 횡오프셋 p95 52m(r1200 실측) → ±64m
@@ -71,10 +72,10 @@ def load(dirs, synth=()):
         if len(idx) == 0: continue
         Y = (np.stack([Yf[idx, 0], Yf[idx, 1], Yf[idx, 2]] + [(L[idx, 3 + j] + LP_MAX_M) / (2 * LP_MAX_M) for j in range(4)] + ([np.clip((L[idx, 7 + j] + 5.0) / 105.0, 0, 1) for j in range(4)] if MULTI8 else []), 1) if MULTI else np.stack([Yf[idx, 0], Yf[idx, 1], Yf[idx, 2], (L[idx, 0] + LP_MAX) / (2 * LP_MAX)], 1)).astype(np.float32)
         if COND and Mm is not None and len(Mm) == len(Yf):   # ★u_5546 경로 의도 조건: M=[gap,ped,sig,turn,aD,v,laneF,nl,...]
-            Vv = np.stack([cond_vec(Yf[i, 3], int(Mm[i, 3]), Mm[i, 4], Mm[i, 6], Mm[i, 7]) for i in idx]).astype(np.float32)
+            Vv = np.stack([cond_vec(Yf[i, 3], int(Mm[i, 3]), Mm[i, 4], Mm[i, 6], Mm[i, 7], (Mm[i, 11] if Mm.shape[1] >= 12 else None) if COND9 else None) for i in idx]).astype(np.float32)
         else:
             Vv = (Yf[idx, 3] / 30.0).astype(np.float32).reshape(-1, 1) if COND else (Yf[idx, 3] / 30.0).astype(np.float32)
-            if COND: Vv = np.concatenate([Vv, np.zeros((len(idx), 7), np.float32)], 1)
+            if COND: Vv = np.concatenate([Vv, np.zeros((len(idx), 8 if COND9 else 7), np.float32)], 1)
         plan.append((d, idx, Y, Vv))
         print(json.dumps({'dir': d.split('/')[-1], 'total': len(X), 'kept': int(len(idx)), 'lp_std': round(float(L[idx, 0].std()), 2)}), flush=True)
     if not plan: return None
@@ -97,6 +98,7 @@ def batch(X, Y, V, ids, train=False):
     if COND and flip.any():   # 좌우 반전 시 회전 L↔R, 차로 laneF → nl-1-laneF
         f = flip; L_, R_ = vb[f, 2].copy(), vb[f, 3].copy(); vb[f, 2], vb[f, 3] = R_, L_
         nl = vb[f, 7] * 8.0; vb[f, 6] = np.where(nl > 0, (nl - 1 - vb[f, 6] * 8.0) / 8.0, vb[f, 6])
+        if COND9 and vb.shape[1] >= 9: vb[f, 8] = np.where(nl > 0, (nl - 1 - vb[f, 8] * 8.0) / 8.0, vb[f, 8])   # 목표 차로도 좌우 반전
     xb = xb.to(DEV)
     if train and AUG: xb = augment(xb)
     return xb, torch.from_numpy(yb).to(DEV), torch.from_numpy(vb if COND else V[real]).to(DEV)
@@ -112,7 +114,7 @@ def main():
     _M = LP_MAX_M if MULTI else LP_MAX; print(json.dumps({'frames': n, 'multi': MULTI, 'cond': COND, 'lp_mean_m': round(float(Y[:, 3].mean() * 2 * _M - _M), 2), 'lp_std_m': round(float(Y[:, 3].std() * 2 * _M), 2)}), flush=True)
     idx = rng.permutation(n); cut = int(n * 0.85)
     tr = np.concatenate([idx[:cut] + 1, -(idx[:cut] + 1)]); va = np.concatenate([idx[cut:] + 1, -(idx[cut:] + 1)])
-    net = DriveNet(out=(11 if MULTI8 else 7) if MULTI else 4, vin=True, vdim=8 if COND else 1).to(DEV); gpu_guard.assert_on_gpu(net)
+    net = DriveNet(out=(11 if MULTI8 else 7) if MULTI else 4, vin=True, vdim=(9 if COND9 else 8) if COND else 1).to(DEV); gpu_guard.assert_on_gpu(net)
     if a.init:   # ★u_5546: 조건부(vdim=8)로 바꿀 때 hv.0 입력 폭이 달라지므로 모양이 맞는 층만 가져온다(특징추출부 재사용)
         _sd = torch.load(a.init, map_location=DEV); _own = net.state_dict(); _ok = {k: v for k, v in _sd.items() if k in _own and _own[k].shape == v.shape}
         net.load_state_dict(_ok, strict=False); print(json.dumps({'init': a.init, 'loaded': len(_ok), 'skipped': sorted(set(_sd) - set(_ok))}), flush=True)

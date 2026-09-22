@@ -123,13 +123,15 @@ def preprocess(canvas_rgb, size=IMG, device=None, bgr=True):
     return o[0]
 
 
-def cond_vec(v, turn, aD, laneF, nl):
+def cond_vec(v, turn, aD, laneF, nl, fin=None):
     """경로 의도 벡터(8, u_5546 조건부 모방): [v/30, S,L,R,U one-hot, min(aD,300)/300, laneF/8, nl/8]. turn: 0/1/2/3 또는 'S'/'L'/'R'/'U'. 학습·추론·CoreML 공통."""
     import numpy as _np
     t = {'S': 0, 'L': 1, 'R': 2, 'U': 3}.get(turn, 0) if isinstance(turn, str) else int(turn or 0)
     oh = [0.0] * 4; oh[min(3, max(0, t))] = 1.0
     aD = 1e9 if aD is None else float(aD)
-    return _np.array([float(v or 0) / 30.0] + oh + [min(aD, 300.0) / 300.0, float(laneF or 0) / 8.0, float(nl or 0) / 8.0], _np.float32)
+    base = [float(v or 0) / 30.0] + oh + [min(aD, 300.0) / 300.0, float(laneF or 0) / 8.0, float(nl or 0) / 8.0]
+    if fin is not None: base.append((float(fin) if fin is not None and float(fin) >= 0 else float(laneF or 0)) / 8.0)   # 9번째 = 목표 차로(07:5x): 모델이 '어느 차로로' 를 알게
+    return _np.array(base, _np.float32)
 
 
 def vdim_of(sd):
