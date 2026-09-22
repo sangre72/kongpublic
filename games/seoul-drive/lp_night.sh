@@ -4,7 +4,7 @@
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive
 export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6
 NT=/Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/notify_telegram.py
-r=${1:-960}; prev=${2:-ode_lp7.pt}; k=$(( (r-960)/10 + 8 ))
+r=${1:-960}; prev=${2:-ode_lp7.pt}; k=$(( (r-960)/10 + 8 )); BEST_T1=${3:-7}
 ROUTES=("사평대로|수정로35번길" "기아자동차강남지점|부림3길" "충정로7길|수정로35번길")
 while [ "$(date +%H)" -lt 7 ] || [ "$(date +%H)" -ge 19 ]; do
   [ "$(df -g / | tail -1 | awk '{print $4}')" -lt 20 ] && { python3 $NT "[밤샘 조향] 디스크 20GB 미만 → 정지"; break; }
@@ -19,7 +19,11 @@ while [ "$(date +%H)" -lt 7 ] || [ "$(date +%H)" -ge 19 ]; do
   e0=$(bash eval_ped.sh ode_v2.pt $((r+3)) 'jay=5' T0 "--lp $out" 2>&1 | grep "^EVALPED" | cut -c1-400)
   e1=$(bash eval_ped.sh ode_v2.pt $((r+6)) 'jay=5' T1 "--lp $out --lp-tier 1" 2>&1 | grep "^EVALPED" | cut -c1-400)
   echo "$e0"; echo "$e1"
-  python3 $NT "[밤샘 조향 lp$k] T0: $(echo "$e0" | sed 's/EVALPED T0 ode_v2.pt://') | T1: $(echo "$e1" | sed 's/EVALPED T1 ode_v2.pt://')" >/dev/null 2>&1
-  prev=$out; r=$((r+10)); k=$((k+1))
+  # ★채택 판정(2026-09-22 lp8 회귀 후): T0 회피가능 0·복귀 합계 ≤1 이고 T1 회피가능 0·복귀 합계 < 직전 채택 모델 값이면 채택, 아니면 직전 모델 유지(데이터는 누적).
+  a0=$(echo "$e0" | grep -oE "회피가능 [0-9]+" | awk '{s+=$2} END{print s+0}'); t0=$(echo "$e0" | grep -oE "복귀 [0-9]+" | awk '{s+=$2} END{print s+0}')
+  a1=$(echo "$e1" | grep -oE "회피가능 [0-9]+" | awk '{s+=$2} END{print s+0}'); t1=$(echo "$e1" | grep -oE "복귀 [0-9]+" | awk '{s+=$2} END{print s+0}')
+  if [ "$a0" = 0 ] && [ "$t0" -le 1 ] && [ "$a1" = 0 ] && [ "$t1" -lt "${BEST_T1:-7}" ]; then verdict="채택(T1 복귀 ${BEST_T1:-7}→$t1)"; prev=$out; BEST_T1=$t1; else verdict="기각(직전 $prev 유지; T0 $a0/$t0, T1 $a1/$t1)"; fi
+  python3 $NT "[밤샘 조향 lp$k] T0: $(echo "$e0" | sed 's/EVALPED T0 ode_v2.pt://') | T1: $(echo "$e1" | sed 's/EVALPED T1 ode_v2.pt://') → $verdict" >/dev/null 2>&1
+  echo "verdict lp$k: $verdict"; r=$((r+10)); k=$((k+1))
 done
 pkill -x "Google Chrome"; echo "=== night loop end $(date +%H:%M:%S) last $prev ==="; python3 $NT "[밤샘 조향] 종료. 마지막 모델 $prev" >/dev/null 2>&1
