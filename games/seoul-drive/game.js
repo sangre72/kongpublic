@@ -2981,7 +2981,10 @@ window.__evPush=function(label){
 };
 function tierTick(){
   const t=tierNow(); const _pt=window.__tier; window.__tier=t; const N=window.__tierN||(window.__tierN=[0,0,0,0]); N[t]++;
-  if(typeof _pt==='number' && _pt!==t){ const now=performance.now(); if(!window.__tierEvT || now-window.__tierEvT>1500){ window.__tierEvT=now; window.__evPush('tier T'+_pt+'→T'+t); } }
+  /* 등급 이벤트는 1초 이상 유지된 등급만 기록(초 단위로 깜빡이는 T1↔T2 는 잡음) */
+  { const now=performance.now(); if(window.__tierStable===undefined){ window.__tierStable=t; window.__tierCand=t; window.__tierCandT=now; }
+    if(t!==window.__tierCand){ window.__tierCand=t; window.__tierCandT=now; }
+    else if(t!==window.__tierStable && now-window.__tierCandT>=1000){ window.__evPush('tier T'+window.__tierStable+'→T'+t); window.__tierStable=t; } }
   const H=window.__tierHist||(window.__tierHist=[]); const now=performance.now(); H.push([now,t]); while(H.length && now-H[0][0]>4000) H.shift();
 }
 function tierAgo(ms){ const H=window.__tierHist||[]; const now=performance.now(); for(let i=0;i<H.length;i++){ if(now-H[i][0]<=ms) return H[i][1]; } return H.length?H[H.length-1][1]:null; }
@@ -5549,7 +5552,7 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
 (function(){
   if(typeof document==='undefined') return;
   const el=document.createElement('div'); el.id='mdlPanel';
-  el.style.cssText='position:fixed;right:8px;top:150px;width:300px;max-height:calc(100vh - 170px);overflow:hidden;z-index:9999;background:rgba(20,22,30,.82);color:#e8e8ee;font:10.5px/1.45 Menlo,monospace;padding:8px 10px;border-radius:8px;pointer-events:none;white-space:pre;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+  el.style.cssText='position:fixed;right:8px;top:150px;width:330px;max-height:calc(100vh - 170px);overflow:hidden;z-index:9999;background:rgba(20,22,30,.82);color:#e8e8ee;font:10.5px/1.45 Menlo,monospace;padding:8px 10px;border-radius:8px;pointer-events:none;white-space:pre;box-shadow:0 2px 8px rgba(0,0,0,.3)';
   document.body.appendChild(el);
   let lpMs=0, mdlMs=0, last=performance.now();
   const kmh=v=>(typeof v==='number'&&v>=0)?(v*3.6).toFixed(0)+'km/h':'—';
