@@ -16,7 +16,7 @@ def load(dirs, H):
     Xs, Ys, Vs = [], [], []
     for d in dirs:
         try:
-            X = np.load(f'{d}/X.npy'); Yf = np.load(f'{d}/Y.npy').astype(np.float32)
+            X = np.load(f'{d}/X.npy', mmap_mode='r'); Yf = np.load(f'{d}/Y.npy').astype(np.float32)   # ★u_5555 mmap
         except Exception as e:
             print(json.dumps({'skip': d, 'why': str(e)[:60]}), flush=True); continue
         n = len(Yf)
@@ -39,10 +39,11 @@ def load(dirs, H):
                 else: print(json.dumps({'skip': d, 'why': 'no vmax label'}), flush=True); continue
             except Exception: print(json.dumps({'skip': d, 'why': 'no L.npy'}), flush=True); continue
         Y = np.stack([Yf[idx, 0], Yf[idx, 1], Yf[idx, 2], vT], 1).astype(np.float32)
-        Xs.append(X[idx]); Ys.append(Y); Vs.append((Yf[idx, 3] / 30.0).astype(np.float32))
+        Xs.append((X, idx)); Ys.append(Y); Vs.append((Yf[idx, 3] / 30.0).astype(np.float32))   # ★lazy: (mmap, idx)
         print(json.dumps({'dir': d.split('/')[-1], 'total': n, 'kept': int(len(idx)), 'vT_mean': round(float(vT.mean() * 30), 1)}), flush=True)
     if not Xs: return None
-    return np.concatenate(Xs), np.concatenate(Ys), np.concatenate(Vs)
+    from train_lp import LazyX
+    return LazyX(Xs), np.concatenate(Ys), np.concatenate(Vs)
 
 def batch(X, Y, V, ids, train=False):
     real = np.abs(ids) - 1

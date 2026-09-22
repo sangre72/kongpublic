@@ -12,10 +12,27 @@ from train_stage import augment, AUG
 DEV = gpu_guard.require_gpu(); BS = 64
 XT_MAX = float(os.environ.get('XT_MAX', '0.6'))
 XT_MAX_DAGGER = float(os.environ.get('XT_MAX_DAGGER', '4.0'))
+LAZY = os.environ.get('LP_MMAP', '1') == '1'   # ★u_5555 기본 1: 디스크 배치 읽기(RAM 최소)
 COND = os.environ.get('LP_COND', '0') == '1'   # ★u_5546: 경로 의도 조건부 앞점 모델(vdim=8)
 MULTI = os.environ.get('LP_MULTI', '0') == '1'   # ★u_5547 다점: 출력 = st,th,br + lp10/20/40/80(±LP_MAX_M m, (lp+M)/(2M)), L.npy 7열 필요
 LP_MAX_M = 64.0   # 가상 샘플링(헤딩 ±40°)에서 80m 앞점 횡오프셋 p95 52m(r1200 실측) → ±64m
 LP_MAX = 12.0   # lp 인코딩 범위 ±12m: (lp+12)/24. dagger.py 디코딩과 반드시 일치
+
+class LazyX:
+    """★u_5555(2026-09-23): 프레임을 RAM 에 올리지 않고 디스크 mmap 에서 배치 행만 모은다(학습 1개 RAM ≈ 수백 MB → 3개 동시 가능).
+    X[ids] 팬시 인덱싱만 지원(학습 batch 가 쓰는 유일한 접근)."""
+    def __init__(self, parts):   # parts = [(mmap_X, idx_array), ...]
+        self.parts = parts; self.n = int(sum(len(i) for _, i in parts))
+        self.src = np.concatenate([np.full(len(i), k, np.int32) for k, (_, i) in enumerate(parts)]) if parts else np.zeros(0, np.int32)
+        self.row = np.concatenate([i.astype(np.int64) for _, i in parts]) if parts else np.zeros(0, np.int64)
+        self.shape = (self.n,) + tuple(parts[0][0].shape[1:]) if parts else (0,)
+    def __len__(self): return self.n
+    def __getitem__(self, ids):
+        ids = np.asarray(ids); out = np.empty((len(ids),) + self.shape[1:], np.uint8)
+        s, r = self.src[ids], self.row[ids]
+        for k in np.unique(s):
+            m = s == k; rr = r[m]; o = np.argsort(rr); out[np.where(m)[0][o]] = self.parts[k][0][rr[o]]   # 정렬 읽기(mmap 순차 접근)
+        return out
 
 def load(dirs, synth=()):
     Xs, Ys, Vs, Ws = [], [], [], []
@@ -58,10 +75,13 @@ def load(dirs, synth=()):
         print(json.dumps({'dir': d.split('/')[-1], 'total': len(X), 'kept': int(len(idx)), 'lp_std': round(float(L[idx, 0].std()), 2)}), flush=True)
     if not plan: return None
     N = sum(len(i) for _, i, _, _ in plan); shp = np.load(f'{plan[0][0]}/X.npy', mmap_mode='r').shape[1:]
-    print(json.dumps({'frames': int(N), 'gb': round(N * int(np.prod(shp)) / 1e9, 1)}), flush=True)
-    XA = np.empty((N,) + tuple(shp), np.uint8); o = 0
-    for d, idx, _, _ in plan:
-        X = np.load(f'{d}/X.npy', mmap_mode='r'); XA[o:o + len(idx)] = X[idx]; o += len(idx); del X
+    print(json.dumps({'frames': int(N), 'gb': round(N * int(np.prod(shp)) / 1e9, 1), 'lazy': LAZY}), flush=True)
+    if LAZY:
+        XA = LazyX([(np.load(f'{d}/X.npy', mmap_mode='r'), idx) for d, idx, _, _ in plan])
+    else:
+        XA = np.empty((N,) + tuple(shp), np.uint8); o = 0
+        for d, idx, _, _ in plan:
+            X = np.load(f'{d}/X.npy', mmap_mode='r'); XA[o:o + len(idx)] = X[idx]; o += len(idx); del X
     return XA, np.concatenate([y for _, _, y, _ in plan]), np.concatenate([v for _, _, _, v in plan]), np.ones(N, np.float32)
 
 def batch(X, Y, V, ids, train=False):
