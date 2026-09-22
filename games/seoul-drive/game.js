@@ -859,8 +859,26 @@ function pedBrakeDist(){
     const dx=p.x-me.x, dy=p.y-me.y;
     const f=(dx*ca+dy*sa)/S;                 // 전방거리(m). 0 이하면 이미 지나쳤다
     if(f<=0 || f>=SCAN) continue;            // 뒤에서 걷는 사람 때문에 서면 안 된다
-    const l=Math.abs(-dx*sa+dy*ca)/S;        // 횡방향 거리(m)
-    if(l>PED_CROSS_LAT_M) continue;
+    const sl=(-dx*sa+dy*ca)/S, l=Math.abs(sl); // 횡방향 거리(m, 부호 있음)
+    if(l>PED_CROSS_LAT_M){
+      /* ★2026-09-22 r893(강남역→시청역 t=884s, v=4.9m/s) 회피가능 보행자 사고:
+         횡단 중인 사람이 옆에서 내 차로로 달려오는데, 이 센서는 '내 차로 폭 2.2m 안'만 봐서
+         차 바로 앞에 들어온 순간에야 봤다(직전 2.5초 ped=없음). 그때는 정지거리가 없다.
+         u_5056(인도 사람에게 과브레이크) 때문에 띠를 넓히지는 않는다 — 대신 **횡단 중(p.cross)이고
+         내 쪽으로 움직이는** 사람만, '내가 거기 닿을 때 내 차로 안에 있을지'를 시간으로 판정한다.
+         이미 지나갔을 사람(도착 전 반대편으로 빠짐)에겐 서지 않는다. 실제 운전자의 판단과 같다. */
+      if(!p.cross || p.vx===undefined || window.__noPedPred) continue;   // ?nopedpred=1 = A/B 비교용 끄기
+      const lv=(-p.vx*sa+p.vy*ca)/S;           // 횡방향 속도(m/s, 부호 = sl 과 같은 축)
+      if(!(sl*lv < 0) || Math.abs(lv)<0.2) continue;   // 내 쪽으로 오는 중이 아니면 무시
+      const tMe=f/Math.max(_v,0.5);            // 내가 그 전방거리에 닿는 시간
+      const tIn=(l-PED_CROSS_LAT_M)/Math.abs(lv);      // 사람이 내 차로에 들어오는 시간
+      const tOut=(l+PED_CROSS_LAT_M)/Math.abs(lv);     // 내 차로를 빠져나가는 시간
+      if(tIn > tMe+0.5) continue;              // 내가 지나간 뒤에야 들어온다
+      if(tOut < tMe-0.3) continue;             // 내가 닿기 전에 이미 빠져나간다
+      window.__pedPredN=(window.__pedPredN|0)+1;
+      if(f<best) best=f;
+      continue;
+    }
     if(!onRoad(p.x,p.y).ok) continue;        // 인도 위 사람은 무시(차도 점유만 본다)
     if(f<best) best=f;
   }
@@ -2821,7 +2839,7 @@ function mdlPoll(dt){
       sigBarN: (function(){try{return signals.filter(q=>q.sx!==undefined).length}catch(e){return -1}})(), sigRedN: (function(){try{const n=performance.now();return signals.filter(q=>sigRed(q,n)).length}catch(e){return -1}})(), sigN: (typeof signals!=='undefined')?signals.length:-1,
       ntier: (typeof window.__ntier==='number')?window.__ntier:null, nconf: window.__nconf||null, crNTier: window.__crNTier||null, crNTier3: window.__crNTier3||null,
       tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, ovlEscN: window.__ovlEscN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
-      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, startSkipHairpin: window.__startSkipHairpin||0, startSkipErr: window.__startSkipErr||null, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
+      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, pedPredN: window.__pedPredN||0, jayMult: (typeof JAY_MULT!=='undefined'?JAY_MULT:1), astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, startSkipHairpin: window.__startSkipHairpin||0, startSkipErr: window.__startSkipErr||null, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i,st:d.st,df:d.df,lp:d.lp,ld:d.ld}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
@@ -3998,6 +4016,11 @@ function stepCar(c,dt){
 }
 function stepPed(p,dt){
   const s=segs[p.si];
+  /* ★2026-09-22 r893 보행자 사고: 속도 벡터를 남긴다(pedBrakeDist 의 '내 차로로 들어오는 중' 예측용) */
+  const _ox=p.x, _oy=p.y; _stepPed(p,dt,s);
+  if(dt>0 && _ox!==undefined){ p.vx=(p.x-_ox)/dt; p.vy=(p.y-_oy)/dt; }
+}
+function _stepPed(p,dt,s){
   // ★건널목 횡단(u_4873): 가까운 횡단보도에 닿으면 길을 건넌다
   if(p.cross){
     p.cx2+=p.cdir*p.v*S*dt;
@@ -4642,6 +4665,10 @@ let WANT_CARS=_TL.cars, WANT_PEDS=_TL.peds, CUT_P=_TL.cut;
 let FRONT_BIAS = {light:0.3, medium:0.6, heavy:0.85}[window.__TRAFFIC] ?? 0.6;
 /* 무단횡단 발생확률(프레임당, 보행자 1명 기준) — 밀도가 높을수록 잦다 */
 let JAY_P = {light:0.0004, medium:0.0010, heavy:0.0022}[window.__TRAFFIC] ?? 0.0010;
+/* ★시험용 배율(2026-09-22): ?jay=5 → 무단횡단 5배. 보행자 회피 회귀시험 표본을 늘린다. 기본 1. */
+const JAY_MULT=(function(){ try{ const v=parseFloat(new URLSearchParams(location.search).get('jay')); return (v>0&&v<100)?v:1; }catch(e){ return 1; } })();
+JAY_P*=JAY_MULT;
+try{ window.__noPedPred = new URLSearchParams(location.search).get('nopedpred')==='1'; }catch(e){}
 
 /* 교통량 전환 — 버튼/외부에서 호출. 즉시 반영되고, 줄일 때는 멀리 있는 차부터 지운다. */
 window.setTraffic = function(lv){
@@ -4650,7 +4677,7 @@ window.setTraffic = function(lv){
   _TL = TRAFFIC_LV[lv];
   WANT_CARS=_TL.cars; WANT_PEDS=_TL.peds; CUT_P=_TL.cut;
   FRONT_BIAS = {light:0.3, medium:0.6, heavy:0.85}[lv];
-  JAY_P      = {light:0.0004, medium:0.0010, heavy:0.0022}[lv];
+  JAY_P      = {light:0.0004, medium:0.0010, heavy:0.0022}[lv]*JAY_MULT;
   // 초과분은 내게서 먼 것부터 정리한다(눈앞에서 사라지면 부자연스럽다)
   const far=(a,b)=>((b.x-me.x)**2+(b.y-me.y)**2)-((a.x-me.x)**2+(a.y-me.y)**2);
   if(cars.length>WANT_CARS){ cars.sort(far); cars.length=WANT_CARS; }

@@ -228,7 +228,9 @@ def episode(net, dev, secs, ep):
             TN.append([float(_nt), float(_nc), float(_ntraw)])
             _lbh = C.push_stats().get('lbl') if hasattr(C, 'push_stats') else None
             LP.append([float(_lbh['lp']), float(_lbh.get('ld') or 10.0), float(_lbh['vmax']) if isinstance(_lbh.get('vmax'), (int, float)) else float('nan')] if isinstance(_lbh, dict) and isinstance(_lbh.get('lp'), (int, float)) else [float('nan'), float('nan'), float('nan')])   # [lp, ld, vmax(규칙 목표속도 m/s)]
-            _dq = d.get('da') or {}; Q.append([float(_dq.get('xt') if isinstance(_dq.get('xt'), (int, float)) else 99.0), float(d.get('tpN') or 0), float(d.get('cr') or 0), time.time() - t0])
+            _dq = d.get('da') or {}; _ps = d.get('pos') if isinstance(d.get('pos'), list) and len(d.get('pos')) >= 2 else [float('nan'), float('nan')]
+            Q.append([float(_dq.get('xt') if isinstance(_dq.get('xt'), (int, float)) else 99.0), float(d.get('tpN') or 0), float(d.get('cr') or 0), time.time() - t0,
+                      float(_ps[0]), float(_ps[1]), float(d.get('prog') or 0)])   # 4~6열(2026-09-22): pos x,y, prog — 사고 지점을 회귀 케이스로 고정하기 위해(규칙 §6)
         time.sleep(0.02)
 
     dl = tel() or {}
