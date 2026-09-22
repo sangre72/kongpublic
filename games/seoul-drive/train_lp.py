@@ -84,7 +84,9 @@ def main():
     idx = rng.permutation(n); cut = int(n * 0.85)
     tr = np.concatenate([idx[:cut] + 1, -(idx[:cut] + 1)]); va = np.concatenate([idx[cut:] + 1, -(idx[cut:] + 1)])
     net = DriveNet(out=4, vin=True, vdim=8 if COND else 1).to(DEV); gpu_guard.assert_on_gpu(net)
-    if a.init: net.load_state_dict(torch.load(a.init, map_location=DEV), strict=False); print(json.dumps({'init': a.init}), flush=True)
+    if a.init:   # ★u_5546: 조건부(vdim=8)로 바꿀 때 hv.0 입력 폭이 달라지므로 모양이 맞는 층만 가져온다(특징추출부 재사용)
+        _sd = torch.load(a.init, map_location=DEV); _own = net.state_dict(); _ok = {k: v for k, v in _sd.items() if k in _own and _own[k].shape == v.shape}
+        net.load_state_dict(_ok, strict=False); print(json.dumps({'init': a.init, 'loaded': len(_ok), 'skipped': sorted(set(_sd) - set(_ok))}), flush=True)
     opt = torch.optim.Adam(net.parameters(), 5e-4 if a.init else 1e-3, weight_decay=1e-4)
     wcol = torch.tensor([0.2, 0.5, 0.5, 4.0], device=DEV)   # lp 가 주 목표
     best = 1e9
