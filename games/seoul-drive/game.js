@@ -3441,6 +3441,7 @@ function crash(label,heavy){
           /* ★u_5206: 불가항력은 '보행자'보다 먼저 걸러야 한다.
              '보행자 돌발(불가항력)' 도 '보행자'를 포함하므로, 순서가 뒤면
              전부 '보행자'로 뭉쳐 분류가 통째로 사라진다(실측: 그렇게 됐다). */
+          : label.indexOf('정지중 접촉')>=0?'정지중 접촉(불가항력)'
           : label.indexOf('불가항력')>=0?'보행자 돌발(불가항력)'
           : label.indexOf('보행자')>=0?'보행자'
           : label.indexOf('중앙선')>=0?'중앙선'      // ★F2 분리 측정(u_5061)
@@ -3898,7 +3899,10 @@ function step(dt){
       const fx=Math.cos(me.ang), fy=Math.sin(me.ang);
       const ahead = ((c.x-me.x)*fx + (c.y-me.y)*fy) > 0;
       const iAmFaster = me.v > (c.v||0) + 0.5;
-      if(!waiting && ahead && iAmFaster) crash(c.n+' 추돌',c.t==='truck');
+      /* ★2026-09-22 1500초 실측(r892): '추돌' 3건 전부 v≈0 정체 대기 중 앞차 간격이 8→3m 로 줄며 접촉 — NPC 가 정지한 차로 파고든 시뮬 결함.
+         서 있는 차(1m/s 미만)의 접촉은 운전 과실이 아니다 → '정지중 접촉(불가항력)' 으로 분류(기록만, 회피가능 사고에서 제외). */
+      if(!waiting && ahead && iAmFaster && me.v < 1.0) crash(c.n+' 정지중 접촉(불가항력)',false);
+      else if(!waiting && ahead && iAmFaster) crash(c.n+' 추돌',c.t==='truck');
       else if(!waiting){ me.v=Math.min(me.v, Math.max(0,(c.v||0)));   // 밀리지만 사고 아님
         /* ★2026-09-20 DAgger k=2/k=3 실측: 추돌 뒤 복귀해도 모델이 다시 밀고 들어가 정지 NPC 와 겹친 채 v 가 매 프레임 0 으로 잘려
            100초 정지(진행 0.6%/1.4%, 모델 thr 0.9·교사 thr 1.0 인데 v=0). 교사(driveAuto)엔 stall 탈출이 있지만 모델 주행엔 없다.
