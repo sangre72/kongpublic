@@ -33,9 +33,9 @@ def prep(arr):   # BGRA 창 프레임 → (1,3,256,256) float32 RGB 0~1 (net.pre
     return np.ascontiguousarray(c.transpose(2, 0, 1)[None]).astype(np.float32) / 255.0
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('--secs', type=float, default=300); ap.add_argument('--speed', required=True); ap.add_argument('--lp', default=None)
+    ap = argparse.ArgumentParser(); ap.add_argument('--secs', type=float, default=300); ap.add_argument('--speed', default=None, help='속도 모델 mlpackage; 없으면 속도는 규칙(vT=-1)'); ap.add_argument('--lp', default=None)
     ap.add_argument('--lp-tier', type=int, default=0); ap.add_argument('--fps', type=int, default=60); a = ap.parse_args()
-    ms = ct.models.MLModel(a.speed, compute_units=ct.ComputeUnit.ALL); ml = ct.models.MLModel(a.lp, compute_units=ct.ComputeUnit.ALL) if a.lp else None
+    ms = ct.models.MLModel(a.speed, compute_units=ct.ComputeUnit.ALL) if a.speed else None; ml = ct.models.MLModel(a.lp, compute_units=ct.ComputeUnit.ALL) if a.lp else None
     lp_vdim = 1
     if ml is not None:
         try: lp_vdim = int([i for i in ml.get_spec().description.input if i.name == 'v'][0].type.multiArrayType.shape[-1])
@@ -51,7 +51,9 @@ def main():
         if st['frame'] is None or st['t'] == last_t: continue
         last_t = st['t']; arr = st['frame']; d = st['tel'] or {}
         v = float(d.get('v') or 0.0); x = prep(arr); vin = np.array([[v / 30.0]], np.float32)
-        ti = time.time(); o = ms.predict({'img': x, 'v': vin}); o = list(o.values())[0].ravel(); vT = max(0.0, float(o[3]) * 30.0)
+        ti = time.time()
+        if ms is not None: o = ms.predict({'img': x, 'v': vin}); o = list(o.values())[0].ravel(); vT = max(0.0, float(o[3]) * 30.0)
+        else: vT = -1.0   # 규칙 속도
         tier = d.get('tier'); tier = int(tier) if isinstance(tier, (int, float)) else 3
         # ★u_5539 판정기 깜빡임: 진입 1초 유지 + ★되돌림도 0.5초 유지(순간 T3 1프레임에 핸들이 튀지 않게). 도로이탈·명령 끊김(T3 이 offroad/stale 인 경우)은 즉시.
         if tier <= a.lp_tier: hold += 1; down = 0
