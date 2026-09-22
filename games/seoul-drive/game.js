@@ -2847,7 +2847,7 @@ function mdlPoll(dt){
       sigBarN: (function(){try{return signals.filter(q=>q.sx!==undefined).length}catch(e){return -1}})(), sigRedN: (function(){try{const n=performance.now();return signals.filter(q=>sigRed(q,n)).length}catch(e){return -1}})(), sigN: (typeof signals!=='undefined')?signals.length:-1,
       ntier: (typeof window.__ntier==='number')?window.__ntier:null, nconf: window.__nconf||null, crNTier: window.__crNTier||null, crNTier3: window.__crNTier3||null,
       tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, ovlEscN: window.__ovlEscN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
-      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, pedPredN: window.__pedPredN||0, npcDeadlockRm: window.__npcDeadlockRm||0, jayMult: (typeof JAY_MULT!=='undefined'?JAY_MULT:1), astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, startSkipHairpin: window.__startSkipHairpin||0, startSkipErr: window.__startSkipErr||null, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
+      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, pedPredN: window.__pedPredN||0, pedSideN: window.__pedSideN||0, npcDeadlockRm: window.__npcDeadlockRm||0, jayMult: (typeof JAY_MULT!=='undefined'?JAY_MULT:1), astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, startSkipHairpin: window.__startSkipHairpin||0, startSkipErr: window.__startSkipErr||null, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i,st:d.st,df:d.df,lp:d.lp,ld:d.ld}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
@@ -3955,6 +3955,9 @@ function step(dt){
          차가 사실상 정지 상태면 불가항력으로 분류한다(차 추돌 판정의 '내가 더 빠를 때만
          내 과실' 규칙과 같은 원칙). */
       if(me.v < 0.5) _un = true;
+      /* ★2026-09-22 r911(기아강남 골목 t=51s): 차가 0~0.3m/s 로 기다리는데 옆·뒤에서 걸어온 사람이 차체에 닿아 '회피가능'으로
+         집계됐다(교사 ped=없음 = 내 앞 차도엔 아무도 없었다). 앞이 아닌 곳(차 앞축보다 뒤)에서 닿은 접촉은 제동으로 피할 수 없다. */
+      try{ const _fx=(p.x-me.x)*Math.cos(me.ang)+(p.y-me.y)*Math.sin(me.ang); if(_fx < me.h*0.5-0.3*S){ _un = true; window.__pedSideN=(window.__pedSideN|0)+1; } }catch(e){}
       crash(_un ? '보행자 돌발(불가항력)' : '보행자 사고', true);
       /* ★2026-09-19 스윕 12구간(송정12바길) 실측: 100초에 보행자 사고 78건(불가항력 67). 부딪힌 보행자를
          지우지 않아 차 밑에 겹친 채로 매 프레임 다시 충돌 → 정지 상태라 전부 불가항력으로 집계됐다.
