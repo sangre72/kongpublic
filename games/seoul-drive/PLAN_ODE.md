@@ -206,6 +206,7 @@
 - 19:4x 밤샘 `lp_night.sh 960 ode_lp7.pt`: 사이클 = T1 모델조향 수집(r96x…) → lp8,9,… 재학습(직전 init, 교란 r93x synth) → T0/T1 3구간 평가 → 텔레그램. 07:00 정지. 아침 판정: T0 0/0 유지 + T1 복귀 합계(lp7 기준 7) 감소한 모델만 채택.
 - 운세 09-22: 12/12 전 단계 완료(19:3x). 교훈 = 게시 전 '검사 완료' 대기(RECIPE_scheduled_upload_VERIFIED 2026-09-22 절).
 - ★오너 결정 u_5532(2026-09-22 23:xx): 캡처→추론을 GPU 상주로 — ScreenCaptureKit(캔버스 영역만, IOSurface 60fps) → CoreML 변환 오드(복사 없이 입력) → /ctl. 현 JPEG/HTTP 경로(13fps·23~66ms)는 비효율. 09-23 아침 밤샘 결과 확인 뒤 착수, 프레임률·지연 비교 보고. 선행 확인(23:4x): pyobjc ScreenCaptureKit 로드 OK(macOS 26.5), torch 2.13, coremltools 9.0 설치돼 있으나 import 시 깨진 tensorflow(Keras 없음)를 끌어와 ImportError → 변환은 별도 venv(coremltools+torch 만) 또는 tensorflow 제거 후. DriveNet→CoreML 변환에 preprocess(크롭 0.6·256px·/255) 포함. SCK 는 화면 기록 권한 프롬프트 가능 → 오너 있는 낮에 첫 실행.
+- ★2026-09-22 23:xx GPU 상주 파이프라인 1차 완성(`sck_capture.py` ScreenCaptureKit 창 캡처 → `gpu_drive.py` 전처리+CoreML(`to_coreml.py` 변환) → /ctl): 지연 화면→명령 p50 6ms(기존 23~66), 32fps(페이지 그리기 한계), 추론 1~2ms. 사평대로 300초 lp7: T0 0/0/6.9%, T1(모델조향 73%) 0/0/10.5%(HTTP: 복귀1/11.5%). 모델조향 차로오차 0.41m(p90 0.90) vs HTTP 0.51(1.12) → **지연은 20% 기여, 흔들림 주원인 = 조향모델 학습**(u_5536 답). 판정기 깜빡임(T1↔T3 1프레임)은 gpu_drive 되돌림 0.5초 유지로 수정(u_5539). 집중 회귀 지점: 사평대로 sx=-376.5&sy=-775.9 (u_5540).
 - 미해결: 속도 보수적(진행률 규칙의 80%), 보행자 회피가능 사고 산발(r891 1건), 도착 미달성. 다음 축 = 속도 라벨 정확도(vT MAE 2.0→1.0m/s), 도착 시 정차 학습, 그 뒤 조향 학습 재도전(앞점 모델은 기준선 대비 평가).
 
 ## 10. 결정 기록 (u_ 번호)
