@@ -2819,6 +2819,7 @@ function mdlPoll(dt){
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
       sigNear: (function(){try{const n=performance.now();return signals.map(q=>({d:Math.hypot(q.x-me.x,q.y-me.y)/S,q})).sort((a,b)=>a.d-b.d).slice(0,4).map(z=>({d:+z.d.toFixed(1),x:+(z.q.x/S).toFixed(1),y:+(z.q.y/S).toFixed(1),sx:+(z.q.sx/S).toFixed(1),sy:+(z.q.sy/S).toFixed(1),nx:+(nodes[z.q.node].x/S).toFixed(1),ny:+(nodes[z.q.node].y/S).toFixed(1),tw:+z.q.tw.toFixed(2),rw:+(z.q.rw/S).toFixed(1),ow:z.q.ow,red:sigRed(z.q,n)?1:0}))}catch(e){return String(e).slice(0,40)}})(),
       sigBarN: (function(){try{return signals.filter(q=>q.sx!==undefined).length}catch(e){return -1}})(), sigRedN: (function(){try{const n=performance.now();return signals.filter(q=>sigRed(q,n)).length}catch(e){return -1}})(), sigN: (typeof signals!=='undefined')?signals.length:-1,
+      ntier: (typeof window.__ntier==='number')?window.__ntier:null, nconf: window.__nconf||null, crNTier: window.__crNTier||null, crNTier3: window.__crNTier3||null,
       tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, ovlEscN: window.__ovlEscN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
       crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, startSkipHairpin: window.__startSkipHairpin||0, startSkipErr: window.__startSkipErr||null, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i,st:d.st,df:d.df,lp:d.lp,ld:d.ld}})(), tbrk: window.__tbrk,
@@ -2857,6 +2858,7 @@ function mdlPoll(dt){
     MDL.steer = +d.steer||0; MDL.thr = +d.thr||0; MDL.brake = +d.brake||0;
     MDL.tgt = !!(+d.tgt); MDL.dOff = +d.dOff||0; MDL.vT = (d.vT===undefined||d.vT===null)?-1:+d.vT;   // 목표 오프셋 인터페이스(2026-09-21)
     MDL.mode = +d.mode||1; MDL.lp = (d.lp===undefined||d.lp===null)?null:+d.lp; MDL.ld = (d.ld===undefined||d.ld===null)?null:+d.ld;
+    if(typeof d.ntier==='number' && d.ntier>=0){ window.__ntier=d.ntier|0; window.__nconf=+d.nconf||0; const H=window.__ntierHist||(window.__ntierHist=[]); const now=performance.now(); H.push([now,d.ntier|0]); while(H.length && now-H[0][0]>4000) H.shift(); }   // 관제망 등급(2026-09-22)
     /* on 은 페이지 버튼이 주도권을 갖는다. 파이썬이 on=1 을 보내면 켜지지만,
        사람이 화면에서 끄면 그게 이긴다(안전: 폭주하면 손으로 끌 수 있어야 한다). */
     /* ★force=1 이면 사람이 꺼둔 것도 무시하고 켠다(u_5133).
@@ -3431,6 +3433,7 @@ function crash(label,heavy){
   me.cool=.8;me.crashes++;
   try{ const C=window.__crTier||(window.__crTier=[0,0,0,0]), C3=window.__crTier3||(window.__crTier3=[0,0,0,0]);
        C[window.__tier|0]++; const a=tierAgo(3000); if(a!=null) C3[a]++; }catch(e){}
+  try{ if(typeof window.__ntier==='number'){ const N=window.__crNTier||(window.__crNTier=[0,0,0,0]), N3=window.__crNTier3||(window.__crNTier3=[0,0,0,0]); N[window.__ntier]++; const H=window.__ntierHist||[], now=performance.now(); let a=null; for(const h of H){ if(now-h[0]<=3000){ a=h[1]; break; } } if(a!=null) N3[a]++; } }catch(e){}
   /* ★무엇에 부딪히는지 종류별로 센다(u_5025 진단용).
      'cr=8' 만 봐서는 원인을 모른다 — 추돌인지 보행자인지 차로이탈인지에 따라
      고칠 곳이 완전히 다르다. */

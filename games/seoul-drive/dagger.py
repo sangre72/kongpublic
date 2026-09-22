@@ -20,6 +20,7 @@
 import argparse, hashlib, json, os, subprocess, sys, time, urllib.request
 PIPE = False   # --model pipe (2026-09-20 대조 실험)
 SPEED_MODEL = False   # ode_v*.pt = 속도 판단 모델(2026-09-22)
+TIER = None   # 관제망(--tier)
 import numpy as np, torch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -57,6 +58,7 @@ def episode(net, dev, secs, ep):
     X, Y = [], []
     W, TT = [], []                         # ★u_5426 프레임 가중치(사고 직전 3초=0)·프레임 시각
     P = []                                 # ★2026-09-20 모델 출력(조향·스로틀·제동) — 사후 분석용(P.npy). k=7 '왜 서 있나'를 못 봤다.
+    TN = []                                # ★2026-09-22 관제망(tier net) 출력 [ntier, conf, ntier_raw] (T.npy) — 오너 u_5512 '적용'
     Q = []                                 # ★2026-09-20 u_5478 프레임 품질 [xt(경로추적오차 m), tpN, cr, t] — '차선 잘 지킨 구간만' 선별용(Q.npy)
     LP = []                                # ★2026-09-21 앞점 라벨 [lp(m, +=오른쪽), ld(m)] — 차 기준 앞점 인터페이스(tgt mode=2) 학습용(L.npy)
     M = []                                 # ★u_5427 상황 태그 [gap, ped, sig, turn(0/S 1/L 2/R 3/U), aD, v, laneF, nl] — 커리큘럼 단계 필터용
@@ -154,6 +156,11 @@ def episode(net, dev, secs, ep):
         x = preprocess(f, device=dev)[None]
         if net is not None and getattr(net, 'in_ch', 3) == 6:   # 프레임 스택: [직전, 현재]
             _xp = globals().get('_PREV_X'); x = torch.cat([_xp if _xp is not None else x, x], dim=1); globals()['_PREV_X'] = x[:, 3:]
+        _nt = -1; _nc = 0.0; _ntraw = -1
+        if TIER is not None:   # ★관제망: 프레임마다 등급·확신도. 확신도 <0.6 → 한 등급 위(안전 편향). T2 → vT≤8, T3 → vT≤3 (보수 모드, Layer1 은 별도).
+            with torch.no_grad():
+                _o = torch.softmax(TIER(x[:, :3]), 1)[0]; _nc = float(_o.max()); _ntraw = int(_o.argmax()); _nt = min(3, _ntraw + (1 if _nc < 0.6 else 0))
+            post({'ntier': _nt, 'nconf': round(_nc, 3)})
         if PIPE == 'pipe3':   # ★차 기준 앞점 인터페이스 검증: 직전 프레임 라벨(lp, ld)을 그대로 되돌려 준다(모델이 완벽할 때의 상한)
             _lb3 = C.push_stats().get('lbl') if hasattr(C, 'push_stats') else None
             if isinstance(_lb3, dict) and isinstance(_lb3.get('lp'), (int, float)):
@@ -167,7 +174,9 @@ def episode(net, dev, secs, ep):
                 _vt = torch.tensor([[float(d.get('v') or 0) / 30.0]], device=dev)   # 속도 입력(u_5461)
                 o = (net(x, _vt) if getattr(net, 'vin', False) else net(x))[0].cpu().numpy()
             if len(o) >= 4 and SPEED_MODEL:   # ★속도 모델(ode_v*.pt, 2026-09-22 축소안 A): 조향=추종기(경로선), 모델=목표속도(1초 뒤). vT 는 상한으로 적용(규칙 상한·정지 지시 유지).
-                post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 1, 'dOff': 0.0, 'vT': max(0.0, float(o[3]) * 30.0)})
+                _vT = max(0.0, float(o[3]) * 30.0)
+                if TIER is not None and _nt >= 2: _vT = min(_vT, 8.0 if _nt == 2 else 3.0)   # 관제망 보수 모드
+                post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 1, 'dOff': 0.0, 'vT': _vT})
             elif len(o) >= 4:   # ★앞점 모델(out=4): o[3]=(lp+8)/16 → lp. 조향은 페이지 추종기, 속도는 규칙(교사 정지 지시 포함). 2026-09-21 (A)
                 post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': float(o[3]) * 24.0 - 12.0, 'ld': -1, 'vT': -1})   # ld=-1: 페이지 Ld(라벨과 동일 기준)   # LP_MAX=12 (train_lp.py 와 일치)
             else:
@@ -216,6 +225,7 @@ def episode(net, dev, secs, ep):
                       float(t.get('fl') if t.get('fl') is not None else -1.0),
                       float(t.get('fr') if t.get('fr') is not None else -1.0)])
             P.append([float(o[0]), float(o[1]), float(o[2])] if net is not None else [0.0, 0.0, 0.0])
+            TN.append([float(_nt), float(_nc), float(_ntraw)])
             _lbh = C.push_stats().get('lbl') if hasattr(C, 'push_stats') else None
             LP.append([float(_lbh['lp']), float(_lbh.get('ld') or 10.0), float(_lbh['vmax']) if isinstance(_lbh.get('vmax'), (int, float)) else float('nan')] if isinstance(_lbh, dict) and isinstance(_lbh.get('lp'), (int, float)) else [float('nan'), float('nan'), float('nan')])   # [lp, ld, vmax(규칙 목표속도 m/s)]
             _dq = d.get('da') or {}; Q.append([float(_dq.get('xt') if isinstance(_dq.get('xt'), (int, float)) else 99.0), float(d.get('tpN') or 0), float(d.get('cr') or 0), time.time() - t0])
@@ -245,7 +255,8 @@ def episode(net, dev, secs, ep):
             np.array(M, dtype=np.float32) if M else None,
             np.array(P, dtype=np.float32) if P else None,
             np.array(Q, dtype=np.float32) if Q else None,
-            np.array(LP, dtype=np.float32) if LP else None)
+            np.array(LP, dtype=np.float32) if LP else None,
+            np.array(TN, dtype=np.float32) if TN else None)
 
 
 def main():
@@ -254,15 +265,22 @@ def main():
     ap.add_argument('--episodes', type=int, default=10)
     ap.add_argument('--secs', type=float, default=45)
     ap.add_argument('--model', default='bc_final.pt')
+    ap.add_argument('--tier', default=None, help='관제망 체크포인트(tier_*.pt, TierNet res=64) — 등급별 보수 모드')
     a = ap.parse_args()
 
     dev = require_gpu()
     mp = a.model if os.path.isabs(a.model) else os.path.join(BASE, a.model)
     # ★2026-09-19 u_5431: bc_final.pt 는 옛 DriveNet 구조(h.0/h.2)라 현재 망(h.1/h.4/h.6)에 안 들어간다. 1단계(직진) 데이터는
     #   교사가 몰아 만든다 — `--model none` 이면 추론·조작을 건너뛰고 화면+교사 라벨+W/M 만 저장한다(BC 먼저, DAgger 는 새 모델 뒤).
-    global PIPE, SPEED_MODEL
+    global PIPE, SPEED_MODEL, TIER
     PIPE = a.model if a.model in ('pipe', 'pipe2', 'pipe3') else False
     SPEED_MODEL = os.path.basename(a.model).startswith('ode_v')
+    TIER = None
+    if a.tier:
+        from train_tier import TierNet
+        _tp = a.tier if os.path.isabs(a.tier) else os.path.join(BASE, a.tier)
+        TIER = TierNet(res=64).to(dev); TIER.load_state_dict(torch.load(_tp, map_location=dev)); TIER.eval(); gpu_guard.assert_on_gpu(TIER)
+        print(json.dumps({'tier_net': a.tier}), flush=True)
     if PIPE:
         net = None; print(json.dumps({'mode': 'teacher-'+str(PIPE), 'note': 'driveAuto shadow steer + teacher thr/brake via /ctl at capture rate'}), flush=True)
     elif a.model == 'none':
@@ -282,14 +300,14 @@ def main():
 
     outd = os.path.join(BASE, 'data', 'dagger_r%d' % a.round)
     os.makedirs(outd, exist_ok=True)
-    AX, AY, ST, AW, AM = [], [], [], [], []; AP = []; AQ = []; AL = []
+    AX, AY, ST, AW, AM = [], [], [], [], []; AP = []; AQ = []; AL = []; AT = []
     try:
         for i in range(a.episodes):
-            X, Y, s, Wt, Mt, Pt, Qt, Lt = episode(net, dev, a.secs, i + 1)
+            X, Y, s, Wt, Mt, Pt, Qt, Lt, Tt = episode(net, dev, a.secs, i + 1)
             ST.append(s)
             print(json.dumps(s, ensure_ascii=False), flush=True)
             if X is not None:
-                AX.append(X); AY.append(Y); AW.append(Wt); AM.append(Mt); AP.append(Pt); AQ.append(Qt); AL.append(Lt)
+                AX.append(X); AY.append(Y); AW.append(Wt); AM.append(Mt); AP.append(Pt); AQ.append(Qt); AL.append(Lt); AT.append(Tt)
     finally:
         post({'on': 0, 'steer': 0, 'thr': 0, 'brake': 0})
 
@@ -302,6 +320,7 @@ def main():
     np.save(f'{outd}/P.npy', np.concatenate(AP))     # 모델 출력(2026-09-20) — Y(교사)와 나란히
     np.save(f'{outd}/Q.npy', np.concatenate(AQ))     # 프레임 품질 [xt, tpN, cr, t] (u_5478) — 학습기가 xt<0.6·순간이동/사고 ±3초 제외에 쓴다
     np.save(f'{outd}/L.npy', np.concatenate(AL))     # 앞점 라벨 [lp, ld] (2026-09-21, tgt mode=2)
+    np.save(f'{outd}/T.npy', np.concatenate(AT))     # 관제망 [ntier, conf, raw] (2026-09-22)
     open(f'{outd}/DONE', 'w').write('ok\n')
     json.dump(ST, open(f'{outd}/episodes.json', 'w'), ensure_ascii=False, indent=1)
 
