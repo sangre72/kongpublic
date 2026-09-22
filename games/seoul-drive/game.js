@@ -2883,7 +2883,9 @@ function mdlPoll(dt){
       MDL.rxT = performance.now(); }   // ★u_5172: 명령 수신 시각(만료 판정용)
     MDL.steer = +d.steer||0; MDL.thr = +d.thr||0; MDL.brake = +d.brake||0;
     MDL.tgt = !!(+d.tgt); MDL.dOff = +d.dOff||0; MDL.vT = (d.vT===undefined||d.vT===null)?-1:+d.vT;   // 목표 오프셋 인터페이스(2026-09-21)
-    MDL.mode = +d.mode||1; MDL.lp = (d.lp===undefined||d.lp===null)?null:+d.lp; MDL.ld = (d.ld===undefined||d.ld===null)?null:+d.ld;
+    const _pm=MDL.mode; MDL.mode = +d.mode||1; MDL.lat=(typeof d.lat==='number')?d.lat:-1; MDL.inf=(typeof d.inf==='number')?d.inf:-1;
+    if(MDL.on && _pm!==undefined && _pm!==MDL.mode) window.__evPush(MDL.mode===2?'steer handover → model':'steer handover → rule');
+    MDL.lp = (d.lp===undefined||d.lp===null)?null:+d.lp; MDL.ld = (d.ld===undefined||d.ld===null)?null:+d.ld;
     if(typeof d.ntier==='number' && d.ntier>=0){ window.__ntier=d.ntier|0; window.__nconf=+d.nconf||0; const H=window.__ntierHist||(window.__ntierHist=[]); const now=performance.now(); H.push([now,d.ntier|0]); while(H.length && now-H[0][0]>4000) H.shift(); }   // 관제망 등급(2026-09-22)
     /* on 은 페이지 버튼이 주도권을 갖는다. 파이썬이 on=1 을 보내면 켜지지만,
        사람이 화면에서 끄면 그게 이긴다(안전: 폭주하면 손으로 끌 수 있어야 한다). */
@@ -2952,8 +2954,8 @@ function driveModel(dt){
      실측 근거: DAgger k=2/k=3 검증에서 모델이 앞차를 추돌한 뒤 그 뒤에 서 있었다(진행 0.6%/1.4%). */
   if(!window.__noL1){ try{
     const T=window.__teach, L=T&&T.last, D=T&&T.dbg;
-    if(L && L.ok && !L.rev && L.brake>=1 && L.thr===0){ me.v -= 9.0*dt; if(me.v<0) me.v=0; window.__l1N=(window.__l1N|0)+1; window.__l1Last='stop'; window.__l1T=performance.now(); }
-    else if(D && typeof D.cap==='number' && me.v > D.cap){ me.v = Math.max(D.cap, me.v - 6.0*dt); window.__l1CapN=(window.__l1CapN|0)+1; window.__l1Last='cap'; window.__l1T=performance.now(); }
+    if(L && L.ok && !L.rev && L.brake>=1 && L.thr===0){ me.v -= 9.0*dt; if(me.v<0) me.v=0; window.__l1N=(window.__l1N|0)+1; const _n=performance.now(); if(window.__l1Last!=='stop' || _n-(window.__l1T||0)>1000) window.__evPush('L1 stop (rule brake)'); window.__l1Last='stop'; window.__l1T=_n; }
+    else if(D && typeof D.cap==='number' && me.v > D.cap){ me.v = Math.max(D.cap, me.v - 6.0*dt); window.__l1CapN=(window.__l1CapN|0)+1; const _n=performance.now(); if(window.__l1Last!=='cap' || _n-(window.__l1T||0)>1000) window.__evPush('L1 cap (pedestrian caution)'); window.__l1Last='cap'; window.__l1T=_n; }
   }catch(e){} }
 }
 /* ★규칙 등급 판정기(dispatcher, u_5436/u_5437/u_5443): 프레임 태그만으로 µs 에 등급. 오판 방향은 항상 상위 등급.
@@ -2970,8 +2972,16 @@ function tierNow(){
     return 0;
   }catch(e){ return 3; }
 }
+/* ★u_5520~5522: 이벤트 기록 — 누가 처리했는지(조향/속도 주체, 등급)와 모델 지연(ms). 긴 목록(최근 400건 보관, 패널에 14건). */
+window.__evPush=function(label){
+  try{ const M=window.__mdl||{}, on=(typeof MDL!=='undefined'&&MDL.on&&!M.stale);
+       const st=on&&MDL.mode===2?'steer=model':'steer=rule', sp=on&&typeof MDL.vT==='number'&&MDL.vT>=0?'speed=model':'speed=rule';
+       const lat=(typeof MDL!=='undefined'&&typeof MDL.lat==='number'&&MDL.lat>=0)?' lat='+MDL.lat.toFixed(0)+'ms':'';
+       const L=(window.__evLog=window.__evLog||[]); L.push([performance.now(), label, st+' '+sp+' T'+(window.__tier|0)+lat]); if(L.length>400) L.shift(); }catch(e){}
+};
 function tierTick(){
-  const t=tierNow(); window.__tier=t; const N=window.__tierN||(window.__tierN=[0,0,0,0]); N[t]++;
+  const t=tierNow(); const _pt=window.__tier; window.__tier=t; const N=window.__tierN||(window.__tierN=[0,0,0,0]); N[t]++;
+  if(typeof _pt==='number' && _pt!==t){ const now=performance.now(); if(!window.__tierEvT || now-window.__tierEvT>1500){ window.__tierEvT=now; window.__evPush('tier T'+_pt+'→T'+t); } }
   const H=window.__tierHist||(window.__tierHist=[]); const now=performance.now(); H.push([now,t]); while(H.length && now-H[0][0]>4000) H.shift();
 }
 function tierAgo(ms){ const H=window.__tierHist||[]; const now=performance.now(); for(let i=0;i<H.length;i++){ if(now-H[i][0]<=ms) return H[i][1]; } return H.length?H[H.length-1][1]:null; }
@@ -3457,7 +3467,7 @@ function crash(label,heavy){
   if(window.__parked && !auto.on){ window.__crashParkedN=(window.__crashParkedN||0)+1; me.offroad=0; return; }
   if(me.cool>0)return;
   me.cool=.8;me.crashes++;
-  try{ (window.__evLog=window.__evLog||[]).push([performance.now(), '사고: '+label]); if(window.__evLog.length>30) window.__evLog.shift(); }catch(e){}
+  try{ window.__evPush('crash: '+label); }catch(e){}
   try{ const C=window.__crTier||(window.__crTier=[0,0,0,0]), C3=window.__crTier3||(window.__crTier3=[0,0,0,0]);
        C[window.__tier|0]++; const a=tierAgo(3000); if(a!=null) C3[a]++; }catch(e){}
   try{ if(typeof window.__ntier==='number'){ const N=window.__crNTier||(window.__crNTier=[0,0,0,0]), N3=window.__crNTier3||(window.__crNTier3=[0,0,0,0]); N[window.__ntier]++; const H=window.__ntierHist||[], now=performance.now(); let a=null; for(const h of H){ if(now-h[0]<=3000){ a=h[1]; break; } } if(a!=null) N3[a]++; } }catch(e){}
@@ -3669,7 +3679,7 @@ function step(dt){
          맞다. 차를 3점 앞으로 순간이동시키는 건 주행 실패다. 그런데
          crash() 를 안 부르므로 사고 집계에 한 번도 안 잡혔다 —
          점수는 깨끗한데 실제로는 못 가고 있던 것이다. 최소한 센다. */
-      window.__tpN=(window.__tpN||0)+1; try{ (window.__evLog=window.__evLog||[]).push([performance.now(), '복귀(순간이동)']); }catch(e){}
+      window.__tpN=(window.__tpN||0)+1; try{ window.__evPush('recovery (teleport)'); }catch(e){}
       window.__tpBld=(window.__tpBld||0)+1;
       flash('건물 끼임 복구');
     }
@@ -5539,7 +5549,7 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
 (function(){
   if(typeof document==='undefined') return;
   const el=document.createElement('div'); el.id='mdlPanel';
-  el.style.cssText='position:fixed;right:8px;top:150px;width:236px;z-index:9999;background:rgba(20,22,30,.82);color:#e8e8ee;font:10.5px/1.45 Menlo,monospace;padding:8px 10px;border-radius:8px;pointer-events:none;white-space:pre;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+  el.style.cssText='position:fixed;right:8px;top:150px;width:300px;max-height:calc(100vh - 170px);overflow:hidden;z-index:9999;background:rgba(20,22,30,.82);color:#e8e8ee;font:10.5px/1.45 Menlo,monospace;padding:8px 10px;border-radius:8px;pointer-events:none;white-space:pre;box-shadow:0 2px 8px rgba(0,0,0,.3)';
   document.body.appendChild(el);
   let lpMs=0, mdlMs=0, last=performance.now();
   const kmh=v=>(typeof v==='number'&&v>=0)?(v*3.6).toFixed(0)+'km/h':'—';
@@ -5555,7 +5565,7 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
       if(on) mdlMs+=dt; if(lpOn) lpMs+=dt;
       const tier=window.__tier, da=window.__da||{}, L1=window.__l1T&&(now-window.__l1T<800)?window.__l1Last:null;
       const crk=window.__crk||{}; let un=0, av=0; for(const k in crk){ if(k.indexOf('불가항력')>=0) un+=crk[k]; else av+=crk[k]; }
-      const ev=(window.__evLog||[]).slice(-5).map(e=>((e[0]/1000)|0)+'s '+EN(e[1])).join('\n');
+      const ev=(window.__evLog||[]).slice(-14).map(e=>((e[0]/1000)|0)+'s '+EN(e[1])+(e[2]?'\n     '+e[2]:'')).join('\n');
       el.textContent=
         'ODE activity   '+(on?'● MODEL driving':'○ RULE driving')+'\n'+
         'Steer: '+(lpOn?'model (lookahead '+(+T.lp||0).toFixed(1)+'m)':'rule follower')+'\n'+
@@ -5565,9 +5575,10 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
         'L1: stop '+(window.__l1N|0)+'  cap '+(window.__l1CapN|0)+(L1?'  ◀'+L1:'')+'\n'+
         'Ped predict-brake '+(window.__pedPredN|0)+'  deadlock clear '+(window.__npcDeadlockRm|0)+'\n'+
         'Crashes avoidable '+av+' / unavoidable '+un+'   recover '+(window.__tpN|0)+'\n'+
+        'Latency frame→cmd '+((typeof MDL!=='undefined'&&MDL.lat>=0)?MDL.lat.toFixed(0)+'ms (infer '+(MDL.inf>=0?MDL.inf.toFixed(1):'—')+'ms)':'—')+'\n'+
         (M.stale?'model command stale\n':'')+
         'Progress '+((typeof auto!=='undefined'&&auto.cum&&auto.cum.length)?(100*(auto.s||0)/(auto.cum[auto.cum.length-1]||1)).toFixed(1)+'%':'—')+'\n'+
-        (ev?'— recent —\n'+ev:'');
+        (ev?'— events (latest last) —\n'+ev:'');
     }catch(e){ el.textContent='panel err '+e; }
   }, 250);
 })();

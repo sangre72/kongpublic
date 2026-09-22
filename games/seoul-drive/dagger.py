@@ -41,8 +41,10 @@ def tel():
         return None
 
 
+LAT = [-1.0, -1.0]   # [프레임 취득→명령 전송 ms, 추론 ms] — 패널 표시용(u_5520)
 def post(d):
     try:
+        if 'lat' not in d and LAT[0] >= 0: d['lat'] = round(LAT[0], 1); d['inf'] = round(LAT[1], 1)
         urllib.request.urlopen(urllib.request.Request(
             CTL, json.dumps(d).encode(), {'Content-Type': 'application/json'}),
             timeout=1.5).read()
@@ -144,7 +146,7 @@ def episode(net, dev, secs, ep):
             break
 
         # --- 모델 추론 + 조작(모델이 몰아야 DAgger 다) ---
-        f = C.grab_canvas()
+        _tf = time.time(); f = C.grab_canvas()
         if f is None:                          # 빨간 사고 오버레이 등 — 데이터 아님
             nodecode += 1
             time.sleep(0.02); continue
@@ -175,7 +177,8 @@ def episode(net, dev, secs, ep):
         if net is not None:
             with torch.no_grad():
                 _vt = torch.tensor([[float(d.get('v') or 0) / 30.0]], device=dev)   # 속도 입력(u_5461)
-                o = (net(x, _vt) if getattr(net, 'vin', False) else net(x))[0].cpu().numpy()
+                _ti = time.time(); o = (net(x, _vt) if getattr(net, 'vin', False) else net(x))[0].cpu().numpy(); LAT[1] = (time.time() - _ti) * 1000.0
+            LAT[0] = (time.time() - _tf) * 1000.0
             if len(o) >= 4 and SPEED_MODEL:   # ★속도 모델(ode_v*.pt, 2026-09-22 축소안 A): 조향=추종기(경로선), 모델=목표속도(1초 뒤). vT 는 상한으로 적용(규칙 상한·정지 지시 유지).
                 _vT = max(0.0, float(o[3]) * 30.0)
                 if TIER is not None and _nt >= 2: _vT = min(_vT, 8.0 if _nt == 2 else 3.0)   # 관제망 보수 모드
