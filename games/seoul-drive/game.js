@@ -3993,7 +3993,7 @@ function stepCar(c,dt){
     c.v+=(tv-c.v)*Math.min(1,dt*1.6);
     /* ★2026-09-22 교착 안전판: 앞이 막혀 30초 넘게 못 움직인 NPC 는 치운다(스포너가 먼 곳에 다시 채운다).
        위 마주오는 차 예외로 근본 원인은 잡았지만, 다른 형태의 NPC 교착이 내 차를 300초 세우는 일은 없어야 한다. */
-    if(c.v<0.3 && gp<10*S){ c.stkT=(c.stkT||0)+dt; if(c.stkT>30){ c.alive=false; window.__npcDeadlockRm=(window.__npcDeadlockRm|0)+1; } }
+    if(c.v<0.3 && gp<10*S){ c.stkT=(c.stkT||0)+dt; if(c.stkT>30){ c.alive=false; window.__npcDeadlockRm=(window.__npcDeadlockRm|0)+1; window.__dlRmT=performance.now(); } }
     else c.stkT=0;
   }
   /* ★차선변경·끼어들기(u_4972).
@@ -5569,8 +5569,27 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
       const tier=window.__tier, da=window.__da||{}, L1=window.__l1T&&(now-window.__l1T<800)?window.__l1Last:null;
       const crk=window.__crk||{}; let un=0, av=0; for(const k in crk){ if(k.indexOf('불가항력')>=0) un+=crk[k]; else av+=crk[k]; }
       const ev=(window.__evLog||[]).slice(-14).map(e=>((e[0]/1000)|0)+'s '+EN(e[1])+(e[2]?'\n     '+e[2]:'')).join('\n');
+      /* ★u_5544: 지금 무엇을 하는지 풀 텍스트(영문) — 등급 숫자와 함께 */
+      let sit=[];
+      try{ const Tt=window.__teach, D=(Tt&&Tt.dbg)||{}, g=(Tt&&Tt.dbg2)||{}, Ls=Tt&&Tt.last;
+        const gap=(typeof D.gap==='number')?D.gap:1e9, ped=(typeof D.ped==='number')?D.ped:1e9, sig=(typeof D.sig==='number')?D.sig:1e9, cap=(typeof D.cap==='number')?D.cap:1e9;
+        const aD=(typeof g.aD==='number')?g.aD:1e9, turn=g.aTurn||'S', nl=g.nl||0, rw=g.roadW||0;
+        if(L1==='stop') sit.push('EMERGENCY: rule brake (Layer 1) — obstacle/pedestrian/red inside stopping distance');
+        if(me.offroad) sit.push('OFF ROAD — recovering');
+        if(sig<60) sit.push('Red light '+sig.toFixed(0)+'m ahead → '+(me.v<0.5?'stopped, waiting for green':'slowing to stop'));
+        if(ped<30) sit.push('Pedestrian on road '+ped.toFixed(0)+'m ahead → braking');
+        else if(cap<1e8) sit.push('Pedestrian near curb → speed capped '+kmh(cap));
+        if(gap<60) sit.push('Following car '+gap.toFixed(0)+'m ahead'+(gap<15?' (close, holding)':''));
+        if(turn!=='S' && aD<200){ const tn={L:'LEFT turn',R:'RIGHT turn',U:'U-turn'}[turn]||('turn '+turn); sit.push(tn+' in '+aD.toFixed(0)+'m → '+(aD<25?'turning now':'preparing lane')); }
+        if(g.fin!=null && typeof g.laneF==='number' && Math.abs(g.laneF-g.fin)>0.5) sit.push('Changing lane '+(g.laneF+1).toFixed(1)+' → '+(g.fin+1));
+        if(nl<=1 && rw>0 && rw<=6.5) sit.push('Narrow alley (30km/h zone)');
+        if(window.__npcDeadlockRm && window.__dlRmT && now-window.__dlRmT<3000) sit.push('Cleared a deadlocked NPC ahead');
+        if(!sit.length) sit.push(me.v>0.5?'Cruising, lane keeping':'Stopped');
+      }catch(e){ sit=['(no teacher telemetry)']; }
+      const who=on?(lpOn?'Model steers + model speed':'Rule steers, model speed'):'Rule drives (teacher/follower)';
       el.textContent=
         'ODE activity   '+(on?'● MODEL driving':'○ RULE driving')+'\n'+
+        'NOW: '+who+'\n'+sit.map(x=>'  • '+x).join('\n')+'\n'+
         'Steer: '+(lpOn?'model (lookahead '+(+T.lp||0).toFixed(1)+'m)':'rule follower')+'\n'+
         'Speed: '+(spOn?'model target '+kmh(T.vT):'rule')+'  now '+kmh(me.v)+'\n'+
         'Rule cap '+kmh(da.vmax)+'  tier '+(typeof tier==='number'?TN[tier]:'—')+'\n'+
