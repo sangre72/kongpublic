@@ -2630,6 +2630,14 @@ function gap(c,range,band){
       const f=dx*ca+dy*sa;
       if(f<=0||f>=b)continue;
       const l=-dx*sa+dy*ca;
+      /* ★2026-09-22 기아강남 골목 교착(r904/r906 진행 1%): 왕복 1차로 골목(6.5m)에서 마주 오는 NPC 두 대가
+         서로를 '앞차'로 봤다(차로 중심 간격 3.25m < 띠 2.0m+반폭 0.9m). 둘 다 tv=0 → 영원히 정지 → 뒤 대기열
+         전부(내 차 포함) 300초 정지. 마주 오는 차(헤딩 차 >120°)는 차체가 횡으로 겹치지 않으면 앞차가 아니다 —
+         좁은 길에서 마주 지나가는 실제 운전과 같다. */
+      if(o.ang!==undefined && o.w){
+        const _cs=Math.cos((o.ang||0)-c.ang);
+        if(_cs < -0.5 && Math.abs(l) > ((c.w||0)+(o.w||0))*0.5) continue;
+      }
       /* ★2026-09-19 실측(충정로7길 1269m, 스크린샷): 교차로에서 대각선으로 한 차로 옆에 선 NPC 는
          중심점이 ±0.62차로 띠 밖이라 '앞차 없음'(gap 40)인데 차체는 내 진로에 걸쳐 있었다.
          접촉 → 속도가 정지한 NPC 에 묶임 → 갇힘 판정 → 순간이동. 상대 차폭의 절반을 띠에 더한다. */
@@ -2839,7 +2847,7 @@ function mdlPoll(dt){
       sigBarN: (function(){try{return signals.filter(q=>q.sx!==undefined).length}catch(e){return -1}})(), sigRedN: (function(){try{const n=performance.now();return signals.filter(q=>sigRed(q,n)).length}catch(e){return -1}})(), sigN: (typeof signals!=='undefined')?signals.length:-1,
       ntier: (typeof window.__ntier==='number')?window.__ntier:null, nconf: window.__nconf||null, crNTier: window.__crNTier||null, crNTier3: window.__crNTier3||null,
       tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, ovlEscN: window.__ovlEscN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
-      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, pedPredN: window.__pedPredN||0, jayMult: (typeof JAY_MULT!=='undefined'?JAY_MULT:1), astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, startSkipHairpin: window.__startSkipHairpin||0, startSkipErr: window.__startSkipErr||null, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
+      crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, pedPredN: window.__pedPredN||0, npcDeadlockRm: window.__npcDeadlockRm||0, jayMult: (typeof JAY_MULT!=='undefined'?JAY_MULT:1), astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, startSkipHairpin: window.__startSkipHairpin||0, startSkipErr: window.__startSkipErr||null, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i,st:d.st,df:d.df,lp:d.lp,ld:d.ld}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
@@ -3966,6 +3974,10 @@ function stepCar(c,dt){
   }else{
     const tv=gp<10*S?0:gp<20*S?c.vmax*.35:c.vmax*.8;
     c.v+=(tv-c.v)*Math.min(1,dt*1.6);
+    /* ★2026-09-22 교착 안전판: 앞이 막혀 30초 넘게 못 움직인 NPC 는 치운다(스포너가 먼 곳에 다시 채운다).
+       위 마주오는 차 예외로 근본 원인은 잡았지만, 다른 형태의 NPC 교착이 내 차를 300초 세우는 일은 없어야 한다. */
+    if(c.v<0.3 && gp<10*S){ c.stkT=(c.stkT||0)+dt; if(c.stkT>30){ c.alive=false; window.__npcDeadlockRm=(window.__npcDeadlockRm|0)+1; } }
+    else c.stkT=0;
   }
   /* ★차선변경·끼어들기(u_4972).
      두 가지로 일어난다:
@@ -4692,7 +4704,7 @@ function spawnDespawn(dt){
   // 멀어진 것 제거
   for(let i=cars.length-1;i>=0;i--){
     const c=cars[i];
-    if((c.x-me.x)**2+(c.y-me.y)**2>killR*killR)cars.splice(i,1);
+    if(c.alive===false || (c.x-me.x)**2+(c.y-me.y)**2>killR*killR)cars.splice(i,1);
   }
   for(let i=peds.length-1;i>=0;i--){
     const p=peds[i];
