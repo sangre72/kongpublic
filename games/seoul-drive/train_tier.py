@@ -41,11 +41,11 @@ def main():
     a = ap.parse_args()
     Xs, Ts = [], []
     for d in [d for p in a.dirs.split(',') for d in sorted(glob.glob(p))]:
-        try: X = np.load(f'{d}/X.npy'); Y = np.load(f'{d}/Y.npy'); M = np.load(f'{d}/M.npy')
+        try: X = np.load(f'{d}/X.npy', mmap_mode='r'); Y = np.load(f'{d}/Y.npy'); M = np.load(f'{d}/M.npy')   # mmap: 전량 적재 없이 stride 표본만 복사
         except Exception: continue
         if not (len(X) == len(M) == len(Y)): continue
         if X.ndim != 4 or X.shape[1] != 3: continue   # 프레임 스택 평가 라운드(6ch) 제외(2026-09-22)
-        if a.stride > 1: X = X[::a.stride]; Y = Y[::a.stride]; M = M[::a.stride]
+        X = np.ascontiguousarray(X[::max(1, a.stride)]); Y = Y[::max(1, a.stride)]; M = M[::max(1, a.stride)]
         Xs.append(X); Ts.append(tier_labels(M, Y))
     if not Xs: print(json.dumps({'error': 'no data'})); return
     X = np.concatenate(Xs); T = np.concatenate(Ts); n = len(X)
