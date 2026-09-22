@@ -7,6 +7,7 @@ import sys, os, time, json, threading, argparse, urllib.request
 sys.modules['tensorflow'] = None
 import numpy as np, cv2, coremltools as ct
 import sck_capture as SK, capture as C
+from net import cond_vec
 
 UI_CROP_TOP, IMG = 0.236, 256
 CROP = float(os.environ.get('ODE_CROP', '0.6') or 0.6)
@@ -35,6 +36,10 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--secs', type=float, default=300); ap.add_argument('--speed', required=True); ap.add_argument('--lp', default=None)
     ap.add_argument('--lp-tier', type=int, default=0); ap.add_argument('--fps', type=int, default=60); a = ap.parse_args()
     ms = ct.models.MLModel(a.speed, compute_units=ct.ComputeUnit.ALL); ml = ct.models.MLModel(a.lp, compute_units=ct.ComputeUnit.ALL) if a.lp else None
+    lp_vdim = 1
+    if ml is not None:
+        try: lp_vdim = int([i for i in ml.get_spec().description.input if i.name == 'v'][0].type.multiArrayType.shape[-1])
+        except Exception: lp_vdim = 1
     def cb(arr, t): st['frame'] = arr; st['t'] = t
     threading.Thread(target=tel_thread, daemon=True).start()
     sz = SK.start(cb, fps=a.fps); print(json.dumps({'window': sz, 'toolbar': C._cache.get('toolbar')}), flush=True)
@@ -57,7 +62,10 @@ def main():
         model_now = ml is not None and hold >= a.fps
         if model_now != prev_model: handovers += 1; prev_model = model_now
         if model_now:   # 1초 이상 이양 등급 유지 시 모델 조향
-            ol = list(ml.predict({'img': x, 'v': vin}).values())[0].ravel(); lpN += 1
+            vl = vin
+            if lp_vdim == 8:
+                g2 = ((d.get('tch') or {}).get('g2') or {}); vl = cond_vec(v, g2.get('aTurn') or 'S', g2.get('aD'), g2.get('laneF'), g2.get('nl'))[None]
+            ol = list(ml.predict({'img': x, 'v': vl}).values())[0].ravel(); lpN += 1
             post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': float(ol[3]) * 24.0 - 12.0, 'ld': -1, 'vT': vT, 'lat': round((time.time() - last_t) * 1000, 1), 'inf': round((time.time() - ti) * 1000, 1)})
         else:
             post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 1, 'dOff': 0.0, 'vT': vT, 'lat': round((time.time() - last_t) * 1000, 1), 'inf': round((time.time() - ti) * 1000, 1)})

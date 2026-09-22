@@ -29,8 +29,9 @@ class DriveNet(nn.Module):
       강제된다(auxiliary task). 추론 때는 앞의 3개만 쓰면 되므로 비용은 0에 가깝다.
       색 대비 실측: 도로 vs 인도 = 80(구분 쉬움), 인도 vs 건물 = 16.8(안 구분되지만
       둘 다 '못 가는 곳'이라 문제되지 않는다)."""
-    def __init__(self, out=3, vin=True, in_ch=3):
+    def __init__(self, out=3, vin=True, in_ch=3, vdim=1):
         super().__init__()
+        self.vdim = vdim   # ★u_5546 조건부 모방(2026-09-22): 1 = 속도만, 8 = [v/30, 회전 S/L/R/U one-hot, min(aD,300)/300, laneF/8, nl/8] 경로 의도
         self.in_ch = in_ch   # 6 = 프레임 스택(현재+직전, 2026-09-21 갈지자 대책: 단일 프레임엔 운동 단서가 없다)
         self.f = nn.Sequential(
             nn.Conv2d(in_ch, 16, 5, 2), nn.ReLU(),
@@ -53,7 +54,7 @@ class DriveNet(nn.Module):
         #   v/30 (m/s 정규화) 한 값을 FC 첫 층 출력에 이어 붙인다. vin=False 면 종전 구조(옛 가중치 호환).
         self.vin = vin
         if vin:
-            self.hv = nn.Sequential(nn.Linear(256 + 1, 96), nn.ReLU(), nn.Linear(96, out))
+            self.hv = nn.Sequential(nn.Linear(256 + vdim, 96), nn.ReLU(), nn.Linear(96, out))
 
     def forward(self, x, v=None, raw=False):
         """raw=True 면 활성화 전 로짓을 준다(학습에서 제동 채널에 BCE 를 걸 때 필요).
@@ -64,8 +65,8 @@ class DriveNet(nn.Module):
           steer 는 -1~1 이라 tanh, thr/brake 는 0~1 이라 sigmoid 가 맞다."""
         if self.vin:
             z = self.h[0:3](self.f(x))                       # Flatten → Linear(4608,256) → ReLU
-            if v is None: v = torch.zeros(x.shape[0], 1, device=x.device, dtype=z.dtype)
-            o = self.hv(torch.cat([z, v.reshape(-1, 1).to(z.dtype)], dim=1))
+            if v is None: v = torch.zeros(x.shape[0], self.vdim, device=x.device, dtype=z.dtype)
+            o = self.hv(torch.cat([z, v.reshape(-1, self.vdim).to(z.dtype)], dim=1))
         else:
             o = self.h(self.f(x))
         if raw:
@@ -120,3 +121,17 @@ def preprocess(canvas_rgb, size=IMG, device=None, bgr=True):
     o = F.interpolate(t, size=(size, size), mode='bilinear',
                       align_corners=False, antialias=True)
     return o[0]
+
+
+def cond_vec(v, turn, aD, laneF, nl):
+    """경로 의도 벡터(8, u_5546 조건부 모방): [v/30, S,L,R,U one-hot, min(aD,300)/300, laneF/8, nl/8]. turn: 0/1/2/3 또는 'S'/'L'/'R'/'U'. 학습·추론·CoreML 공통."""
+    import numpy as _np
+    t = {'S': 0, 'L': 1, 'R': 2, 'U': 3}.get(turn, 0) if isinstance(turn, str) else int(turn or 0)
+    oh = [0.0] * 4; oh[min(3, max(0, t))] = 1.0
+    aD = 1e9 if aD is None else float(aD)
+    return _np.array([float(v or 0) / 30.0] + oh + [min(aD, 300.0) / 300.0, float(laneF or 0) / 8.0, float(nl or 0) / 8.0], _np.float32)
+
+
+def vdim_of(sd):
+    """가중치에서 조건 벡터 길이(hv.0.weight 입력 − 256). 옛 모델(속도만)은 1."""
+    w = sd.get('hv.0.weight'); return int(w.shape[1] - 256) if w is not None else 1

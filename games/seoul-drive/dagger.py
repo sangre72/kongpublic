@@ -26,7 +26,7 @@ TIER = None   # 관제망(--tier)
 import numpy as np, torch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from net import DriveNet, preprocess
+from net import vdim_of, cond_vec, DriveNet, preprocess
 from gpu_guard import require_gpu, assert_on_gpu
 import capture as C
 
@@ -186,7 +186,10 @@ def episode(net, dev, secs, ep):
                 LPST['hold'] = LPST['hold'] + 1 if _rt <= LPST['maxT'] else 0
                 if LPNET is not None and LPST['hold'] >= 13 and getattr(LPNET, 'in_ch', 3) == 3:   # ★단계적 이양(u_5516): 규칙 등급 T0 가 1초 이상 이어질 때만 조향모델이 핸들. T1↑ 즉시 규칙 조향.
                     with torch.no_grad():
-                        _ol = (LPNET(x[:, :3], _vt) if getattr(LPNET, 'vin', False) else LPNET(x[:, :3]))[0].cpu().numpy()
+                        _vl = _vt
+                        if getattr(LPNET, 'vdim', 1) == 8:   # ★u_5546 조건부: 경로 의도 벡터
+                            _g2 = ((d.get('tch') or {}).get('g2') or {}); _vl = torch.tensor(cond_vec(d.get('v'), _g2.get('aTurn') or 'S', _g2.get('aD'), _g2.get('laneF'), _g2.get('nl'))[None], device=dev)
+                        _ol = (LPNET(x[:, :3], _vl) if getattr(LPNET, 'vin', False) else LPNET(x[:, :3]))[0].cpu().numpy()
                     LPST['lp'] += 1
                     post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': float(_ol[3]) * 24.0 - 12.0, 'ld': -1, 'vT': _vT})
                 else:
@@ -296,7 +299,7 @@ def main():
     LPNET = None; LPST['maxT'] = int(a.lp_tier)
     if a.lp:
         _lp = a.lp if os.path.isabs(a.lp) else os.path.join(BASE, a.lp); _sd = torch.load(_lp, map_location=dev)
-        LPNET = DriveNet(out=_sd[list(_sd)[-1]].shape[0], vin=any(k.startswith('hv.') for k in _sd), in_ch=int(_sd['f.0.weight'].shape[1])).to(dev); LPNET.load_state_dict(_sd); LPNET.eval(); assert_on_gpu(LPNET)
+        LPNET = DriveNet(out=_sd[list(_sd)[-1]].shape[0], vin=any(k.startswith('hv.') for k in _sd), in_ch=int(_sd['f.0.weight'].shape[1]), vdim=vdim_of(_sd)).to(dev); LPNET.load_state_dict(_sd); LPNET.eval(); assert_on_gpu(LPNET)
         print(json.dumps({'lp_net': a.lp, 'gate': 'rule tier<=%d for >=13 frames' % a.lp_tier}), flush=True)
     PIPE = a.model if a.model in ('pipe', 'pipe2', 'pipe3') else False
     SPEED_MODEL = os.path.basename(a.model).startswith('ode_v')
@@ -313,7 +316,7 @@ def main():
     else:
         sd = torch.load(mp, map_location=dev)
         out = sd[list(sd)[-1]].shape[0]
-        net = DriveNet(out=out, vin=any(k.startswith('hv.') for k in sd), in_ch=int(sd['f.0.weight'].shape[1])).to(dev)   # hv.* 키 = 속도 입력, f.0 입력채널 = 프레임 스택 여부
+        net = DriveNet(out=out, vin=any(k.startswith('hv.') for k in sd), in_ch=int(sd['f.0.weight'].shape[1]), vdim=vdim_of(sd)).to(dev)   # hv.* 키 = 속도 입력, f.0 입력채널 = 프레임 스택 여부
         net.load_state_dict(sd); net.eval()
     if net is not None: assert_on_gpu(net)
 

@@ -4,11 +4,11 @@
 ★깨진 tensorflow 가 coremltools import 를 막으므로 sys.modules 로 차단한다. 검증: torch 출력과 비교, ms/frame 출력."""
 import sys, time; sys.modules['tensorflow'] = None
 import coremltools as ct, torch, numpy as np
-from net import DriveNet
+from net import DriveNet, vdim_of
 src, dst = sys.argv[1], sys.argv[2]
 sd = torch.load(src, map_location='cpu'); out = sd[list(sd)[-1]].shape[0]
-net = DriveNet(out=out, vin=any(k.startswith('hv.') for k in sd), in_ch=int(sd['f.0.weight'].shape[1])); net.load_state_dict(sd); net.eval()
-x = torch.rand(1, net.in_ch if hasattr(net, 'in_ch') else 3, 256, 256); v = torch.rand(1, 1)
+net = DriveNet(out=out, vin=any(k.startswith('hv.') for k in sd), in_ch=int(sd['f.0.weight'].shape[1]), vdim=vdim_of(sd)); net.load_state_dict(sd); net.eval()
+x = torch.rand(1, net.in_ch if hasattr(net, 'in_ch') else 3, 256, 256); v = torch.rand(1, vdim_of(sd))
 tr = torch.jit.trace(net, (x, v))
 m = ct.convert(tr, inputs=[ct.TensorType(name='img', shape=x.shape), ct.TensorType(name='v', shape=v.shape)], compute_units=ct.ComputeUnit.ALL, minimum_deployment_target=ct.target.macOS15)
 m.save(dst)
