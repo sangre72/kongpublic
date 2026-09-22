@@ -99,6 +99,12 @@ top: prog routeM v cr crk brk st thr autoOn parked jsErr pedN{tot,near,onroad}
 점검(수집 시작 전 1분): `/tel tch.st` 와 `/tel da.st` 상관 > 0.9 인지 본다. 아니면 수집 금지. (dagger.py `label_src` 가 `driveAuto` 여야 한다.)
 [[model-drives-not-logic]] 의 '새 행동은 teacher.js 에' 원칙은 유지하되, teacher.js 가 실제로 몰지 않는 한 그 값은 라벨이 아니다.
 
+## D-000. 2026-09-22 확정 사실 (짧게)
+- **정지(v<1m/s) 중 접촉은 운전 과실이 아니다** → '정지중 접촉(불가항력)' 분류(88c1612). 1500초 주행 '추돌' 3건이 전부 이것이었다.
+- 서버 `/ctl` 상태는 프로세스 간 잔존 → 에피소드마다 목표 인터페이스 초기화(2e9923d). 안 하면 기준선이 옛 목표점으로 제자리 회전.
+- 밤 체인은 파일 마커로만 대기(`pgrep -f` 자기매치로 40분 손실). 학습 로그 필터에 Error/Killed 포함 — OOM 은 메시지 없이 죽는다(mmap+stride).
+- 현재 최선 구성 = 규칙 조향 + ode_v2 속도 + 규칙 판정기(PLAN_ODE §9-C).
+
 ## D-0. 수집 시작 (오너 u_5431 2026-09-19 19:5x — "학습 데이터는 언제 만드냐")
 - 관문(E) 대신 오너 결정(u_5426): 회전·전용차로가 법규대로 확인됐으면 시작, 잔여 사고는 가중치(W.npy)로.
 - ★`bc_final.pt` 는 옛 DriveNet 구조(h.0/h.2)라 현재 망에 안 들어간다(2026-09-19 실측: dagger 즉시 종료). 덮어쓰지 않는다.
