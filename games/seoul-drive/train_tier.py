@@ -37,7 +37,7 @@ class TierNet(nn.Module):
     def forward(self, x): return self.f(x)
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('dirs'); ap.add_argument('out'); ap.add_argument('--epochs', type=int, default=15); ap.add_argument('--res', type=int, default=64)
+    ap = argparse.ArgumentParser(); ap.add_argument('dirs'); ap.add_argument('out'); ap.add_argument('--epochs', type=int, default=15); ap.add_argument('--res', type=int, default=64); ap.add_argument('--stride', type=int, default=1, help='프레임 간격 표본화(메모리: 22만 장 전량은 43GB 로 죽는다, 2026-09-22)')
     a = ap.parse_args()
     Xs, Ts = [], []
     for d in [d for p in a.dirs.split(',') for d in sorted(glob.glob(p))]:
@@ -45,6 +45,7 @@ def main():
         except Exception: continue
         if not (len(X) == len(M) == len(Y)): continue
         if X.ndim != 4 or X.shape[1] != 3: continue   # 프레임 스택 평가 라운드(6ch) 제외(2026-09-22)
+        if a.stride > 1: X = X[::a.stride]; Y = Y[::a.stride]; M = M[::a.stride]
         Xs.append(X); Ts.append(tier_labels(M, Y))
     if not Xs: print(json.dumps({'error': 'no data'})); return
     X = np.concatenate(Xs); T = np.concatenate(Ts); n = len(X)
