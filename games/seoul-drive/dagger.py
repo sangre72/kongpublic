@@ -20,6 +20,8 @@
 import argparse, hashlib, json, os, subprocess, sys, time, urllib.request
 PIPE = False   # --model pipe (2026-09-20 대조 실험)
 SPEED_MODEL = False   # ode_v*.pt = 속도 판단 모델(2026-09-22)
+LPNET = None   # --lp 조향 모델(T0 전용)
+LPST = {'lp': 0, 'rule': 0, 'hold': 0}   # 프레임 배정 집계·T0 연속 카운터
 TIER = None   # 관제망(--tier)
 import numpy as np, torch
 
@@ -52,6 +54,7 @@ def post(d):
 def episode(net, dev, secs, ep):
     """한 에피소드: 모델이 몰고 교사 라벨을 모은다. (frames, stats)"""
     post({'tgt': 0, 'mode': 1, 'dOff': 0.0, 'vT': -1, 'lp': 0.0})   # ★에피소드마다 목표 인터페이스 상태 초기화(서버 _ctl 은 프로세스 간 잔존)
+    LPST['lp'] = 0; LPST['rule'] = 0; LPST['hold'] = 0
     if net is None and not PIPE: post({'reset': 1, 'on': 0, 'force': 0, 'release': 1, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 리셋만, 모델 OFF
     else: post({'reset': 1, 'on': 1, 'force': 1, 'release': 0})   # 소프트리셋 + 모델 강제 ON
     time.sleep(1.5)
@@ -176,7 +179,16 @@ def episode(net, dev, secs, ep):
             if len(o) >= 4 and SPEED_MODEL:   # ★속도 모델(ode_v*.pt, 2026-09-22 축소안 A): 조향=추종기(경로선), 모델=목표속도(1초 뒤). vT 는 상한으로 적용(규칙 상한·정지 지시 유지).
                 _vT = max(0.0, float(o[3]) * 30.0)
                 if TIER is not None and _nt >= 2: _vT = min(_vT, 8.0 if _nt == 2 else 3.0)   # 관제망 보수 모드
-                post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 1, 'dOff': 0.0, 'vT': _vT})
+                _rt = d.get('tier'); _rt = int(_rt) if isinstance(_rt, (int, float)) else 3
+                LPST['hold'] = LPST['hold'] + 1 if _rt == 0 else 0
+                if LPNET is not None and LPST['hold'] >= 13 and getattr(LPNET, 'in_ch', 3) == 3:   # ★단계적 이양(u_5516): 규칙 등급 T0 가 1초 이상 이어질 때만 조향모델이 핸들. T1↑ 즉시 규칙 조향.
+                    with torch.no_grad():
+                        _ol = (LPNET(x[:, :3], _vt) if getattr(LPNET, 'vin', False) else LPNET(x[:, :3]))[0].cpu().numpy()
+                    LPST['lp'] += 1
+                    post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': float(_ol[3]) * 24.0 - 12.0, 'ld': -1, 'vT': _vT})
+                else:
+                    LPST['rule'] += 1
+                    post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 1, 'dOff': 0.0, 'vT': _vT})
             elif len(o) >= 4:   # ★앞점 모델(out=4): o[3]=(lp+8)/16 → lp. 조향은 페이지 추종기, 속도는 규칙(교사 정지 지시 포함). 2026-09-21 (A)
                 post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': float(o[3]) * 24.0 - 12.0, 'ld': -1, 'vT': -1})   # ld=-1: 페이지 Ld(라벨과 동일 기준)   # LP_MAX=12 (train_lp.py 와 일치)
             else:
@@ -248,6 +260,7 @@ def episode(net, dev, secs, ep):
         'arrived': arrived, 'secs': round(time.time() - t0, 1),
         'onroad_pct': round(100 * LK['on'] / max(1, LK['n']), 1), 'offroad_pct': round(100 * LK['off'] / max(1, LK['n']), 1),
         'lat_abs_m': round(LK['lat'] / max(1, LK['n']), 2), 'tpN': int(dl.get('tpN') or 0),
+        'lp_frames': LPST['lp'], 'rule_steer_frames': LPST['rule'],
         'lane_err_m': round(LK['err'] / max(1, LK['n']), 2), 'outlane_pct': round(100 * LK['outlane'] / max(1, LK['n']), 1),
         'label_src': LABEL_SRC[0],
     }
@@ -268,13 +281,19 @@ def main():
     ap.add_argument('--secs', type=float, default=45)
     ap.add_argument('--model', default='bc_final.pt')
     ap.add_argument('--tier', default=None, help='관제망 체크포인트(tier_*.pt, TierNet res=64) — 등급별 보수 모드')
+    ap.add_argument('--lp', default=None, help='조향(앞점) 모델 ode_lp*.pt — 규칙 등급 T0 에서만 핸들(단계적 이양, u_5516). 속도 모델(--model ode_v*)과 함께 쓴다')
     a = ap.parse_args()
 
     dev = require_gpu()
     mp = a.model if os.path.isabs(a.model) else os.path.join(BASE, a.model)
     # ★2026-09-19 u_5431: bc_final.pt 는 옛 DriveNet 구조(h.0/h.2)라 현재 망(h.1/h.4/h.6)에 안 들어간다. 1단계(직진) 데이터는
     #   교사가 몰아 만든다 — `--model none` 이면 추론·조작을 건너뛰고 화면+교사 라벨+W/M 만 저장한다(BC 먼저, DAgger 는 새 모델 뒤).
-    global PIPE, SPEED_MODEL, TIER
+    global PIPE, SPEED_MODEL, TIER, LPNET
+    LPNET = None
+    if a.lp:
+        _lp = a.lp if os.path.isabs(a.lp) else os.path.join(BASE, a.lp); _sd = torch.load(_lp, map_location=dev)
+        LPNET = DriveNet(out=_sd[list(_sd)[-1]].shape[0], vin=any(k.startswith('hv.') for k in _sd), in_ch=int(_sd['f.0.weight'].shape[1])).to(dev); LPNET.load_state_dict(_sd); LPNET.eval(); assert_on_gpu(LPNET)
+        print(json.dumps({'lp_net': a.lp, 'gate': 'rule tier==0 for >=13 frames'}), flush=True)
     PIPE = a.model if a.model in ('pipe', 'pipe2', 'pipe3') else False
     SPEED_MODEL = os.path.basename(a.model).startswith('ode_v')
     TIER = None
