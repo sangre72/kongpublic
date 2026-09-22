@@ -3239,6 +3239,9 @@ function driveAuto(dt){
      라벨(__da.lp/ld) = 지도 경로가 이 프레임에 실제로 쓴 앞점의 차 기준 좌표. 화면만 보고 '경로선이 앞 15m 에서 어디 있나'를 맞히는 문제가 된다. */
   const _sa=Math.sin(me.ang), _ca=Math.cos(me.ang);
   const _lpLab=(-(P.x-me.x)*_sa+(P.y-me.y)*_ca)/S, _ldLab=((P.x-me.x)*_ca+(P.y-me.y)*_sa)/S;
+  /* ★u_5547 다점 앞점 라벨(2026-09-22): 경로선 위 10/20/40/80m 앞 점의 차 기준 횡 오프셋. 사람이 멀리 곡률을 보듯 모델이 곡선 전체를 예측하게 하는 라벨. 기록만(추종은 아직 단일 앞점). */
+  let _lpm=null; try{ _lpm=[10,20,40,80].map(dm=>{ const Q=posAt(auto.s+dm*S); return +((-(Q.x-me.x)*_sa+(Q.y-me.y)*_ca)/S).toFixed(2); }); }catch(e){ _lpm=null; }
+  window.__lpm=_lpm;
   const _mt2=window.__mdlTgt; let _Pt=P;
   if(_mt2 && _mt2.mode===2 && (performance.now()-_mt2.t)<400 && typeof _mt2.lp==='number'){
     /* ld<=0 이면 페이지의 속도·골목 기반 Ld 를 그대로 쓴다 — 라벨 lp 가 그 Ld 에서 측정됐으므로 추론도 같은 Ld 여야 한다(고정 10m 로 넣자 골목 코너에서 안쪽으로 파고들어 건물 충돌 70회, 2026-09-21 17:00). */
@@ -5139,7 +5142,7 @@ function loop(t){
       const _pt1 = performance.now();
       let _lbl='';
       try{ const T=window.__teach, L=(T&&T.last)||{}, D=window.__da||{};
-           _lbl=JSON.stringify({vmax:(typeof D.vmax==='number')?+D.vmax.toFixed(2):null, lp:(typeof D.lp==='number')?D.lp:null, ld:(typeof D.ld==='number')?D.ld:null, st:(typeof D.st==='number')?+D.st.toFixed(4):null, th:(typeof L.thr==='number')?+L.thr.toFixed(4):null, br:(typeof L.brake==='number')?+L.brake.toFixed(4):null, v:+me.v.toFixed(3), synth:window.__synth?1:0, n:window.__synthN|0}); }catch(e){}
+           _lbl=JSON.stringify({vmax:(typeof D.vmax==='number')?+D.vmax.toFixed(2):null, lp:(typeof D.lp==='number')?D.lp:null, ld:(typeof D.ld==='number')?D.ld:null, lpm:window.__lpm||null, st:(typeof D.st==='number')?+D.st.toFixed(4):null, th:(typeof L.thr==='number')?+L.thr.toFixed(4):null, br:(typeof L.brake==='number')?+L.brake.toFixed(4):null, v:+me.v.toFixed(3), synth:window.__synth?1:0, n:window.__synthN|0}); }catch(e){}
       fetch('/frame', {method:'POST', body:u8, cache:'no-store', headers:{'Content-Type':'image/jpeg', 'X-Lbl':_lbl}})
         .then(()=>{ window.__pushN=(window.__pushN|0)+1; const D=window.__frPush=window.__frPush||{blobMs:0,postMs:0,kb:0,n:0}; D.n++; D.blobMs+=_pt1-_pt0; D.postMs+=performance.now()-_pt1; D.kb+=u8.length/1024; })
         .catch(()=>{}).finally(()=>{ window.__pushBusy = 0; });

@@ -245,7 +245,8 @@ def episode(net, dev, secs, ep):
             P.append([float(o[0]), float(o[1]), float(o[2]), float(o[3]) if len(o) > 3 else 0.0] if net is not None else [0.0, 0.0, 0.0, 0.0])   # 4열: lp 또는 vT 헤드(2026-09-22)
             TN.append([float(_nt), float(_nc), float(_ntraw)])
             _lbh = C.push_stats().get('lbl') if hasattr(C, 'push_stats') else None
-            LP.append([float(_lbh['lp']), float(_lbh.get('ld') or 10.0), float(_lbh['vmax']) if isinstance(_lbh.get('vmax'), (int, float)) else float('nan')] if isinstance(_lbh, dict) and isinstance(_lbh.get('lp'), (int, float)) else [float('nan'), float('nan'), float('nan')])   # [lp, ld, vmax(규칙 목표속도 m/s)]
+            _lpm = _lbh.get('lpm') if isinstance(_lbh, dict) else None; _lpm = [float(z) for z in _lpm] if isinstance(_lpm, list) and len(_lpm) == 4 else [float('nan')] * 4   # ★u_5547 10/20/40/80m 앞 경로점 횡오프셋
+            LP.append(([float(_lbh['lp']), float(_lbh.get('ld') or 10.0), float(_lbh['vmax']) if isinstance(_lbh.get('vmax'), (int, float)) else float('nan')] if isinstance(_lbh, dict) and isinstance(_lbh.get('lp'), (int, float)) else [float('nan'), float('nan'), float('nan')]) + _lpm)   # [lp, ld, vmax, lp10, lp20, lp40, lp80]
             _dq = d.get('da') or {}; _ps = d.get('pos') if isinstance(d.get('pos'), list) and len(d.get('pos')) >= 2 else [float('nan'), float('nan')]
             Q.append([float(_dq.get('xt') if isinstance(_dq.get('xt'), (int, float)) else 99.0), float(d.get('tpN') or 0), float(d.get('cr') or 0), time.time() - t0,
                       float(_ps[0]), float(_ps[1]), float(d.get('prog') or 0)])   # 4~6열(2026-09-22): pos x,y, prog — 사고 지점을 회귀 케이스로 고정하기 위해(규칙 §6)
