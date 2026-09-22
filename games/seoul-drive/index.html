@@ -3039,7 +3039,9 @@ function mdlPoll(dt){
       MDL.rxT = performance.now(); }   // ★u_5172: 명령 수신 시각(만료 판정용)
     MDL.steer = +d.steer||0; MDL.thr = +d.thr||0; MDL.brake = +d.brake||0;
     MDL.tgt = !!(+d.tgt); MDL.dOff = +d.dOff||0; MDL.vT = (d.vT===undefined||d.vT===null)?-1:+d.vT;   // 목표 오프셋 인터페이스(2026-09-21)
-    MDL.mode = +d.mode||1; MDL.lp = (d.lp===undefined||d.lp===null)?null:+d.lp; MDL.ld = (d.ld===undefined||d.ld===null)?null:+d.ld;
+    const _pm=MDL.mode; MDL.mode = +d.mode||1; MDL.lat=(typeof d.lat==='number')?d.lat:-1; MDL.inf=(typeof d.inf==='number')?d.inf:-1;
+    if(MDL.on && _pm!==undefined && _pm!==MDL.mode) window.__evPush(MDL.mode===2?'steer handover → model':'steer handover → rule');
+    MDL.lp = (d.lp===undefined||d.lp===null)?null:+d.lp; MDL.pts = Array.isArray(d.pts)?d.pts:null; MDL.ld = (d.ld===undefined||d.ld===null)?null:+d.ld;
     if(typeof d.ntier==='number' && d.ntier>=0){ window.__ntier=d.ntier|0; window.__nconf=+d.nconf||0; const H=window.__ntierHist||(window.__ntierHist=[]); const now=performance.now(); H.push([now,d.ntier|0]); while(H.length && now-H[0][0]>4000) H.shift(); }   // 관제망 등급(2026-09-22)
     /* on 은 페이지 버튼이 주도권을 갖는다. 파이썬이 on=1 을 보내면 켜지지만,
        사람이 화면에서 끄면 그게 이긴다(안전: 폭주하면 손으로 끌 수 있어야 한다). */
@@ -3108,8 +3110,8 @@ function driveModel(dt){
      실측 근거: DAgger k=2/k=3 검증에서 모델이 앞차를 추돌한 뒤 그 뒤에 서 있었다(진행 0.6%/1.4%). */
   if(!window.__noL1){ try{
     const T=window.__teach, L=T&&T.last, D=T&&T.dbg;
-    if(L && L.ok && !L.rev && L.brake>=1 && L.thr===0){ me.v -= 9.0*dt; if(me.v<0) me.v=0; window.__l1N=(window.__l1N|0)+1; window.__l1Last='stop'; window.__l1T=performance.now(); }
-    else if(D && typeof D.cap==='number' && me.v > D.cap){ me.v = Math.max(D.cap, me.v - 6.0*dt); window.__l1CapN=(window.__l1CapN|0)+1; window.__l1Last='cap'; window.__l1T=performance.now(); }
+    if(L && L.ok && !L.rev && L.brake>=1 && L.thr===0){ me.v -= 9.0*dt; if(me.v<0) me.v=0; window.__l1N=(window.__l1N|0)+1; const _n=performance.now(); if(window.__l1Last!=='stop' || _n-(window.__l1T||0)>1000) window.__evPush('L1 stop (rule brake)'); window.__l1Last='stop'; window.__l1T=_n; }
+    else if(D && typeof D.cap==='number' && me.v > D.cap){ me.v = Math.max(D.cap, me.v - 6.0*dt); window.__l1CapN=(window.__l1CapN|0)+1; const _n=performance.now(); if(window.__l1Last!=='cap' || _n-(window.__l1T||0)>1000) window.__evPush('L1 cap (pedestrian caution)'); window.__l1Last='cap'; window.__l1T=_n; }
   }catch(e){} }
 }
 /* ★규칙 등급 판정기(dispatcher, u_5436/u_5437/u_5443): 프레임 태그만으로 µs 에 등급. 오판 방향은 항상 상위 등급.
@@ -3126,8 +3128,19 @@ function tierNow(){
     return 0;
   }catch(e){ return 3; }
 }
+/* ★u_5520~5522: 이벤트 기록 — 누가 처리했는지(조향/속도 주체, 등급)와 모델 지연(ms). 긴 목록(최근 400건 보관, 패널에 14건). */
+window.__evPush=function(label){
+  try{ const M=window.__mdl||{}, on=(typeof MDL!=='undefined'&&MDL.on&&!M.stale);
+       const st=on&&MDL.mode===2?'steer=model':'steer=rule', sp=on&&typeof MDL.vT==='number'&&MDL.vT>=0?'speed=model':'speed=rule';
+       const lat=(typeof MDL!=='undefined'&&typeof MDL.lat==='number'&&MDL.lat>=0)?' lat='+MDL.lat.toFixed(0)+'ms':'';
+       const L=(window.__evLog=window.__evLog||[]); L.push([performance.now(), label, st+' '+sp+' T'+(window.__tier|0)+lat]); if(L.length>400) L.shift(); }catch(e){}
+};
 function tierTick(){
-  const t=tierNow(); window.__tier=t; const N=window.__tierN||(window.__tierN=[0,0,0,0]); N[t]++;
+  const t=tierNow(); const _pt=window.__tier; window.__tier=t; const N=window.__tierN||(window.__tierN=[0,0,0,0]); N[t]++;
+  /* 등급 이벤트는 1초 이상 유지된 등급만 기록(초 단위로 깜빡이는 T1↔T2 는 잡음) */
+  { const now=performance.now(); if(window.__tierStable===undefined){ window.__tierStable=t; window.__tierCand=t; window.__tierCandT=now; }
+    if(t!==window.__tierCand){ window.__tierCand=t; window.__tierCandT=now; }
+    else if(t!==window.__tierStable && now-window.__tierCandT>=1000){ window.__evPush('tier T'+window.__tierStable+'→T'+t); window.__tierStable=t; } }
   const H=window.__tierHist||(window.__tierHist=[]); const now=performance.now(); H.push([now,t]); while(H.length && now-H[0][0]>4000) H.shift();
 }
 function tierAgo(ms){ const H=window.__tierHist||[]; const now=performance.now(); for(let i=0;i<H.length;i++){ if(now-H[i][0]<=ms) return H[i][1]; } return H.length?H[H.length-1][1]:null; }
@@ -3156,7 +3169,7 @@ function synthTick(t){
   /* ★카메라 즉시 고정(2026-09-20 ode_s6 실패 원인): draw() 의 카메라는 위치 0.12·회전 0.18 씩 따라오는 저역통과라, 100ms 마다 방향을
      ±40° 바꾸는 가상 배치에선 매 프레임 카메라가 차 방향과 어긋난 채 그려졌다(차가 화면 앵커에도 없음). 라벨(차 방향 기준 조향)과
      그림이 안 맞아 모델이 학습 데이터 자체를 못 배웠다(자기 데이터 조향 상관 0.195). 배치와 동시에 카메라를 차에 맞춘다. */
-  cam.x=me.x; cam.y=me.y; camA=me.ang+Math.PI/2;
+  cam.x=me.x+Math.cos(me.ang)*CAM_LEAD*S; cam.y=me.y+Math.sin(me.ang)*CAM_LEAD*S; camA=me.ang+Math.PI/2;
   auto.on=true; auto.k=j; auto.i=j; auto.s=auto.cum[j]; auto.stall=0; blockT=0; bldStuck=0; crashHold=0; crashHoldT=0; window.__stuckT=0; window.__stuckAcc=0;
   window.__synthN=(window.__synthN|0)+1;
 }
@@ -3382,7 +3395,18 @@ function driveAuto(dt){
      라벨(__da.lp/ld) = 지도 경로가 이 프레임에 실제로 쓴 앞점의 차 기준 좌표. 화면만 보고 '경로선이 앞 15m 에서 어디 있나'를 맞히는 문제가 된다. */
   const _sa=Math.sin(me.ang), _ca=Math.cos(me.ang);
   const _lpLab=(-(P.x-me.x)*_sa+(P.y-me.y)*_ca)/S, _ldLab=((P.x-me.x)*_ca+(P.y-me.y)*_sa)/S;
+  /* ★u_5547 다점 앞점 라벨(2026-09-22): 경로선 위 10/20/40/80m 앞 점의 차 기준 횡 오프셋. 사람이 멀리 곡률을 보듯 모델이 곡선 전체를 예측하게 하는 라벨. 기록만(추종은 아직 단일 앞점). */
+  let _lpm=null; try{ _lpm=[10,20,40,80].map(dm=>{ const Q=posAt(auto.s+dm*S); return +((-(Q.x-me.x)*_sa+(Q.y-me.y)*_ca)/S).toFixed(2); }); }catch(e){ _lpm=null; }
+  window.__lpm=_lpm;
   const _mt2=window.__mdlTgt; let _Pt=P;
+  if(_mt2 && _mt2.mode===3 && (performance.now()-_mt2.t)<400 && Array.isArray(_mt2.pts) && _mt2.pts.length===4){
+    /* ★u_5547 다점 앞점 추종(2026-09-22): 모델이 준 10/20/40/80m 앞 횡오프셋 4점을 차 기준 경로로 보고, 페이지 Ld 거리에서의 횡오프셋을 선형보간해
+       단일 앞점으로 환산(아래 mode 2 경로 재사용). 멀리 곡률을 보고 온 4점이므로 한 점보다 안정적이다. */
+    const _dd=[10,20,40,80], _pp=_mt2.pts.map(z=>Math.max(-8,Math.min(8,+z||0))); const _ldm=Math.max(3,Math.min(80,Ld/S)); let _lpi=_pp[3];
+    for(let i=0;i<3;i++){ if(_ldm<=_dd[i+1]){ const t=(_ldm-_dd[i])/(_dd[i+1]-_dd[i]); _lpi=_pp[i]+( _pp[i+1]-_pp[i])*Math.max(0,Math.min(1,t)); break; } }
+    if(_ldm<_dd[0]) _lpi=_pp[0]*(_ldm/_dd[0]);
+    _mt2.mode=2; _mt2.lp=_lpi; _mt2.ld=-1; window.__tgt3N=(window.__tgt3N|0)+1;
+  }
   if(_mt2 && _mt2.mode===2 && (performance.now()-_mt2.t)<400 && typeof _mt2.lp==='number'){
     /* ld<=0 이면 페이지의 속도·골목 기반 Ld 를 그대로 쓴다 — 라벨 lp 가 그 Ld 에서 측정됐으므로 추론도 같은 Ld 여야 한다(고정 10m 로 넣자 골목 코너에서 안쪽으로 파고들어 건물 충돌 70회, 2026-09-21 17:00). */
     /* ★앞점 시간 평활(2026-09-21 u_5495 "갈지자": 12초 실측 모델 lp −4.5→+0.4→+5.9→−4.0m, 정답 ±2m). 단일 프레임 판단의 떨림을
@@ -3613,7 +3637,7 @@ function crash(label,heavy){
   if(window.__parked && !auto.on){ window.__crashParkedN=(window.__crashParkedN||0)+1; me.offroad=0; return; }
   if(me.cool>0)return;
   me.cool=.8;me.crashes++;
-  try{ (window.__evLog=window.__evLog||[]).push([performance.now(), '사고: '+label]); if(window.__evLog.length>30) window.__evLog.shift(); }catch(e){}
+  try{ window.__evPush('crash: '+label); }catch(e){}
   try{ const C=window.__crTier||(window.__crTier=[0,0,0,0]), C3=window.__crTier3||(window.__crTier3=[0,0,0,0]);
        C[window.__tier|0]++; const a=tierAgo(3000); if(a!=null) C3[a]++; }catch(e){}
   try{ if(typeof window.__ntier==='number'){ const N=window.__crNTier||(window.__crNTier=[0,0,0,0]), N3=window.__crNTier3||(window.__crNTier3=[0,0,0,0]); N[window.__ntier]++; const H=window.__ntierHist||[], now=performance.now(); let a=null; for(const h of H){ if(now-h[0]<=3000){ a=h[1]; break; } } if(a!=null) N3[a]++; } }catch(e){}
@@ -3825,7 +3849,7 @@ function step(dt){
          맞다. 차를 3점 앞으로 순간이동시키는 건 주행 실패다. 그런데
          crash() 를 안 부르므로 사고 집계에 한 번도 안 잡혔다 —
          점수는 깨끗한데 실제로는 못 가고 있던 것이다. 최소한 센다. */
-      window.__tpN=(window.__tpN||0)+1; try{ (window.__evLog=window.__evLog||[]).push([performance.now(), '복귀(순간이동)']); }catch(e){}
+      window.__tpN=(window.__tpN||0)+1; try{ window.__evPush('recovery (teleport)'); }catch(e){}
       window.__tpBld=(window.__tpBld||0)+1;
       flash('건물 끼임 복구');
     }
@@ -4136,7 +4160,7 @@ function stepCar(c,dt){
     c.v+=(tv-c.v)*Math.min(1,dt*1.6);
     /* ★2026-09-22 교착 안전판: 앞이 막혀 30초 넘게 못 움직인 NPC 는 치운다(스포너가 먼 곳에 다시 채운다).
        위 마주오는 차 예외로 근본 원인은 잡았지만, 다른 형태의 NPC 교착이 내 차를 300초 세우는 일은 없어야 한다. */
-    if(c.v<0.3 && gp<10*S){ c.stkT=(c.stkT||0)+dt; if(c.stkT>30){ c.alive=false; window.__npcDeadlockRm=(window.__npcDeadlockRm|0)+1; } }
+    if(c.v<0.3 && gp<10*S){ c.stkT=(c.stkT||0)+dt; if(c.stkT>30){ c.alive=false; window.__npcDeadlockRm=(window.__npcDeadlockRm|0)+1; window.__dlRmT=performance.now(); } }
     else c.stkT=0;
   }
   /* ★차선변경·끼어들기(u_4972).
@@ -4242,10 +4266,14 @@ function _stepPed(p,dt,s){
 
 /* ---------- 렌더 ---------- */
 const cam={x:0,y:0,z:1};
+const CAM_LEAD=(function(){ try{ const m=/[?&]lead=(-?[0-9.]+)/.exec(location.search); if(m) return +m[1]; }catch(e){} return (typeof window.__CAM_LEAD==='number')?window.__CAM_LEAD:25; })();
 var camA=0;   // 카메라 회전각(차 진행방향이 화면 위)
 function draw(){
   g.fillStyle=C('--bg');g.fillRect(0,0,W,H);
-  cam.x+=(me.x-cam.x)*.12;cam.y+=(me.y-cam.y)*.12;
+  /* ★u_5547/u_5548 카메라 전방 리드(2026-09-22): 사람처럼 앞을 멀리 보게 화면 중심을 진행방향으로 CAM_LEAD m 당긴다(기본 25m, ?lead= 로 변경).
+     모델 입력(중앙 크롭)이 차 뒤 ~13m~앞 ~63m 를 보게 된다. 수집·학습·추론 전부 같은 값이어야 한다(새 데이터셋 기준). */
+  const _ldx=me.x+Math.cos(me.ang)*CAM_LEAD*S, _ldy=me.y+Math.sin(me.ang)*CAM_LEAD*S;
+  cam.x+=(_ldx-cam.x)*.12;cam.y+=(_ldy-cam.y)*.12;
   const zoom=cam.z;
   /* ★차 전방이 항상 화면 위쪽이 되도록 맵을 회전한다(u_4920).
      실제 내비·주행 시점과 같다. 이래야 '직진 = 화면에서 위로 뻗은 길'이 되어
@@ -5154,7 +5182,7 @@ function loop(t){
        용도 = (a) DAgger 라벨 = 실제 몰던 제어기의 출력(규칙 D-00, teacher.js 조향은 상관 0.08 로 폐기) (b) '추종기를 모델 파이프로'
        대조 실험(dagger --model pipe). /tel daShadow. */
     if(MDL.tgt){   // ★목표 오프셋 모드: 추종기가 몰고 모델은 오프셋·속도만 준다
-      window.__mdlTgt={dOff:+MDL.dOff||0, vT:(typeof MDL.vT==='number'?MDL.vT:-1), t:MDL.rxT||0, mode:(+MDL.mode||1), lp:(typeof MDL.lp==='number'?MDL.lp:null), ld:(typeof MDL.ld==='number'?MDL.ld:null)};
+      window.__mdlTgt={dOff:+MDL.dOff||0, vT:(typeof MDL.vT==='number'?MDL.vT:-1), t:MDL.rxT||0, mode:(+MDL.mode||1), lp:(typeof MDL.lp==='number'?MDL.lp:null), ld:(typeof MDL.ld==='number'?MDL.ld:null), pts:(Array.isArray(MDL.pts)?MDL.pts:null)};
       try{ driveAuto(dt); window.__daShadow={st:+me.steer.toFixed(4), v:+me.v.toFixed(3)}; }catch(e){ window.__daShadowErr=String(e).slice(0,60); }
       /* 교사의 '정지' 지시(앞차·보행자·적신호)는 GEOM 가지와 동일하게 적용 — pipe2 1차 실측: 순간이동 0 이지만 보행자 사고 2/1/2(정지 지시 누락). Layer 1. */
       try{ if(T){ const a=T.compute(); T.last=a; window.__tbrk = a ? a.brake : -1;
@@ -5282,7 +5310,7 @@ function loop(t){
       const _pt1 = performance.now();
       let _lbl='';
       try{ const T=window.__teach, L=(T&&T.last)||{}, D=window.__da||{};
-           _lbl=JSON.stringify({vmax:(typeof D.vmax==='number')?+D.vmax.toFixed(2):null, lp:(typeof D.lp==='number')?D.lp:null, ld:(typeof D.ld==='number')?D.ld:null, st:(typeof D.st==='number')?+D.st.toFixed(4):null, th:(typeof L.thr==='number')?+L.thr.toFixed(4):null, br:(typeof L.brake==='number')?+L.brake.toFixed(4):null, v:+me.v.toFixed(3), synth:window.__synth?1:0, n:window.__synthN|0}); }catch(e){}
+           _lbl=JSON.stringify({vmax:(typeof D.vmax==='number')?+D.vmax.toFixed(2):null, lp:(typeof D.lp==='number')?D.lp:null, ld:(typeof D.ld==='number')?D.ld:null, lpm:window.__lpm||null, st:(typeof D.st==='number')?+D.st.toFixed(4):null, th:(typeof L.thr==='number')?+L.thr.toFixed(4):null, br:(typeof L.brake==='number')?+L.brake.toFixed(4):null, v:+me.v.toFixed(3), synth:window.__synth?1:0, n:window.__synthN|0}); }catch(e){}
       fetch('/frame', {method:'POST', body:u8, cache:'no-store', headers:{'Content-Type':'image/jpeg', 'X-Lbl':_lbl}})
         .then(()=>{ window.__pushN=(window.__pushN|0)+1; const D=window.__frPush=window.__frPush||{blobMs:0,postMs:0,kb:0,n:0}; D.n++; D.blobMs+=_pt1-_pt0; D.postMs+=performance.now()-_pt1; D.kb+=u8.length/1024; })
         .catch(()=>{}).finally(()=>{ window.__pushBusy = 0; });
@@ -5695,7 +5723,7 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
 (function(){
   if(typeof document==='undefined') return;
   const el=document.createElement('div'); el.id='mdlPanel';
-  el.style.cssText='position:fixed;right:8px;top:150px;width:236px;z-index:9999;background:rgba(20,22,30,.82);color:#e8e8ee;font:10.5px/1.45 Menlo,monospace;padding:8px 10px;border-radius:8px;pointer-events:none;white-space:pre;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+  el.style.cssText='position:fixed;right:8px;top:150px;width:330px;max-height:calc(100vh - 170px);overflow:hidden;z-index:9999;background:rgba(20,22,30,.82);color:#e8e8ee;font:10.5px/1.45 Menlo,monospace;padding:8px 10px;border-radius:8px;pointer-events:none;white-space:pre;box-shadow:0 2px 8px rgba(0,0,0,.3)';
   document.body.appendChild(el);
   let lpMs=0, mdlMs=0, last=performance.now();
   const kmh=v=>(typeof v==='number'&&v>=0)?(v*3.6).toFixed(0)+'km/h':'—';
@@ -5711,9 +5739,28 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
       if(on) mdlMs+=dt; if(lpOn) lpMs+=dt;
       const tier=window.__tier, da=window.__da||{}, L1=window.__l1T&&(now-window.__l1T<800)?window.__l1Last:null;
       const crk=window.__crk||{}; let un=0, av=0; for(const k in crk){ if(k.indexOf('불가항력')>=0) un+=crk[k]; else av+=crk[k]; }
-      const ev=(window.__evLog||[]).slice(-5).map(e=>((e[0]/1000)|0)+'s '+EN(e[1])).join('\n');
+      const ev=(window.__evLog||[]).slice(-14).map(e=>((e[0]/1000)|0)+'s '+EN(e[1])+(e[2]?'\n     '+e[2]:'')).join('\n');
+      /* ★u_5544: 지금 무엇을 하는지 풀 텍스트(영문) — 등급 숫자와 함께 */
+      let sit=[];
+      try{ const Tt=window.__teach, D=(Tt&&Tt.dbg)||{}, g=(Tt&&Tt.dbg2)||{}, Ls=Tt&&Tt.last;
+        const gap=(typeof D.gap==='number')?D.gap:1e9, ped=(typeof D.ped==='number')?D.ped:1e9, sig=(typeof D.sig==='number')?D.sig:1e9, cap=(typeof D.cap==='number')?D.cap:1e9;
+        const aD=(typeof g.aD==='number')?g.aD:1e9, turn=g.aTurn||'S', nl=g.nl||0, rw=g.roadW||0;
+        if(L1==='stop') sit.push('EMERGENCY: rule brake (Layer 1) — obstacle/pedestrian/red inside stopping distance');
+        if(me.offroad) sit.push('OFF ROAD — recovering');
+        if(sig<60) sit.push('Red light '+sig.toFixed(0)+'m ahead → '+(me.v<0.5?'stopped, waiting for green':'slowing to stop'));
+        if(ped<30) sit.push('Pedestrian on road '+ped.toFixed(0)+'m ahead → braking');
+        else if(cap<1e8) sit.push('Pedestrian near curb → speed capped '+kmh(cap));
+        if(gap<60) sit.push('Following car '+gap.toFixed(0)+'m ahead'+(gap<15?' (close, holding)':''));
+        if(turn!=='S' && aD<200){ const tn={L:'LEFT turn',R:'RIGHT turn',U:'U-turn'}[turn]||('turn '+turn); sit.push(tn+' in '+aD.toFixed(0)+'m → '+(aD<25?'turning now':'preparing lane')); }
+        if(g.fin!=null && typeof g.laneF==='number' && Math.abs(g.laneF-g.fin)>0.5) sit.push('Changing lane '+(g.laneF+1).toFixed(1)+' → '+(g.fin+1));
+        if(nl<=1 && rw>0 && rw<=6.5) sit.push('Narrow alley (30km/h zone)');
+        if(window.__npcDeadlockRm && window.__dlRmT && now-window.__dlRmT<3000) sit.push('Cleared a deadlocked NPC ahead');
+        if(!sit.length) sit.push(me.v>0.5?'Cruising, lane keeping':'Stopped');
+      }catch(e){ sit=['(no teacher telemetry)']; }
+      const who=on?(lpOn?'Model steers + model speed':'Rule steers, model speed'):'Rule drives (teacher/follower)';
       el.textContent=
         'ODE activity   '+(on?'● MODEL driving':'○ RULE driving')+'\n'+
+        'NOW: '+who+'\n'+sit.map(x=>'  • '+x).join('\n')+'\n'+
         'Steer: '+(lpOn?'model (lookahead '+(+T.lp||0).toFixed(1)+'m)':'rule follower')+'\n'+
         'Speed: '+(spOn?'model target '+kmh(T.vT):'rule')+'  now '+kmh(me.v)+'\n'+
         'Rule cap '+kmh(da.vmax)+'  tier '+(typeof tier==='number'?TN[tier]:'—')+'\n'+
@@ -5721,9 +5768,10 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
         'L1: stop '+(window.__l1N|0)+'  cap '+(window.__l1CapN|0)+(L1?'  ◀'+L1:'')+'\n'+
         'Ped predict-brake '+(window.__pedPredN|0)+'  deadlock clear '+(window.__npcDeadlockRm|0)+'\n'+
         'Crashes avoidable '+av+' / unavoidable '+un+'   recover '+(window.__tpN|0)+'\n'+
+        'Latency frame→cmd '+((typeof MDL!=='undefined'&&MDL.lat>=0)?MDL.lat.toFixed(0)+'ms (infer '+(MDL.inf>=0?MDL.inf.toFixed(1):'—')+'ms)':'—')+'\n'+
         (M.stale?'model command stale\n':'')+
         'Progress '+((typeof auto!=='undefined'&&auto.cum&&auto.cum.length)?(100*(auto.s||0)/(auto.cum[auto.cum.length-1]||1)).toFixed(1)+'%':'—')+'\n'+
-        (ev?'— recent —\n'+ev:'');
+        (ev?'— events (latest last) —\n'+ev:'');
     }catch(e){ el.textContent='panel err '+e; }
   }, 250);
 })();
