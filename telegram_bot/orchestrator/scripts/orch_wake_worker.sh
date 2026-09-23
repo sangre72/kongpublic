@@ -80,12 +80,14 @@ tell application "Terminal"
   set targetTty to "$TARGET_TTY"
   if targetTty is not "" then
     repeat with w in windows
-      if (tty of w) is targetTty then
-        do script "/model $SET_MODEL" in w
-        delay 0.3
-        do script (return & "") in w
-        exit repeat
-      end if
+      repeat with t in tabs of w
+        if (tty of t) is targetTty then
+          do script "/model $SET_MODEL" in t
+          delay 0.3
+          do script (return & "") in t
+          exit repeat
+        end if
+      end repeat
     end repeat
   end if
 end tell
@@ -105,15 +107,18 @@ RESULT=$(osascript <<EOF
 tell application "Terminal"
   set targetTty to "$TARGET_TTY"
   if targetTty is not "" then
+    -- ★2026-09-23: 탭 단위 tty 매칭(창 단위는 선택된 탭에 타이핑돼 웨이크 유실)
     repeat with w in windows
-      if (tty of w) is targetTty then
-        do script "$MSG" in w
-        delay $SUBMIT_DELAY
-        do script (return & "") in w
-        delay 0.8
-        do script (return & "") in w
-        return "SUCCESS(tty): " & (name of w)
-      end if
+      repeat with t in tabs of w
+        if (tty of t) is targetTty then
+          do script "$MSG" in t
+          delay $SUBMIT_DELAY
+          do script (return & "") in t
+          delay 0.8
+          do script (return & "") in t
+          return "SUCCESS(tty-tab): " & (name of w)
+        end if
+      end repeat
     end repeat
   end if
   repeat with w in windows
