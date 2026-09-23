@@ -53,14 +53,12 @@ tell application "Terminal"
   set targetTty to "$TARGET_TTY"
   if targetTty is not "" then
     repeat with w in windows
-      repeat with theTab in tabs of w
-        if (tty of theTab) is targetTty then
-          do script "$MSG" in theTab
-          delay 0.3
-          do script (return & "") in theTab
-          return "SUCCESS(tty-tab): " & (name of w)
-        end if
-      end repeat
+      if (tty of w) is targetTty then
+        do script "$MSG" in w
+        delay 0.3
+        do script (return & "") in w
+        return "SUCCESS(tty): " & (name of w)
+      end if
     end repeat
   end if
   -- fallback: old title-phrase match(pre-tty-registration sessions)
@@ -79,5 +77,5 @@ EOF
 )
 
 echo "$RESULT"
-echo "$(date "+%F %T") tty=$TARGET_TTY $RESULT :: ${MSG:0:80}" >> "$REPO_ROOT/logs/wake_self.log"   # 2026-09-23 웨이크 결과 추적
+echo "$(date "+%F %T") tty=$TARGET_TTY $RESULT :: ${MSG:0:80}" >> "$REPO_ROOT/logs/wake_self.log"
 [[ "$RESULT" == SUCCESS* ]]
