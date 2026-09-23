@@ -44,6 +44,10 @@ canvas{display:block;width:100vw;height:100vh;touch-action:none}
    '시청역'이 '목'으로 잘려 들어갔다(실측). 캔버스 763px 기준 여유 있게 잡는다. */
 /* ★u_5562: 우상단 미니맵(R54, 우측 14px)을 가리지 않게 — 좌측 정렬, 폭 = 화면 − 버거 56 − 미니맵 136 */
 #nav{left:56px;top:14px;width:min(700px,calc(100vw - 192px));padding:8px}
+/* ★u_5563: 네비 높이 축소(입력·버튼 패딩) — 아래 현황판과 안 겹치게 */
+#nav input{padding:4px 10px!important}
+#nav button{padding:5px 12px}
+#nav>div{margin-bottom:4px!important}
 #qr{max-height:180px;overflow-y:auto;margin-top:6px}
 #qr:empty{display:none}
 #qr .it{padding:6px 9px;border-radius:7px;cursor:pointer;font-size:12.5px;
@@ -5746,6 +5750,7 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
   setInterval(function(){
     try{
       const now=performance.now(), dt=now-last; last=now;
+      const nv=document.getElementById('nav'); if(nv&&!nv.hidden){const b=nv.getBoundingClientRect().bottom+6; if(Math.abs(b-parseFloat(el.style.top))>1) el.style.top=b+'px';} /* u_5563: 현황판 상단 = 네비 하단+6 */
       const M=window.__mdl||{}, T=window.__mdlTgt||{}, on=(typeof MDL!=='undefined'&&MDL.on&&!M.stale);
       const lpOn=on&&T.mode===2, spOn=on&&typeof T.vT==='number'&&T.vT>=0;
       if(on) mdlMs+=dt; if(lpOn) lpMs+=dt;

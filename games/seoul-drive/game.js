@@ -5590,6 +5590,7 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
   setInterval(function(){
     try{
       const now=performance.now(), dt=now-last; last=now;
+      const nv=document.getElementById('nav'); if(nv&&!nv.hidden){const b=nv.getBoundingClientRect().bottom+6; if(Math.abs(b-parseFloat(el.style.top))>1) el.style.top=b+'px';} /* u_5563: 현황판 상단 = 네비 하단+6 */
       const M=window.__mdl||{}, T=window.__mdlTgt||{}, on=(typeof MDL!=='undefined'&&MDL.on&&!M.stale);
       const lpOn=on&&T.mode===2, spOn=on&&typeof T.vT==='number'&&T.vT>=0;
       if(on) mdlMs+=dt; if(lpOn) lpMs+=dt;
