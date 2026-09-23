@@ -237,7 +237,7 @@ def episode(net, dev, secs, ep):
                           float(t.get('sig') if t.get('sig') is not None else 1e9),
                           {'S': 0, 'L': 1, 'R': 2, 'U': 3}.get(g2.get('aTurn') or 'S', 0),
                           float(g2.get('aD') if g2.get('aD') is not None else 1e9),
-                          float(d.get('v') or 0), float(g2.get('laneF') or 0), float(g2.get('nl') or 0)] + _ext)
+                          float(d.get('v') or 0), float(g2.get('laneF') or 0), float(g2.get('nl') or 0)] + _ext + [float(g2.get('fin')) if isinstance(g2.get('fin'), (int, float)) else -1.0])   # 12열 fin(목표 차로) — 2026-09-23 11:2x: 정상 경로에 빠져 r1300~1316 이 11열(COND=9 학습 불가)
             except Exception:
                 M.append([1e9, 1e9, 1e9, 0, 1e9, 0.0, 0.0, 0.0] + ([float(os.environ.get('ODE_ENV', '0')), float(ep), float(len(X))] if os.environ.get('M_EXT') == '1' else []) + [float(g2.get('fin')) if isinstance(g2.get('fin'), (int, float)) else -1.0])   # 12열 fin = 목표 차로(07:5x 차로 의도)
             Y.append([st, th, br, float(d.get('v') or 0),

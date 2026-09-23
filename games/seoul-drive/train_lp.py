@@ -72,6 +72,7 @@ def load(dirs, synth=()):
         if len(idx) == 0: continue
         Y = (np.stack([Yf[idx, 0], Yf[idx, 1], Yf[idx, 2]] + [(L[idx, 3 + j] + LP_MAX_M) / (2 * LP_MAX_M) for j in range(4)] + ([np.clip((L[idx, 7 + j] + 5.0) / 105.0, 0, 1) for j in range(4)] if MULTI8 else []), 1) if MULTI else np.stack([Yf[idx, 0], Yf[idx, 1], Yf[idx, 2], (L[idx, 0] + LP_MAX) / (2 * LP_MAX)], 1)).astype(np.float32)
         if COND and Mm is not None and len(Mm) == len(Yf):   # ★u_5546 경로 의도 조건: M=[gap,ped,sig,turn,aD,v,laneF,nl,...]
+            if COND9 and Mm.shape[1] < 12: raise SystemExit('LP_COND=9 needs M.npy with 12 cols (fin); got %d' % Mm.shape[1])
             Vv = np.stack([cond_vec(Yf[i, 3], int(Mm[i, 3]), Mm[i, 4], Mm[i, 6], Mm[i, 7], (Mm[i, 11] if Mm.shape[1] >= 12 else None) if COND9 else None) for i in idx]).astype(np.float32)
         else:
             Vv = (Yf[idx, 3] / 30.0).astype(np.float32).reshape(-1, 1) if COND else (Yf[idx, 3] / 30.0).astype(np.float32)
