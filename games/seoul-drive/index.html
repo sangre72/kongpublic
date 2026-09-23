@@ -2958,6 +2958,7 @@ function mdlPoll(dt){
                     fr:(a.free_r===undefined?null:+(+a.free_r).toFixed(2))} : {ok:0}; })(),
       car: {v:+me.v.toFixed(3), x:+(me.x/S).toFixed(2), y:+(me.y/S).toFixed(2),
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
+      npc: (function(){try{const o=[];for(const c of cars){if(!c.alive)continue;const dx=(c.x-me.x)/S,dy=(c.y-me.y)/S;if(dx*dx+dy*dy>3600)continue;o.push([+(c.x/S).toFixed(2),+(c.y/S).toFixed(2),+c.ang.toFixed(4),+(c.v||0).toFixed(2),c.si|0]);}return o.slice(0,12);}catch(e){return null}})(),   // a_5581 addendum(u_5583): 60m 안 NPC 자세(코너 부드러움 ego/NPC 비교용)
       bldDbg: window.__bldDbg||null,
       wpDbg: window.__wpDbg||null,
       wpLane: window.__wpLane||null,

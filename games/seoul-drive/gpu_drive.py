@@ -47,6 +47,7 @@ def main():
     post({'tgt': 0, 'mode': 1, 'dOff': 0.0, 'vT': -1, 'lp': 0.0})
     d0 = st['tel'] or {}; t0 = time.time(); cr0 = int(d0.get('cr') or 0); crk0 = dict(d0.get('crk') or {}); tp0 = int(d0.get('tpN') or 0)
     n = 0; lats = []; lpN = 0; hold = 0; down = 0; prev_model = False; handovers = 0; last_t = 0.0; infs = []
+    wv = []; wv_now = None; wv_ang = None   # ★a_5581 S2 흔들림 지표(u_5578/5579): 직선·완만 T0 구간의 g2.lat(도로 절대 횡위치) 시계열
     while time.time() - t0 < a.secs:
         SK.pump(0.002)
         if st['frame'] is None or st['t'] == last_t: continue
@@ -63,6 +64,10 @@ def main():
             if tier == 3 and (d.get('offroad') or (d.get('mdl') or {}).get('stale')): hold = 0
             elif down >= a.fps // 2: hold = 0
         model_now = ml is not None and hold >= a.fps
+        if (ml is None or model_now) and d.get('now') != wv_now:   # 조향 주체(규칙 or 모델)가 실제로 핸들 잡는 동안, /tel 갱신마다 1표본(20Hz). 게이트: 회전까지 >80m ∧ 헤딩 변화 완만 ∧ 주행 중(aTurn 은 다음 회전 종류라 직진 판정에 안 씀). 도로(sw) 바뀌면 lat 기준이 바뀌므로 구간 분리
+            wv_now = d.get('now'); g2w = ((d.get('tch') or {}).get('g2') or {}); ang = (d.get('car') or {}).get('ang'); latw = g2w.get('lat')
+            if float(g2w.get('aD') or 1e9) > 80 and v > 3 and isinstance(latw, (int, float)) and isinstance(ang, (int, float)) and wv_ang is not None and abs(ang - wv_ang) < 0.02: wv.append((time.time(), float(latw), g2w.get('sw')))
+            wv_ang = ang if isinstance(ang, (int, float)) else None
         if model_now != prev_model: handovers += 1; prev_model = model_now
         if model_now: vT = min(vT, a.lp_vmax) if vT >= 0 else a.lp_vmax   # ★모델 조향 중 속도 상한
         if model_now:   # 1초 이상 이양 등급 유지 시 모델 조향
@@ -81,7 +86,22 @@ def main():
     st['run'] = False; SK.stop(); post({'tgt': 0, 'mode': 1, 'dOff': 0.0, 'vT': -1, 'lp': 0.0, 'on': 0, 'release': 1})
     d = st['tel'] or {}; secs = time.time() - t0
     crk = {k: int(v) - int(crk0.get(k, 0)) for k, v in (d.get('crk') or {}).items() if int(v) - int(crk0.get(k, 0)) > 0}
+    weave = None   # p95 진폭(2초 이동평균 대비 편차, 정상 오프셋은 벌점 X) · 부호 교차/분(히스테리시스 0.1m) · score=amp_p95×sc_min
+    if len(wv) >= 40:
+        segs = []; cur = []
+        for q in wv:
+            if cur and (q[2] != cur[-1][2] or q[0] - cur[-1][0] > 1.0 or abs(q[1] - cur[-1][1]) > 0.5): segs.append(cur); cur = []   # 도로 바뀜·표본 끊김·lat 기준 점프(>0.5m/50ms, 조각 방향 반전) = 구간 분리
+            cur.append(q)
+        segs.append(cur); devs = []; sc = 0; mins = 0.0
+        for sg in segs:
+            if len(sg) < 20: continue
+            tw = np.array([q[0] for q in sg]); lw = np.array([q[1] for q in sg]); rm = np.array([lw[(tw >= t - 1.0) & (tw <= t + 1.0)].mean() for t in tw]); dev = lw - rm; devs += list(dev); mins += (tw[-1] - tw[0]) / 60.0; sgn = 0
+            for x in dev:
+                if x > 0.1 and sgn <= 0: sc += (sgn < 0); sgn = 1
+                elif x < -0.1 and sgn >= 0: sc += (sgn > 0); sgn = -1
+        mins = max(1e-6, mins); ap = float(np.percentile(np.abs(devs), 95)) if devs else 0.0
+        weave = {'n': int(len(wv)), 'min': round(float(mins), 2), 'amp_p95': round(ap, 3), 'sc_min': round(sc / mins, 2), 'score': round(ap * sc / mins, 3)}
     print(json.dumps({'secs': round(secs, 1), 'frames': n, 'hz': round(n / secs, 1), 'lat_ms_p50': round(float(np.median(lats)), 1) if lats else None, 'lat_ms_p90': round(float(np.percentile(lats, 90)), 1) if lats else None,
-                      'inf_ms_p50': round(float(np.median(infs)), 2) if infs else None, 'lp_frames': lpN, 'handovers': handovers, 'prog': d.get('prog'), 'crashes': int(d.get('cr') or 0) - cr0, 'crash_types': crk, 'tpN': int(d.get('tpN') or 0) - tp0, 'tier_hist': d.get('tierN')}, ensure_ascii=False), flush=True)
+                      'inf_ms_p50': round(float(np.median(infs)), 2) if infs else None, 'lp_frames': lpN, 'handovers': handovers, 'prog': d.get('prog'), 'crashes': int(d.get('cr') or 0) - cr0, 'crash_types': crk, 'tpN': int(d.get('tpN') or 0) - tp0, 'tier_hist': d.get('tierN'), 'weave': weave}, ensure_ascii=False), flush=True)
 
 if __name__ == '__main__': main()
