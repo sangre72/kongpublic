@@ -9,7 +9,7 @@ n=$(ls -d data/dagger_r13[0-9][0-9] 2>/dev/null | wc -l | tr -d ' ')
 python3 $NT "[mp3] 재수집 종료(라운드 $n개) → mp3(차로의도 O)·mp3c8(차로의도 X) 동시 학습 시작 $(date +%H:%M)" >/dev/null 2>&1
 echo "=== train start $(date +%H:%M:%S) ==="
 LP_MULTI=1 LP_MULTI8=1 LP_COND=9 LP_STRIDE=1 python3 train_lp.py 'data/dagger_r13*' ode_mp3.pt --epochs 10 --synth 'data/dagger_r13*' 2>&1 | grep --line-buffered -E '"done"|"frames"|epoch|Error|Killed|Traceback' | cut -c1-200 > $T/train_mp3.log &
-LP_MULTI=1 LP_MULTI8=1 LP_COND=8 LP_STRIDE=1 python3 train_lp.py 'data/dagger_r13*' ode_mp3c8.pt --epochs 10 --synth 'data/dagger_r13*' 2>&1 | grep --line-buffered -E '"done"|"frames"|epoch|Error|Killed|Traceback' | cut -c1-200 > $T/train_mp3c8.log &
+LP_MULTI=1 LP_MULTI8=1 LP_COND=1 LP_STRIDE=1 python3 train_lp.py 'data/dagger_r13*' ode_mp3c8.pt --epochs 10 --synth 'data/dagger_r13*' 2>&1 | grep --line-buffered -E '"done"|"frames"|epoch|Error|Killed|Traceback' | cut -c1-200 > $T/train_mp3c8.log &
 wait
 echo "=== train end $(date +%H:%M:%S) ==="; tail -2 $T/train_mp3.log $T/train_mp3c8.log
 for m in ode_mp3 ode_mp3c8; do [ -f $m.pt ] && python3 to_coreml.py $m.pt $T/$m.mlpackage 2>&1 | grep -v -i 'warn\|scikit\|Torch version' | tail -1; done
