@@ -25,13 +25,12 @@ RESULT=$(osascript <<EOF
 tell application "Terminal"
   set targetTty to "$TARGET_TTY"
   if targetTty is not "" then
-    -- ★2026-09-23: 탭 단위 tty 매칭(창 단위는 선택된 탭에 타이핑돼 웨이크 유실)
     repeat with w in windows
-      repeat with t in tabs of w
-        if (tty of t) is targetTty then
-          do script "$MSG" in t
+      repeat with theTab in tabs of w
+        if (tty of theTab) is targetTty then
+          do script "$MSG" in theTab
           delay 0.3
-          do script (return & "") in t
+          do script (return & "") in theTab
           return "SUCCESS(tty-tab): " & (name of w)
         end if
       end repeat

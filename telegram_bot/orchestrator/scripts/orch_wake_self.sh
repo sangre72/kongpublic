@@ -48,18 +48,16 @@ if [ -f "$TTY_FILE" ]; then
 fi
 
 # ★2026-08-28 u_2803/2804 fix: needs explicit 2nd newline do-script to submit.
-RESULT=$(osascript <<EOF
+RESULT=$(osascript <<EOF 2>&1 || true
 tell application "Terminal"
   set targetTty to "$TARGET_TTY"
   if targetTty is not "" then
-    -- ★2026-09-23: 창(window)이 아니라 탭(tab) 단위로 tty 를 맞춘다. 창 단위 do script 는
-    --   '선택된 탭'에 타이핑되므로, 오케 탭이 선택돼 있지 않으면 엉뚱한 세션으로 갔다(웨이크 유실).
     repeat with w in windows
-      repeat with t in tabs of w
-        if (tty of t) is targetTty then
-          do script "$MSG" in t
+      repeat with theTab in tabs of w
+        if (tty of theTab) is targetTty then
+          do script "$MSG" in theTab
           delay 0.3
-          do script (return & "") in t
+          do script (return & "") in theTab
           return "SUCCESS(tty-tab): " & (name of w)
         end if
       end repeat
@@ -81,4 +79,5 @@ EOF
 )
 
 echo "$RESULT"
+echo "$(date "+%F %T") tty=$TARGET_TTY $RESULT :: ${MSG:0:80}" >> "$REPO_ROOT/logs/wake_self.log"   # 2026-09-23 웨이크 결과 추적
 [[ "$RESULT" == SUCCESS* ]]
