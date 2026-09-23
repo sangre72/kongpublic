@@ -33,3 +33,13 @@ CPU matmul 2000^2 x50   284.5 ms
 ## 점검
 `python3 -c "import torch;print(torch.backends.mps.is_available())"` → True 여야 한다.
 추론이 느리면 **먼저 device 를 의심**한다: 가중치·입력 둘 다 `mps:0` 인지 실제로 찍어본다.
+
+## ★ MPS 동시 프로세스 최대 2개 (MUST — u_5576, 2026-09-23)
+> 오너: "학습을 한꺼번에 해서 그런가. 학습 최대 2개로 제한해야겠네"
+
+- **실사고**: 2026-09-23 13:06:11~18, python3.10 3개가 7초 안에 연속 SIGABRT. 3건 전부 Metal 드라이버
+  (AGXMetalG15X 셰이더 컴파일) 안에서 죽음 → 13:17 shutdown_stall → 13:18 강제 재부팅 → 봇 사망.
+  파이썬 예외가 아니라 GPU 드라이버 단 붕괴. 동시 MPS 프로세스 3개+가 방아쇠.
+- **규칙**: 학습·평가·추론을 막론하고 **MPS 를 쓰는 파이썬 프로세스는 동시 2개까지.**
+  밤 체인·배치 스크립트는 시작 전 `pgrep -fc "python3.*(train_|dagger|offline_|model_drive)"` 로 세고 2 이상이면 대기.
+- 크래시 확인 위치: `~/Library/Logs/DiagnosticReports/python3.10-*.ips` (top frame 에 AGXMetal 이면 이 사고).
