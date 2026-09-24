@@ -3,7 +3,7 @@
 CoreML 오드(속도 v2 + 앞점 lp, GPU/ANE 상주) → /ctl. 규칙 등급(T0)은 /tel 을 20Hz 로 읽어 게이트. 기존 dagger.py(JPEG/HTTP 13fps) 대비 지연 비교용.
 사용: ODE_CROP=0.6 python3 gpu_drive.py --secs 300 --speed ode_v2.mlpackage --lp ode_lp7.mlpackage [--lp-tier 0] [--fps 60]
 출력: 초당 처리 프레임, 프레임 타임스탬프→명령 전송 지연(ms) 분포, 에피소드 결과(/tel prog·cr·crk·tpN)."""
-import sys, os, time, json, threading, argparse, urllib.request
+import sys, os, time, json, threading, argparse, urllib.request, math
 sys.modules['tensorflow'] = None
 import numpy as np, cv2, coremltools as ct
 import sck_capture as SK, capture as C
@@ -34,10 +34,13 @@ def prep(arr):   # BGRA 창 프레임 → (1,3,256,256) float32 RGB 0~1 (net.pre
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--secs', type=float, default=300); ap.add_argument('--speed', default=None, help='속도 모델 mlpackage; 없으면 속도는 규칙(vT=-1)'); ap.add_argument('--lp', default=None)
-    ap.add_argument('--lp-tier', type=int, default=0); ap.add_argument('--fps', type=int, default=60); ap.add_argument('--lp-vmax', type=float, default=15.0, help='모델 조향 중 속도 상한 m/s(07:1x 실측: 25m/s 에서 차로 이탈)'); a = ap.parse_args()
+    ap.add_argument('--lp-tier', type=int, default=0); ap.add_argument('--bev', action='store_true', help='C: --lp 모델이 BEV 격자(3×64×64 로짓)면 bev_ctl.bev_to_geo 로 (ey,epsi,κ,lc20) 뽑아 --geo 경로로 제어'); ap.add_argument('--geo', action='store_true', help='a_5598 접근A/B: --lp 모델이 12열 기하 헤드(ey epsi k0 lc10/20/40 li nl lw dl dr valid, raw)면 목표차로(/tel want) 차로중심 20m 앞점을 mode=2 lp 로 보낸다'); ap.add_argument('--fps', type=int, default=60); ap.add_argument('--lp-vmax', type=float, default=15.0, help='모델 조향 중 속도 상한 m/s(07:1x 실측: 25m/s 에서 차로 이탈)'); a = ap.parse_args()
     _CU = getattr(ct.ComputeUnit, __import__('os').environ.get('CU', 'CPU_AND_GPU'))  # a_5577: ANE compile fail → default CPU_AND_GPU (env CU=ALL to use ANE)
     ms = ct.models.MLModel(a.speed, compute_units=_CU) if a.speed else None; ml = ct.models.MLModel(a.lp, compute_units=_CU) if a.lp else None
-    lp_vdim = 1
+    lp_vdim = 1; lp_k = 1; fbuf = []   # ★A3(u_5602): CoreML img 입력 채널 3K 이면 최근 K 프레임 채널 스택
+    if ml is not None:
+        try: lp_k = int([i for i in ml.get_spec().description.input if i.name == 'img'][0].type.multiArrayType.shape[1]) // 3
+        except Exception: lp_k = 1
     if ml is not None:
         try: lp_vdim = int([i for i in ml.get_spec().description.input if i.name == 'v'][0].type.multiArrayType.shape[-1])
         except Exception: lp_vdim = 1
@@ -48,7 +51,13 @@ def main():
     d0 = st['tel'] or {}; t0 = time.time(); cr0 = int(d0.get('cr') or 0); crk0 = dict(d0.get('crk') or {}); tp0 = int(d0.get('tpN') or 0)
     n = 0; lats = []; lpN = 0; hold = 0; down = 0; prev_model = False; handovers = 0; last_t = 0.0; infs = []
     _e = __import__('os').environ; LP_RATE = float(_e.get('LP_RATE', '0.4')); LP_TAU = float(_e.get('LP_TAU', '0.4')); HAND_EXIT = float(_e.get('HAND_EXIT', '0.5'))   # ★a_5588 S1b(u_5589 zigzag): 모델 앞점 횡오프셋 명령 평활 — 변화율 제한 m/s + EMA tau s (0=끔) · 이양 해제 히스테리시스 s(진입 1s 고정)
-    sm = None; sm_t = None; print(json.dumps({'lp_rate': LP_RATE, 'lp_tau': LP_TAU, 'hand_exit': HAND_EXIT}), flush=True)
+    POLY = _e.get('POLY', '0') == '1'; POLY_K = int(_e.get('POLY_K', '4')); pbuf = []
+    MERGE_PLAN = _e.get('MERGE_PLAN', '0') == '1'; mplan = None; bev_prev = 0.0
+    if MERGE_PLAN:
+        from merge_plan import MergePlannerKF; mplan = MergePlannerKF(); yaw_prev = None
+    RULE_LANE = _e.get('RULE_LANE', '1') == '1'
+    LANE_HOLD = _e.get('LANE_HOLD', '0') == '1'; hold_on = False; out_t = None; holdN = 0   # ★u_5604 차로내 유지: |e_y|<0.3m ∧ |e_psi|<2° → 곡률 피드포워드만(직진 유지), |e_y|>0.3 이 0.5s 지속돼야 해제
+    sm = None; sm_t = None; print(json.dumps({'lp_rate': LP_RATE, 'lp_tau': LP_TAU, 'hand_exit': HAND_EXIT, 'poly': POLY, 'poly_k': POLY_K}), flush=True)
     LP_TRACE = _e.get('LP_TRACE'); tr_hand = []; tr_raw = []   # ★a_5588 addendum2: 흔들림 원인 귀속용 프레임 추적(이양 시각·모델 lp20 원값/평활값)
     wv = []; wv_now = None; wv_ang = None   # ★a_5581 S2 흔들림 지표(u_5578/5579): 직선·완만 T0 구간의 g2.lat(도로 절대 횡위치) 시계열
     while time.time() - t0 < a.secs:
@@ -78,9 +87,14 @@ def main():
             vl = vin
             if lp_vdim == 8:
                 g2 = ((d.get('tch') or {}).get('g2') or {}); vl = cond_vec(v, g2.get('aTurn') or 'S', g2.get('aD'), g2.get('laneF'), g2.get('nl'))[None]
-            ol = list(ml.predict({'img': x, 'v': vl}).values())[0].ravel(); lpN += 1
-            ol = np.array(ol, dtype=np.float64); k = 4 if len(ol) >= 7 else 1; lat_m = (ol[3:3 + k] * 128.0 - 64.0) if k == 4 else np.array([ol[3] * 24.0 - 12.0]); tn = time.time(); raw20 = float(lat_m[1] if k == 4 else lat_m[0])
-            if LP_RATE > 0 or LP_TAU > 0:   # 명령측 평활(픽셀 모델 출력은 그대로, /ctl 로 보내는 횡오프셋만)
+            xin = x
+            if lp_k > 1:
+                fbuf.append(x); fbuf[:] = fbuf[-lp_k:]
+                while len(fbuf) < lp_k: fbuf.insert(0, fbuf[0])
+                xin = np.concatenate(fbuf, 1)   # (1,3K,256,256) 과거→현재
+            ol = list(ml.predict({'img': xin, 'v': vl}).values())[0].ravel(); lpN += 1
+            ol = np.array(ol, dtype=np.float64); k = 4 if (len(ol) >= 7 and not (a.geo or a.bev)) else 1; lat_m = (ol[3:3 + k] * 128.0 - 64.0) if k == 4 else np.array([ol[3] * 24.0 - 12.0]); tn = time.time(); raw20 = float(lat_m[1] if k == 4 else lat_m[0])
+            if (LP_RATE > 0 or LP_TAU > 0) and not (a.geo or a.bev):   # 명령측 평활(픽셀 모델 출력은 그대로, /ctl 로 보내는 횡오프셋만)
                 if sm is None: sm = lat_m.copy(); sm_t = tn
                 else:
                     dt = max(1e-3, tn - sm_t); sm_t = tn
@@ -88,8 +102,50 @@ def main():
                     sm = sm + (dt / (LP_TAU + dt)) * (lat_m - sm) if LP_TAU > 0 else lat_m
                 if k == 4: ol[3:7] = (sm + 64.0) / 128.0
                 else: ol[3] = (sm[0] + 12.0) / 24.0
-            if LP_TRACE: tr_raw.append((tn, raw20, float(sm[1] if (sm is not None and k == 4) else (sm[0] if sm is not None else raw20))))
-            if len(ol) >= 7:   # ★다점(10/20/40/80m, ±64m 인코딩; 11출력이면 전방거리 4 추가) → 페이지 mode=3
+            if LP_TRACE and not (a.geo or a.bev): tr_raw.append((tn, raw20, float(sm[1] if (sm is not None and k == 4) else (sm[0] if sm is not None else raw20))))
+            if a.bev and len(ol) >= 3 * 64 * 64:   # ★C: BEV 격자 → 기하 4값 → 아래 --geo 경로 재사용(ol 을 12열 형식으로 재구성)
+                from bev_ctl import bev_to_geo
+                _g2b = ((d.get('tch') or {}).get('g2') or {}); _lfb = _g2b.get('laneF'); _wb = _g2b.get('want'); _sh = ((float(_wb) - float(_lfb)) * 3.25) if isinstance(_lfb, (int, float)) and isinstance(_wb, (int, float)) else 0.0
+                _r = bev_to_geo(np.asarray(ol, dtype=np.float32).reshape(3, 64, 64), _sh, bev_prev)
+                if _r is None: _r = (bev_prev, 0.0, 0.0, 0.0)
+                bev_prev = _r[0]; _lfv = float(_lfb) if isinstance(_lfb, (int, float)) else 0.0
+                ol = np.array([_r[0] / 2.0, _r[1] / 0.5, _r[2] / 0.05, 0.0, (_r[3] - _sh) / 16.0, 0.0, _lfv / 8.0, 0.0, 3.25 / 5.0, 0.0, 0.0, 1.0], dtype=np.float64)
+            if (a.geo or a.bev) and len(ol) >= 12:   # 기하 헤드 디코딩(train_geo SCALE): ey=o0*2 epsi=o1*.5 k0=o2*.05 lc=o3..5*16 li=o6*8 nl=o7*8
+                _ey, _ep, _k0 = float(ol[0]) * 2.0, float(ol[1]) * 0.5, float(ol[2]) * 0.05; _lc20 = float(ol[4]) * 16.0; _li = float(ol[6]) * 8.0; _nl = max(1.0, float(ol[7]) * 8.0); _lw = 3.25
+                _g2 = ((d.get('tch') or {}).get('g2') or {}); _want = _g2.get('want'); _tgt = float(_want) if isinstance(_want, (int, float)) else round(_li)
+                _lf = _g2.get('laneF')   # ★A'(2026-09-24 orch): 차로번호·차로수·목표차로는 규칙층(지도/경로)에서; 망은 국소 기하만. 망 li 는 보조 로그
+                if RULE_LANE and isinstance(_lf, (int, float)): _li = float(_lf)
+                _lp = _lc20 + (_tgt - round(_li)) * _lw   # 목표 차로 중심의 20m 앞 횡오프셋(차 기준)
+                _ld = 20.0
+                if MERGE_PLAN:
+                    _ang = (d.get('car') or {}).get('ang'); _yr = None
+                    if isinstance(_ang, (int, float)):
+                        if yaw_prev is not None: _dth = (_ang - yaw_prev[0] + math.pi) % (2 * math.pi) - math.pi; _yr = _dth / max(1e-3, time.time() - yaw_prev[1])
+                        yaw_prev = (_ang, time.time())
+                    _lp, _h = mplan.step(time.time(), _ey, _ep, _k0, v, _yr, (_tgt - round(_li)) * _lw); holdN += int(_h)
+                if LANE_HOLD and not MERGE_PLAN:
+                    tn2 = time.time(); inb = abs(_ey) < 0.3 and abs(_ep) < math.radians(2.0)
+                    if hold_on:
+                        if abs(_ey) > 0.3: out_t = out_t or tn2; hold_on = not (tn2 - out_t >= 0.5)
+                        else: out_t = None
+                    elif inb: hold_on = True; out_t = None
+                    if hold_on: _lp = 200.0 * _k0 + (_tgt - round(_li)) * _lw; holdN += 1   # 곡률만: 20m 앞 차로중심 ≈ ½·κ·L²
+                if POLY:   # ★접근 B-lite(2026-09-24 03:4x): 같은 헤드의 3점(10/20/40m)을 폴리라인으로 보고, 속도 비례 앞점 Ld 에서 보간 + 최근 K 프레임 시간 앙상블(중앙값)
+                    _pts = np.array([float(ol[3]) * 16.0, _lc20, float(ol[5]) * 16.0]); pbuf.append(_pts)
+                    if len(pbuf) > POLY_K: pbuf.pop(0)
+                    _pm = np.median(np.array(pbuf), 0); _ld = float(np.clip(0.9 * v + 6.0, 8.0, 24.0))
+                    _lc = float(np.interp(_ld, [10.0, 20.0, 40.0], _pm)); _lp = _lc + (_tgt - round(_li)) * _lw
+                if LP_RATE > 0 or LP_TAU > 0:
+                    tn = time.time()
+                    if sm is None: sm = np.array([_lp]); sm_t = tn
+                    else:
+                        dt = max(1e-3, tn - sm_t); sm_t = tn
+                        if LP_RATE > 0: _lp = float(np.clip(_lp, sm[0] - LP_RATE * dt, sm[0] + LP_RATE * dt))
+                        sm = sm + (dt / (LP_TAU + dt)) * (_lp - sm) if LP_TAU > 0 else np.array([_lp])
+                    _lp = float(sm[0])
+                post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': _lp, 'ld': _ld, 'vT': vT, 'lat': round((time.time() - last_t) * 1000, 1), 'inf': round((time.time() - ti) * 1000, 1), 'geo': [round(_ey, 2), round(_ep, 3), round(_lc20, 2), round(_li, 2)], 'hold': 1 if (LANE_HOLD and hold_on) else 0})
+                if LP_TRACE: tr_raw.append((time.time(), _lc20, _lp))
+            elif len(ol) >= 7:   # ★다점(10/20/40/80m, ±64m 인코딩; 11출력이면 전방거리 4 추가) → 페이지 mode=3
                 post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 3, 'pts': [float(ol[3 + j]) * 128.0 - 64.0 for j in range(4)] + ([float(ol[7 + j]) * 105.0 - 5.0 for j in range(4)] if len(ol) >= 11 else []), 'ld': -1, 'vT': vT, 'lat': round((time.time() - last_t) * 1000, 1), 'inf': round((time.time() - ti) * 1000, 1)})
             else:
                 post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': float(ol[3]) * 24.0 - 12.0, 'ld': -1, 'vT': vT, 'lat': round((time.time() - last_t) * 1000, 1), 'inf': round((time.time() - ti) * 1000, 1)})
@@ -117,6 +173,6 @@ def main():
         mins = max(1e-6, mins); ap = float(np.percentile(np.abs(devs), 95)) if devs else 0.0
         weave = {'n': int(len(wv)), 'min': round(float(mins), 2), 'amp_p95': round(ap, 3), 'sc_min': round(sc / mins, 2), 'score': round(ap * sc / mins, 3)}
     print(json.dumps({'secs': round(secs, 1), 'frames': n, 'hz': round(n / secs, 1), 'lat_ms_p50': round(float(np.median(lats)), 1) if lats else None, 'lat_ms_p90': round(float(np.percentile(lats, 90)), 1) if lats else None,
-                      'inf_ms_p50': round(float(np.median(infs)), 2) if infs else None, 'lp_frames': lpN, 'handovers': handovers, 'prog': d.get('prog'), 'crashes': int(d.get('cr') or 0) - cr0, 'crash_types': crk, 'tpN': int(d.get('tpN') or 0) - tp0, 'tier_hist': d.get('tierN'), 'weave': weave}, ensure_ascii=False), flush=True)
+                      'inf_ms_p50': round(float(np.median(infs)), 2) if infs else None, 'lp_frames': lpN, 'handovers': handovers, 'prog': d.get('prog'), 'crashes': int(d.get('cr') or 0) - cr0, 'crash_types': crk, 'tpN': int(d.get('tpN') or 0) - tp0, 'tier_hist': d.get('tierN'), 'weave': weave, 'hold_frames': holdN}, ensure_ascii=False), flush=True)
 
 if __name__ == '__main__': main()

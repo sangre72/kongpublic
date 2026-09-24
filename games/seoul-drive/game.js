@@ -2798,6 +2798,31 @@ function mdlPoll(dt){
                     fr:(a.free_r===undefined?null:+(+a.free_r).toFixed(2))} : {ok:0}; })(),
       car: {v:+me.v.toFixed(3), x:+(me.x/S).toFixed(2), y:+(me.y/S).toFixed(2),
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
+      geo: (function(){try{   // ★a_5598 COMMON: 차로 기하 라벨(도로 절대좌표, RESEARCH_steering_arch_2026-09-23 §FINAL(2)). ey(+우) epsi(rad) k0(1/m) lc[10,20,40](m, 현재 차로 중심의 차기준 횡오프셋) li nl lw dl dr v
+        let n=(typeof routeSeg==='function')?routeSeg(me.x,me.y):null; if(!n||n.d>n.s.roadW*0.6) n=nearestSeg(me.x,me.y); if(!n) return {v:0};
+        const sg=n.s; const dd0=((me.ang-sg.ang+Math.PI*3)%(Math.PI*2))-Math.PI; const dir=Math.abs(dd0)<=Math.PI/2?1:-1;
+        const lat=(-(n.px-me.x)*Math.sin(sg.ang)+(n.py-me.y)*Math.cos(sg.ang))/S*dir;   // teacher.js 와 동일식(+=진행방향 우측)
+        const lwm=LW/S, rw=sg.roadW/S; let nl=sg.o?sg.l:Math.max(1,Math.floor(sg.l/2));
+        const gi=sg.o?((lat+rw/2)/lwm-0.5):(Math.abs(lat)/lwm-0.5); const li=Math.max(0,Math.min(nl-1,Math.round(gi)));
+        const cen=sg.o?((li+0.5)*lwm-rw/2):((lat<0?-1:1)*(li+0.5)*lwm); const ey=lat-cen;
+        const epsi=((me.ang-(sg.ang+(dir<0?Math.PI:0))+Math.PI*3)%(Math.PI*2))-Math.PI;
+        const lc=[null,null,null]; let k0=null;
+        if(auto&&auto.on&&auto.wp&&auto.wp.length>2){
+          const wp=auto.wp; let i=Math.max(0,Math.min(wp.length-2,auto.i)); const tg=[10*S,20*S,40*S]; let acc=0, hd0=null, hd10=null;
+          const carL=(x,y)=>(-(x-me.x)*Math.sin(me.ang)+(y-me.y)*Math.cos(me.ang))/S;
+          const nsH=(x,y,h)=>{ let best=null; for(const s2 of segs){ const dd=((h-s2.ang+Math.PI*3)%(Math.PI*2))-Math.PI; if(Math.min(Math.abs(dd),Math.PI-Math.abs(dd))>Math.PI/4) continue; const A=nodes[s2.a],B=nodes[s2.b]; const vx=B.x-A.x,vy=B.y-A.y,L=vx*vx+vy*vy; let t=L?((x-A.x)*vx+(y-A.y)*vy)/L:0; t=Math.max(0,Math.min(1,t)); const px=A.x+vx*t,py=A.y+vy*t,d=Math.hypot(px-x,py-y); if(!best||d<best.d) best={d,s:s2,t,px,py}; } return best; };   // 헤딩 45° 안 도로만(교차로 앞 횡단 도로 오선택 방지)
+          const laneC=(q,qh)=>{ const m=nsH(q.x,q.y,qh)||nearestSeg(q.x,q.y); if(!m) return [q.x,q.y]; const g=m.s; const cx=m.px, cy=m.py; const dq=((qh-g.ang+Math.PI*3)%(Math.PI*2))-Math.PI; const dr=Math.abs(dq)<=Math.PI/2?1:-1; const nlq=g.o?g.l:Math.max(1,Math.floor(g.l/2));   /* 도로 중심선 투영(routeSeg 는 경로선 기준이라 차로 오프셋 이중) */
+            const off=laneOffset(g,dr,Math.min(li,nlq-1)); return [cx-Math.sin(g.ang)*off, cy+Math.cos(g.ang)*off]; };   // placeCar 와 동일 규약(도로각 기준 법선, dir 은 laneOffset 안에서만)
+          let j=0; let px=me.x, py=me.y;
+          for(let k=i;k<wp.length-1&&j<3;k++){ const q=wp[k],q2=wp[k+1]; const seg=Math.hypot(q2.x-q.x,q2.y-q.y); const qh=Math.atan2(q2.y-q.y,q2.x-q.x);
+            if(hd0===null) hd0=qh; if(hd10===null&&acc>=10*S) hd10=qh;
+            while(j<3&&acc+seg>=tg[j]){ const f=(tg[j]-acc)/Math.max(seg,1e-6); const qx=q.x+(q2.x-q.x)*f, qy=q.y+(q2.y-q.y)*f; const c=laneC({x:qx,y:qy,sg:q.sg||q2.sg},qh); lc[j]=+carL(c[0],c[1]).toFixed(3); if(j===0){ const m2=nsH(qx,qy,qh); window.__geoDbg={q:[+(qx/S).toFixed(1),+(qy/S).toFixed(1)], qL:+carL(qx,qy).toFixed(2), qh:+qh.toFixed(3), meAng:+me.ang.toFixed(3), seg:m2?{w:m2.s.w,ang:+m2.s.ang.toFixed(3),o:m2.s.o?1:0,l:m2.s.l,rw:+(m2.s.roadW/S).toFixed(1),d:+(m2.d/S).toFixed(2)}:null, c:[+(c[0]/S).toFixed(1),+(c[1]/S).toFixed(1)], carSeg:{w:sg.w,ang:+sg.ang.toFixed(3),o:sg.o?1:0,l:sg.l}, li:li, dr:dir}; } j++; }
+            acc+=seg; }
+          if(hd0!==null&&hd10!==null){ k0=+((((hd10-hd0+Math.PI*3)%(Math.PI*2))-Math.PI)/10).toFixed(4); }
+        }
+        return {ey:+ey.toFixed(3), epsi:+epsi.toFixed(4), k0:k0, lc:lc, li:li, nl:nl, lw:+lwm.toFixed(2), dl:+(rw/2+lat).toFixed(2), dr:+(rw/2-lat).toFixed(2), v:(lc[2]!==null&&k0!==null)?1:0, lat:+lat.toFixed(3), sw:sg.w};   // |lc10|>4m = 출발 홉/교차로 오투영 → 무효
+      }catch(e){return {v:0,err:String(e).slice(0,60)}}})(),
+      geoDbg: window.__geoDbg||null,
       npc: (function(){try{const o=[];for(const c of cars){if(!c.alive)continue;const dx=(c.x-me.x)/S,dy=(c.y-me.y)/S;if(dx*dx+dy*dy>3600)continue;o.push([+(c.x/S).toFixed(2),+(c.y/S).toFixed(2),+c.ang.toFixed(4),+(c.v||0).toFixed(2),c.si|0]);}return o.slice(0,12);}catch(e){return null}})(),   // a_5581 addendum(u_5583): 60m 안 NPC 자세(코너 부드러움 ego/NPC 비교용)
       bldDbg: window.__bldDbg||null,
       wpDbg: window.__wpDbg||null,

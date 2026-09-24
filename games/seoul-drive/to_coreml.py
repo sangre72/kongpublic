@@ -7,8 +7,21 @@ import coremltools as ct, torch, numpy as np
 from net import DriveNet, vdim_of
 src, dst = sys.argv[1], sys.argv[2]
 sd = torch.load(src, map_location='cpu'); out = sd[list(sd)[-1]].shape[0]
-net = DriveNet(out=out, vin=any(k.startswith('hv.') for k in sd), in_ch=int(sd['f.0.weight'].shape[1]), vdim=vdim_of(sd)); net.load_state_dict(sd); net.eval()
-x = torch.rand(1, net.in_ch if hasattr(net, 'in_ch') else 3, 256, 256); v = torch.rand(1, vdim_of(sd))
+if os.environ.get('BEV') == '1':   # C: BevNet(3×64×64 로짓)
+    from train_bev import BevNet
+    net = BevNet(); net.load_state_dict(sd); net.eval(); x = torch.rand(1, 3, 256, 256); v = torch.rand(1, 1)
+    class _B(torch.nn.Module):
+        def __init__(s, n): super().__init__(); s.n = n
+        def forward(s, x, v): return s.n(x)
+    net = _B(net).eval()
+if os.environ.get('BEV') != '1':
+    net = DriveNet(out=out, vin=any(k.startswith('hv.') for k in sd), in_ch=int(sd['f.0.weight'].shape[1]), vdim=vdim_of(sd)); net.load_state_dict(sd); net.eval()
+    x = torch.rand(1, net.in_ch if hasattr(net, 'in_ch') else 3, 256, 256); v = torch.rand(1, vdim_of(sd))
+if os.environ.get('RAW') == '1':   # a_5598 기하 헤드: 활성화(tanh/sigmoid) 없이 로짓 그대로 내보낸다(train_geo raw=True 와 일치)
+    class _Raw(torch.nn.Module):
+        def __init__(s, n): super().__init__(); s.n = n
+        def forward(s, x, v): return s.n(x, v, raw=True)
+    net = _Raw(net).eval()
 tr = torch.jit.trace(net, (x, v))
 # ★CU: env CU=ALL|CPU_AND_GPU|CPU_ONLY (2026-09-23 a_5577). ANE 컴파일(E5RT MILCompilerForANE) 실패 시 CPU_AND_GPU 로 자동 폴백.
 CU = os.environ.get('CU', 'ALL')

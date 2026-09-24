@@ -248,10 +248,15 @@ def episode(net, dev, secs, ep):
             _lbh = C.push_stats().get('lbl') if hasattr(C, 'push_stats') else None
             _lpm = _lbh.get('lpm') if isinstance(_lbh, dict) else None; _lpm = [float(z) for z in _lpm] if isinstance(_lpm, list) and len(_lpm) == 4 else [float('nan')] * 4   # ★u_5547 10/20/40/80m 앞 경로점 횡오프셋
             _lfm = _lbh.get('lfm') if isinstance(_lbh, dict) else None; _lfm = [float(z) for z in _lfm] if isinstance(_lfm, list) and len(_lfm) == 4 else [float('nan')] * 4   # 전방거리(07:3x 코너 보정)
-            LP.append(([float(_lbh['lp']), float(_lbh.get('ld') or 10.0), float(_lbh['vmax']) if isinstance(_lbh.get('vmax'), (int, float)) else float('nan')] if isinstance(_lbh, dict) and isinstance(_lbh.get('lp'), (int, float)) else [float('nan'), float('nan'), float('nan')]) + _lpm + _lfm)   # [lp, ld, vmax, lp10..lp80, lf10..lf80]
+            if os.environ.get('L12') == '1':   # ★a_5598: 차로 기하 12열 라벨(/tel geo) — ey epsi k0 lc10 lc20 lc40 li nl lw dl dr valid
+                _g = d.get('geo') or {}; _lc = _g.get('lc') or [None, None, None]
+                _f = lambda z: float(z) if isinstance(z, (int, float)) else float('nan')
+                LP.append([_f(_g.get('ey')), _f(_g.get('epsi')), _f(_g.get('k0')), _f(_lc[0]), _f(_lc[1]), _f(_lc[2]), _f(_g.get('li')), _f(_g.get('nl')), _f(_g.get('lw')), _f(_g.get('dl')), _f(_g.get('dr')), float(_g.get('v') or 0)])
+            else: LP.append(([float(_lbh['lp']), float(_lbh.get('ld') or 10.0), float(_lbh['vmax']) if isinstance(_lbh.get('vmax'), (int, float)) else float('nan')] if isinstance(_lbh, dict) and isinstance(_lbh.get('lp'), (int, float)) else [float('nan'), float('nan'), float('nan')]) + _lpm + _lfm)   # [lp, ld, vmax, lp10..lp80, lf10..lf80]
             _dq = d.get('da') or {}; _ps = d.get('pos') if isinstance(d.get('pos'), list) and len(d.get('pos')) >= 2 else [float('nan'), float('nan')]
+            _car = d.get('car') or {}
             Q.append([float(_dq.get('xt') if isinstance(_dq.get('xt'), (int, float)) else 99.0), float(d.get('tpN') or 0), float(d.get('cr') or 0), time.time() - t0,
-                      float(_ps[0]), float(_ps[1]), float(d.get('prog') or 0)])   # 4~6열(2026-09-22): pos x,y, prog — 사고 지점을 회귀 케이스로 고정하기 위해(규칙 §6)
+                      float(_ps[0]), float(_ps[1]), float(d.get('prog') or 0), float(_car.get('ang') if isinstance(_car.get('ang'), (int, float)) else float('nan'))])   # 8열(2026-09-24 C): car.ang — 오프라인 BEV 라벨용 헤딩   # 4~6열(2026-09-22): pos x,y, prog — 사고 지점을 회귀 케이스로 고정하기 위해(규칙 §6)
         time.sleep(0.02)
 
     dl = tel() or {}
