@@ -3029,7 +3029,8 @@ function mdlPoll(dt){
       daShadow: window.__daShadow||null,
       mdlTgt: window.__mdlTgt||null,
       tgt2N: window.__tgt2N|0,
-      lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0,
+      camErr: +((((me.ang+Math.PI/2)-camA+Math.PI*3)%(Math.PI*2))-Math.PI).toFixed(4),   /* a_5619: 화면 위(camA) 대비 차 헤딩 기울기(rad, 카메라 회전 지연) — 화면 기준 기하를 차 기준으로 돌릴 때 */
+      lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0, lpwN: window.__lpwN|0, lpwFit: (typeof window.__lpwFit==='number')?+window.__lpwFit.toFixed(2):null, lpwIn: (typeof window.__lpwIn==='number')?+window.__lpwIn.toFixed(2):null, lpwBuf: (window.__lpwBuf||[]).length,
       lhold: window.__lhold|0,
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
@@ -3038,7 +3039,7 @@ function mdlPoll(dt){
       ntier: (typeof window.__ntier==='number')?window.__ntier:null, nconf: window.__nconf||null, crNTier: window.__crNTier||null, crNTier3: window.__crNTier3||null,
       tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, ovlEscN: window.__ovlEscN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
       crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, pedPredN: window.__pedPredN||0, pedSideN: window.__pedSideN||0, npcDeadlockRm: window.__npcDeadlockRm||0, jayMult: (typeof JAY_MULT!=='undefined'?JAY_MULT:1), astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, startSkipHairpin: window.__startSkipHairpin||0, startSkipErr: window.__startSkipErr||null, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
-      da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i,st:d.st,df:d.df,lp:d.lp,ld:d.ld}})(), tbrk: window.__tbrk,
+      da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i,st:d.st,df:d.df,lp:d.lp,ld:d.ld,lpm:d.lpm,lfm:d.lfm}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
       offDbg: window.__offDbg||null,
       qrunRect: (function(){var b=runBtnEl();if(!b)return null;var r=b.getBoundingClientRect();
@@ -3179,7 +3180,9 @@ function tierTick(){
 }
 function tierAgo(ms){ const H=window.__tierHist||[]; const now=performance.now(); for(let i=0;i<H.length;i++){ if(now-H[i][0]<=ms) return H[i][1]; } return H.length?H[H.length-1][1]:null; }
 window.__noL1 = /[?&]nol1=1/.test(location.search);
-window.__lpRawMode = /[?&]lpraw=1/.test(location.search);
+window.__lpTau = (function(){ const m=/[?&]lptau=([0-9.]+)/.exec(location.search); return m?+m[1]:0.35; })();   // 앞점 EMA 시정수(s). ?lptau=0.1 이면 평활 ON(시정수 0.1)
+window.__lpRawMode = !(/[?&]lpsm=1/.test(location.search) || /[?&]lptau=/.test(location.search));
+window.__lpWorldN = (function(){ const m=/[?&]lpworld=(\d+)/.exec(location.search); return m?+m[1]:0; })();   // ★2026-09-24 a_5619 오라클 이분: 앞점 EMA(0.35s)+6m/s 제한이 순수추적 진동의 근본 원인(규칙 앞점 되먹임 sc55→raw 1.65/분) → 기본 RAW. 평활은 ?lpsm=1 로만.
 window.__PERTURB_S = (function(){ const m=/[?&]perturb=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();
 /* ★가상 데이터 샘플러(오너 u_5467, 2026-09-20): 주행하지 않고 상태를 무작위로 놓는다. ?synth=1 이면 SYNTH_MS 마다 경로 위 임의 점에
    차로 오프셋 −6~+6m·방향 오차 −40~+40°·속도 0~30m/s 로 차를 재배치 → driveAuto 가 그 자리에서 낼 조향(__da.st)과 교사 속도 제어가
@@ -3459,12 +3462,21 @@ function driveAuto(dt){
        추종기가 그대로 따라갔다. 지수평활(시정수 0.35초) + 변화율 제한 6m/s. ?lpraw=1 이면 끔(원값 측정용). /tel lpSm. */
     let _lpRaw=Math.max(-8,Math.min(8,+_mt2.lp));
     if(!window.__lpRawMode){
-      const _a=1-Math.exp(-dt/0.35), _prev=(typeof window.__lpSm==='number')?window.__lpSm:_lpRaw;
-      let _n=_prev+(_lpRaw-_prev)*_a; const _lim=6.0*dt; _n=Math.max(_prev-_lim, Math.min(_prev+_lim, _n));
+      const _a=1-Math.exp(-dt/(window.__lpTau||0.35)), _prev=(typeof window.__lpSm==='number')?window.__lpSm:_lpRaw;
+      let _n=_prev+(_lpRaw-_prev)*_a; const _lim=(window.__lpRate||6.0)*dt; _n=Math.max(_prev-_lim, Math.min(_prev+_lim, _n));
       window.__lpSm=_n; _lpRaw=_n;
     }
     const _ld=((+_mt2.ld)>0 ? Math.max(3,Math.min(20,+_mt2.ld)) : Ld/S)*S, _lp=_lpRaw*S;
     _Pt={x: me.x+_ca*_ld-_sa*_lp, y: me.y+_sa*_ld+_ca*_lp, ang: me.ang};
+    /* ★a_5619(2026-09-25): ?lpworld=N — 모델 앞점을 수신 순간의 정확한 자세로 세계좌표 점으로 누적(도로는 안 움직인다), 매 프레임 차 기준으로 되돌려 직선 적합 → Ld 앞 점.
+       프레임 잡음을 지연 없이 √N 로 줄인다(gpu_drive 쪽 세계누적은 /tel 자세 지연 때문에 실패). 새 표본(_mt2.t 변화)일 때만 점 추가. */
+    if(window.__lpWorldN>0){
+      const B=(window.__lpwBuf=window.__lpwBuf||[]);
+      if(_mt2.t!==window.__lpwLastT){ window.__lpwLastT=_mt2.t; B.push({x:_Pt.x,y:_Pt.y}); while(B.length>window.__lpWorldN) B.shift(); }
+      const P=[]; for(const w of B){ const dx=w.x-me.x, dy=w.y-me.y; const li=(dx*_ca+dy*_sa)/S, pi=(-dx*_sa+dy*_ca)/S; if(li>2&&li<45) P.push([li,pi]); }
+      if(P.length>=3){ let sx=0,sy=0,sxx=0,sxy=0; for(const [a,b] of P){ sx+=a; sy+=b; sxx+=a*a; sxy+=a*b; } const n=P.length, den=n*sxx-sx*sx; const sl=Math.abs(den)>1e-6?(n*sxy-sx*sy)/den:0, ic=(sy-sl*sx)/n;
+        const ldm=_ld/S, lpf=(sl*ldm+ic)*S; _Pt={x: me.x+_ca*_ld-_sa*lpf, y: me.y+_sa*_ld+_ca*lpf, ang: me.ang}; window.__lpwN=P.length; window.__lpwFit=lpf/S; window.__lpwIn=_lpRaw; }
+    }
     window.__tgt2N=(window.__tgt2N|0)+1;
   }
   let alpha=((Math.atan2(_Pt.y-me.y,_Pt.x-me.x)-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
@@ -3592,7 +3604,7 @@ function driveAuto(dt){
   me.v+=(vmax-me.v)*Math.min(1,dt*2.0);
   auto.act=gp<11*S?'정지 — 전방 장애물':gp<28*S?'감속 — 차간유지'
     :auto.curv>0.05?'선회 중':(auto.s>=total-25*S)?'목적지 접근':'주행 중';
-  window.__da={st:me.steer, df:alpha, i:auto.i, n:N, lp:+_lpLab.toFixed(3), ld:+_ldLab.toFixed(2),
+  window.__da={st:me.steer, df:alpha, i:auto.i, n:N, lp:+_lpLab.toFixed(3), ld:+_ldLab.toFixed(2), lpm:_lpm, lfm:_lfm,
                d:Lreal, xt:auto.xt||0, s:auto.s/S, tot:total/S, vc:vmaxCurve,
                gp:gp/S, vmax:vmax, stall:auto.stall||0, brk:window.__brkT||0, ped:pedD,
                blk:blockT||0, bst:bldStuck||0, cool:me.cool||0, hold:crashHold||0};

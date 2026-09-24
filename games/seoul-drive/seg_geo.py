@@ -6,7 +6,7 @@ def geom(pw=763, ph=750, lead=25.0, S=6.0, size=256):
     hc = ph - int(round(ph * 0.236)); h, w = int(hc * _cc), int(pw * _cc); y0, x0 = (hc - h) // 2, (pw - w) // 2
     cy = ph * 0.62 + lead * S - int(round(ph * 0.236)) - y0; cx = pw / 2 - x0
     return cy * size / h, cx * size / w, size / w * S, size / h * S   # car_row, car_col, pxm_x, pxm_y
-RES = int(os.environ.get('RES', '256')); CAR_ROW, CAR_COL, PXM_X, PXM_Y = geom(size=RES)
+LC_AT = float(os.environ.get('LC_AT', '20')); RES = int(os.environ.get('RES', '256')); CAR_ROW, CAR_COL, PXM_X, PXM_Y = geom(size=RES)
 def _fit(band, cid, r1):
     """띠 안 클래스 cid 픽셀을 차에서 위로 행마다 추적: 각 행의 연속 구간(run) 중 직전 행 중앙(첫 행은 차 열)에 가장 가까운 것만 쓴다(교차 도로의 같은 클래스 배제)."""
     m = band == cid; med = []; rr = []; ref = CAR_COL
@@ -22,7 +22,7 @@ def _fit(band, cid, r1):
     (sl, ic), *_ = np.linalg.lstsq(np.stack([fwd, np.ones_like(fwd)], 1), lat, rcond=None)
     k0 = 0.0
     if len(rr) >= 8: (qa, _, _), *_ = np.linalg.lstsq(np.stack([fwd ** 2, fwd, np.ones_like(fwd)], 1), lat, rcond=None); k0 = float(2 * qa)   # lat ≈ ½κ f² → κ(+=우회전, 화면 우측)
-    lc20 = float(np.interp(20.0, fwd[::-1], lat[::-1])) if fwd.min() <= 20.0 <= fwd.max() else float(sl * 20.0 + ic)   # 20m 앞 차로중심 횡오프셋(차 기준, +=우측)
+    lc20 = float(np.interp(LC_AT, fwd[::-1], lat[::-1])) if fwd.min() <= LC_AT <= fwd.max() else float(sl * LC_AT + ic)   # LC_AT m 앞 차로중심 횡오프셋(차 기준, +=우측; 기본 20)
     return -float(ic), -float(np.arctan(sl)), int(len(rr)), k0, lc20   # e_y: 차가 중심의 오른쪽이면 양수(중심이 왼쪽 = lat<0)
 def _near(mask, cid):
     """차 위치 행(±1.5m) 에서 클래스 cid 의 차 열에 가장 가까운 run 중앙 → e_y(m). 없으면 nan. (띠 적합의 8m 외삽 오차·카메라 회전 지연 tilt 오차 제거)"""
