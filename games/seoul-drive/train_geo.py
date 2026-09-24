@@ -44,10 +44,23 @@ def load(dirs):
     XA = LazyX([(np.load(f'{d}/X.npy', mmap_mode='r'), idx) for d, idx, _, _, _ in plan])
     return XA, np.concatenate([p[2] for p in plan]), np.concatenate([p[3] for p in plan]), np.concatenate([p[4] for p in plan])
 KSTACK = 1
+ZOOM = float(os.environ.get('ZOOM', '1.0')); AUX = os.environ.get('AUX', '0') == '1'
+def zoom(xb):
+    if ZOOM >= 0.999: return xb
+    n = xb.shape[-1]; c = int(round(n * ZOOM)); o = (n - c) // 2
+    return torch.nn.functional.interpolate(xb[:, :, o:o + c, o:o + c], size=(n, n), mode='bilinear', align_corners=False)
+def lane_mask(Lrow):   # 보조 마스크(64×64, 전방 26m·후방 6m·좌우 ±16m @0.5m): 현재 차로중심 폴리라인 (0,−ey)→(10,lc10)→(20,lc20)→(40,lc40)
+    m = np.zeros((64, 64), np.float32); pts = [(0.0, -Lrow[0] * 2.0), (10.0, Lrow[3] * 16.0), (20.0, Lrow[4] * 16.0), (40.0, Lrow[5] * 16.0)]
+    for (f0, l0), (f1, l1) in zip(pts[:-1], pts[1:]):
+        for k in range(0, 41):
+            t = k / 40.0; f = f0 + (f1 - f0) * t; l = l0 + (l1 - l0) * t; r = int((26.0 - f) / 0.5); c = int((l + 16.0) / 0.5)
+            if 0 <= r < 64 and 0 <= c < 64: m[r, c] = 1.0
+    return m
 def batch(X, Y, V, W, ids, train=False):
     if KSTACK > 1:   # ★A3(u_5602): 직전 K-1 프레임 채널 스택(같은 에피소드 안, 인덱스 순). 자차 이동 보정은 근사 생략(≈70ms, <1m) — 기록.
         xs = [np.concatenate([X.prev(g, j) for j in range(KSTACK - 1, -1, -1)], 0) for g in ids]; xb = torch.from_numpy(np.stack(xs)).float().div_(255.).to(DEV)
     else: xb = torch.from_numpy(np.ascontiguousarray(X[ids])).float().div_(255.).to(DEV)
+    xb = zoom(xb)
     if train and AUG: xb = augment(xb)
     return xb, torch.from_numpy(Y[ids]).to(DEV), torch.from_numpy(V[ids]).to(DEV), torch.from_numpy(W[ids]).to(DEV)
 def main():
@@ -55,17 +68,24 @@ def main():
     rng = np.random.default_rng(a.seed); torch.manual_seed(a.seed)
     dirs = [d for p in a.dirs.split(',') for d in sorted(glob.glob(p))]; got = load(dirs)
     if not got: print(json.dumps({'error': 'no frames'})); return
-    X, Y, V, W = got; n = len(X); print(json.dumps({'frames': n, 'gb': round(n * 3 * 256 * 256 / 1e9, 1), 'k': a.k}), flush=True)
+    X, Y, V, W = got; n = len(X); print(json.dumps({'frames': n, 'gb': round(n * 3 * 256 * 256 / 1e9, 1), 'k': a.k, 'zoom': ZOOM, 'aux': AUX}), flush=True)
     idx = rng.permutation(n); cut = int(n * 0.9); tr, va = idx[:cut], idx[cut:]
     global KSTACK; KSTACK = a.k; net = DriveNet(out=12, vin=True, vdim=1, in_ch=3 * a.k).to(DEV); gpu_guard.assert_on_gpu(net)
     if a.init:
         _sd = torch.load(a.init, map_location=DEV); _own = net.state_dict(); _ok = {k: v for k, v in _sd.items() if k in _own and _own[k].shape == v.shape}; net.load_state_dict(_ok, strict=False); print(json.dumps({'init': a.init, 'loaded': len(_ok)}), flush=True)
-    opt = torch.optim.Adam(net.parameters(), 5e-4 if a.init else 1e-3, weight_decay=1e-4); best = 1e9
+    aux = None
+    if AUX:   # 보조 차로중심 마스크 헤드(인코더 특징 128×6×6 → 64×64 로짓), BCE pos_weight 8, 가중 0.5; 저장은 DriveNet 만
+        aux = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(128 * 6 * 6, 64 * 8 * 8), torch.nn.ReLU(), torch.nn.Unflatten(1, (64, 8, 8)), torch.nn.ConvTranspose2d(64, 32, 4, 2, 1), torch.nn.ReLU(), torch.nn.ConvTranspose2d(32, 16, 4, 2, 1), torch.nn.ReLU(), torch.nn.ConvTranspose2d(16, 8, 4, 2, 1), torch.nn.ReLU(), torch.nn.Conv2d(8, 1, 3, 1, 1)).to(DEV)
+    params = list(net.parameters()) + (list(aux.parameters()) if aux is not None else [])
+    opt = torch.optim.Adam(params, 5e-4 if a.init else 1e-3, weight_decay=1e-4); best = 1e9; pw = torch.tensor([8.0], device=DEV)
     for ep in range(a.epochs):
         net.train(); tot = 0.0; perm = rng.permutation(tr)
         for i in range(0, len(perm), BS):
             ids = np.sort(perm[i:i + BS]); xb, yb, vb, wb = batch(X, Y, V, W, ids, train=True)
-            opt.zero_grad(); o = net(xb, vb, raw=True); l = ((((o - yb) ** 2) * WCOL).mean(1) * wb).mean(); l.backward(); opt.step(); tot += l.item() * len(ids)
+            opt.zero_grad(); o = net(xb, vb, raw=True); l = ((((o - yb) ** 2) * WCOL).mean(1) * wb).mean()
+            if aux is not None:
+                mb = torch.from_numpy(np.stack([lane_mask(Y[g]) for g in ids])).to(DEV).unsqueeze(1); ml = aux(net.f(xb)); l = l + 0.5 * torch.nn.functional.binary_cross_entropy_with_logits(ml, mb, pos_weight=pw)
+            l.backward(); opt.step(); tot += l.item() * len(ids)
         net.eval(); vs = 0.0; c = 0; mae = np.zeros(12)
         with torch.no_grad():
             for i in range(0, len(va), BS):

@@ -84,7 +84,7 @@ class H(http.server.SimpleHTTPRequestHandler):
                 pass
             with _lock:
                 _frame['get_t'] = _time.time()
-                b, seq, t, lbl = _frame['b'], _frame['seq'], _frame['t'], _frame.get('lbl') or ''
+                b, seq, t, lbl = _frame['b'], _frame['seq'], _frame['t'], _frame.get('lbl') or ''; laboff = _frame.get('laboff') or 0
             if b is None or seq <= since:
                 self.send_response(204); self.send_header('X-Seq', str(seq)); self.end_headers(); return
             self.send_response(200)
@@ -93,6 +93,7 @@ class H(http.server.SimpleHTTPRequestHandler):
             self.send_header('X-Seq', str(seq))
             self.send_header('X-Age-Ms', str(int((_time.time() - t) * 1000)))
             if lbl: self.send_header('X-Lbl', lbl)
+            if laboff: self.send_header('X-LabOff', str(laboff))
             self.end_headers(); self.wfile.write(b); return
         if self.path.split('?')[0] == '/tel':
             with _lock:
@@ -106,7 +107,8 @@ class H(http.server.SimpleHTTPRequestHandler):
             with _lock:
                 if b:
                     _frame['b'] = b; _frame['seq'] += 1; _frame['t'] = _time.time(); _frame['posts'] += 1
-                    _frame['lbl'] = self.headers.get('X-Lbl') or ''   # 같은 프레임의 라벨(조향·스로틀·제동·속도) — 프레임/라벨 동기
+                    _frame['lbl'] = self.headers.get('X-Lbl') or ''
+                    _frame['laboff'] = int(self.headers.get('X-LabOff') or 0)   # a_5612: JPEG 뒤에 붙은 라벨 PNG 시작 오프셋(0=없음)   # 같은 프레임의 라벨(조향·스로틀·제동·속도) — 프레임/라벨 동기
                 seq = _frame['seq']
             self.send_response(200); self.send_header('X-Seq', str(seq)); self.send_header('Content-Length', '0'); self.end_headers(); return
         if self.path.split('?')[0] != '/ctl':

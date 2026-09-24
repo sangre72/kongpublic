@@ -4150,6 +4150,55 @@ function _stepPed(p,dt,s){
 const cam={x:0,y:0,z:1};
 const CAM_LEAD=(function(){ try{ const m=/[?&]lead=(-?[0-9.]+)/.exec(location.search); if(m) return +m[1]; }catch(e){} return (typeof window.__CAM_LEAD==='number')?window.__CAM_LEAD:25; })();
 var camA=0;   // 카메라 회전각(차 진행방향이 화면 위)
+/* ★a_5612 D1(2026-09-24): 픽셀 라벨 캔버스. 같은 카메라 변환으로 클래스 id 를 그린다(값=id*20).
+   0 도로밖 · 1..8 내 진행방향 k차로(중앙선/좌측가장자리에서 바깥으로) · 9 차선 · 10 반대방향 차도 · 11 교차로(차수≥3 노드). ?lab=1 일 때만. */
+window.__labOn = /[?&]lab=1/.test(location.search);
+const LAB_K = 20;
+let _ndeg = null;
+function drawLab(lc, pw, ph){
+  if(!_ndeg){ _ndeg = new Uint8Array(nodes.length); for(const s of segs){ _ndeg[s.a]++; _ndeg[s.b]++; } }
+  const q = lc.getContext('2d'); const sc = pw / W;
+  q.setTransform(1,0,0,1,0,0); q.fillStyle='#000'; q.fillRect(0,0,pw,ph);
+  q.save(); q.scale(sc, sc); q.translate(W/2,H*0.62); q.scale(cam.z,cam.z); q.rotate(-camA); q.translate(-cam.x,-cam.y);
+  q.lineCap='butt';
+  const vr=Math.hypot(W/cam.z/2+60,H/cam.z/2+60);
+  const inV=(x,y,m)=>((x-cam.x)**2+(y-cam.y)**2) < (vr+(m||0))**2;
+  const col=id=>'rgb('+(id*LAB_K)+','+(id*id)+',0)';   // R=id·20, G=id² — 경계 안티앨리어싱 혼합 픽셀은 G≠(R/20)² 로 판별해 ignore(255)
+  const myA = me.ang; const mine=[];   // 2패스: 반대방향(10) 먼저, 내 차로는 나중에(겹치는 분리차도 way 가 내 1·2차로를 덮어쓰던 것)
+  for(const s of segs){
+    const A=nodes[s.a],B=nodes[s.b];
+    if(!inV((A.x+B.x)/2,(A.y+B.y)/2,s.len))continue;
+    const nx=-Math.sin(s.ang), ny=Math.cos(s.ang);
+    const midOff = s.o ? -1e9 : (Math.round(s.l/2) - s.l/2)*LW;   // 중앙선 오프셋(양방향) — 차선 그리기와 같은 식
+    for(let j=0;j<s.l;j++){
+      const c=(j - s.l/2 + 0.5)*LW;
+      let side, k;
+      if(s.o){ side=1; k=j; } else if(c>midOff){ side=1; k=Math.floor((c-midOff)/LW); } else { side=-1; k=Math.floor((midOff-c)/LW); }
+      const dA = s.ang + (side>0?0:Math.PI);
+      let dd=(myA-dA)%(2*Math.PI); if(dd>Math.PI)dd-=2*Math.PI; if(dd<-Math.PI)dd+=2*Math.PI;
+      const seg=[A.x+nx*c,A.y+ny*c,B.x+nx*c,B.y+ny*c];
+      if(Math.abs(dd)<=Math.PI/3){ mine.push([Math.min(8,k+1),seg]); continue; }   // ±60°: 직교 도로는 '내 방향' 아님
+      q.strokeStyle=col(10); q.lineWidth=LW; q.beginPath(); q.moveTo(seg[0],seg[1]); q.lineTo(seg[2],seg[3]); q.stroke();
+    }
+  }
+  q.lineWidth=LW;
+  for(const [id,seg] of mine){ q.strokeStyle=col(id); q.beginPath(); q.moveTo(seg[0],seg[1]); q.lineTo(seg[2],seg[3]); q.stroke(); }
+  q.strokeStyle=col(9); q.lineWidth=3.0;   // 화면선 1.8px 는 256 최근접 축소(÷3)에서 끊긴다 → 라벨은 0.5m 폭
+  for(const s of segs){
+    if(s.l<2)continue;
+    const A=nodes[s.a],B=nodes[s.b];
+    if(!inV((A.x+B.x)/2,(A.y+B.y)/2,s.len))continue;
+    const nx=-Math.sin(s.ang), ny=Math.cos(s.ang);
+    for(let i=1;i<s.l;i++){ const off=(i-s.l/2)*LW; q.beginPath(); q.moveTo(A.x+nx*off,A.y+ny*off); q.lineTo(B.x+nx*off,B.y+ny*off); q.stroke(); }
+  }
+  q.fillStyle=col(11);
+  for(let i=0;i<nodes.length;i++){
+    if(_ndeg[i]<3)continue; const n=nodes[i]; if(!inV(n.x,n.y,40))continue;
+    const rs=[]; for(const s of segs){ if(s.a===i||s.b===i) rs.push(s.roadW/2); } rs.sort((a,b)=>b-a); const r=rs[1]||rs[0];   // 두 번째로 넓은 도로의 반폭: 간선에 골목이 붙는 T 자에서 간선 차로를 통째로 지우지 않게
+    q.beginPath(); q.arc(n.x,n.y,r,0,2*Math.PI); q.fill();
+  }
+  q.restore();
+}
 function draw(){
   g.fillStyle=C('--bg');g.fillRect(0,0,W,H);
   /* ★u_5547/u_5548 카메라 전방 리드(2026-09-22): 사람처럼 앞을 멀리 보게 화면 중심을 진행방향으로 CAM_LEAD m 당긴다(기본 25m, ?lead= 로 변경).
@@ -5189,11 +5238,21 @@ function loop(t){
       const du = pc.toDataURL('image/jpeg', 0.85);
       const bin = atob(du.slice(du.indexOf(',')+1)); const u8 = new Uint8Array(bin.length);
       for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+      let _labOff = 0, _u8 = u8;
+      if(window.__labOn){
+        const lc = window.__labCv || (window.__labCv = document.createElement('canvas'));
+        if(lc.width!==pw || lc.height!==ph){ lc.width=pw; lc.height=ph; }
+        drawLab(lc, pw, ph);
+        const dl = lc.toDataURL('image/png'); const bl = atob(dl.slice(dl.indexOf(',')+1));
+        _u8 = new Uint8Array(u8.length + bl.length); _u8.set(u8, 0);
+        for(let i=0;i<bl.length;i++) _u8[u8.length+i]=bl.charCodeAt(i);
+        _labOff = u8.length;
+      }
       const _pt1 = performance.now();
       let _lbl='';
       try{ const T=window.__teach, L=(T&&T.last)||{}, D=window.__da||{};
            _lbl=JSON.stringify({vmax:(typeof D.vmax==='number')?+D.vmax.toFixed(2):null, lp:(typeof D.lp==='number')?D.lp:null, ld:(typeof D.ld==='number')?D.ld:null, lpm:window.__lpm||null, lfm:window.__lfm||null, st:(typeof D.st==='number')?+D.st.toFixed(4):null, th:(typeof L.thr==='number')?+L.thr.toFixed(4):null, br:(typeof L.brake==='number')?+L.brake.toFixed(4):null, v:+me.v.toFixed(3), synth:window.__synth?1:0, n:window.__synthN|0}); }catch(e){}
-      fetch('/frame', {method:'POST', body:u8, cache:'no-store', headers:{'Content-Type':'image/jpeg', 'X-Lbl':_lbl}})
+      fetch('/frame', {method:'POST', body:_u8, cache:'no-store', headers:{'Content-Type':'image/jpeg', 'X-Lbl':_lbl, 'X-LabOff':String(_labOff)}})
         .then(()=>{ window.__pushN=(window.__pushN|0)+1; const D=window.__frPush=window.__frPush||{blobMs:0,postMs:0,kb:0,n:0}; D.n++; D.blobMs+=_pt1-_pt0; D.postMs+=performance.now()-_pt1; D.kb+=u8.length/1024; })
         .catch(()=>{}).finally(()=>{ window.__pushBusy = 0; });
     }catch(e){ window.__pushBusy = 0; }

@@ -8,6 +8,10 @@ import gpu_guard
 ap = argparse.ArgumentParser(); ap.add_argument('model'); ap.add_argument('dirs'); ap.add_argument('--k', type=int, default=1); a = ap.parse_args()
 DEV = gpu_guard.require_gpu(); sd = torch.load(a.model, map_location=DEV); in_ch = int(sd['f.0.weight'].shape[1])
 net = DriveNet(out=12, vin=True, vdim=1, in_ch=in_ch).to(DEV); net.load_state_dict(sd); net.eval(); K = in_ch // 3
+ZOOM = float(os.environ.get('ZOOM', '1.0'))
+def zoomf(xb):
+    if ZOOM >= 0.999: return xb
+    n = xb.shape[-1]; c = int(round(n * ZOOM)); o = (n - c) // 2; return torch.nn.functional.interpolate(xb[:, :, o:o + c, o:o + c], size=(n, n), mode='bilinear', align_corners=False)
 SCALE = np.array([2.0, 0.5, 0.05, 16.0, 16.0, 16.0, 8.0, 8.0, 5.0, 15.0, 15.0, 1.0], np.float32)
 def stack(X, i):
     fr = [X[max(0, i - j)] for j in range(K - 1, -1, -1)]   # 과거→현재 순, 채널 연결
@@ -18,7 +22,7 @@ for d in sorted(glob.glob(a.dirs)):
     n = len(X); P = np.zeros((n, 12), np.float32)
     with torch.no_grad():
         for s in range(0, n, 64):
-            ids = range(s, min(n, s + 64)); xb = torch.from_numpy(np.stack([stack(X, i) for i in ids])).float().div_(255.).to(DEV); vb = torch.from_numpy((Y[list(ids), 3] / 30.0).astype(np.float32).reshape(-1, 1)).to(DEV)
+            ids = range(s, min(n, s + 64)); xb = torch.from_numpy(np.stack([stack(X, i) for i in ids])).float().div_(255.).to(DEV); xb = zoomf(xb); vb = torch.from_numpy((Y[list(ids), 3] / 30.0).astype(np.float32).reshape(-1, 1)).to(DEV)
             P[s:s + len(ids)] = net(xb, vb, raw=True).cpu().numpy() * SCALE
     t = Q[:, 3]; fps = (n - 1) / max(t[-1] - t[0], 1e-3); mv = Y[:, 3] > 1.0
     def rev(x): return float(np.sum(np.diff(np.sign(np.diff(x))) != 0)) / max(t[-1] - t[0], 1e-3)
@@ -53,4 +57,4 @@ for d in sorted(glob.glob(a.dirs)):
     r['cmd_rev_s'] = round(rev(lp0[mv]), 2) if mv.sum() > 10 else None; r['cmd_rev_s_hold'] = round(rev(lph[mv]), 2) if mv.sum() > 10 else None; r['hold_frac'] = round(hn / max(n, 1), 3)
     rows.append(r); print(json.dumps(r, default=float), flush=True)
 m = lambda k: round(float(np.mean([r[k] for r in rows if r[k] is not None])), 3)
-print(json.dumps({'model': a.model, 'k': K, 'episodes': len(rows), 'fps': m('fps'), 'ey_rev_s': m('ey_rev_s'), 'lc20_rev_s': m('lc20_rev_s'), 'ey_dp90': m('ey_dp90'), 'lc20_dp90': m('lc20_dp90'), 'ey_mae': m('ey_mae'), 'lc20_mae': m('lc20_mae'), 'label_ey_rev_s': m('label_ey_rev_s'), 'cmd_rev_s': m('cmd_rev_s'), 'cmd_rev_s_hold': m('cmd_rev_s_hold'), 'hold_frac': m('hold_frac'), 'cmd_rev_s_merge': m('cmd_rev_s_merge'), 'merge_hold_frac': m('merge_hold_frac'), 'kf_rej_frac': m('kf_rej_frac')}, default=float))
+print(json.dumps({'model': a.model, 'zoom': ZOOM, 'k': K, 'episodes': len(rows), 'fps': m('fps'), 'ey_rev_s': m('ey_rev_s'), 'lc20_rev_s': m('lc20_rev_s'), 'ey_dp90': m('ey_dp90'), 'lc20_dp90': m('lc20_dp90'), 'ey_mae': m('ey_mae'), 'lc20_mae': m('lc20_mae'), 'label_ey_rev_s': m('label_ey_rev_s'), 'cmd_rev_s': m('cmd_rev_s'), 'cmd_rev_s_hold': m('cmd_rev_s_hold'), 'hold_frac': m('hold_frac'), 'cmd_rev_s_merge': m('cmd_rev_s_merge'), 'merge_hold_frac': m('merge_hold_frac'), 'kf_rej_frac': m('kf_rej_frac')}, default=float))

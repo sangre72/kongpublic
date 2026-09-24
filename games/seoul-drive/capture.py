@@ -107,7 +107,9 @@ def _grab_push(wait=None):
             if r.status == 200:
                 b = r.read(); seq = int(r.headers.get('X-Seq') or 0)
                 import cv2
-                a = cv2.imdecode(_np.frombuffer(b, dtype=_np.uint8), cv2.IMREAD_COLOR)   # BGR
+                lo = int(r.headers.get('X-LabOff') or 0)   # a_5612: 라벨 PNG(같은 프레임) 가 JPEG 뒤에 붙어 온다
+                _push['lab'] = cv2.imdecode(_np.frombuffer(b[lo:], dtype=_np.uint8), cv2.IMREAD_COLOR) if lo > 0 else None
+                a = cv2.imdecode(_np.frombuffer(b[:lo] if lo > 0 else b, dtype=_np.uint8), cv2.IMREAD_COLOR)   # BGR
                 if a is None:
                     _push['fail'] += 1; return None
                 _push['seq'] = seq; _push['n'] += 1; _push['fail'] = 0
