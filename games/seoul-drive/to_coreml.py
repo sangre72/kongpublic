@@ -14,7 +14,14 @@ if os.environ.get('BEV') == '1':   # C: BevNet(3×64×64 로짓)
         def __init__(s, n): super().__init__(); s.n = n
         def forward(s, x, v): return s.n(x)
     net = _B(net).eval()
-if os.environ.get('BEV') != '1':
+if os.environ.get('SEG') == '1':   # a_5612 D: SegNet(12클래스 로짓 RES×RES) — 입력 img 만(v 무시)
+    from seg_net import SegNet
+    RES = int(os.environ.get('RES', '256')); net = SegNet(); net.load_state_dict(sd); net.eval(); x = torch.rand(1, 3, RES, RES); v = torch.rand(1, 1)
+    class _S(torch.nn.Module):
+        def __init__(s, n): super().__init__(); s.n = n
+        def forward(s, x, v): return s.n(x)
+    net = _S(net).eval()
+if os.environ.get('BEV') != '1' and os.environ.get('SEG') != '1':
     net = DriveNet(out=out, vin=any(k.startswith('hv.') for k in sd), in_ch=int(sd['f.0.weight'].shape[1]), vdim=vdim_of(sd)); net.load_state_dict(sd); net.eval()
     x = torch.rand(1, net.in_ch if hasattr(net, 'in_ch') else 3, 256, 256); v = torch.rand(1, vdim_of(sd))
 if os.environ.get('RAW') == '1':   # a_5598 기하 헤드: 활성화(tanh/sigmoid) 없이 로짓 그대로 내보낸다(train_geo raw=True 와 일치)

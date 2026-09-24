@@ -53,7 +53,7 @@ def post(d):
         return False
 
 
-LAB = os.environ.get('LAB') == '1'; SEG = []; SEGN = [0]   # a_5612 픽셀 라벨 수집(?lab=1 페이지 필요)
+LAB = os.environ.get('LAB') == '1'; SEG = []; SEGN = [0]; STORE_RES = int(os.environ.get('STORE_RES', IMG))   # a_5612 픽셀 라벨 수집(?lab=1 페이지 필요)
 def episode(net, dev, secs, ep):
     """한 에피소드: 모델이 몰고 교사 라벨을 모은다. (frames, stats)"""
     post({'tgt': 0, 'mode': 1, 'dOff': 0.0, 'vT': -1, 'lp': 0.0})   # ★에피소드마다 목표 인터페이스 상태 초기화(서버 _ctl 은 프로세스 간 잔존)
@@ -160,6 +160,7 @@ def episode(net, dev, secs, ep):
         except Exception:
             pass
         x = preprocess(f, device=dev)[None]
+        if STORE_RES != IMG: xs = preprocess(f, size=STORE_RES, device=dev)   # a_5612: 저장 해상도(384) ≠ 추론 해상도(256) — 해상도 축 오프라인 검증용
         if net is not None and getattr(net, 'in_ch', 3) == 6:   # 프레임 스택: [직전, 현재]
             _xp = globals().get('_PREV_X'); x = torch.cat([_xp if _xp is not None else x, x], dim=1); globals()['_PREV_X'] = x[:, 3:]
         _nt = -1; _nc = 0.0; _ntraw = -1
@@ -209,9 +210,9 @@ def episode(net, dev, secs, ep):
             dup += 1
         else:
             seen.add(h)
-            X.append((x[0].cpu().numpy() * 255).astype(np.uint8))
+            X.append(((xs if STORE_RES != IMG else x[0]).cpu().numpy() * 255).astype(np.uint8))
             if LAB:   # a_5612 D1: 같은 프레임의 픽셀 라벨(S.npy) — 페이지가 /frame 에 같이 밀어준 PNG
-                _lab = C.push_stats().get('lab'); SEG.append(preprocess_label(_lab) if _lab is not None else np.zeros((IMG, IMG), np.uint8)); SEGN[0] += 0 if _lab is not None else 1
+                _lab = C.push_stats().get('lab'); SEG.append(preprocess_label(_lab, STORE_RES) if _lab is not None else np.zeros((STORE_RES, STORE_RES), np.uint8)); SEGN[0] += 0 if _lab is not None else 1
             # ★u_5171: 4번째 열에 '그 순간의 속도'를 넣는다(예전엔 0.0 상수였다).
             #   왜 필요한가 — 오드가 '안 움직이면 안 박는다'를 배웠는데,
             #   '움직이다 서는 제동'과 '이미 선 채로 계속 밟는 제동'을

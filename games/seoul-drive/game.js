@@ -2801,11 +2801,15 @@ function mdlPoll(dt){
       geo: (function(){try{   // ★a_5598 COMMON: 차로 기하 라벨(도로 절대좌표, RESEARCH_steering_arch_2026-09-23 §FINAL(2)). ey(+우) epsi(rad) k0(1/m) lc[10,20,40](m, 현재 차로 중심의 차기준 횡오프셋) li nl lw dl dr v
         let n=(typeof routeSeg==='function')?routeSeg(me.x,me.y):null; if(!n||n.d>n.s.roadW*0.6) n=nearestSeg(me.x,me.y); if(!n) return {v:0};
         const sg=n.s; const dd0=((me.ang-sg.ang+Math.PI*3)%(Math.PI*2))-Math.PI; const dir=Math.abs(dd0)<=Math.PI/2?1:-1;
-        const lat=(-(n.px-me.x)*Math.sin(sg.ang)+(n.py-me.y)*Math.cos(sg.ang))/S*dir;   // teacher.js 와 동일식(+=진행방향 우측)
+        const lat=((me.x-n.px)*-Math.sin(sg.ang)+(me.y-n.py)*Math.cos(sg.ang))/S*dir;   // +=진행방향 우측(placeCar 법선 규약). ★2026-09-24 a_5612 D1 검증에서 부호 반전 발견(옛식은 +=좌측 → 일방 li 가 우측 기준·ey 거울상; r≤27xx L.npy 는 GEO_OLD 규약)
         const lwm=LW/S, rw=sg.roadW/S; let nl=sg.o?sg.l:Math.max(1,Math.floor(sg.l/2));
         const gi=sg.o?((lat+rw/2)/lwm-0.5):(Math.abs(lat)/lwm-0.5); const li=Math.max(0,Math.min(nl-1,Math.round(gi)));
         const cen=sg.o?((li+0.5)*lwm-rw/2):((lat<0?-1:1)*(li+0.5)*lwm); const ey=lat-cen;
         const epsi=((me.ang-(sg.ang+(dir<0?Math.PI:0))+Math.PI*3)%(Math.PI*2))-Math.PI;
+        /* ★a_5612 D3(2026-09-24): 경로(Layer3)가 의도한 차로 번호 rl(진행방향 기준, 1=중앙선/좌측가장자리 쪽; 라벨 클래스와 같은 번호). 교사 laneF 는 교사 의견이라 실제 차로와 다르다(D-00). */
+        let rl=null; try{ if(auto&&auto.on&&auto.wp&&auto.wp.length){ const q=auto.wp[Math.max(0,Math.min(auto.wp.length-1,auto.i))]; const qs=(q&&q.sg&&q.sg.roadW)?q.sg:sg; const A2=nodes[qs.a],B2=nodes[qs.b]; const vx=B2.x-A2.x,vy=B2.y-A2.y,L2=vx*vx+vy*vy; let t=L2?((q.x-A2.x)*vx+(q.y-A2.y)*vy)/L2:0; t=Math.max(0,Math.min(1,t)); const px=A2.x+vx*t,py=A2.y+vy*t;
+          const dq=((me.ang-qs.ang+Math.PI*3)%(Math.PI*2))-Math.PI; const dr2=Math.abs(dq)<=Math.PI/2?1:-1; const lq=((q.x-px)*-Math.sin(qs.ang)+(q.y-py)*Math.cos(qs.ang))/S*dr2; const rw2=qs.roadW/S;
+          if(qs.o) rl=Math.round((lq+rw2/2)/lwm-0.5)+1; else rl=(lq>0)?Math.round(lq/lwm-0.5)+1:-1; if(rl!==null&&rl!==-1) rl=Math.max(1,Math.min(8,rl)); } }catch(e){ rl=null; }
         const lc=[null,null,null]; let k0=null;
         if(auto&&auto.on&&auto.wp&&auto.wp.length>2){
           const wp=auto.wp; let i=Math.max(0,Math.min(wp.length-2,auto.i)); const tg=[10*S,20*S,40*S]; let acc=0, hd0=null, hd10=null;
@@ -2820,7 +2824,7 @@ function mdlPoll(dt){
             acc+=seg; }
           if(hd0!==null&&hd10!==null){ k0=+((((hd10-hd0+Math.PI*3)%(Math.PI*2))-Math.PI)/10).toFixed(4); }
         }
-        return {ey:+ey.toFixed(3), epsi:+epsi.toFixed(4), k0:k0, lc:lc, li:li, nl:nl, lw:+lwm.toFixed(2), dl:+(rw/2+lat).toFixed(2), dr:+(rw/2-lat).toFixed(2), v:(lc[2]!==null&&k0!==null)?1:0, lat:+lat.toFixed(3), sw:sg.w};   // |lc10|>4m = 출발 홉/교차로 오투영 → 무효
+        return {ey:+ey.toFixed(3), epsi:+epsi.toFixed(4), k0:k0, lc:lc, li:li, nl:nl, rl:rl, lw:+lwm.toFixed(2), dl:+(rw/2+lat).toFixed(2), dr:+(rw/2-lat).toFixed(2), v:(lc[2]!==null&&k0!==null)?1:0, lat:+lat.toFixed(3), sw:sg.w};   // |lc10|>4m = 출발 홉/교차로 오투영 → 무효
       }catch(e){return {v:0,err:String(e).slice(0,60)}}})(),
       geoDbg: window.__geoDbg||null,
       npc: (function(){try{const o=[];for(const c of cars){if(!c.alive)continue;const dx=(c.x-me.x)/S,dy=(c.y-me.y)/S;if(dx*dx+dy*dy>3600)continue;o.push([+(c.x/S).toFixed(2),+(c.y/S).toFixed(2),+c.ang.toFixed(4),+(c.v||0).toFixed(2),c.si|0]);}return o.slice(0,12);}catch(e){return null}})(),   // a_5581 addendum(u_5583): 60m 안 NPC 자세(코너 부드러움 ego/NPC 비교용)
@@ -5663,6 +5667,7 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
    but captured by screen recording. Shows who holds steering/speed, tier, Layer1 interventions, crashes/recoveries, recent events. */
 (function(){
   if(typeof document==='undefined') return;
+  if(/[?&]hud=0/.test(location.search)) return;   // ★a_5612(2026-09-24): 창 캡처(SCK) 기반 모델 주행에서는 이 DOM 패널이 모델 입력에 찍힌다(학습 프레임엔 없음) → 평가 시 ?hud=0 으로 숨김
   const el=document.createElement('div'); el.id='mdlPanel';
   el.style.cssText='position:fixed;right:8px;top:150px;width:330px;max-height:calc(100vh - 170px);overflow:hidden;z-index:9999;background:rgba(20,22,30,.82);color:#e8e8ee;font:10.5px/1.45 Menlo,monospace;padding:8px 10px;border-radius:8px;pointer-events:none;white-space:pre;box-shadow:0 2px 8px rgba(0,0,0,.3)';
   document.body.appendChild(el);

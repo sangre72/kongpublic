@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """a_5612 D2 학습기(2026-09-24): X.npy(256) + S.npy(픽셀 클래스, 255=무시) → SegNet. CE(ignore 255, 클래스 가중 = 1/√빈도 정규화) + soft dice(클래스 1..11), 광도 증강만.
-사용: python3 train_seg.py 'data/dagger_r27*' ode_seg1.pt [--epochs 10] [--init prev.pt] [--seed 0]
+RES=256|384(env) 학습 해상도. 사용: RES=256 python3 train_seg.py 'data/dagger_r27*' ode_seg1.pt [--epochs 10] [--init prev.pt] [--seed 0]
 필터: v>1m/s, 이벤트 ±3s 제외, 홀드아웃 청크+이웃 제외. 검증 = 10% 분할 mIoU(클래스별). 저장 = SegNet state_dict."""
 import sys, os, glob, json, numpy as np, torch, torch.nn.functional as F
 from seg_net import SegNet, NCLS
 from train_geo import holdout_mask
 from train_stage import augment, AUG
 import gpu_guard
-DEV = gpu_guard.require_gpu(); BS = int(os.environ.get('BS', '16'))
+DEV = gpu_guard.require_gpu(); BS = int(os.environ.get('BS', '16')); RES = int(os.environ.get('RES', '256'))   # 학습 해상도(저장 384 → 로드 시 축소; RES=384 면 그대로)
+def to_res(xb, sb):
+    if xb.shape[-1] == RES: return xb, sb
+    xb = F.interpolate(xb, size=(RES, RES), mode='bilinear', align_corners=False, antialias=True); sb = F.interpolate(sb[:, None].float(), size=(RES, RES), mode='nearest')[:, 0].long(); return xb, sb
 def load(dirs):
     parts = []
     for d in dirs:
@@ -24,7 +27,7 @@ def take(parts, gids, off):
     xs, ss = [], []
     for g in gids:
         p = int(np.searchsorted(off, g, side='right') - 1); loc = parts[p][2][g - off[p]]; xs.append(parts[p][0][loc]); ss.append(parts[p][1][loc])
-    return torch.from_numpy(np.stack(xs)).float().div_(255.).to(DEV), torch.from_numpy(np.stack(ss).astype(np.int64)).to(DEV)
+    return to_res(torch.from_numpy(np.stack(xs)).float().div_(255.).to(DEV), torch.from_numpy(np.stack(ss).astype(np.int64)).to(DEV))
 def iou(conf):   # conf[ncls,ncls] 행=정답 열=예측
     tp = np.diag(conf); return tp / np.maximum(1, conf.sum(0) + conf.sum(1) - tp)
 def evaluate(net, parts, off, ids):
@@ -39,7 +42,7 @@ def main():
     rng = np.random.default_rng(a.seed); torch.manual_seed(a.seed)
     parts = load([d for p in a.dirs.split(',') for d in sorted(glob.glob(p))])
     if not parts: print(json.dumps({'error': 'no frames'})); return
-    off = np.cumsum([0] + [len(i) for _, _, i in parts]); n = int(off[-1]); print(json.dumps({'frames': n}), flush=True)
+    off = np.cumsum([0] + [len(i) for _, _, i in parts]); n = int(off[-1]); print(json.dumps({'frames': n, 'res': RES, 'stored': int(parts[0][0].shape[-1])}), flush=True)
     idx = rng.permutation(n); cut = int(n * 0.9); tr, va = idx[:cut], idx[cut:]
     hist = np.zeros(NCLS, np.int64)
     for g in tr[:2000]: p = int(np.searchsorted(off, g, side='right') - 1); s = parts[p][1][parts[p][2][g - off[p]]]; hist += np.bincount(s[s != 255].ravel(), minlength=NCLS)

@@ -147,7 +147,7 @@ def preprocess_label(lab, size=IMG):
     c = c[int(round(c.shape[0] * UI_CROP_TOP)):, :]
     _cc = float(_os.environ.get('ODE_CROP', '1.0') or 1.0)
     if 0.2 < _cc < 1.0:
-        H0, W0 = c.shape; h, w = int(H0 * _cc), int(W0 * _cc); y0, x0 = (H0 - h) // 2, (W0 - w) // 2; c = c[y0:y0 + h, x0:x0 + w]
+        H0, W0 = c.shape[:2]; h, w = int(H0 * _cc), int(W0 * _cc); y0, x0 = (H0 - h) // 2, (W0 - w) // 2; c = c[y0:y0 + h, x0:x0 + w]
     c = cv2.resize(c, (size, size), interpolation=cv2.INTER_NEAREST)
     r = c[..., 2].astype(_np.float32) if c.ndim == 3 else c.astype(_np.float32); g = c[..., 1].astype(_np.float32) if c.ndim == 3 else (r / 20.0) ** 2
     idf = r / 20.0; k = _np.clip(_np.rint(idf), 0, 11).astype(_np.uint8)
