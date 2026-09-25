@@ -71,7 +71,7 @@ class H(http.server.SimpleHTTPRequestHandler):
                                 _tel.clear(); _tel.update(json.loads(v))
                             except Exception:
                                 pass
-                d = dict(_ctl); d['gets'] = _gets[0]
+                d = dict(_ctl); d['gets'] = _gets[0]; d['age_ms'] = int((_time.time() - _ctl['cmd_t']) * 1000) if _ctl.get('cmd_t') else 999999
                 d['push'] = 1 if (_time.time() - _frame['get_t']) < 2.0 else 0
                 return self._json(d)
         if self.path.split('?')[0] == '/frame':
@@ -119,6 +119,7 @@ class H(http.server.SimpleHTTPRequestHandler):
         except Exception:
             self.send_error(400); return
         with _lock:
+            _ctl['cmd_t'] = _time.time()   # ★u_5645/5646(2026-09-25): 마지막 제어 POST 시각 — 페이지는 age_ms>400 이면 mode2/3(모델 앞점)을 무시(gpu_drive 종료 후 잔존 mode=2·lp 로 '모델 조향 100%'·차로 고정 결함)
             for k in ('on', 'steer', 'thr', 'brake', 'force', 'release', 'tgt', 'dOff', 'vT', 'mode', 'lp', 'ld', 'ntier', 'nconf', 'lat', 'inf'):
                 if k in d:
                     _ctl[k] = float(d[k])

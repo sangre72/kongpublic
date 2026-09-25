@@ -162,7 +162,7 @@ const ROADS=[];const BLDS=[];const POI=[{"n":"신논현","k":"station","x":-271.
    서버는 '이전 페이지의 마지막 스냅샷'을 계속 돌려준다 — 그걸 준비 완료로 오판했다.
    그래서 (a) 로드마다 다른 loadId 를 붙이고 (b) 첫 에러를 탭 제목에 써서
    루프 없이도 밖(osascript 'title of tab')에서 읽을 수 있게 한다. */
-try{ const _q=new URLSearchParams(location.search); if(_q.has('upen')) window.__upen=+_q.get('upen'); if(_q.get('nostrip')==='1') window.__nostrip=1; }catch(e){}
+try{ const _q=new URLSearchParams(location.search); if(_q.has('upen')) window.__upen=+_q.get('upen'); if(_q.get('nortban')==='1') window.__noRtBan=1; if(_q.get('nostrip')==='1') window.__nostrip=1; }catch(e){}
 window.__loadId = Math.floor(Math.random()*1e9);
 window.addEventListener('error', e=>{ if(!/^ERR:/.test(document.title)) document.title='ERR:'+(e.message||'?')+' @'+(e.lineno||'?'); }, true);
 window.addEventListener('unhandledrejection', e=>{ if(!/^ERR:/.test(document.title)) document.title='ERR:promise:'+String(e.reason&&e.reason.message||e.reason).slice(0,80); }, true);
@@ -814,6 +814,7 @@ function pickStart(){
 }
 let start=pickStart();
 function reset(){
+  window.__law=null;   // u_5647 법규 모니터 초기화
   start=pickStart();                 // ★청크 재구축으로 인덱스가 밀렸을 수 있다
   const s=segs[start],A=nodes[s.a],B=nodes[s.b];
   /* 출발 도로 이름을 남긴다 — 화면만 보고 '경부고속도로 같다'고 추정하지 않기 위해(u_5074) */
@@ -1524,7 +1525,7 @@ function gAstar(s,t,startAng,relax){
          규칙: 좌회전/유턴 전이는, 직전 우회전 이후 거리가 (방향당 차로수−1)×50m
          (차로당 3초≈50m) 이상일 때만 허용. 직진은 거리를 합산, 좌회전을 만나면 이미
          1차로라 제약 없음. 합법 경로가 아예 없을 때만 완화(relax)하고 표시한다. */
-      if(!relax && cur.si!==-1){
+      if(!relax && cur.si!==-1 && !window.__noRtBan){   // ?nortban=1: 좌/우회전 준비거리 규칙 끄기(라우팅 이분 진단용)
         const _hd=(sgi, from, to)=>Math.atan2(GNODES[to].y-GNODES[from].y, GNODES[to].x-GNODES[from].x);
         const _dl=(g)=> g.o ? (g.l||1) : Math.max(1, Math.floor((g.l||2)/2));
         const _turn=(aIn,aOut)=>((aOut-aIn+Math.PI*3)%(Math.PI*2))-Math.PI;   // <0 좌, >0 우
@@ -1546,7 +1547,7 @@ function gAstar(s,t,startAng,relax){
               const pkey=key(prev.n,prev.si); const pp=came[pkey];
               /* ★u_5417 실측: 출발 직후 우회전 램프가 20° 누적 전에 출발점에 닿아 '제약 없음'으로 통과했다.
                  출발점의 차로는 주행차로(맨 오른쪽)다 — 좌회전/유턴이면 그만큼 거리가 필요하다. */
-              if(prev.si===-1 || !pp){ if(leftOrU) blockedBy='opp'; break; }
+              if(prev.si===-1 || !pp){ if(leftOrU && !window.__freeStartUsed) blockedBy='opp'; break; }   // ★u_5642/5645/5646(2026-09-25): 검색·좌표 출발(정지 상태)은 출발 차로를 고를 수 있다 — 출발점을 '맨 오른쪽 차로'로 가정해 첫 (차로수−1)×50+30m 안 좌회전·유턴을 금지하던 것이 강남→시청 왕복유턴·충정로 C자 우회의 원인(rtLeftBan 2162)
               const a1=_hd(prev.si, pp.n, prev.n), a2=_hd(segi, prev.n, node);
               cum+=_turn(a1,a2);                                             // 누적 헤딩(곡선 램프 포함)
               if(cum*wantSgn < -0.35){ blockedBy='opp'; break; }             // 반대 방향 회전 정점: 여기서부터 잰다
@@ -1644,7 +1645,8 @@ function planTo(x,y){
        통째로 실패한다 — 화면에서 auto=0, wp=0 으로 확인했다.
        방향 맞는 점 → 그냥 최근접 점 순으로 시도해서 첫 성공을 쓴다. */
     const tgt=gNearest(x,y);
-    const cands=[gStartNode(me.x,me.y,me.ang), gNearest(me.x,me.y)];
+    const _free=!!window.__freeStart && Math.abs(me.v)<0.5; window.__freeStart=0; const sAng=_free?undefined:me.ang; window.__freeStartUsed=_free?1:0;
+    const cands=_free?[gNearest(me.x,me.y), gStartNode(me.x,me.y,me.ang)]:[gStartNode(me.x,me.y,me.ang), gNearest(me.x,me.y)];
     /* ★2026-09-19 u_5417 감사: 출발 후보 선별을 두 단계로 돈다.
        1차(strict) = 아래 '차 뒤 출발점' 검사를 적용. 전부 탈락하면 2차(relaxed) = 옛 동작으로
        되돌리고 __startRelax=1 로 표시한다(경로 자체가 없어지는 것보다는 낫다 — u_5035 교훈). */
@@ -1656,7 +1658,7 @@ function planTo(x,y){
       /* ★u_5417: 라우터 계수는 라우팅 '전'에 초기화한다. 경로 생성 블록에서 초기화했더니
          A* 가 끝난 뒤 지워져 금지 횟수가 항상 0 으로 보였다(규칙이 도는지 확인 불가). */
       window.__rtLeftBan=0; window.__rtEval=[]; window.__routeRelaxed=0;
-      __probe('astar:'+sN+'>'+tgt); const _t0=performance.now(); const gp=gAstar(sN, tgt, me.ang); __probe('astar-done:'+Math.round(performance.now()-_t0)+'ms:'+(gp?gp.length:0));
+      __probe('astar:'+sN+'>'+tgt); const _t0=performance.now(); const gp=gAstar(sN, tgt, sAng); __probe('astar-done:'+Math.round(performance.now()-_t0)+'ms:'+(gp?gp.length:0));
       if(!gp) continue;
       /* ★감사 지적(2026-09-19): 두 번째 출발 후보 gNearest 는 방향을 무시한다. gAstar 의 첫 구간
          방향 검사는 '출발 노드에서 나가는 첫 간선'만 보므로, 노드가 차 뒤에 잡히면 경로가 차가 온
@@ -1674,7 +1676,7 @@ function planTo(x,y){
         const ea=Math.atan2(a1.y-a0.y, a1.x-a0.x);
         const dd=Math.abs(((ea-me.ang+Math.PI*3)%(Math.PI*2))-Math.PI);
         const behind=-((a0.x-me.x)*Math.cos(me.ang)+(a0.y-me.y)*Math.sin(me.ang));   // 양수 = 출발 노드가 차 뒤 (m·S)
-        if(strict && (dd > Math.PI*100/180 || behind > 15*S)){
+        if(strict && !_free && (dd > Math.PI*100/180 || behind > 15*S)){
           window.__startBack=(window.__startBack||0)+1; window.__startBehind=Math.max(window.__startBehind, +(behind/S).toFixed(1), 0.1);
           continue;
         }
@@ -1705,7 +1707,7 @@ function planTo(x,y){
           endToTgt:+(Math.hypot(e.x-t2.x,e.y-t2.y)/S).toFixed(0),
           tgtToMe:+(Math.hypot(t2.x-me.x,t2.y-me.y)/S).toFixed(0),
           /* ★2026-09-19 u_5417 감사: 완화/뒤출발 표시를 /tel(planDbg)에 남긴다 — flash 는 다음 flash 에 덮인다 */
-          routeRelaxed:window.__routeRelaxed||0, startRelax:window.__startRelax||0, startBehind:window.__startBehind||0, startBack:window.__startBack||0};
+          routeRelaxed:window.__routeRelaxed||0, freeStart:window.__freeStartUsed||0, rtLeftBan:window.__rtLeftBan||0, rtEvalN:(window.__rtEval||[]).length, rtEvalHead:(window.__rtEval||[]).slice(0,6), startRelax:window.__startRelax||0, startBehind:window.__startBehind||0, startBack:window.__startBack||0};
       }catch(err){}
       /* ★감사 지적(2026-09-19): 완화(relax) 경로는 차로 가로지르기 규칙을 끈 경로다. 조용히 달리면
          합법 경로와 구분이 안 된다. 화면에 띄우고 콘솔에 남긴다. 실측으로는 아직 0 건.
@@ -2958,6 +2960,7 @@ function mdlPoll(dt){
                     fr:(a.free_r===undefined?null:+(+a.free_r).toFixed(2))} : {ok:0}; })(),
       car: {v:+me.v.toFixed(3), x:+(me.x/S).toFixed(2), y:+(me.y/S).toFixed(2),
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
+      law: (function(){ const L=window.__law; return L?{turnLane:L.turnLane,straddle:L.straddle,center:L.center,signal:L.signal,solid:L.solid,ev:L.ev.slice(-8)}:null; })(), lawErr: window.__lawErr||null,
       geo: (function(){try{   // ★a_5598 COMMON: 차로 기하 라벨(도로 절대좌표, RESEARCH_steering_arch_2026-09-23 §FINAL(2)). ey(+우) epsi(rad) k0(1/m) lc[10,20,40](m, 현재 차로 중심의 차기준 횡오프셋) li nl lw dl dr v
         let n=(typeof routeSeg==='function')?routeSeg(me.x,me.y):null; if(!n||n.d>n.s.roadW*0.6) n=nearestSeg(me.x,me.y); if(!n) return {v:0};
         const sg=n.s; const dd0=((me.ang-sg.ang+Math.PI*3)%(Math.PI*2))-Math.PI; const dir=Math.abs(dd0)<=Math.PI/2?1:-1;
@@ -2984,13 +2987,23 @@ function mdlPoll(dt){
             acc+=seg; }
           if(hd0!==null&&hd10!==null){ k0=+((((hd10-hd0+Math.PI*3)%(Math.PI*2))-Math.PI)/10).toFixed(4); }
         }
+        /* ★u_5647 LAW MONITOR(2026-09-25): 회전차로 위반(정점 8m 전 차로 ≠ 요구 차로)·차선 물기 >1s(|ey|>0.7)·중앙선 침범(양방향 lat<−0.3 >0.5s)·신호 위반(적신호 4m 안→통과)·실선(중앙선) 변경. 한 건이라도 있으면 구간 FAIL. /tel law */
+        try{ const LAW=(window.__law=window.__law||{turnLane:0,straddle:0,center:0,signal:0,solid:0,ev:[]}); const _now=performance.now(); const _T=window.__teach, _L2=(_T&&_T.last)||{}, _g2=_L2.g2||{}; const vms=Math.abs(me.v);
+          const at=_g2.aTurn, aD=+_g2.aD;
+          if(at&&at!=='S'&&isFinite(aD)){ if(aD<8&&!LAW._tp&&vms>1){ LAW._tp=1; const need=(at==='R')?nl-1:0; if(nl>1&&li!==need){ LAW.turnLane++; LAW.ev.push('turnLane:'+at+':li'+li+'/nl'+nl+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)); } } if(aD>30) LAW._tp=0; }
+          if(vms>2&&Math.abs(ey)>0.7){ if(!LAW._st) LAW._st=_now; else if(_now-LAW._st>1000&&!LAW._stC){ LAW._stC=1; LAW.straddle++; LAW.ev.push('straddle:'+ey.toFixed(2)+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)); } } else { LAW._st=0; LAW._stC=0; }
+          if(!sg.o&&vms>2&&lat<-0.3){ if(!LAW._cl) LAW._cl=_now; else if(_now-LAW._cl>500&&!LAW._clC){ LAW._clC=1; LAW.center++; LAW.ev.push('center:'+lat.toFixed(2)+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)); } } else { LAW._cl=0; LAW._clC=0; }
+          const sig=+_L2.sig; if(isFinite(sig)&&sig>0&&sig<4&&vms>3) LAW._sg=_now; if(LAW._sg&&(!isFinite(sig)||sig>30)&&(_now-LAW._sg)<1500&&vms>3){ LAW.signal++; LAW.ev.push('signal@'+Math.round(me.x/S)+','+Math.round(me.y/S)); LAW._sg=0; }
+          const lf=+_g2.laneF; if(isFinite(lf)){ if(LAW._lf!==undefined&&Math.abs(lf-LAW._lf)>=0.5&&LAW._clC){ LAW.solid++; LAW.ev.push('solid@'+Math.round(me.x/S)+','+Math.round(me.y/S)); } LAW._lf=lf; }
+          if(LAW.ev.length>40) LAW.ev.splice(0,LAW.ev.length-40);
+        }catch(e){ window.__lawErr=String(e).slice(0,60); }
         return {ey:+ey.toFixed(3), epsi:+epsi.toFixed(4), k0:k0, lc:lc, li:li, nl:nl, rl:rl, lw:+lwm.toFixed(2), dl:+(rw/2+lat).toFixed(2), dr:+(rw/2-lat).toFixed(2), v:(lc[2]!==null&&k0!==null)?1:0, lat:+lat.toFixed(3), sw:sg.w};   // |lc10|>4m = 출발 홉/교차로 오투영 → 무효
       }catch(e){return {v:0,err:String(e).slice(0,60)}}})(),
       geoDbg: window.__geoDbg||null,
       npc: (function(){try{const o=[];for(const c of cars){if(!c.alive)continue;const dx=(c.x-me.x)/S,dy=(c.y-me.y)/S;if(dx*dx+dy*dy>3600)continue;o.push([+(c.x/S).toFixed(2),+(c.y/S).toFixed(2),+c.ang.toFixed(4),+(c.v||0).toFixed(2),c.si|0]);}return o.slice(0,12);}catch(e){return null}})(),   // a_5581 addendum(u_5583): 60m 안 NPC 자세(코너 부드러움 ego/NPC 비교용)
       bldDbg: window.__bldDbg||null,
       wpDbg: window.__wpDbg||null,
-      wpLane: window.__wpLane||null,
+      wpLane: window.__wpLane||null, wpNear: (function(){ try{ const o=[]; for(let i=0;i<auto.wp.length;i+=3){ const q=auto.wp[i]; if(Math.hypot(q.x-me.x,q.y-me.y)<150*S) o.push([i,+(q.x/S).toFixed(1),+(q.y/S).toFixed(1)]); } return o.slice(0,120); }catch(e){ return null; } })(), autoI: auto.i,   /* u_5646 이중 경로선 진단 */
       ldeNear: window.__ldeNear||null,
       wpSeg: window.__wpSeg||null,
       ppXt: (window.__ppXt===undefined?null:window.__ppXt),
@@ -3070,6 +3083,9 @@ function mdlPoll(dt){
       jsErr: window.__jsErr||'', now: Math.round(performance.now()), arStep: window.__arStep||null})); }catch(e){}
   }
   fetch('/ctl'+_tq, {cache:'no-store'}).then(r=>r.json()).then(d=>{
+    /* ★u_5645/5646(2026-09-25): 서버 _ctl 은 프로세스 간 잔존한다. 마지막 제어 POST 가 400ms 보다 오래됐으면 모델 앞점(mode 2/3)·on 을 무시 —
+       gpu_drive 종료 뒤 정지된 lp 를 '모델 조향 100%' 로 계속 따라가 차로를 못 바꾸던 결함(강남→시청 3차로 고정, HUD lookahead 0.3m). */
+    if(typeof d.age_ms==='number' && d.age_ms>400){ if(+d.mode===2||+d.mode===3){ d.mode=1; d.tgt=0; d.pts=null; } if(+d.on){ d.on=0; d.force=0; } window.__ctlStale=(window.__ctlStale||0)+1; }
     if(d.seq !== MDL.seq){ MDL.seq = d.seq; MDL.rx++;
       MDL.rxT = performance.now(); }   // ★u_5172: 명령 수신 시각(만료 판정용)
     MDL.steer = +d.steer||0; MDL.thr = +d.thr||0; MDL.brake = +d.brake||0;
@@ -5625,6 +5641,8 @@ setTimeout(()=>{
     __probe('setStart:placeCarNear'); const r2=placeCarNear(me.x, me.y, {metric:'proj', place:true}); __probe('setStart:placed:'+(r2?1:0));
     if(!r2){ flash('출발지 근처에 도로가 없습니다'); return false; }
     const bs=r2.seg;
+    window.__law=null;
+    window.__freeStart=1;   // ★u_5642/5643(2026-09-25): 검색 출발은 정지 상태·헤딩이 최근접 way 의 저장방향(임의)이라 라우터의 첫 홉 90° 제한을 걸면 안 된다(충정로7길: 옆 stub 방향 275° 로 붙어 C 자 우회 500m). 경로가 잡히면 첫 구간 방향으로 헤딩을 맞춘다(아래 me.ang=ang).
     me.v=0; me.steer=0;
     me.crashes=0; me.dmg=0; me.offroad=0; me.cool=1.0;
     crashHold=0; crashHoldT=0; bldStuck=0; blockT=0;
@@ -5669,6 +5687,7 @@ setTimeout(()=>{
         me.v=0; me.steer=0; me.crashes=0; me.dmg=0; me.offroad=0; me.cool=1.0;
         crashHold=0; crashHoldT=0; bldStuck=0; blockT=0;
         window.__tpN=0; window.__tpPath=0; window.__tpBld=0; window.__tpEsc=0;
+        window.__law=null;
         window.__blkStuck=0; window.__blkCenter=0;
         resetTeacherLane(); window.__parked=1;
       }
@@ -5880,7 +5899,7 @@ if(!/^ERR:/.test(document.title)) document.title='OK:'+window.__loadId;   // 스
       el.textContent=
         'ODE activity   '+(on?'● MODEL driving':'○ RULE driving')+'\n'+
         'NOW: '+who+'\n'+sit.map(x=>'  • '+x).join('\n')+'\n'+
-        'Steer: '+(lpOn?'model (lookahead '+(+T.lp||0).toFixed(1)+'m)':'rule follower')+'\n'+
+        'Steer: '+(lpOn?'model (lp '+(+T.lp||0).toFixed(1)+'m, Ld '+((+T.ld>0)?(+T.ld).toFixed(0)+'m':'auto')+')':'rule follower')+'\n'+   /* u_5645: 종전 'lookahead'+lp 는 횡오프셋을 앞점거리로 표기한 표시 결함 */
         'Speed: '+(spOn?'model target '+kmh(T.vT):'rule')+'  now '+kmh(me.v)+'\n'+
         'Rule cap '+kmh(da.vmax)+'  tier '+(typeof tier==='number'?TN[tier]:'—')+'\n'+
         'Model steer '+(lpMs/1000).toFixed(0)+'s / model drive '+(mdlMs/1000).toFixed(0)+'s ('+(mdlMs>0?(100*lpMs/mdlMs).toFixed(0):'0')+'%)\n'+
