@@ -113,7 +113,7 @@
     const dir = Math.abs(d) < Math.PI/2 ? 1 : -1;
 
     // 이 방향으로 쓸 수 있는 차로 수 → 목표 차로를 실제 범위로 clamp
-    const nl = sg.o ? sg.l : Math.max(1, Math.floor(sg.l/2));
+    const nl = (typeof myLanes==='function') ? myLanes(sg,dir) : (sg.o ? sg.l : Math.max(1, Math.floor(sg.l/2)));   // ASYM: 진행방향 차로수
     T.laneMax = nl;
     /* ★내비 경로가 있으면 '경로가 있는 차로'를 목표로 삼는다(u_5025 실측).
        예전엔 교사가 경로와 무관하게 자기 차로(T.lane, 기본 0차로)를 목표로 잡았다.
@@ -522,7 +522,7 @@
        판정, 93% 불일치). nd 는 부호가 없어 좌우를 모르므로, 도로 중심선까지의
        부호거리를 직접 계산해 nlat 으로 내보낸다. 채점은 이 값을 써야 한다. */
     T.dbg2 = {nlat: (function(){ try{
-                return +(((-(ns.px-me.x)*Math.sin(sg.ang) + (ns.py-me.y)*Math.cos(sg.ang))/S*dir)).toFixed(2);
+                return +(((-(ns.px-me.x)*Math.sin(sg.ang) + (ns.py-me.y)*Math.cos(sg.ang))/S*dir) - ((typeof segC==='function')?(dir>0?segC(sg):-segC(sg))/S:0)).toFixed(2);
               }catch(e){ return null; } })(),
               err: (T._aErr||T._rErr||T._tlErr)||null, need: (T._need===undefined?null:T._need), aNl: aheadNl, aTurn: aheadTurn, aD: aheadDist, want: (T._want===undefined?null:T._want),
               fin: (T._final===undefined?null:T._final),
@@ -739,7 +739,7 @@
        → 오차가 한 차로(3.25m)를 넘으면 '지금 있는 차로'로 목표를 재설정한다.
          사람도 3차로를 목표로 잡았다가 못 가면 지금 차로에서 다시 판단한다. */
     if(Math.abs(cross) > 3.25 && !T.laneMoving){
-      const nl2 = lt.seg.o ? lt.seg.l : Math.max(1, Math.floor(lt.seg.l/2));
+      const nl2 = (typeof myLanes==='function') ? myLanes(lt.seg, lt.dirSign||1) : (lt.seg.o ? lt.seg.l : Math.max(1, Math.floor(lt.seg.l/2)));
       const cur = Math.max(0, Math.min(nl2-1, Math.round(Math.abs(lt.off)/(LW/S) - 0.5)));
       /* ★u_5189: 여기서 laneF 를 직접 대입하면 step(0.02/프레임) 제한을
          건너뛰어 차로가 순간이동한다. 실측 — laneF 변화의 85%가 초당 1.5차로를

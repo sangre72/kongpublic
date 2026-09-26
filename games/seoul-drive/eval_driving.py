@@ -5,8 +5,8 @@
   필요할 때 차선을 바꿔야 한다. 그게 실제로 되는지 측정한다.
 
 측정 항목(운전에 필요한 것들을 직접 정했다):
-  1) 차로유지   — 도로 위 비율, 차로중심 이탈 거리
-  2) 조향 건전성 — 포화(|steer|>0.95) 비율. 항상 끝까지 꺾여 있으면 조향을 '하는' 게 아니다
+  1) 차로유지   — 도로 위 비율, 차로중심 이탈 거리(/tel geo.ey)
+  2) 조향 건전성 — 포화(|steer|>0.95) 비율(/tel da.st). 항상 끝까지 꺾여 있으면 조향을 '하는' 게 아니다
   3) 회전       — 방향각 변화로 좌/우회전·유턴 횟수를 센다
   4) 목적지 도달 — 경로 진행률이 실제로 올라가는가
   5) 속도       — 목표속도 대비, 정지 비율
@@ -25,12 +25,28 @@ def main(secs=60.0):
     C.start_background(); time.sleep(1)
     seq = None; R = []
     t0 = time.time()
+    # ★2026-09-26(orch): steer·lane 채널은 코드픽셀이 현재 페이지와 어긋나 있어(감사#2: steer −0.6 고정, lane 4.8m 고정) /tel 에서 읽는다.
+    import urllib.request
+    tel_last = {}; tel_t = 0.0
+    def tel():
+        nonlocal tel_last, tel_t
+        if time.time() - tel_t < 0.05: return tel_last
+        try:
+            tel_last = json.load(urllib.request.urlopen('http://localhost:8901/tel', timeout=1.0)); tel_t = time.time()
+        except Exception: pass
+        return tel_last
     try:
         while time.time() - t0 < secs:
             f, seq = C.latest(seq)
             if f is None: continue
             d = decode(f)
-            if d: R.append((time.time()-t0, d))
+            if not d: continue
+            T = tel(); da = T.get('da') or {}; g = T.get('geo') or {}
+            if isinstance(da.get('st'), (int, float)): d['steer'] = float(da['st'])          # 실제 적용 조향(driveAuto)
+            if isinstance(g.get('ey'), (int, float)): d['lane'] = float(g['ey'])             # 차로중심 이탈 m(+=우측)
+            else: d['lane'] = float('nan')
+            d['law'] = T.get('law')
+            R.append((time.time()-t0, d))
     finally:
         C.stop_background()
     if not R:
@@ -70,7 +86,7 @@ def main(secs=60.0):
         'frames': len(R), 'secs': round(float(t[-1]), 1),
         # 1) 차로유지
         'on_road_pct': round(float(on.mean()*100), 1),
-        'lane_dist_median_m': round(float(np.median(ln)), 2),
+        'lane_dist_median_m': round(float(np.nanmedian(np.abs(ln))), 2), 'lane_dist_p95_m': round(float(np.nanpercentile(np.abs(ln), 95)), 2), 'lane_gt1m_pct': round(float(np.nanmean(np.abs(ln) > 1.0) * 100), 1),
         # 2) 조향 건전성
         'steer_saturated_pct': round(sat*100, 1),
         'steer_std': round(float(st.std()), 3),
@@ -89,11 +105,16 @@ def main(secs=60.0):
         #   사고가 나면 리셋으로 0 으로 돌아가므로, '증가한 순간'만 센다.
         'crashes': int((np.diff(cr) > 0).sum()),
         'hard_brake_pct': round(float((br > 0.7).mean()*100), 1),
+        # 7) 법규 모니터(/tel law, u_5647): 회전차로·차선물기·중앙선·신호·실선변경 — 한 건이라도 있으면 위반
+        'law': (R[-1][1].get('law') or None),
     }
     # 판정
     verdict = []
     if out['on_road_pct'] < 95: verdict.append('차로유지 미달')
     if out['steer_saturated_pct'] > 20: verdict.append('조향 포화')
+    if out.get('lane_dist_p95_m') is not None and out['lane_dist_p95_m'] > 0.7: verdict.append('차로중심 이탈 p95>0.7m')
+    lw = out.get('law') or {}
+    if any((lw.get(k) or 0) > 0 for k in ('turnLane', 'straddle', 'center', 'signal', 'solid')): verdict.append('법규 위반 ' + str({k: v for k, v in lw.items() if k != 'ev' and v}))
     if sum(turns.values()) == 0: verdict.append('회전 없음(직진만)')
     if out['autopilot_pct'] > 5 and out['progress_end'] <= out['progress_start']:
         verdict.append('경로 진행 안 함')

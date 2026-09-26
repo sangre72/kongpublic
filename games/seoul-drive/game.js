@@ -2,7 +2,7 @@
    서버는 '이전 페이지의 마지막 스냅샷'을 계속 돌려준다 — 그걸 준비 완료로 오판했다.
    그래서 (a) 로드마다 다른 loadId 를 붙이고 (b) 첫 에러를 탭 제목에 써서
    루프 없이도 밖(osascript 'title of tab')에서 읽을 수 있게 한다. */
-try{ const _q=new URLSearchParams(location.search); if(_q.has('upen')) window.__upen=+_q.get('upen'); if(_q.get('nortban')==='1') window.__noRtBan=1; if(_q.get('nostrip')==='1') window.__nostrip=1; }catch(e){}
+try{ const _q=new URLSearchParams(location.search); if(_q.has('upen')) window.__upen=+_q.get('upen'); if(_q.get('nortban')==='1') window.__noRtBan=1; if(_q.get('noramp')==='1') window.__noRamp=1; if(_q.get('nostrip')==='1') window.__nostrip=1; }catch(e){}
 window.__loadId = Math.floor(Math.random()*1e9);
 window.addEventListener('error', e=>{ if(!/^ERR:/.test(document.title)) document.title='ERR:'+(e.message||'?')+' @'+(e.lineno||'?'); }, true);
 window.addEventListener('unhandledrejection', e=>{ if(!/^ERR:/.test(document.title)) document.title='ERR:promise:'+String(e.reason&&e.reason.message||e.reason).slice(0,80); }, true);
@@ -131,7 +131,7 @@ function buildGraph(roads){
     const len=Math.hypot(nodes[b].x-nodes[a].x,nodes[b].y-nodes[a].y);
     const ang=Math.atan2(nodes[b].y-nodes[a].y,nodes[b].x-nodes[a].x);
     const _lf=laneFix(w.l,w.o);
-    segs.push({a,b,l:_lf,o:w.o,n:w.n,w:w.w,tl:w.tl,len,ang,roadW:_lf*LW});   // tl = turn:lanes 원문(없으면 undefined)
+    segs.push({a,b,l:_lf,o:w.o,n:w.n,w:w.w,tl:w.tl,lf:w.lf,lb:w.lb,len,ang,roadW:_lf*LW});   // tl = turn:lanes 원문(없으면 undefined)
     nodes[a].e.push(si);nodes[b].e.push(si);
   }
 }
@@ -385,11 +385,17 @@ const TY={
 };
 const rnd=(a,b)=>a+Math.random()*(b-a),pick=a=>a[(Math.random()*a.length)|0];
 
+/* ★ASYM(2026-09-26, cases/map_fix_2026-09-26.md §3): 비대칭 왕복도로 lf/lb·중앙선 오프셋 c. 기본 OFF(?asym=1). OFF 또는 대칭 레코드 = 현재 식과 동일. */
+window.__asym = /[?&]asym=1/.test(location.search) ? 1 : 0;
+function segLf(s){ return (window.__asym&&s&&s.lf>0)? s.lf : Math.max(1,Math.floor(((s&&s.l)||2)/2)); }
+function segLb(s){ return (window.__asym&&s&&s.lb>0)? s.lb : Math.max(1,Math.floor(((s&&s.l)||2)/2)); }
+function segC(s){ return (window.__asym&&s&&!s.o&&s.lf>0&&s.lb>0)? (s.lb-s.lf)*LW/2 : 0; }   // px, way 방향 기준 오른쪽 +
+function myLanes(s,dir){ return s.o ? (s.l||1) : (dir>0 ? segLf(s) : segLb(s)); }   // 진행방향 차로수
 /* ★도로별 법정 제한속도(km/h). 이면도로(방향당 1차로·전폭 ≤6.5m) = 30(제17조, 5030). 그 외 = 0(목표속도 그대로).
    driveAuto 와 teacher.compute 가 같이 쓴다 — 둘이 다르면 라벨이 어긋난다. */
 window.roadLimitKmh=function(ns){
   try{ const sg=ns&&ns.s; if(!sg) return 0;
-       const rw=sg.roadW||((sg.l||2)*LW); const nl=sg.o?(sg.l||1):Math.max(1,Math.floor((sg.l||2)/2));
+       const rw=sg.roadW||((sg.l||2)*LW); const nl=sg.o?(sg.l||1):Math.min(segLf(sg),segLb(sg));
        if(nl<=1 && rw<=6.5*LW/3.25+0.01) return 30;
        return 0; }catch(e){ return 0; }
 };
@@ -414,9 +420,10 @@ function laneOffset(s,dir,lane){
        8차로→5차로, 5차로→4차로, 4차로→3차로, 1차로→도로 밖(3.25m).
      ⇒ 도로 왼쪽 가장자리(-roadW/2)를 원점으로 잡는다. */
   if(s.o){ return -(s.roadW*0.5) + (lane+0.5)*LW; }  // 일방통행: 좌측 가장자리부터 차로 배치
-  const halfLanes=Math.max(1,Math.floor(s.l/2));
+  const halfLanes=myLanes(s,dir);                 // ASYM: 내 방향 차로수(lf/lb), 대칭이면 floor(l/2)
   const k=Math.max(0,Math.min(lane,halfLanes-1));
-  return dir>0 ? (k+0.5)*LW : -((k+0.5)*LW);
+  const cs=dir>0 ? segC(s) : -segC(s);            // 내 진행방향 기준 중앙선 위치(px)
+  return cs + (dir>0 ? (k+0.5)*LW : -((k+0.5)*LW));
 }
 const cars=[],peds=[];
 function seed(){
@@ -1037,7 +1044,7 @@ function buildGlobalGraph(){
          교차로 = 두 way 가 끝점 노드를 공유하는 지점이므로 이걸로 via 판정이 된다. */
       const nd=r.nd;
       const si=GSEGS.length;
-      GSEGS.push({a,b,len,l:laneFix((r.l||2),!!r.o),o:!!r.o,
+      GSEGS.push({a,b,len,l:laneFix((r.l||2),!!r.o),o:!!r.o,lf:r.lf,lb:r.lb,
                   w:(r.w||0), n:(r.n||''), tl:r.tl,   // ★u_5414: 이름을 싣는다 — way 가 쪼개져도 같은 도로인지 이걸로 안다. tl = turn:lanes 원문(2026-09-19)
                   n0:(nd&&i===0)?nd[0]:0,
                   n1:(nd&&i+2===p.length)?nd[1]:0});
@@ -1217,8 +1224,8 @@ function gStartNode(x,y,ang){
   /* ★w/n0/n1 을 새 간선에 승계한다(ar_5053 지적).
      간선을 쪼갤 때 way id 를 안 넘기면, 그 간선에 걸린 회전금지가 조회되지 않아
      출발 직후 첫 교차로에서만 제한이 빠진다. */
-  const s1=GSEGS.length; GSEGS.push({a:sg.a,b:pi,len:la,l:sg.l,o:sg.o,w:sg.w,n:sg.n,tl:sg.tl,n0:sg.n0,n1:sg.n1});
-  const s2=GSEGS.length; GSEGS.push({a:pi,b:sg.b,len:lb,l:sg.l,o:sg.o,w:sg.w,n:sg.n,tl:sg.tl,n0:sg.n0,n1:sg.n1});
+  const s1=GSEGS.length; GSEGS.push({a:sg.a,b:pi,len:la,l:sg.l,o:sg.o,w:sg.w,n:sg.n,tl:sg.tl,lf:sg.lf,lb:sg.lb,n0:sg.n0,n1:sg.n1});
+  const s2=GSEGS.length; GSEGS.push({a:pi,b:sg.b,len:lb,l:sg.l,o:sg.o,w:sg.w,n:sg.n,tl:sg.tl,lf:sg.lf,lb:sg.lb,n0:sg.n0,n1:sg.n1});
   GNODES[sg.a].e.push(s1); GNODES[pi].e.push(s1);
   GNODES[pi].e.push(s2);  GNODES[sg.b].e.push(s2);
   sg.v=1;                                      // 원본 간선은 이제 쓰지 않는다
@@ -1283,6 +1290,9 @@ function gTurnBlocked(prevSi, viaNode, nextSi){
   return false;
 }
 function gAstar(s,t,startAng,relax){
+  /* ★2026-09-26(orch (3)): 거부 간선 로그 — 출발 300m 안에서 거부된 간선(from,to,seg,사유)만 남긴다(C자 우회 원인 열거). /tel planDbg.rej */
+  const _s0=GNODES[s]; const _rej=(a,b,si,why)=>{ try{ const A=GNODES[a]; if(!A||Math.hypot(A.x-_s0.x,A.y-_s0.y)>300*S) return; const L=(window.__rtRej=window.__rtRej||[]); if(L.length<60) L.push([a,b,si,why,(GSEGS[si]&&GSEGS[si].n)||'',Math.round(Math.hypot(A.x-_s0.x,A.y-_s0.y)/S)]); }catch(e){} };
+  if(!relax) window.__rtRej=[];
   const NSj=n=>((GNODES[n]&&GNODES[n].e)||[]).length>=3, SEGSj=GSEGS, UTURN_PEN=(window.__upen!==undefined?window.__upen:60)*S,
         /* ★★2026-09-18 u_5389/u_5391: 이전엔 MINW=0 이라 어떤 폭에서도 유턴을 골랐고,
            못 도는 곳은 교차로 한복판 3점 회전(=위반)으로 때웠다. 그건 무법 주행이다.
@@ -1348,7 +1358,7 @@ function gAstar(s,t,startAng,relax){
         const A=GNODES[cur.n], B=GNODES[nb];
         const ea=Math.atan2(B.y-A.y, B.x-A.x);
         let dd=((ea-startAng+Math.PI*3)%(Math.PI*2))-Math.PI;
-        if(Math.abs(dd) > Math.PI/2) continue;      // 뒤로 나가는 첫 구간 금지
+        if(Math.abs(dd) > Math.PI/2){ _rej(cur.n, nb, si, 'first-hop>90'); continue; }      // 뒤로 나가는 첫 구간 금지
       }
       /* 가상간선(stitch)은 실제 도로가 아니다 — 비용 40배로 최후수단화(u_5024). */
       /* ★좁은 도로는 비용을 올려 우회시킨다(u_5117 실측).
@@ -1389,14 +1399,16 @@ function gAstar(s,t,startAng,relax){
                  출발점의 차로는 주행차로(맨 오른쪽)다 — 좌회전/유턴이면 그만큼 거리가 필요하다. */
               if(prev.si===-1 || !pp){ if(leftOrU && !window.__freeStartUsed) blockedBy='opp'; break; }   // ★u_5642/5645/5646(2026-09-25): 검색·좌표 출발(정지 상태)은 출발 차로를 고를 수 있다 — 출발점을 '맨 오른쪽 차로'로 가정해 첫 (차로수−1)×50+30m 안 좌회전·유턴을 금지하던 것이 강남→시청 왕복유턴·충정로 C자 우회의 원인(rtLeftBan 2162)
               const a1=_hd(prev.si, pp.n, prev.n), a2=_hd(segi, prev.n, node);
-              cum+=_turn(a1,a2);                                             // 누적 헤딩(곡선 램프 포함)
+              if(NSj(prev.n)) cum+=_turn(a1,a2);                              // ★2026-09-26 REJ 실측(충정로 'R-prep 32<80'): 도로 자체의 굽이를 '반대 회전'으로 오인 → 교차로(차수≥3) 노드의 꺾임만 누적
               if(cum*wantSgn < -0.35){ blockedBy='opp'; break; }             // 반대 방향 회전 정점: 여기서부터 잰다
               if(cum*wantSgn >  0.70) break;                                  // 같은 방향 회전: 이미 그 차로
               dist+=GSEGS[prev.si].len; node=prev.n; segi=prev.si; prev=pp;
             }
-            const need=(_dl(GSEGS[cur.si])-1)*50*S + 30*S;
+            /* ★2026-09-26 orch (3) 거부간선 로그(REJ) 실측: 충정로7길 C자 우회의 원인 = 이 준비거리. 순수최단(충정로5길→충정로→충정로6길)이 'R-prep 84<130'(충정로6길)·'R-prep 32<130'(충정로) 로 거부되고
+               유턴 루프(+518m)가 선택됐다. (차로수−1)×50m 는 대로 속도(≈17m/s×3s) 기준이라 편도 ≤3차로 도로(골목·보조간선, ≈8m/s)에선 과하다. 차로당 거리 = 편도 ≥4차로 50m, 그 외 25m. */
+            const _dlc=_dl(GSEGS[cur.si]); const need=(_dlc-1)*(_dlc>=4?50:25)*S + 30*S;
             (window.__rtEval=window.__rtEval||[]); if(window.__rtEval.length<12) window.__rtEval.push([leftOrU?'L':'R', Math.round(dist/S), Math.round(need/S), blockedBy, hops]);
-            if(blockedBy==='opp' && dist < need){ window.__rtLeftBan=(window.__rtLeftBan||0)+1; continue; }
+            if(blockedBy==='opp' && dist < need){ window.__rtLeftBan=(window.__rtLeftBan||0)+1; _rej(cur.n, nb, si, (leftOrU?'L':'R')+'-prep '+Math.round(dist/S)+'<'+Math.round(need/S)); continue; }
           }
         }
       }
@@ -1435,7 +1447,7 @@ function parkCar(){
     const dir = sg.o ? 1 : (Math.abs(d)<Math.PI/2 ? 1 : -1);
     const ang = sg.ang + (dir<0 ? Math.PI : 0);
     // 가장 바깥 차로 중앙 = 갓길 쪽
-    const lanes = sg.o ? sg.l : Math.max(1, Math.floor(sg.l/2));
+    const lanes = myLanes(sg,dir);
     const off = Math.abs(laneOffset(sg, dir, lanes-1));
     me.x = n.px - Math.sin(ang)*off;
     me.y = n.py + Math.cos(ang)*off;
@@ -1547,7 +1559,7 @@ function planTo(x,y){
           endToTgt:+(Math.hypot(e.x-t2.x,e.y-t2.y)/S).toFixed(0),
           tgtToMe:+(Math.hypot(t2.x-me.x,t2.y-me.y)/S).toFixed(0),
           /* ★2026-09-19 u_5417 감사: 완화/뒤출발 표시를 /tel(planDbg)에 남긴다 — flash 는 다음 flash 에 덮인다 */
-          routeRelaxed:window.__routeRelaxed||0, freeStart:window.__freeStartUsed||0, rtLeftBan:window.__rtLeftBan||0, rtEvalN:(window.__rtEval||[]).length, rtEvalHead:(window.__rtEval||[]).slice(0,6), startRelax:window.__startRelax||0, startBehind:window.__startBehind||0, startBack:window.__startBack||0};
+          routeRelaxed:window.__routeRelaxed||0, freeStart:window.__freeStartUsed||0, rtLeftBan:window.__rtLeftBan||0, rtEvalN:(window.__rtEval||[]).length, rej:(window.__rtRej||[]).slice(0,40), rtEvalHead:(window.__rtEval||[]).slice(0,6), startRelax:window.__startRelax||0, startBehind:window.__startBehind||0, startBack:window.__startBack||0};
       }catch(err){}
       /* ★감사 지적(2026-09-19): 완화(relax) 경로는 차로 가로지르기 규칙을 끈 경로다. 조용히 달리면
          합법 경로와 구분이 안 된다. 화면에 띄우고 콘솔에 남긴다. 실측으로는 아직 0 건.
@@ -1661,7 +1673,7 @@ function planTo(x,y){
      ⇒ 주행차로(가장 오른쪽)를 기준으로 잡는다. 도로가 넓어지든 좁아지든
        오른쪽 끝에서 반 차로 안쪽이라 위치가 연속이다. 한국 도로교통법의
        주행차로 원칙과도 맞는다(추월·좌회전이 아니면 오른쪽). */
-  const laneOff=(sg)=>{
+  const laneOff=(sg,dir)=>{                     // dir: 세그먼트 진행방향(+1 = way 방향). ASYM 에서만 의미.
     if(!sg) return 0.5*LW;
     /* ★2026-09-18 실측(충정로7길 m246~258): 전역그래프 간선은 roadW 를 안 갖는다(0).
        여기서 l*LW 로 대체하는 건 맞지만, l 은 '양방향 합계'다 — 왕복 2차로면 6.5m 가
@@ -1675,9 +1687,11 @@ function planTo(x,y){
        주행차로(맨 오른쪽) 중앙은 중앙선에서 (myLanes-0.5)*LW 다.
        기존 식 rw*0.5-0.5*LW 는 짝수차로에서만 우연히 맞고, 홀수차로(l=3)에서는
        3.25m 를 내놔 중앙선 건너편을 가리켰다(l=3 o=0: now 3.25 vs should 1.62). */
-    const myLanes = Math.max(1, Math.floor((sg.l||2)/2));
-    return (myLanes - 0.5) * LW;
+    const _d=(dir===undefined?1:dir); const my = myLanes(sg,_d);   // ASYM: 진행방향 차로수
+    const cs = _d>0 ? segC(sg) : -segC(sg);
+    return cs + (my - 0.5) * LW;
   };
+  const dirOf=(sg,i)=> (sg&&sg.a===p[i]) ? 1 : -1;   // p[i]→p[i+1] 진행이 way 방향이면 +1
   const edgeOf=(i,j)=>{                         // 두 노드를 잇는 간선 찾기
     if(NS!==GNODES) return null;
     for(const si of GNODES[i].e){
@@ -1712,8 +1726,19 @@ function planTo(x,y){
     for(let i=0;i<NP-1;i++){
       const sg=edgeOf(p[i],p[i+1]);
       if(!sg) _edgeMiss++;
-      offs.push(sg ? laneOff(sg) : LW*.5); (window.__offWho=window.__offWho||{})[i]='base';
+      offs.push(sg ? laneOff(sg,dirOf(sg,i)) : LW*.5); (window.__offWho=window.__offWho||{})[i]='base';
     }
+    /* ★2026-09-26 차선물기 근본(우정국로 offTab 실측): 경로가 교차로의 짧은 무명 스텁(8~27m, 2차로)을 지나며 오프셋이 11.4→1.6→11.4 로 계단 →
+       차가 10m 횡이동을 못 해 선을 물음. 짧은 홉(<30m)이 양옆 홉과 같은 도로명이 아니고 양옆이 서로 같은 도로면 교차로 포장면으로 보고
+       양옆 오프셋을 선형으로 잇는다(작성자 'bridge'). /tel wpDbg.bridgeN */
+    try{ window.__bridgeN=0;
+      for(let i=1;i<NP-2;i++){
+        if(segLen(i)>=30*S) continue;
+        const a=edgeOf(p[i-1],p[i]), b=edgeOf(p[i],p[i+1]), c=edgeOf(p[i+1],p[i+2]); if(!a||!b||!c) continue;
+        const same=(x,y)=> x.n && y.n && x.n===y.n;
+        if(same(a,c) && !same(a,b) && Math.abs(offs[i]-offs[i-1])>LW*0.6){ offs[i]=(offs[i-1]+offs[i+1])/2; window.__offWho[i]='bridge'; window.__bridgeN++; }
+      }
+    }catch(e){ window.__bridgeErr=String(e).slice(0,60); }
     /* ★u_5223: 유턴 구간은 1차로(중앙선 쪽)에서 진입·진출해야 한다.
        laneOff 는 주행차로(가장 오른쪽) 기준이라 유턴을 바깥차로에서 하게 만든다 —
        실제로 "맨 바깥쪽 차선에서 90도 90도" 가 이렇게 나왔다.
@@ -1729,10 +1754,10 @@ function planTo(x,y){
        정의를 바꾼다: 폴리라인을 따라 같은 부호의 헤딩 변화를 누적, 40° 를 넘는 구간마다
        정점 하나(누적 20° 를 넘는 꼭짓점)만 표시. 코너당 하나, 넘침 없음.
        곡선 램프(꼭짓점당 40° 미만)도 누적으로 잡힌다. 라우터의 누적 규칙과 같은 자. */
-    const _turnAt=new Set(); window.__turnAtDbg=[]; window.__turnRuns=[];
+    const _turnAt=new Set(); window.__turnAtDbg=[]; window.__turnRuns=[]; window.__turnXY=[];
     {
       let cum=0, apex=-1, flagged=false, runStart=1, runEnd=1, sharp0=-1, sharp1=-1;
-      const _end=()=>{ if(flagged){ _turnAt.add(apex); window.__turnAtDbg.push([apex, +(cum*57.3).toFixed(0)]); window.__turnRuns.push({i0:runStart,i1:runEnd,cum,s0:sharp0,s1:sharp1}); } cum=0; apex=-1; flagged=false; sharp0=-1; sharp1=-1; };
+      const _end=()=>{ if(flagged){ _turnAt.add(apex); window.__turnAtDbg.push([apex, +(cum*57.3).toFixed(0)]); window.__turnRuns.push({i0:runStart,i1:runEnd,cum,s0:sharp0,s1:sharp1}); try{ window.__turnXY=window.__turnXY||[]; for(let q=Math.max(0,runStart-1);q<=Math.min(NP-1,runEnd+1);q++){ const _n=NS[p[q]]; if(_n) window.__turnXY.push([_n.x,_n.y]); } }catch(e){} } cum=0; apex=-1; flagged=false; sharp0=-1; sharp1=-1; };
       for(let i=1;i<NP-1;i++){
         const d=((segAng(i)-segAng(i-1)+Math.PI*3)%(Math.PI*2))-Math.PI;
         const straightLong = Math.abs(d)<0.03 && segLen(i)>15*S;
@@ -2011,7 +2036,7 @@ function planTo(x,y){
       for(let i=0;i<p.length-1;i++){
         const A=NS[p[i]], B=NS[p[i+1]];
         const sg=edgeOf(p[i],p[i+1]);
-        tab.push([Math.round(acc/S), +(offs[i]/S).toFixed(2), sg?+((sg.roadW||0)/S).toFixed(2):null, sg?(sg.l||0):null, sg?(sg.o?1:0):null, (window.__offWho&&window.__offWho[i])||'-', sg?(sg.w||0):null, sg?(sg.n||''):null]);
+        tab.push([Math.round(acc/S), +(offs[i]/S).toFixed(2), sg?+((sg.roadW||0)/S).toFixed(2):null, sg?(sg.l||0):null, sg?(sg.o?1:0):null, (window.__offWho&&window.__offWho[i])||'-', sg?(sg.w||0):null, sg?(sg.n||''):null, sg?segLf(sg):null, sg?segLb(sg):null, sg?+(segC(sg)/S).toFixed(2):null]);
         acc+=Math.hypot(B.x-A.x,B.y-A.y);
       }
       window.__offTab=tab;
@@ -2035,8 +2060,8 @@ function planTo(x,y){
          '차로'다 — 진출 도로의 차로 범위 [안쪽차로, 주행차로] 로 자른다. 호는 진입 오프셋에서
          이 값까지 반경을 선형 보간해 이음매 없이 잇는다. */
       const _sgX=edgeOf(p[i],p[i+1]);
-      const _lnOf=(sg,ln)=> sg ? laneOffset({...sg, roadW:(sg.roadW||(Math.max(1,sg.l||2)*LW))}, 1, ln) : o1;
-      const oX=(()=>{ if(!_sgX) return o1; const a=_lnOf(_sgX,0), b=laneOff(_sgX);
+      const _dX=dirOf(_sgX,i); const _lnOf=(sg,ln)=> sg ? laneOffset({...sg, roadW:(sg.roadW||(Math.max(1,sg.l||2)*LW))}, _dX, ln) : o1;
+      const oX=(()=>{ if(!_sgX) return o1; const a=_lnOf(_sgX,0), b=laneOff(_sgX,_dX);
                       return Math.max(Math.min(a,b), Math.min(Math.max(a,b), o1)); })();
       const V=nodeAt(i);
       /* ★코너는 '중심선 원 하나 + 차로 반경'으로 잡는다(최종형, 실측 도출).
@@ -2333,8 +2358,8 @@ function planTo(x,y){
         if(Rc*t < needT) Rc = needT/(t<0.05?0.05:t);
         if(Rc*t > Tcap) { window.__mergedList.push({s0,s1,skip:'Tcap',need:+(needT/S).toFixed(1),cap:+(Tcap/S).toFixed(1)}); continue; }
         const o1=offs[s0-1];
-        const lnOf=(sg,ln)=> sg ? laneOffset({...sg, roadW:(sg.roadW||(Math.max(1,sg.l||2)*LW))}, 1, ln) : o1;
-        const oX=(()=>{ if(!gB) return o1; const a=lnOf(gB,0), b=laneOff(gB); return Math.max(Math.min(a,b), Math.min(Math.max(a,b), o1)); })();
+        const _dB=dirOf(gB,s1); const lnOf=(sg,ln)=> sg ? laneOffset({...sg, roadW:(sg.roadW||(Math.max(1,sg.l||2)*LW))}, _dB, ln) : o1;
+        const oX=(()=>{ if(!gB) return o1; const a=lnOf(gB,0), b=laneOff(gB,_dB); return Math.max(Math.min(a,b), Math.min(Math.max(a,b), o1)); })();
         const sgnD=d>=0?1:-1; const RLMIN=5.5*S;   /* 2026-09-19 실측 2차: 시뮬 차의 최소회전반경 = 축거 2.76m / tan(0.9·0.62rad) ≈ 4.4m → 4m 호도 언더스티어로 바깥 가장자리(대흥로20안길 60초 54m). 차로 반경 하한 5.5m(법정 소형 6m 에 근접). */   /* ★2026-09-19 #18: 골목(6.5m) 코너에서 차로 반경이 3.5−1.63=1.9m 로 나와 물리적으로 못 돌고 바깥 가장자리로 밀렸다(최소회전반경 6m). 차로 반경 하한 4m — 코너에서 반대 차로를 물고 도는 실제 골목 주행과 같다. */
         const oMin=Math.min(o1,oX), oMax=Math.max(o1,oX); const rlNeed=Rc - sgnD*(sgnD>0?oMax:oMin); if(rlNeed<RLMIN) Rc += RLMIN-rlNeed;
         const Rl=Rc - sgnD*o1; const bis=a1+half; const nx=-Math.sin(bis)*sgnD, ny=Math.cos(bis)*sgnD;
@@ -2800,12 +2825,12 @@ function mdlPoll(dt){
                     fr:(a.free_r===undefined?null:+(+a.free_r).toFixed(2))} : {ok:0}; })(),
       car: {v:+me.v.toFixed(3), x:+(me.x/S).toFixed(2), y:+(me.y/S).toFixed(2),
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
-      law: (function(){ const L=window.__law; return L?{turnLane:L.turnLane,straddle:L.straddle,center:L.center,signal:L.signal,solid:L.solid,ev:L.ev.slice(-8)}:null; })(), lawErr: window.__lawErr||null,
+      law: (function(){ const L=window.__law; return L?{turnLane:L.turnLane,straddle:L.straddle,center:L.center,signal:L.signal,solid:L.solid,ev:L.ev.slice(-8)}:null; })(), lawErr: window.__lawErr||null, lawDbg: (window.__law&&window.__law.dbg)||null,
       geo: (function(){try{   // ★a_5598 COMMON: 차로 기하 라벨(도로 절대좌표, RESEARCH_steering_arch_2026-09-23 §FINAL(2)). ey(+우) epsi(rad) k0(1/m) lc[10,20,40](m, 현재 차로 중심의 차기준 횡오프셋) li nl lw dl dr v
         let n=(typeof routeSeg==='function')?routeSeg(me.x,me.y):null; if(!n||n.d>n.s.roadW*0.6) n=nearestSeg(me.x,me.y); if(!n) return {v:0};
         const sg=n.s; const dd0=((me.ang-sg.ang+Math.PI*3)%(Math.PI*2))-Math.PI; const dir=Math.abs(dd0)<=Math.PI/2?1:-1;
-        const lat=((me.x-n.px)*-Math.sin(sg.ang)+(me.y-n.py)*Math.cos(sg.ang))/S*dir;   // +=진행방향 우측(placeCar 법선 규약). ★2026-09-24 a_5612 D1 검증에서 부호 반전 발견(옛식은 +=좌측 → 일방 li 가 우측 기준·ey 거울상; r≤27xx L.npy 는 GEO_OLD 규약)
-        const lwm=LW/S, rw=sg.roadW/S; let nl=sg.o?sg.l:Math.max(1,Math.floor(sg.l/2));
+        let lat=((me.x-n.px)*-Math.sin(sg.ang)+(me.y-n.py)*Math.cos(sg.ang))/S*dir;   // +=진행방향 우측(placeCar 법선 규약). ★2026-09-24 a_5612 D1 검증에서 부호 반전 발견(옛식은 +=좌측 → 일방 li 가 우측 기준·ey 거울상; r≤27xx L.npy 는 GEO_OLD 규약)
+        const lwm=LW/S, rw=sg.roadW/S; let nl=sg.o?sg.l:myLanes(sg,dir); const _csm=(dir>0?segC(sg):-segC(sg))/S; if(!sg.o&&_csm) lat=lat-_csm;   // ASYM: 중앙선 기준
         const gi=sg.o?((lat+rw/2)/lwm-0.5):(Math.abs(lat)/lwm-0.5); const li=Math.max(0,Math.min(nl-1,Math.round(gi)));
         const cen=sg.o?((li+0.5)*lwm-rw/2):((lat<0?-1:1)*(li+0.5)*lwm); const ey=lat-cen;
         const epsi=((me.ang-(sg.ang+(dir<0?Math.PI:0))+Math.PI*3)%(Math.PI*2))-Math.PI;
@@ -2831,8 +2856,16 @@ function mdlPoll(dt){
         try{ const LAW=(window.__law=window.__law||{turnLane:0,straddle:0,center:0,signal:0,solid:0,ev:[]}); const _now=performance.now(); const _T=window.__teach, _L2=(_T&&_T.last)||{}, _g2=_L2.g2||{}; const vms=Math.abs(me.v);
           const at=_g2.aTurn, aD=+_g2.aD;
           if(at&&at!=='S'&&isFinite(aD)){ if(aD<8&&!LAW._tp&&vms>1){ LAW._tp=1; const need=(at==='R')?nl-1:0; if(nl>1&&li!==need){ LAW.turnLane++; LAW.ev.push('turnLane:'+at+':li'+li+'/nl'+nl+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)); } } if(aD>30) LAW._tp=0; }
-          if(vms>2&&Math.abs(ey)>0.7){ if(!LAW._st) LAW._st=_now; else if(_now-LAW._st>1000&&!LAW._stC){ LAW._stC=1; LAW.straddle++; LAW.ev.push('straddle:'+ey.toFixed(2)+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)); } } else { LAW._st=0; LAW._stC=0; }
-          if(!sg.o&&vms>2&&lat<-0.3){ if(!LAW._cl) LAW._cl=_now; else if(_now-LAW._cl>500&&!LAW._clC){ LAW._clC=1; LAW.center++; LAW.ev.push('center:'+lat.toFixed(2)+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)); } } else { LAW._cl=0; LAW._clC=0; }
+          const _lf=_T?+_T.laneF:NaN, _wt=_T?+_T._want:NaN; const _lcMove = !!(_T&&_T.laneMoving) || (isFinite(_lf)&&isFinite(_wt)&&Math.abs(_lf-_wt)>=0.3);   // laneF/_want 는 T 객체(teacher.js:431/527) — g2 에는 want 만(2026-09-26 lfNaN 실측 수정)
+          const _ai=(window.__da&&window.__da.i)|0; let _turnZone=false; for(const t of (window.__turnXY||[])){ if(Math.hypot(me.x-t[0],me.y-t[1])<22*S){ _turnZone=true; break; } }   // 회전 꼭짓점(교차로) 22m 안 = 교차로 내부, 차선·중앙선 없음 (turnRuns 인덱스는 노드경로 기준이라 auto.i 와 못 비교)
+          let _ramp=false; try{ const W=auto.wp, k=_ai; if(W&&W.length>k+4&&k>=2){ const a=W[k-2], b=W[k+4]; const rh=Math.atan2(b.y-a.y,b.x-a.x); let dh=rh-sg.ang; while(dh>Math.PI) dh-=2*Math.PI; while(dh<-Math.PI) dh+=2*Math.PI; dh=Math.abs(dh); if(dh>Math.PI/2) dh=Math.PI-dh; _ramp = dh>0.02 && dh<0.35; } }catch(e){}
+          try{ const H=(LAW._latH=LAW._latH||[]); H.push([_now,lat]); while(H.length&&_now-H[0][0]>1000) H.shift(); const _lr=(H.length>3&&_now-H[0][0]>500)?Math.abs(lat-H[0][1])/((_now-H[0][0])/1000):0; LAW._latRate=_lr; if(_ramp&&!window.__lawRampAngOnly&&_lr<0.15) _ramp=false; }catch(e){}   // 2026-09-26 PC(+1.2m 고정 오프셋 실측: 램프 각도 조건만으로 물기 프레임 34% 억제) — 램프 = 경로각 조건 AND 차의 도로 횡위치가 실제로 변하는 중(1s 창 ≥0.15m/s). 고정 오프셋은 램프가 아니다. ?__lawRampAngOnly 로 옛 판정.   // 경로선이 도로축과 1.1°~20° 어긋남 = 차로변경 램프(50m/차로=3.7°) 진행 중 = 합법 선통과   // 교차로 회전 구간(정점 앞 3홉·뒤 8홉) = 교차로 내부, 차선·중앙선 없음(도로교통법 시행규칙 노면표시: 교차로 내 차선 미설치)   // 차로변경 중(교사 laneMoving 또는 목표차로≠현재) = 합법적 선 통과 → 물기 판정 제외(2026-09-26 우정국로 실측: 을지로 1→3차로 변경 램프가 물기로 잡힘)
+          const _offRoad = Math.abs(lat) > rw/2 + 0.5;   // 최근접 way 의 도로폭 밖(예: 2차로 스텁·8→5차로 조각 경계) = ey 는 지도 조각 오투영 → 물기 아님
+          if(!LAW._t0) LAW._t0=_now; const _settle = (_now-LAW._t0)<5000;   // 출발 후 5s = 배치 위치→경로차로 정렬(합법)
+          const _D=(LAW.dbg=LAW.dbg||{cand:0,lc:0,rp:0,off:0,set:0,tz:0,cnt:0,cCand:0,cTz:0,cSet:0,cCnt:0}); if(vms>2&&Math.abs(ey)>0.7){ _D.cand++; if(_lcMove)_D.lc++; if(_ramp)_D.rp++; if(_offRoad)_D.off++; if(_settle)_D.set++; if(_turnZone)_D.tz++; if(!_lcMove&&!_ramp&&!_offRoad&&!_settle&&!_turnZone)_D.cnt++; }
+          if(!sg.o&&vms>2&&lat<-0.3){ _D.cCand++; if(_turnZone)_D.cTz++; if(_settle)_D.cSet++; if(!_turnZone&&!_settle)_D.cCnt++; }   // 2026-09-26 PC 진단: 억제 조건별 프레임 수(/tel lawDbg)
+          if(vms>2&&Math.abs(ey)>0.7&&!_lcMove&&!_ramp&&!_offRoad&&!_settle&&!_turnZone){ if(!LAW._st) LAW._st=_now; else if(_now-LAW._st>1000&&!LAW._stC){ LAW._stC=1; LAW.straddle++; LAW.ev.push('straddle:'+ey.toFixed(2)+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)+' w'+sg.w+' li'+li+'/'+nl+(sg.o?'o':'t')+' lat'+lat.toFixed(1)+' rw'+rw.toFixed(1)+' lf'+_lf.toFixed(1)+'>'+_wt.toFixed(1)+' i'+_ai+' tz'+(_turnZone?1:0)+' rp'+(_ramp?1:0)); } } else { LAW._st=0; LAW._stC=0; }
+          if(!sg.o&&vms>2&&lat<-0.3&&!_turnZone&&!_settle){ if(!LAW._cl) LAW._cl=_now; else if(_now-LAW._cl>500&&!LAW._clC){ LAW._clC=1; LAW.center++; LAW.ev.push('center:'+lat.toFixed(2)+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)+' w'+sg.w+' l'+sg.l+' lat'+lat.toFixed(1)); } } else { LAW._cl=0; LAW._clC=0; }
           const sig=+_L2.sig; if(isFinite(sig)&&sig>0&&sig<4&&vms>3) LAW._sg=_now; if(LAW._sg&&(!isFinite(sig)||sig>30)&&(_now-LAW._sg)<1500&&vms>3){ LAW.signal++; LAW.ev.push('signal@'+Math.round(me.x/S)+','+Math.round(me.y/S)); LAW._sg=0; }
           const lf=+_g2.laneF; if(isFinite(lf)){ if(LAW._lf!==undefined&&Math.abs(lf-LAW._lf)>=0.5&&LAW._clC){ LAW.solid++; LAW.ev.push('solid@'+Math.round(me.x/S)+','+Math.round(me.y/S)); } LAW._lf=lf; }
           if(LAW.ev.length>40) LAW.ev.splice(0,LAW.ev.length-40);
@@ -2884,7 +2917,7 @@ function mdlPoll(dt){
       tgt2N: window.__tgt2N|0,
       camErr: +((((me.ang+Math.PI/2)-camA+Math.PI*3)%(Math.PI*2))-Math.PI).toFixed(4),   /* a_5619: 화면 위(camA) 대비 차 헤딩 기울기(rad, 카메라 회전 지연) — 화면 기준 기하를 차 기준으로 돌릴 때 */
       lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0, lpwN: window.__lpwN|0, lpwFit: (typeof window.__lpwFit==='number')?+window.__lpwFit.toFixed(2):null, lpwIn: (typeof window.__lpwIn==='number')?+window.__lpwIn.toFixed(2):null, lpwBuf: (window.__lpwBuf||[]).length,
-      lhold: window.__lhold|0,
+      lhold: window.__lhold|0, bridgeN: window.__bridgeN|0, rfRampN: window.__rfRampN|0, rfRampLd: window.__rfRampLd||null, rfRampCfg: window.__noRamp?null:[window.__rfRamp0,window.__rfRampS,window.__rfRampCap,window.__rfRampVtx],
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
       sigNear: (function(){try{const n=performance.now();return signals.map(q=>({d:Math.hypot(q.x-me.x,q.y-me.y)/S,q})).sort((a,b)=>a.d-b.d).slice(0,4).map(z=>({d:+z.d.toFixed(1),x:+(z.q.x/S).toFixed(1),y:+(z.q.y/S).toFixed(1),sx:+(z.q.sx/S).toFixed(1),sy:+(z.q.sy/S).toFixed(1),nx:+(nodes[z.q.node].x/S).toFixed(1),ny:+(nodes[z.q.node].y/S).toFixed(1),tw:+z.q.tw.toFixed(2),rw:+(z.q.rw/S).toFixed(1),ow:z.q.ow,red:sigRed(z.q,n)?1:0}))}catch(e){return String(e).slice(0,40)}})(),
@@ -3038,6 +3071,8 @@ function tierAgo(ms){ const H=window.__tierHist||[]; const now=performance.now()
 window.__noL1 = /[?&]nol1=1/.test(location.search);
 window.__lpTau = (function(){ const m=/[?&]lptau=([0-9.]+)/.exec(location.search); return m?+m[1]:0.35; })();   // 앞점 EMA 시정수(s). ?lptau=0.1 이면 평활 ON(시정수 0.1)
 window.__lpRawMode = !(/[?&]lpsm=1/.test(location.search) || /[?&]lptau=/.test(location.search));
+if(!/[?&]ramp=1/.test(location.search)) window.__noRamp=1;   // 규칙 코너램프 기본 OFF(2026-09-26 충정로 실측: 반전 동일·차선물기 5→10) — ?ramp=1 로만
+try{ const _q=new URLSearchParams(location.search); window.__rfRamp0=+(_q.get('ramp0')||12); window.__rfRampS=+(_q.get('ramps')||2.5)*1000; window.__rfRampCap=+(_q.get('rampcap')||1.5); window.__rfRampVtx=+(_q.get('rampvtx')||15); }catch(e){ window.__rfRamp0=12; window.__rfRampS=2500; window.__rfRampCap=1.5; window.__rfRampVtx=15; }   // orch 단계4 스펙: Ld 12→Ld0 over 2.5s, 이양창 조향율 ≤1.5/s; 정점 판정 = __turnXY 15m 진입→이탈
 window.__lpWorldN = (function(){ const m=/[?&]lpworld=(\d+)/.exec(location.search); return m?+m[1]:0; })();   // ★2026-09-24 a_5619 오라클 이분: 앞점 EMA(0.35s)+6m/s 제한이 순수추적 진동의 근본 원인(규칙 앞점 되먹임 sc55→raw 1.65/분) → 기본 RAW. 평활은 ?lpsm=1 로만.
 window.__PERTURB_S = (function(){ const m=/[?&]perturb=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();
 /* ★가상 데이터 샘플러(오너 u_5467, 2026-09-20): 주행하지 않고 상태를 무작위로 놓는다. ?synth=1 이면 SYNTH_MS 마다 경로 위 임의 점에
@@ -3220,10 +3255,22 @@ function driveAuto(dt){
   /* ★2026-09-19 #18: 왕복 1차로 골목(폭 ≤6.5m)에서 6m 룩어헤드는 굽이에서 안쪽을 잘라 차가 가장자리로 밀린다(여유 0.72m).
      골목은 4~8m 로 짧게 본다. */
   const _alley=(()=>{ try{ const rs=(typeof routeSeg==='function'&&routeSeg(me.x,me.y))||nearestSeg(me.x,me.y); const sg=rs&&rs.s; if(!sg) return false;
-                          const rw=sg.roadW||((sg.l||2)*LW); const nl=sg.o?(sg.l||1):Math.max(1,Math.floor((sg.l||2)/2)); return nl<=1 && rw<=6.5*S+0.01; }catch(e){ return false; } })();
-  const Ld = off > 6
+                          const rw=sg.roadW||((sg.l||2)*LW); const nl=sg.o?(sg.l||1):Math.min(segLf(sg),segLb(sg)); return nl<=1 && rw<=6.5*S+0.01; }catch(e){ return false; } })();
+  const Ld0 = off > 6
     ? Math.max(4, Math.min(8, 4 + 0.3*me.v))       // 복귀: 짧게 → 급히 붙는다
     : (_alley ? Math.max(4, Math.min(8, 0.9*me.v)) : Math.max(6, Math.min(16, 0.9*me.v)));         // 정상: 속도비례(골목은 짧게)
+  /* ★2026-09-26(orch/u_5641) 규칙 추종기 코너 진출·이양 램프: 회전 정점 통과(aD 급증) 또는 조향주체 이양 시점부터 2.5초간 Ld 를 6m→Ld0 로
+     선형 램프, 같은 창 2초 동안 조향 변화율 제한(아래 me.steer). 감사#2: 회전 연속 구간(충정로) 반전 16.6/분 → 목표 ≤6. ?noramp=1 로 끔. */
+  let Ld = Ld0;
+  try{ if(!window.__noRamp){
+    const _tN=performance.now(); const _g2=((window.__teach&&window.__teach.last)||{}).g2||{}; const _aD=+_g2.aD; const _md=(window.__mdlTgt||{}).mode;
+    if(isFinite(_aD) && isFinite(window.__rfPrevAD) && window.__rfPrevAD<15 && _aD>window.__rfPrevAD+20) window.__rfRampT=_tN;   // 회전 정점 통과(교사 aD 급증)
+    let _nearV=false; for(const t of (window.__turnXY||[])){ if(Math.hypot(me.x-t[0],me.y-t[1])<window.__rfRampVtx*S){ _nearV=true; break; } }   // 경로 회전 꼭짓점(라우터 turnRuns 좌표) 반경 안
+    if(window.__rfPrevNearV && !_nearV) window.__rfRampT=_tN;                                                                    // 꼭짓점 반경 이탈 = 코너 진출 시점
+    if(window.__rfPrevMode!==undefined && _md!==window.__rfPrevMode) window.__rfRampT=_tN;                                     // 이양
+    window.__rfPrevAD=_aD; window.__rfPrevMode=_md; window.__rfPrevNearV=_nearV;
+    if(window.__rfRampT){ const fr=Math.min(1,(_tN-window.__rfRampT)/window.__rfRampS); const L0=window.__rfRamp0; Ld=Math.min(Ld0, L0+(Ld0-L0)*fr); window.__rfRampN=(window.__rfRampN||0)+(fr<1?1:0); window.__rfRampLd=+Ld.toFixed(1); }
+  } }catch(e){}
   /* ★gp/otOff 는 여기서 계산한다(u_5126 실사고 수정).
      추월 오프셋을 쓰는 조향 코드가 선언보다 42줄 위에 삽입돼 있어서
      `const otOff` 의 TDZ(temporal dead zone)에 걸렸다 — driveAuto 가 매 프레임
@@ -3361,14 +3408,17 @@ function driveAuto(dt){
       if(d2<bd){ bd=d2; bi=i; bx=cx; by=cy; ba=Math.atan2(vy,vx); }
     }
     if(bi>=0){
-      const xt=(-(bx-me.x)*Math.sin(ba) + (by-me.y)*Math.cos(ba))/S;   // m, 부호
+      let xt=(-(bx-me.x)*Math.sin(ba) + (by-me.y)*Math.cos(ba))/S;   // m, 부호
+      if(otOff && !window.__noTgtXt) xt += otOff/S;   // 2026-09-26 PC: 목표 오프셋(dOff) 모드에서 교차추적항도 옮긴 경로 기준 — 안 옮기면 P 이동과 xt 복원이 싸워 1.2m 지령이 0.36m 로 남음(실측)
       const k=1.2, spd=Math.max(3, me.v);
       delta += Math.max(-0.35, Math.min(0.35, Math.atan2(k*xt, spd)));
       window.__ppXt = +xt.toFixed(2);
     }
   }catch(e){}
   const maxSteer=.62;
-  me.steer=Math.max(-.9,Math.min(.9, delta/maxSteer));
+  { let _st=Math.max(-.9,Math.min(.9, delta/maxSteer));
+    if(!window.__noRamp && window.__rfRampT && (performance.now()-window.__rfRampT)<2000){ const _lim=window.__rfRampCap*dt; _st=Math.max(me.steer-_lim, Math.min(me.steer+_lim, _st)); }   // 이양/코너 진출 창 2s: 조향 변화율 ≤1.5/s
+    me.steer=_st; }
   // 5) 속도
   /* ★보행자 제동을 경로주행에도 넣는다(ar_5057 지적).
      워커가 teacher.js 에 넣었지만, 내비 주행 중 실제로 모는 건 driveAuto 다.
@@ -3822,7 +3872,8 @@ function step(dt){
          ⇒ 임계를 도로에 맞춘다: 반차로 폭 + 0.35m. 차 모서리가 실제로 중앙선을
            넘었을 때만 본다. 넓은 도로에서는 예전 0.6m 를 하한으로 유지한다.
          실측(구간1 110초): 구속 2,818→54 프레임, 복귀 46→1회, 주행 675→872m, 사고 0. */
-      const _halfLane = (sg.roadW*0.5) / Math.max(1, Math.floor((sg.l||2)/2)) * 0.5;
+      const _halfLane = window.__asym ? LW*0.5 : (sg.roadW*0.5) / Math.max(1, Math.floor((sg.l||2)/2)) * 0.5;
+      const _cs = dir>0 ? segC(sg) : -segC(sg); const _latC = lat - _cs;   // ASYM: 실제 중앙선 기준 부호거리
       const _margin = Math.max(0.6*S, _halfLane + 0.35*S);
       /* ★u_5260 실측 2차: 부호를 뒤집어도 왕복1차로(dir=-1)에서 차(-1.98)와 교사 목표
          off(-1.63) 가 같은 부호로 나왔다 — 즉 어느 식이든 '오른쪽=+' 가 dir 에 따라
@@ -3832,8 +3883,8 @@ function step(dt){
          이면 판단 불가 → 검사 생략. */
       let _wrongSide = false;
       try{ if(auto.on&&auto.wp.length){ const w0=auto.wp[Math.min(auto.wp.length-1,(auto.i|0))];
-        const latR=((ns.px-w0.x)*Math.sin(sg.ang) - (ns.py-w0.y)*Math.cos(sg.ang))*dir;
-        if(Math.abs(latR) <= sg.roadW*0.5 && Math.abs(lat) > _margin && (lat<0) !== (latR<0)) _wrongSide=true; } }catch(e){}
+        const latR=((ns.px-w0.x)*Math.sin(sg.ang) - (ns.py-w0.y)*Math.cos(sg.ang))*dir - _cs;
+        if(Math.abs(latR+_cs) <= sg.roadW*0.5 && Math.abs(_latC) > _margin && (_latC<0) !== (latR<0)) _wrongSide=true; } }catch(e){}
       /* ★2026-09-18: 정지 상태(v<=0.5)에서 중앙선 구속을 면제해봤으나 효과 없음 —
          driven_m 은 0 그대로였고 복귀가 11→17 로 오히려 늘어 되돌렸다.
          즉 이 구간이 못 나가는 원인은 중앙선 구속이 아니다. 다시 시도하지 말 것. */
@@ -4201,7 +4252,7 @@ function drawLab(lc, pw, ph){
     const A=nodes[s.a],B=nodes[s.b];
     if(!inV((A.x+B.x)/2,(A.y+B.y)/2,s.len))continue;
     const nx=-Math.sin(s.ang), ny=Math.cos(s.ang);
-    const midOff = s.o ? -1e9 : (Math.round(s.l/2) - s.l/2)*LW;   // 중앙선 오프셋(양방향) — 차선 그리기와 같은 식
+    const midOff = s.o ? -1e9 : (((window.__asym&&s.lf>0&&s.lb>0) ? s.lb : Math.round(s.l/2)) - s.l/2)*LW;   // 중앙선 오프셋(양방향) — 차선 그리기와 같은 식
     for(let j=0;j<s.l;j++){
       const c=(j - s.l/2 + 0.5)*LW;
       let side, k;
@@ -4295,7 +4346,7 @@ function draw(){
        (i 는 정수, s.l/2 는 x.5). 실측: 3/5/9차로 등 전체 도로의 18%(847개)가
        중앙선 없이 그려지고 있었다.
        양방향 도로는 항상 중앙에 선이 있어야 하므로 반올림해서 판정한다. */
-    const midIdx = Math.round(s.l/2);
+    const midIdx = (window.__asym&&!s.o&&s.lf>0&&s.lb>0) ? s.lb : Math.round(s.l/2);   // ASYM: way 방향 왼쪽(backward) 차로 lb 개 다음 선 = 중앙선 ((lb−l/2)·LW = c)
     for(let i=1;i<s.l;i++){
       const off=(i-s.l/2)*LW,ox=-Math.sin(s.ang)*off,oy=Math.cos(s.ang)*off;
       const mid=!s.o&&i===midIdx;
