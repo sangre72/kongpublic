@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/chrome_guard.sh"; chrome_guard "$(basename "$0")" || exit 9
 # 같은 창에서 새로고침 + 규격 해상도(763x762 캔버스) 강제(u_5089, u_5075 "브라우저는 왜 새로떠").
 # ★`open -na --new-window` 금지 — 창이 쌓인다(실제 3개까지).
 #
@@ -10,7 +11,16 @@
 #       또 창이 사라진 상태에서 osascript 가 조용히 실패해도 아무도 몰랐다.
 # ⇒ 고정 sleep 대신 /tel 을 폴링해 실제 준비(wpLen>100, go=1 이면 autoOn)를 확인하고,
 #   창이 없거나 렌더러가 부풀었으면 크롬을 재기동한 뒤 1회 재시도한다. 준비 못 되면 exit 1.
+# ★2026-09-27 사고(u_5687): 운세(CineBot/유튜브)가 크롬을 쓰는 동안 이 스크립트가 **활성 탭을 갈아치워**
+#   CineBot 탭이 사라졌다(심하면 pkill 로 크롬 전체 재기동). GUI 작업끼리 크롬을 뺏지 않도록 소유권 파일로 막는다.
+#   운세 등 GUI 잡은 시작 시 `echo <name> > /tmp/.chrome_owner`, 끝나면 rm. 이 파일이 있으면 여기서 즉시 종료한다.
+if [ -f /tmp/.chrome_owner ] && [ "${CHROME_OWNER_OVERRIDE:-0}" != "1" ]; then
+  echo "reload: ABORT — Chrome is owned by '$(cat /tmp/.chrome_owner 2>/dev/null)' (see PLAN_ODE standing rule). Set CHROME_OWNER_OVERRIDE=1 only if that job is finished."
+  exit 9
+fi
 URL="${1:-http://localhost:8901/index.html}"
+# ★2026-09-26(orch): 매 실행 전 /ctl 초기화 — 서버 _ctl 잔존(mode=2·lp·target)이 규칙 주행을 오염시킨 사고 재발 방지
+curl -s -X POST -H 'Content-Type: application/json' -d '{"on":0,"force":0,"release":1,"tgt":0,"mode":1,"lp":0.0,"ld":-1,"dOff":0.0,"vT":-1}' http://localhost:8901/ctl >/dev/null 2>&1
 MAXWAIT="${2:-120}"           # 준비 대기 상한(초). 예전 2번째 인자(고정 sleep)와 호환.
 RSS_LIMIT_MB=900              # 이 위면 재기동 후 로드(OOM 예방)
 TEL=http://localhost:8901/tel

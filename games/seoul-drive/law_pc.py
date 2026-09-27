@@ -3,6 +3,18 @@
 차가 실제로 오프셋 주행했는지(geo.ey)와 법규 모니터 카운터(law)·억제 원인(lawDbg)을 같이 기록한다.
 usage: python3 law_pc.py <from> <to> <dOff> <secs> [--noon] [--sx X --sy Y]   (--noon = pc_chain.sh 원본과 같이 on/force 없이 tgt 만)"""
 import sys, json, time, subprocess, urllib.request, argparse, statistics as st
+
+# ★브라우저 소유권 가드(2026-09-27 u_5695): 운세 등 GUI 잡이 크롬을 쓰는 동안 ODE 는 브라우저를 건드리지 않는다.
+def _chrome_guard(name='ode'):
+    import os, sys
+    f = '/tmp/.chrome_owner'
+    if os.path.exists(f) and os.environ.get('CHROME_OWNER_OVERRIDE') != '1':
+        try: owner = open(f).read().strip()
+        except Exception: owner = '?'
+        print('[%s] ABORT - Chrome owned by %r. ODE must not touch the browser.' % (name, owner))
+        sys.exit(9)
+_chrome_guard(os.path.basename(__file__))
+
 ap = argparse.ArgumentParser(); ap.add_argument('frm'); ap.add_argument('to'); ap.add_argument('doff', type=float); ap.add_argument('secs', type=float)
 ap.add_argument('--noon', action='store_true'); ap.add_argument('--sx'); ap.add_argument('--sy'); ap.add_argument('--log', default='')
 a = ap.parse_args()

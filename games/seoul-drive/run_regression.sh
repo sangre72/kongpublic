@@ -1,6 +1,8 @@
 #!/bin/bash
 # u_5341/u_5342: 사고 구간 회귀시험 일괄 실행. 새 수정이 과거 사고를 되살리는지 매번 확인한다.
 cd "$(dirname "$0")"
+source "$(dirname "$0")/chrome_guard.sh"; chrome_guard "$(basename "$0")" || exit 9
+source "$(dirname "$0")/pagelock.sh"; lock_page "$(basename "$0")" || { echo "PAGE BUSY - abort (see PLAN_ODE standing rule)"; exit 9; }; trap unlock_page EXIT
 python3 - <<'PY'
 import json,subprocess,sys
 cs=json.load(open('regression_cases.json'))['cases']
@@ -43,6 +45,11 @@ for c in cs:
         got=r.get(k)
         if k=='min_driven_m':                      # 2026-09-19: 기어가기(60초 54m)도 실패로 — 최소 주행거리 기대값
             if (got:=r.get('driven_m',0)) < v: print(f"    ★REGRESSION driven_m: expect ≥{v}, got {got}"); bad+=1
+            continue
+        # ★2026-09-27 수정: cr/tpN 은 '상한'이다(적을수록 좋다). 등가 비교면 기대 1·실측 0 이 실패로 찍혀
+        #   개선을 회귀로 오보고한다(실측: 16케이스 중 5건이 이 오탐이었다). 상한 비교로 바꾼다.
+        if k in ('cr','tpN','tpPath','tpBld','blkStuck','blkCenter'):
+            if (got or 0) > v: print(f"    ★REGRESSION {k}: expect ≤{v}, got {got}"); bad+=1
             continue
         if got!=v: print(f"    ★REGRESSION {k}: expect {v}, got {got}"); bad+=1
 print(f"\n{'ALL PASS' if not bad else str(bad)+' REGRESSION(S)'}")

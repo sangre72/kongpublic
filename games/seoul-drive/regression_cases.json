@@ -173,12 +173,83 @@
    }
   },
   {
-   "name": "사평대로 T1 모델조향 진동(a_5588)",
-   "sx": -2928.7,
-   "sy": -3860.6,
+   "id": "model-zigzag-사평대로",
+   "from": "사평대로",
    "to": "수정로35번길",
    "secs": 90,
+   "extra_qs": "&sx=-2928.7&sy=-3860.6",
+   "symptom": "2026-09-23 model T1 zigzag: rule amp0.24/rev2.8 vs model 1.0-1.4/28-49 (sx/sy 출발)",
+   "cause": "모델 조향 진동(a_5588)",
+   "fix": "미해결 — 진행중",
+   "found": "2026-09-23",
+   "expect": {
+    "cr": 0,
+    "tpN": 1
+   },
    "note": "2026-09-23 model T1 zigzag: rule amp0.24/rev2.8 vs model 1.0-1.4/28-49; pass = amp_p95<=0.35 rev<=6/min"
+  },
+  {
+   "id": "start-uturn-마포대로",
+   "from": "강남역",
+   "to": "이태원로42길",
+   "secs": 120,
+   "extra_qs": "&sx=-6028.1&sy=-6609.3",
+   "symptom": "u_5670: 출발 직후 turnRuns[0] idx4-13 누적 −202° 제자리 유턴(uspan D 18.5m). 경로는 마포대로를 202m 직진한 뒤 굴레방로(왕복 2차로) 11m 를 역방향으로 타고 반대편 차도로 넘어간다",
+   "cause": "마포대로가 분리 차도(1075681315 3차로 일방 / 515561252 4차로 일방)인데 두 차도가 공유 노드 0 개 → 유일한 연결이 짧은 왕복 측도(굴레방로 37399479). 라우터가 이걸 중앙분리대 틈으로 써서 U턴 경로를 만든다. 충정로7길 C자 우회와 같은 계열(cases/충정로 C-loop)",
+   "fix": "미해결 — 라우터가 '짧은 측도를 통한 반대 차도 진입'을 유턴으로 인식하고 비용/금지 처리해야 함",
+   "found": "2026-09-26",
+   "expect": {
+    "cr": 0,
+    "tpN": 1
+   },
+   "note": "오프라인 복제(cases/route_u5642_replica.py)로 재현: 출발 후보는 정상(마포대로 3.3m align 1.00) → 출발 스냅 문제 아님"
+  },
+  {
+   "id": "u5671_mapo_median_reversal",
+   "from": "마포대로",
+   "to": "이태원로42길",
+   "secs": 120,
+   "extra_qs": "&sx=-6199&sy=-6369",
+   "symptom": "마포대로 서북행 차도 출발 → 출발 16m 앞 중앙연결로에 OSM no_left_turn + L-prep 16<80 → 굴레방로 351m 되돌기(717m, 전체의 10.3%). 되돌기 정점 60m 전에서 시작",
+   "cause": "라우터 버그 아님 — 출발이 분리도로의 반대편 차도에 스냅. 합법 최단이 되돌기다(orch cases/route_u5671_rootcause.md)",
+   "fix": "미해결 — setStart/gStartNode 출발측 교체 스펙(startSideSwap) 적용 예정",
+   "found": "2026-09-26",
+   "expect": {
+    "cr": 0,
+    "tpN": 1
+   },
+   "note": "watch wpDbg.turnRuns[0]/uspanList/rtLeftBan/startBack/startRelax. sx,sy 는 미터"
+  },
+  {
+   "id": "u5671_mapo_median_reversal_full",
+   "from": "마포대로",
+   "to": "이태원로42길",
+   "secs": 420,
+   "extra_qs": "&sx=-6028&sy=-6609",
+   "symptom": "동일 결함 전체 경로판(되돌기 포함). as-drawn 6960m / 좌회전 합법화 시 6243m",
+   "cause": "출발 차도 반대편 스냅(orch 보고서)",
+   "fix": "미해결 — startSideSwap",
+   "found": "2026-09-26",
+   "expect": {
+    "cr": 0,
+    "tpN": 1
+   },
+   "note": "startSideSwap 적용 후 기대 6202m·되돌기 소멸"
+  },
+  {
+   "id": "u5682_banggogae",
+   "from": "밤고개로14길",
+   "to": "신촌남로",
+   "secs": 300,
+   "symptom": "u_5682 오너 관측: 이 구간 주행 품질 불량(흔들림·이탈 의심)",
+   "cause": "미규명 — 원뿔 결함(lanes 미태그 조각의 차로수 추정 불일치)과 같은 뿌리 의심",
+   "fix": "미해결 — seoul4 지도 승격 전/후 비교로 확인",
+   "found": "2026-09-27",
+   "expect": {
+    "cr": 0,
+    "tpN": 2
+   },
+   "note": "측정: sc/amp, 코너 sr vs 규칙, tp, 법규(cause 태그), lane_continuity 점프 목록. 승격 전/후 둘 다 ★2026-09-27: 오너 표기 방고개로14길은 지도·pbf 에 없다(전국 방고개* 전부 서울 밖). 실제 구간은 밤고개로14길(밤/방 오타) — 이 이름으로 측정해야 결과가 나온다."
   }
  ],
  "_note_expect": "보행자 돌발은 매 판 무작위로 생겨 cr 로 고정 판정하면 회귀가 아닌데도 실패한다. 구조적 결함(복귀·갇힘·중앙선)만 기대값으로 둔다."

@@ -3,7 +3,7 @@
 # 사용: bash games/seoul-drive/promote_stage.sh [--no-reload]   (레포 루트 기준 경로)
 set -e; cd /Users/bumsuklee/git/kong-bot; D=games/seoul-drive; TS=2026-09-26
 [ -f $D/data/data6_stage.js ] || { echo "no stage pack"; exit 1; }
-n=$(pgrep -fl python3 | grep -Ec 'python3 (gpu_drive|dagger|eval20|offline_gate|seg_gate)'); [ "$n" -gt 0 ] && { echo "page/GPU busy ($n) — abort"; exit 2; }
+n=$(pgrep -fl python3 | grep -Ec 'python3 (gpu_drive|dagger|eval20|offline_gate|seg_gate)' || true); [ "${n:-0}" -gt 0 ] && { echo "page/GPU busy ($n) — abort"; exit 2; }   # ★grep -c 는 0건일 때 exit 1 → set -e 로 스크립트가 조용히 죽는다(2026-09-26 실측)
 [ -f $D/data/data6_prev_$TS.js ] || cp $D/data/data6.js $D/data/data6_prev_$TS.js            # 백업(1회만)
 cp $D/data/data6_stage.js $D/data/data6.js                                                   # 승격
 python3 $D/build_search_index.py                                                             # 검색 인덱스(data6.js 기준)

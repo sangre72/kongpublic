@@ -7,6 +7,6 @@ for r in R:
     w=d.get('weave')
     if w and w.get('min',0)>=0.2: amps.append(w['amp_p95']); scs.append(w['sc_min'])
 res={'routes':len(R),'avoidable':av,'offroad':off,'tp_per_route':round(tp/max(len(R),1),2),'weave_amp_p95_med':round(float(np.median(amps)),3) if amps else None,'weave_sc_med':round(float(np.median(scs)),1) if scs else None,'handover_per_min_med':round(float(np.median(hand)),2),'prog_mean':round(float(np.mean(prog)),1)}
-lawv=sum(1 for r in R if isinstance(r,dict) and r.get('law_fail')); res['law_fail_routes']=lawv; res['law_sum']={k:sum(int((r.get('law') or {}).get(k) or 0) for r in R if isinstance(r,dict)) for k in ('turnLane','straddle','center','signal','solid')}
+lawv=sum(1 for r in R if any(int(((r.get('res') or {}).get('law') or {}).get(k) or 0)>0 for k in ('turnLane','straddle','center','signal','solid'))); res['law_fail_routes']=lawv; res['law_sum']={k:sum(int(((r.get('res') or {}).get('law') or {}).get(k) or 0) for r in R) for k in ('turnLane','straddle','center','signal','solid')}
 res['PASS']=bool(lawv==0 and av==0 and off==0 and tp/max(len(R),1)<=1 and (res['weave_sc_med'] is not None and res['weave_sc_med']<=6) and (res['weave_amp_p95_med'] is not None and res['weave_amp_p95_med']<=0.35) and res['handover_per_min_med']<=2)
 print(json.dumps(res,ensure_ascii=False))

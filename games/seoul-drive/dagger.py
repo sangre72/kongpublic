@@ -30,6 +30,18 @@ from net import vdim_of, cond_vec, DriveNet, preprocess, preprocess_label, IMG
 from gpu_guard import require_gpu, assert_on_gpu
 import capture as C
 
+# ★브라우저 소유권 가드(2026-09-27 u_5695): 운세 등 GUI 잡이 크롬을 쓰는 동안 ODE 는 브라우저를 건드리지 않는다.
+def _chrome_guard(name='ode'):
+    import os, sys
+    f = '/tmp/.chrome_owner'
+    if os.path.exists(f) and os.environ.get('CHROME_OWNER_OVERRIDE') != '1':
+        try: owner = open(f).read().strip()
+        except Exception: owner = '?'
+        print('[%s] ABORT - Chrome owned by %r. ODE must not touch the browser.' % (name, owner))
+        sys.exit(9)
+_chrome_guard(os.path.basename(__file__))
+
+
 BASE = os.path.dirname(os.path.abspath(__file__))
 CTL, TEL = 'http://localhost:8901/ctl', 'http://localhost:8901/tel'
 
@@ -347,6 +359,24 @@ def main():
             ST.append(s)
             print(json.dumps(s, ensure_ascii=False), flush=True)
             if X is not None:
+                # ★u_5676/orch 2026-09-27 코너 가중: 회전 정점 통과 직후 CORNER_W_SEC 초 프레임에 가중치 CORNER_W.
+                # 정점 통과 = 태그 aD(회전까지 거리, M[:,4])가 작았다가 급증하는 시점. 회전 진출 구간의 조향이
+                # 규칙 대비 2.1배로 튀는 게 현재 유일한 미통과 항목이라, 그 구간 표본의 학습 비중을 올린다.
+                try:
+                    cw = float(os.environ.get('CORNER_W', '1'))
+                    if cw > 1 and Mt is not None and len(Mt) == len(Wt):
+                        csec = float(os.environ.get('CORNER_W_SEC', '3'))
+                        aD = np.asarray(Mt)[:, 4].astype(float); tt = np.asarray(Tt).astype(float)
+                        nboost = 0
+                        for j in range(1, len(aD)):
+                            if aD[j-1] < 15 and aD[j] > aD[j-1] + 20:          # 정점 통과
+                                t0 = tt[j]
+                                for q in range(j, len(aD)):
+                                    if tt[q] - t0 > csec: break
+                                    if Wt[q] > 0: Wt[q] = cw; nboost += 1
+                        print(json.dumps({'corner_boost_frames': nboost, 'corner_w': cw}), flush=True)
+                except Exception as e:
+                    print(json.dumps({'corner_w_err': str(e)[:80]}), flush=True)
                 AX.append(X); AY.append(Y); AW.append(Wt); AM.append(Mt); AP.append(Pt); AQ.append(Qt); AL.append(Lt); AT.append(Tt)
     finally:
         post({'on': 0, 'steer': 0, 'thr': 0, 'brake': 0})

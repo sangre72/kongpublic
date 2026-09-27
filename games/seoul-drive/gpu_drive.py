@@ -9,6 +9,18 @@ import numpy as np, cv2, coremltools as ct
 import sck_capture as SK, capture as C
 from net import cond_vec
 
+# ★브라우저 소유권 가드(2026-09-27 u_5695): 운세 등 GUI 잡이 크롬을 쓰는 동안 ODE 는 브라우저를 건드리지 않는다.
+def _chrome_guard(name='ode'):
+    import os, sys
+    f = '/tmp/.chrome_owner'
+    if os.path.exists(f) and os.environ.get('CHROME_OWNER_OVERRIDE') != '1':
+        try: owner = open(f).read().strip()
+        except Exception: owner = '?'
+        print('[%s] ABORT - Chrome owned by %r. ODE must not touch the browser.' % (name, owner))
+        sys.exit(9)
+_chrome_guard(os.path.basename(__file__))
+
+
 UI_CROP_TOP, IMG = 0.236, 256
 CROP = float(os.environ.get('ODE_CROP', '0.6') or 0.6)
 TEL = 'http://localhost:8901/tel'; CTL = 'http://localhost:8901/ctl'
@@ -297,6 +309,6 @@ def main():
         mins = max(1e-6, mins); ap = float(np.percentile(np.abs(devs), 95)) if devs else 0.0
         weave = {'n': int(len(wv)), 'min': round(float(mins), 2), 'amp_p95': round(ap, 3), 'sc_min': round(sc / mins, 2), 'score': round(ap * sc / mins, 3)}
     print(json.dumps({'secs': round(secs, 1), 'frames': nfr, 'hz': round(nfr / secs, 1), 'cmd_frames': n, 'lat_ms_p50': round(float(np.median(lats)), 1) if lats else None, 'lat_ms_p90': round(float(np.percentile(lats, 90)), 1) if lats else None,
-                      'inf_ms_p50': round(float(np.median(infs)), 2) if infs else None, 'lp_frames': lpN, 'corner': corner, 'law': law, 'law_fail': law_fail, 'seg_target_found': (round(segN[1] / segN[0], 3) if segN[0] else None), 'alley_rule_frames': alleyN[0], 'lane_gate_frames': laneN[0], 'seg_undetermined': (round(segU[0] / segN[0], 3) if segN[0] else None), 'oracle_frames': orcN[0], 'oracle_invalid': orcN[1], 'oracle_sigma': ORACLE_SIGMA, 'handovers': handovers, 'prog': d.get('prog'), 'crashes': int(d.get('cr') or 0) - cr0, 'crash_types': crk, 'tpN': int(d.get('tpN') or 0) - tp0, 'tier_hist': d.get('tierN'), 'weave': weave, 'hold_frames': holdN}, ensure_ascii=False), flush=True)
+                      'inf_ms_p50': round(float(np.median(infs)), 2) if infs else None, 'lp_frames': lpN, 'corner': corner, 'law': law, 'law_fail': law_fail, 'rfRampN': ((st['tel'] or {}).get('rfRampN') or 0), 'unwind': {k:((st['tel'] or {}).get(k)) for k in ('unwindN','unwindFrames','unwindMaxRate','unwindXtHold')}, 'offBlendN': (((st['tel'] or {}).get('wpDbg') or {}).get('offBlendN') or 0), 'tierFlip': ((st['tel'] or {}).get('tierFlip') or None), 'rfRampCfg': ((st['tel'] or {}).get('rfRampCfg') or None), 'seg_target_found': (round(segN[1] / segN[0], 3) if segN[0] else None), 'alley_rule_frames': alleyN[0], 'lane_gate_frames': laneN[0], 'seg_undetermined': (round(segU[0] / segN[0], 3) if segN[0] else None), 'oracle_frames': orcN[0], 'oracle_invalid': orcN[1], 'oracle_sigma': ORACLE_SIGMA, 'handovers': handovers, 'prog': d.get('prog'), 'crashes': int(d.get('cr') or 0) - cr0, 'crash_types': crk, 'tpN': int(d.get('tpN') or 0) - tp0, 'tpKinds': {k: ((st['tel'] or {}).get(k) or 0) for k in ('tpPath','tpBld','tpEsc')}, 'tpLog': (((st['tel'] or {}).get('wpDbg') or {}).get('tpLog') or ((st['tel'] or {}).get('tpLog') or []))[-24:], 'tier_hist': d.get('tierN'), 'weave': weave, 'hold_frames': holdN}, ensure_ascii=False), flush=True)
 
 if __name__ == '__main__': main()

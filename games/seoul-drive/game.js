@@ -2,7 +2,7 @@
    서버는 '이전 페이지의 마지막 스냅샷'을 계속 돌려준다 — 그걸 준비 완료로 오판했다.
    그래서 (a) 로드마다 다른 loadId 를 붙이고 (b) 첫 에러를 탭 제목에 써서
    루프 없이도 밖(osascript 'title of tab')에서 읽을 수 있게 한다. */
-try{ const _q=new URLSearchParams(location.search); if(_q.has('upen')) window.__upen=+_q.get('upen'); if(_q.get('nortban')==='1') window.__noRtBan=1; if(_q.get('noramp')==='1') window.__noRamp=1; if(_q.get('nostrip')==='1') window.__nostrip=1; }catch(e){}
+try{ const _q=new URLSearchParams(location.search); if(_q.get('offblend')==='1') window.__offBlend=1; if(_q.get('unwind')==='1') window.__unwind=1; if(_q.get('nobar')==='1') window.__noBar=1; if(_q.has('unwindS')) window.__unwindS=+_q.get('unwindS'); if(_q.has('unwindXt')) window.__unwindXt=+_q.get('unwindXt'); if(_q.get('tierhys')==='0') window.__tierHys=0; if(_q.has('upen')) window.__upen=+_q.get('upen'); if(_q.get('nortban')==='1') window.__noRtBan=1; if(_q.get('noramp')==='1') window.__noRamp=1; if(_q.get('nostrip')==='1') window.__nostrip=1; }catch(e){}
 window.__loadId = Math.floor(Math.random()*1e9);
 window.addEventListener('error', e=>{ if(!/^ERR:/.test(document.title)) document.title='ERR:'+(e.message||'?')+' @'+(e.lineno||'?'); }, true);
 window.addEventListener('unhandledrejection', e=>{ if(!/^ERR:/.test(document.title)) document.title='ERR:promise:'+String(e.reason&&e.reason.message||e.reason).slice(0,80); }, true);
@@ -387,6 +387,8 @@ const rnd=(a,b)=>a+Math.random()*(b-a),pick=a=>a[(Math.random()*a.length)|0];
 
 /* ★ASYM(2026-09-26, cases/map_fix_2026-09-26.md §3): 비대칭 왕복도로 lf/lb·중앙선 오프셋 c. 기본 OFF(?asym=1). OFF 또는 대칭 레코드 = 현재 식과 동일. */
 window.__asym = /[?&]asym=1/.test(location.search) ? 1 : 0;
+/* ★u_5669 작성자 dir 수정은 철회했다(2026-09-27 orch(1)): 라우터가 일방 간선을 a>b 한 방향으로만 내보내
+   dirOf 는 일방 way 에서 항상 +1 — 계측 revOw 가 10구간 2,237홉에서 0 이었다. 실행될 수 없는 코드는 남기지 않는다. */
 function segLf(s){ return (window.__asym&&s&&s.lf>0)? s.lf : Math.max(1,Math.floor(((s&&s.l)||2)/2)); }
 function segLb(s){ return (window.__asym&&s&&s.lb>0)? s.lb : Math.max(1,Math.floor(((s&&s.l)||2)/2)); }
 function segC(s){ return (window.__asym&&s&&!s.o&&s.lf>0&&s.lb>0)? (s.lb-s.lf)*LW/2 : 0; }   // px, way 방향 기준 오른쪽 +
@@ -1691,7 +1693,9 @@ function planTo(x,y){
     const cs = _d>0 ? segC(sg) : -segC(sg);
     return cs + (my - 0.5) * LW;
   };
-  const dirOf=(sg,i)=> (sg&&sg.a===p[i]) ? 1 : -1;   // p[i]→p[i+1] 진행이 way 방향이면 +1
+  const dirOf=(sg,i)=>{ const d=(sg&&sg.a===p[i]) ? 1 : -1;
+    if(sg && sg.o && d<0) window.__revOw=(window.__revOw||0)+1;   // u_5669 검증: 일방 way 를 역방향으로 지나는 홉 수(작성자 dir 수정이 실제로 쓰이는지)
+    return d; };
   const edgeOf=(i,j)=>{                         // 두 노드를 잇는 간선 찾기
     if(NS!==GNODES) return null;
     for(const si of GNODES[i].e){
@@ -1993,11 +1997,11 @@ function planTo(x,y){
         const _nlS = sgS.o ? (sgS.l||1) : Math.max(1, Math.floor((sgS.l||2)/2));
         const sets=tlSetsFor(sgS,_nlS); if(!sets) continue;
         const sgF={...sgS, roadW:(sgS.roadW||(Math.max(1,sgS.l||2)*LW))};
-        let k=0, kd=1e9; for(let q=0;q<_nlS;q++){ const dd=Math.abs(laneOffset(sgF,1,q)-offs[i]); if(dd<kd){ kd=dd; k=q; } }
+        const _dS=1; let k=0, kd=1e9; for(let q=0;q<_nlS;q++){ const dd=Math.abs(laneOffset(sgF,_dS,q)-offs[i]); if(dd<kd){ kd=dd; k=q; } }
         const thru=x=>x==='through'||x==='none';
         if(sets[k] && sets[k].some(thru)) continue;
         const k2=tlPickLane(sets,'S',k); if(k2<0 || k2===k) continue;
-        offs[i]=laneOffset(sgF,1,k2); window.__offWho[i]='Stl'; window.__tlRoute++;
+        offs[i]=laneOffset(sgF,_dS,k2); window.__offWho[i]='Stl'; window.__tlRoute++;
       }
       for(const [i,_deg] of (window.__turnAtDbg||[])){
         if(i<1 || i>=NP-1 || Math.abs(_deg)>150) continue;
@@ -2396,7 +2400,17 @@ function planTo(x,y){
         if(j<=0 || j>=NP-1) return [0,0];
         if(corner[j] || uspan[j-1] || uexit[j]) return [0, 0];            // 코너/유턴 경계: 진출 홉 규칙(offPrev)이 처리
         const R=_rampLen(offs[j-1], offs[j]); if(R<=0) return [0,0];
-        const Lp=segLen(j-1)*0.5, Ln=segLen(j)*0.5;
+        let Lp=segLen(j-1)*0.5, Ln=segLen(j)*0.5;
+        /* ★orch 2026-09-27(3) offblend: 램프 길이가 인접 홉 절반으로 잘려, 교차로의 짧은 홉(수~수십 m)에서는
+           램프가 사실상 사라지고 계단이 그대로 남는다(offTab 실측 lane_count/road_change 22건의 체감 원인).
+           |Δ오프셋| > 1.5m 이면 이웃 홉들까지 누적해 최대 50m 창을 확보한다. ?offblend=1 로만 켠다. */
+        if(window.__offBlend && Math.abs((offs[j]-offs[j-1])/S)>1.5){
+          const WANT=Math.min(50*S, R);
+          let accP=0; for(let q=j-1;q>=0 && accP<WANT/2;q--){ accP+=segLen(q); if(corner[q]||uspan[q]||uexit[q]) break; }
+          let accN=0; for(let q=j;q<NP-1 && accN<WANT/2;q++){ accN+=segLen(q); if(corner[q]||uspan[q]||uexit[q]) break; }
+          Lp=Math.max(Lp, Math.min(accP, WANT/2)); Ln=Math.max(Ln, Math.min(accN, WANT/2));
+          window.__offBlendN=(window.__offBlendN||0)+1;
+        }
         let hn=Math.min(Ln, R*0.5), hp=Math.min(Lp, R-hn);               // 뒷홉 절반, 모자라면 앞홉이 채움
         if(hp+hn<R) hn=Math.min(Ln, R-hp);
         return [hp,hn];
@@ -2825,7 +2839,7 @@ function mdlPoll(dt){
                     fr:(a.free_r===undefined?null:+(+a.free_r).toFixed(2))} : {ok:0}; })(),
       car: {v:+me.v.toFixed(3), x:+(me.x/S).toFixed(2), y:+(me.y/S).toFixed(2),
             ang:+me.ang.toFixed(4), onroad: onRoad(me.x,me.y).ok?1:0},
-      law: (function(){ const L=window.__law; return L?{turnLane:L.turnLane,straddle:L.straddle,center:L.center,signal:L.signal,solid:L.solid,ev:L.ev.slice(-8)}:null; })(), lawErr: window.__lawErr||null, lawDbg: (window.__law&&window.__law.dbg)||null,
+      law: (function(){ const L=window.__law; if(!L) return null; const _c=(t)=>L.ev.filter(e=>e.indexOf(t)===0&&e.indexOf('cause=steer')>0).length; return {turnLane:L.turnLane,straddle:L.straddle,center:L.center,signal:L.signal,solid:L.solid,steerN:(_c('straddle')+_c('center')+L.turnLane+L.signal+L.solid),ev:L.ev.slice(-12)}; })(), lawErr: window.__lawErr||null, lawDbg: (window.__law&&window.__law.dbg)||null,
       geo: (function(){try{   // ★a_5598 COMMON: 차로 기하 라벨(도로 절대좌표, RESEARCH_steering_arch_2026-09-23 §FINAL(2)). ey(+우) epsi(rad) k0(1/m) lc[10,20,40](m, 현재 차로 중심의 차기준 횡오프셋) li nl lw dl dr v
         let n=(typeof routeSeg==='function')?routeSeg(me.x,me.y):null; if(!n||n.d>n.s.roadW*0.6) n=nearestSeg(me.x,me.y); if(!n) return {v:0};
         const sg=n.s; const dd0=((me.ang-sg.ang+Math.PI*3)%(Math.PI*2))-Math.PI; const dir=Math.abs(dd0)<=Math.PI/2?1:-1;
@@ -2855,6 +2869,17 @@ function mdlPoll(dt){
         /* ★u_5647 LAW MONITOR(2026-09-25): 회전차로 위반(정점 8m 전 차로 ≠ 요구 차로)·차선 물기 >1s(|ey|>0.7)·중앙선 침범(양방향 lat<−0.3 >0.5s)·신호 위반(적신호 4m 안→통과)·실선(중앙선) 변경. 한 건이라도 있으면 구간 FAIL. /tel law */
         try{ const LAW=(window.__law=window.__law||{turnLane:0,straddle:0,center:0,signal:0,solid:0,ev:[]}); const _now=performance.now(); const _T=window.__teach, _L2=(_T&&_T.last)||{}, _g2=_L2.g2||{}; const vms=Math.abs(me.v);
           const at=_g2.aTurn, aD=+_g2.aD;
+          /* ★orch 2026-09-26(1): 법규 이벤트 원인 태그 cause=steer|route|map. route = 경로 차로 오프셋이 이 지점에서 1 차로 넘게 계단(작성기 문제),
+             map = 같은 이름 도로가 근처에서 일방/양방 조각으로 갈림(지도 표현 불연속). 둘 다 아니면 steer(조향 탓) — 판정은 steer 만 FAIL. */
+          const _cause=(function(){ try{
+            const tab=window.__offTab||[]; const i=(window.__da&&window.__da.i)|0;
+            let step=0; for(let k=Math.max(1,i-3);k<Math.min(tab.length,i+4);k++){ const a=+tab[k-1][1], b=+tab[k][1]; if(isFinite(a)&&isFinite(b)) step=Math.max(step, Math.abs(b-a)); }
+            if(step>3.0) return 'route';
+            const nm=sg.n||''; let one=0,two=0;
+            for(const S2 of (typeof GSEGS!=='undefined'?GSEGS:[])){ if(!S2||S2.n!==nm) continue; const A=GNODES[S2.a]; if(!A) continue;
+              if(Math.hypot(A.x-me.x,A.y-me.y)<60*S){ if(S2.o) one++; else two++; } }
+            if(nm && one>0 && two>0) return 'map';
+            return 'steer'; }catch(e){ return 'steer'; } })();
           if(at&&at!=='S'&&isFinite(aD)){ if(aD<8&&!LAW._tp&&vms>1){ LAW._tp=1; const need=(at==='R')?nl-1:0; if(nl>1&&li!==need){ LAW.turnLane++; LAW.ev.push('turnLane:'+at+':li'+li+'/nl'+nl+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)); } } if(aD>30) LAW._tp=0; }
           const _lf=_T?+_T.laneF:NaN, _wt=_T?+_T._want:NaN; const _lcMove = !!(_T&&_T.laneMoving) || (isFinite(_lf)&&isFinite(_wt)&&Math.abs(_lf-_wt)>=0.3);   // laneF/_want 는 T 객체(teacher.js:431/527) — g2 에는 want 만(2026-09-26 lfNaN 실측 수정)
           const _ai=(window.__da&&window.__da.i)|0; let _turnZone=false; for(const t of (window.__turnXY||[])){ if(Math.hypot(me.x-t[0],me.y-t[1])<22*S){ _turnZone=true; break; } }   // 회전 꼭짓점(교차로) 22m 안 = 교차로 내부, 차선·중앙선 없음 (turnRuns 인덱스는 노드경로 기준이라 auto.i 와 못 비교)
@@ -2864,8 +2889,8 @@ function mdlPoll(dt){
           if(!LAW._t0) LAW._t0=_now; const _settle = (_now-LAW._t0)<5000;   // 출발 후 5s = 배치 위치→경로차로 정렬(합법)
           const _D=(LAW.dbg=LAW.dbg||{cand:0,lc:0,rp:0,off:0,set:0,tz:0,cnt:0,cCand:0,cTz:0,cSet:0,cCnt:0}); if(vms>2&&Math.abs(ey)>0.7){ _D.cand++; if(_lcMove)_D.lc++; if(_ramp)_D.rp++; if(_offRoad)_D.off++; if(_settle)_D.set++; if(_turnZone)_D.tz++; if(!_lcMove&&!_ramp&&!_offRoad&&!_settle&&!_turnZone)_D.cnt++; }
           if(!sg.o&&vms>2&&lat<-0.3){ _D.cCand++; if(_turnZone)_D.cTz++; if(_settle)_D.cSet++; if(!_turnZone&&!_settle)_D.cCnt++; }   // 2026-09-26 PC 진단: 억제 조건별 프레임 수(/tel lawDbg)
-          if(vms>2&&Math.abs(ey)>0.7&&!_lcMove&&!_ramp&&!_offRoad&&!_settle&&!_turnZone){ if(!LAW._st) LAW._st=_now; else if(_now-LAW._st>1000&&!LAW._stC){ LAW._stC=1; LAW.straddle++; LAW.ev.push('straddle:'+ey.toFixed(2)+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)+' w'+sg.w+' li'+li+'/'+nl+(sg.o?'o':'t')+' lat'+lat.toFixed(1)+' rw'+rw.toFixed(1)+' lf'+_lf.toFixed(1)+'>'+_wt.toFixed(1)+' i'+_ai+' tz'+(_turnZone?1:0)+' rp'+(_ramp?1:0)); } } else { LAW._st=0; LAW._stC=0; }
-          if(!sg.o&&vms>2&&lat<-0.3&&!_turnZone&&!_settle){ if(!LAW._cl) LAW._cl=_now; else if(_now-LAW._cl>500&&!LAW._clC){ LAW._clC=1; LAW.center++; LAW.ev.push('center:'+lat.toFixed(2)+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)+' w'+sg.w+' l'+sg.l+' lat'+lat.toFixed(1)); } } else { LAW._cl=0; LAW._clC=0; }
+          if(vms>2&&Math.abs(ey)>0.7&&!_lcMove&&!_ramp&&!_offRoad&&!_settle&&!_turnZone){ if(!LAW._st) LAW._st=_now; else if(_now-LAW._st>1000&&!LAW._stC){ LAW._stC=1; LAW.straddle++; LAW.ev.push('straddle:'+ey.toFixed(2)+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)+' w'+sg.w+' li'+li+'/'+nl+(sg.o?'o':'t')+' lat'+lat.toFixed(1)+' rw'+rw.toFixed(1)+' lf'+_lf.toFixed(1)+'>'+_wt.toFixed(1)+' i'+_ai+' tz'+(_turnZone?1:0)+' rp'+(_ramp?1:0)+' cause='+_cause); } } else { LAW._st=0; LAW._stC=0; }
+          if(!sg.o&&vms>2&&lat<-0.3&&!_turnZone&&!_settle){ if(!LAW._cl) LAW._cl=_now; else if(_now-LAW._cl>500&&!LAW._clC){ LAW._clC=1; LAW.center++; LAW.ev.push('center:'+lat.toFixed(2)+'@'+Math.round(me.x/S)+','+Math.round(me.y/S)+' w'+sg.w+' l'+sg.l+' lat'+lat.toFixed(1)+' cause='+_cause); } } else { LAW._cl=0; LAW._clC=0; }
           const sig=+_L2.sig; if(isFinite(sig)&&sig>0&&sig<4&&vms>3) LAW._sg=_now; if(LAW._sg&&(!isFinite(sig)||sig>30)&&(_now-LAW._sg)<1500&&vms>3){ LAW.signal++; LAW.ev.push('signal@'+Math.round(me.x/S)+','+Math.round(me.y/S)); LAW._sg=0; }
           const lf=+_g2.laneF; if(isFinite(lf)){ if(LAW._lf!==undefined&&Math.abs(lf-LAW._lf)>=0.5&&LAW._clC){ LAW.solid++; LAW.ev.push('solid@'+Math.round(me.x/S)+','+Math.round(me.y/S)); } LAW._lf=lf; }
           if(LAW.ev.length>40) LAW.ev.splice(0,LAW.ev.length-40);
@@ -2917,13 +2942,13 @@ function mdlPoll(dt){
       tgt2N: window.__tgt2N|0,
       camErr: +((((me.ang+Math.PI/2)-camA+Math.PI*3)%(Math.PI*2))-Math.PI).toFixed(4),   /* a_5619: 화면 위(camA) 대비 차 헤딩 기울기(rad, 카메라 회전 지연) — 화면 기준 기하를 차 기준으로 돌릴 때 */
       lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0, lpwN: window.__lpwN|0, lpwFit: (typeof window.__lpwFit==='number')?+window.__lpwFit.toFixed(2):null, lpwIn: (typeof window.__lpwIn==='number')?+window.__lpwIn.toFixed(2):null, lpwBuf: (window.__lpwBuf||[]).length,
-      lhold: window.__lhold|0, bridgeN: window.__bridgeN|0, rfRampN: window.__rfRampN|0, rfRampLd: window.__rfRampLd||null, rfRampCfg: window.__noRamp?null:[window.__rfRamp0,window.__rfRampS,window.__rfRampCap,window.__rfRampVtx],
+      lhold: window.__lhold|0, bridgeN: window.__bridgeN|0, revOw: window.__revOw|0, offBlendN: window.__offBlendN|0, rfRampN: window.__rfRampN|0, unwindN: window.__unwindN|0, unwindFrames: window.__uwFrames|0, unwindMaxRate: +(window.__uwMaxRate||0).toFixed(2), unwindXtHold: window.__uwXtHold|0, unwindOn: window.__uwOn|0, rfRampLd: window.__rfRampLd||null, rfRampCfg: window.__noRamp?null:[window.__rfRamp0,window.__rfRampS,window.__rfRampCap,window.__rfRampVtx],
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
       sigNear: (function(){try{const n=performance.now();return signals.map(q=>({d:Math.hypot(q.x-me.x,q.y-me.y)/S,q})).sort((a,b)=>a.d-b.d).slice(0,4).map(z=>({d:+z.d.toFixed(1),x:+(z.q.x/S).toFixed(1),y:+(z.q.y/S).toFixed(1),sx:+(z.q.sx/S).toFixed(1),sy:+(z.q.sy/S).toFixed(1),nx:+(nodes[z.q.node].x/S).toFixed(1),ny:+(nodes[z.q.node].y/S).toFixed(1),tw:+z.q.tw.toFixed(2),rw:+(z.q.rw/S).toFixed(1),ow:z.q.ow,red:sigRed(z.q,n)?1:0}))}catch(e){return String(e).slice(0,40)}})(),
       sigBarN: (function(){try{return signals.filter(q=>q.sx!==undefined).length}catch(e){return -1}})(), sigRedN: (function(){try{const n=performance.now();return signals.filter(q=>sigRed(q,n)).length}catch(e){return -1}})(), sigN: (typeof signals!=='undefined')?signals.length:-1,
       ntier: (typeof window.__ntier==='number')?window.__ntier:null, nconf: window.__nconf||null, crNTier: window.__crNTier||null, crNTier3: window.__crNTier3||null,
-      tier: window.__tier, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, ovlEscN: window.__ovlEscN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
+      tier: window.__tier, tierRaw: (typeof window.__tierRaw==='number'?window.__tierRaw:null), tierFlip: window.__tierFlip||null, tierInX: window.__tierInX|0, tierN: window.__tierN||null, crTier: window.__crTier||null, crTier3: window.__crTier3||null, l1N: window.__l1N|0, l1CapN: window.__l1CapN|0, ovlEscN: window.__ovlEscN|0, l1Last: window.__l1Last||null, noL1: window.__noL1?1:0,
       crashResyncN: window.__crashResyncN||0, autoRouteErr: window.__autoRouteErr||null, telTrunc: window.__telTrunc||0, pedHitRm: window.__pedHitRm||0, pedPredN: window.__pedPredN||0, pedSideN: window.__pedSideN||0, npcDeadlockRm: window.__npcDeadlockRm||0, jayMult: (typeof JAY_MULT!=='undefined'?JAY_MULT:1), astarTimeout: window.__astarTimeout||0, offCrash: window.__offCrash||null, tpTrace: window.__tpTrace||null, arTrail: window.__arTrail||null, startBack: window.__startBack||0, startRelax: window.__startRelax||0, startTurnaround: window.__startTurnaround||0, startSkipHairpin: window.__startSkipHairpin||0, startSkipErr: window.__startSkipErr||null, arStep: window.__arStep||null, winErr: window.__winErr||null, winRej: window.__winRej||null, lastFlash: window.__lastFlash||null,      // A6 2026-09-19 사고 후 경로 인덱스 재동기화 횟수
       da: (function(){const d=window.__da||{}; return {vmax:d.vmax,gp:d.gp,stall:d.stall,blk:d.blk,bst:d.bst,cool:d.cool,hold:d.hold,d:d.d,xt:d.xt,i:d.i,st:d.st,df:d.df,lp:d.lp,ld:d.ld,lpm:d.lpm,lfm:d.lfm}})(), tbrk: window.__tbrk,
       wpTrunc: window.__wpTrunc||null,
@@ -3060,7 +3085,25 @@ window.__evPush=function(label){
        const L=(window.__evLog=window.__evLog||[]); L.push([performance.now(), label, st+' '+sp+' T'+(window.__tier|0)+lat]); if(L.length>400) L.shift(); }catch(e){}
 };
 function tierTick(){
-  const t=tierNow(); const _pt=window.__tier; window.__tier=t; const N=window.__tierN||(window.__tierN=[0,0,0,0]); N[t]++;
+  const t=tierNow();
+  /* ★u_5671 등급 채터링: tierNow() 는 규칙 급제동(brake>=1&&thr===0)이면 즉시 T3 을 낸다. 교차로에서 제동이 단속적으로 들어가면
+     T1↔T3 이 60초에 8회 뒤집히고(속도 16km/h 고정·복귀 4회) 모델/규칙 주체가 그만큼 갈아탄다.
+     ⇒ (a) 진입·이탈 모두 1초 유지해야 확정(양방향 히스테리시스), (b) 교차로(회전 꼭짓점 22m) 안에서는 T1 아래로 내려가지 않는다.
+     원값은 __tierRaw 로 남긴다. ?tierhys=0 으로 옛 동작. */
+  window.__tierRaw = t;
+  let tEff = t;
+  if(window.__tierHys!==0){
+    const _now2=performance.now();
+    if(window.__tierS===undefined){ window.__tierS=t; window.__tierC=t; window.__tierCT=_now2; }
+    if(t!==window.__tierC){ window.__tierC=t; window.__tierCT=_now2; }
+    else if(t!==window.__tierS && _now2-window.__tierCT>=1000){ window.__tierS=t; }
+    tEff = window.__tierS;
+    let _inX=false; for(const q of (window.__turnXY||[])){ if(Math.hypot(me.x-q[0],me.y-q[1])<22*S){ _inX=true; break; } }
+    if(_inX && tEff<1) tEff=1;                      // 교차로 안에서는 최소 T1
+    window.__tierInX = _inX?1:0;
+  }
+  const _pt=window.__tier; window.__tier=tEff; const N=window.__tierN||(window.__tierN=[0,0,0,0]); N[tEff]++;
+  { const _F=window.__tierFlip||(window.__tierFlip={raw:0,eff:0}); if(window.__tierPrevRaw!==undefined && window.__tierPrevRaw!==t) _F.raw++; if(_pt!==undefined && _pt!==tEff) _F.eff++; window.__tierPrevRaw=t; }
   /* 등급 이벤트는 1초 이상 유지된 등급만 기록(초 단위로 깜빡이는 T1↔T2 는 잡음) */
   { const now=performance.now(); if(window.__tierStable===undefined){ window.__tierStable=t; window.__tierCand=t; window.__tierCandT=now; }
     if(t!==window.__tierCand){ window.__tierCand=t; window.__tierCandT=now; }
@@ -3262,14 +3305,14 @@ function driveAuto(dt){
   /* ★2026-09-26(orch/u_5641) 규칙 추종기 코너 진출·이양 램프: 회전 정점 통과(aD 급증) 또는 조향주체 이양 시점부터 2.5초간 Ld 를 6m→Ld0 로
      선형 램프, 같은 창 2초 동안 조향 변화율 제한(아래 me.steer). 감사#2: 회전 연속 구간(충정로) 반전 16.6/분 → 목표 ≤6. ?noramp=1 로 끔. */
   let Ld = Ld0;
-  try{ if(!window.__noRamp){
+  try{ if(!window.__noRamp || window.__unwind){   // u_5676: 정점 감지는 unwind 에도 필요하므로 램프가 꺼져 있어도 돈다(Ld 램프 적용만 __noRamp 로 가른다)
     const _tN=performance.now(); const _g2=((window.__teach&&window.__teach.last)||{}).g2||{}; const _aD=+_g2.aD; const _md=(window.__mdlTgt||{}).mode;
     if(isFinite(_aD) && isFinite(window.__rfPrevAD) && window.__rfPrevAD<15 && _aD>window.__rfPrevAD+20) window.__rfRampT=_tN;   // 회전 정점 통과(교사 aD 급증)
     let _nearV=false; for(const t of (window.__turnXY||[])){ if(Math.hypot(me.x-t[0],me.y-t[1])<window.__rfRampVtx*S){ _nearV=true; break; } }   // 경로 회전 꼭짓점(라우터 turnRuns 좌표) 반경 안
     if(window.__rfPrevNearV && !_nearV) window.__rfRampT=_tN;                                                                    // 꼭짓점 반경 이탈 = 코너 진출 시점
     if(window.__rfPrevMode!==undefined && _md!==window.__rfPrevMode) window.__rfRampT=_tN;                                     // 이양
     window.__rfPrevAD=_aD; window.__rfPrevMode=_md; window.__rfPrevNearV=_nearV;
-    if(window.__rfRampT){ const fr=Math.min(1,(_tN-window.__rfRampT)/window.__rfRampS); const L0=window.__rfRamp0; Ld=Math.min(Ld0, L0+(Ld0-L0)*fr); window.__rfRampN=(window.__rfRampN||0)+(fr<1?1:0); window.__rfRampLd=+Ld.toFixed(1); }
+    if(window.__rfRampT && !window.__noRamp){ const fr=Math.min(1,(_tN-window.__rfRampT)/window.__rfRampS); const L0=window.__rfRamp0; Ld=Math.min(Ld0, L0+(Ld0-L0)*fr); window.__rfRampN=(window.__rfRampN||0)+(fr<1?1:0); window.__rfRampLd=+Ld.toFixed(1); }
   } }catch(e){}
   /* ★gp/otOff 는 여기서 계산한다(u_5126 실사고 수정).
      추월 오프셋을 쓰는 조향 코드가 선언보다 42줄 위에 삽입돼 있어서
@@ -3411,13 +3454,36 @@ function driveAuto(dt){
       let xt=(-(bx-me.x)*Math.sin(ba) + (by-me.y)*Math.cos(ba))/S;   // m, 부호
       if(otOff && !window.__noTgtXt) xt += otOff/S;   // 2026-09-26 PC: 목표 오프셋(dOff) 모드에서 교차추적항도 옮긴 경로 기준 — 안 옮기면 P 이동과 xt 복원이 싸워 1.2m 지령이 0.36m 로 남음(실측)
       const k=1.2, spd=Math.max(3, me.v);
-      delta += Math.max(-0.35, Math.min(0.35, Math.atan2(k*xt, spd)));
+      /* ★u_5676 UNWIND: 코너 정점 통과 뒤에는 '핸들을 되감는' 동작이 먼저다. 되감기 중에는 xt 복원항을
+         넣지 않는다(넣으면 되감다 말고 다시 꺾어 스냅이 난다). |xt| 가 임계를 넘으면 안전상 즉시 재개한다. */
+      const _uwXt = (window.__unwindXt===undefined?0.3:window.__unwindXt);
+      if(!(window.__uwOn && Math.abs(xt) <= _uwXt))
+        delta += Math.max(-0.35, Math.min(0.35, Math.atan2(k*xt, spd)));
+      else window.__uwXtHold=(window.__uwXtHold||0)+1;
       window.__ppXt = +xt.toFixed(2);
     }
   }catch(e){}
   const maxSteer=.62;
   { let _st=Math.max(-.9,Math.min(.9, delta/maxSteer));
     if(!window.__noRamp && window.__rfRampT && (performance.now()-window.__rfRampT)<2000){ const _lim=window.__rfRampCap*dt; _st=Math.max(me.steer-_lim, Math.min(me.steer+_lim, _st)); }   // 이양/코너 진출 창 2s: 조향 변화율 ≤1.5/s
+    /* ★u_5676 UNWIND(오너 모델 '핸들을 되감는다'): 정점 통과 후 일정 시간 동안 조향 '크기'는 줄어들기만 한다.
+       부호 반전·재증가 금지. 시간은 속도에 반비례(저속일수록 길게): T = clamp(2.0~3.0s) · (8/max(4,v)).
+       종료 조건 = 시간 경과 또는 |steer| 이 0 근처. 되감기 중 xt 복원은 위에서 보류(|xt|>임계면 즉시 해제). */
+    if(window.__unwind){
+      const _n3=performance.now();
+      if(window.__rfRampT && window.__rfRampT!==window.__uwSeen){ window.__uwSeen=window.__rfRampT; window.__uwT=_n3; window.__uwS=Math.sign(me.steer)||Math.sign(_st)||1; window.__uwPeak=Math.abs(me.steer); window.__unwindN=(window.__unwindN||0)+1; }
+      const _base=(window.__unwindS===undefined?2.5:window.__unwindS)*1000;
+      const _T=Math.max(1500, Math.min(4000, _base*(8/Math.max(4,Math.abs(me.v)))));
+      if(window.__uwT && (_n3-window.__uwT)<_T && Math.abs(me.steer)>0.02){
+        const _mag=Math.abs(me.steer);
+        let _cand=_st;
+        if(Math.sign(_cand)!==window.__uwS) _cand=0;                       // 부호 반전 금지
+        if(Math.abs(_cand)>_mag) _cand=window.__uwS*_mag;                   // 재증가 금지(크기는 단조 감소)
+        const _rate=Math.abs(_cand-me.steer)/Math.max(1e-3,dt);
+        window.__uwMaxRate=Math.max(window.__uwMaxRate||0,_rate);
+        _st=_cand; window.__uwOn=1; window.__uwFrames=(window.__uwFrames||0)+1;
+      } else { window.__uwOn=0; }
+    }
     me.steer=_st; }
   // 5) 속도
   /* ★보행자 제동을 경로주행에도 넣는다(ar_5057 지적).
@@ -4421,7 +4487,7 @@ function draw(){
      /* ★빨간불 정지 바(2026-09-20, ode_s2b 실패 원인). 256px 모델 입력에서 신호등 함체는 2~3px 라 빨강/초록이 구분되지 않았다
         (실측: 빨간불 brake 0.98 = 파란불 brake 0.98 → 정지 장면이면 무조건 제동). 운전자가 실제로 보는 '큰' 신호 정보의 2D 등가물로
         정지선 위 진입 차로 절반에 0.8m 빨간 바를 빨간불일 때만 그린다. 파란불엔 아무것도 없다(초록 바 없음 — '없음=가라'). */
-     if(RED && sg.sx!==undefined){
+     if(RED && sg.sx!==undefined && !window.__noBar){   // u_5680 A/B: ?nobar=1 이면 정지 바를 그리지 않는다(모델이 이걸 장애물로 학습했는지 검증)
        g.save(); g.translate(sg.sx,sg.sy); g.rotate(sg.tw);
        const half = sg.ow ? sg.rw : sg.rw*0.5;      // 일방통행은 전폭, 왕복은 진행방향 오른쪽 절반
        g.fillStyle='#ff2d18'; g.fillRect(-0.4*S, sg.ow?-sg.rw*0.5:0, 0.8*S, half);

@@ -122,6 +122,18 @@ def main():
     a = ap.parse_args(); rng = np.random.default_rng(0)
     global KSTACK, KSTRIDE; KSTACK = a.k; KSTRIDE = a.kstride
     dirs = [d for p in a.dirs.split(',') for d in sorted(glob.glob(p))]
+    # ★u_5683 경로 게이트: 경로 자체가 불량한 라운드는 학습에서 뺀다(PATH_GATE=0 으로 해제).
+    #   판정 근거는 data/path_gate_mask.json (규칙 추종기의 |xt|>3m 프레임 비율 >0.20 또는 순간이동 증가 ≥4).
+    if os.environ.get('PATH_GATE', '1') != '0':
+        try:
+            mk = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/path_gate_mask.json')))
+            bad = set(mk.get('rounds') or {})
+            before = len(dirs)
+            dirs = [d for d in dirs if os.path.basename(d) not in bad]
+            print(json.dumps({'path_gate': True, 'rounds_before': before, 'rounds_after': len(dirs),
+                              'rounds_excluded': before - len(dirs)}), flush=True)
+        except Exception as e:
+            print(json.dumps({'path_gate_err': str(e)[:80]}), flush=True)
     synth = [d for p in a.synth.split(',') if p for d in sorted(glob.glob(p))]
     got = load(dirs, synth)
     if not got: print(json.dumps({'error': 'no frames'})); return

@@ -3,6 +3,8 @@
 # X/S 저장 384px(orch 2026-09-24: 해상도 축을 D2 에서 256 vs 384 로 검증), 학습기가 로드 시 축소.
 # 사용: bash collect_lab.sh <시작라운드=2700> <에피소드수=60> [초=90]
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive; export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6 L12=0 M_EXT=1 ODE_ENV=0 LAB=1 STORE_RES=256
+source "$(dirname "$0")/chrome_guard.sh"; chrome_guard "$(basename "$0")" || exit 9
+source "$(dirname "$0")/pagelock.sh"; lock_page "$(basename "$0")" || { echo "PAGE BUSY - abort (see PLAN_ODE standing rule)"; exit 9; }; trap unlock_page EXIT
 NT=/Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/notify_telegram.py; r=${1:-2700}; N=${2:-60}; SECS=${3:-90}; done=0; tot=0; tries=0
 while [ $done -lt $N ] && [ $tries -lt $((N*3)) ]; do tries=$((tries+1))
   [ "$(df -g / | tail -1 | awk '{print $4}')" -lt 30 ] && { echo "DISK<30GB stop"; python3 $NT "[오드 라벨 수집] 디스크 30GB 미만 → 정지" >/dev/null 2>&1; break; }
@@ -22,6 +24,8 @@ PY
   bash reload.sh "$url" 60 2>&1 | tail -1 >/dev/null
   nl=$(python3 -c "import urllib.request,json;d=json.load(urllib.request.urlopen('http://localhost:8901/tel',timeout=5));g=d.get('geo') or {};print(g.get('nl') or 0, d.get('wpLen') or 0)"); nlv=${nl%% *}; wl=${nl##* }
   if [ "$wl" -lt 100 ] || { [ "$av" = 1 ] && [ "$nlv" -lt 3 ]; }; then echo "skip $fn nl=$nlv wp=$wl"; continue; fi
+  pa=$(python3 path_audit.py 2>/dev/null)   # u_5683 데이터 게이트
+  if [ "$(echo "$pa" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("ok"))' 2>/dev/null)" != "True" ]; then echo "GATE-SKIP $(echo "$pa" | cut -c1-140)"; continue; fi
   echo "=== r$r av=$av $fn > $t nl=$nlv ($(date +%H:%M:%S)) ==="; rm -rf data/dagger_r$r
   python3 dagger.py --round $r --episodes 1 --secs $SECS --model none 2>&1 | grep -E '"ep"|"S"|Traceback|Error|Killed' | cut -c1-300
   if [ -f data/dagger_r$r/S.npy ]; then fr=$(python3 -c "import numpy as np;S=np.load('data/dagger_r$r/S.npy',mmap_mode='r');L=np.load('data/dagger_r$r/L.npy');Y=np.load('data/dagger_r$r/Y.npy');print(S.shape[0],int(np.isfinite(L[:,0]).sum()),L.shape[1],round(float((Y[:,3]<1.0).mean()),3))"); echo "frames/lpvalid/cols/stop_frac $fr"; tot=$((tot+${fr%% *})); done=$((done+1)); r=$((r+1)); else echo "no S.npy r$r"; rm -rf data/dagger_r$r; fi

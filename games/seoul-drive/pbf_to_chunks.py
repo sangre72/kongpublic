@@ -16,7 +16,7 @@ S_LAT, S_LON = 37.4979, 127.0276          # 게임 원점(강남역)
 # ★2026-09-26 지도 결함 수정 플래그(기본 ON). --no-asym / --no-link-oneway 로 끈다(비교 실험용).
 #   asym : 왕복도로 lanes:forward≠lanes:backward 를 lf/lb 로 싣는다(게임은 c=(lb−lf)·LW/2 로 중앙선을 옮겨야 한다, cases/map_fix_2026-09-26.md).
 #   link : *_link 연결로(oneway 미태그)를 양 끝이 일방 차도에 닿으면 일방으로 본다(방향 검사·겹침 검사 포함).
-OPT = {'asym': True, 'link': True}
+OPT = {'asym': True, 'link': True, 'cone': True}
 LW = 3.25                                  # 차로폭(m) — 게임 LANE_M 과 같아야 한다
 M_PER_DEG_LAT = 111320.0
 CHUNK_M = 1000
@@ -395,6 +395,57 @@ def main():
                 h.fixed.append((r['w'], r['n'], r['l'], r['l'], f'link-oneway {a_[1]["w"]}/{b_[1]["w"]} L{L:.0f}' + (' REV' if rev else '')))
     print(json.dumps({'link_oneway_fixes': nlink, 'link_oneway_reversed': nlink_rev, 'link_oneway_dir_unverified': nlink_dq, 'link_oneway_skipped_overlap': nlink_skip,
                       'link_oneway_skipped_total': len(h.link_skip)}), flush=True)
+    # ★(C) 2026-09-27 u_5679 '원뿔 도로': 같은 이름·같은 방향성의 연속 조각이 차로수 2 이상 차이나면 폭이 배로 벌어졌다 줄어든다
+    #   (서소문로 3→6→3, 신촌역로 4→2→4→2, 중림로 2→4→2). 원인은 lanes 미태그 조각(ld)이 등급 기본값이나
+    #   twoway-merge(2×이웃)로 과대/과소 추정된 것. 규칙: 태그 없는 조각만 이웃 값으로 평활화.
+    #   가드: 태그된 조각 불변 · 넓힐 때는 평행 조각 간격−1m 이하만 · 모든 변경 보고서 기록.
+    if OPT.get('cone', True):
+        ncone = 0
+        idx = {}
+        for k, v in h.ch.items():
+            for r in v['r']:
+                if r.get('n'): idx.setdefault(r['n'], []).append(r)
+        def _sep_ok(r, want):
+            # ★넓힐 때만 검사. 2026-09-27 1차 시도에서 **끝점만** 봤다가 겹침 8쌍이 새로 생겼다(map_verify PASS=false:
+            #   장충단로·과천대로·녹사평대로·노량진로·가람길·오금로). 겹침은 평행 구간 **전체**에서 판정되므로
+            #   표본도 전 구간에서 뽑고, 상대 폭까지 포함한 실제 임계((w1+w2)/2 − 1m)로 본다.
+            if want <= r['l']: return True
+            for q in idx.get(r['n'], []):
+                if q is r: continue
+                dmin = 1e9
+                for a in r['p'][::2]:
+                    for b in q['p'][::2]:
+                        d = math.hypot(a[0] - b[0], a[1] - b[1])
+                        if d < dmin: dmin = d
+                if dmin > 1e8 or dmin <= 0.5: continue
+                need = (want + (q['l'] or 2)) * 3.25 / 2 - 1.0
+                if dmin < need: return False
+            return True
+        for k, v in h.ch.items():
+            for r in v['r']:
+                if not r.get('ld') or not r.get('n'): continue
+                nb = []
+                for q in idx.get(r['n'], []):
+                    if q is r or bool(q['o']) != bool(r['o']) or q.get('hc') != r.get('hc'): continue
+                    hit = False
+                    for a in (r['p'][0], r['p'][-1]):
+                        for b in (q['p'][0], q['p'][-1]):
+                            if math.hypot(a[0] - b[0], a[1] - b[1]) < 1.0: hit = True; break
+                        if hit: break
+                    if hit: nb.append(q)
+                if not nb: continue
+                vals = [q['l'] for q in nb]
+                if all(abs(x - r['l']) < 2 for x in vals): continue
+                # ★2026-09-27 orch 지시: 전 구간 표본 가드로도 신규 겹침이 20쌍 생겼다(1차 8쌍 → 더 악화).
+                #   넓히기는 어떤 가드로도 겹침을 만든다(폭을 늘리면 이웃과 가까워지는 건 기하학적으로 불가피) →
+                #   **좁히기 전용**으로 좁힌다. 원뿔의 위험한 쪽(과대 추정 → 경로가 도로 밖/반대 차도)을 없애는 게 목적이고,
+                #   과소 추정은 경로를 안쪽에 둘 뿐이라 덜 위험하다.
+                want = min(vals)
+                if want >= r['l']: continue                      # 넓히기 금지(NEVER widen)
+                if abs(want - r['l']) < 2: continue
+                h.fixed.append((r['w'], r['n'], r['l'], want, 'cone-smooth %s' % nb[0]['w']))
+                r['l'] = want; ncone += 1
+        print(json.dumps({'cone_lane_fixes': ncone}), flush=True)
     tot = 0
     for k, v in h.ch.items():
         fp = f'{out}/chunks/{k.replace(",","_")}.json'

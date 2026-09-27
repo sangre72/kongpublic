@@ -16,7 +16,21 @@ P0. 서버 up 확인(전부 응답해야 진행):
     curl -s -o /dev/null -w "%{http_code}" http://localhost:15100   → (zodiac)
     curl -s -o /dev/null -w "%{http_code}" http://localhost:18081   → (Qwen MLX)
     (하나라도 000/무응답 → §JUDGE-4로. ComfyUI 기동: `~/ComfyUI-src/venv/bin/python3 main.py` ★bare python 금지=gguf 없음.)
+P0-B. ★★브라우저 독점(MUST — 2026-09-27 u_5694/u_5695 실사고 2회): 운세는 **운세생성부터 첫댓글 완료까지 크롬을 독점**한다.
+    시작 시 `echo fortune_<a_ref> > /tmp/.chrome_owner`, 첫댓글 끝난 뒤 `rm /tmp/.chrome_owner`.
+    이 기간에는 ODE/주행 등 **어떤 브라우저 잡도 실행 금지**. 탭을 열거나 이동하는 모든 스크립트는 이 파일을 확인해야 한다
+    (ODE 측 가드: games/seoul-drive/chrome_guard.sh — reload.sh·collect_*·eval20·run_regression·gpu_drive·law_pc·dagger 적용 완료).
+    사고 내용: ODE 수집기가 CineBot 탭을 localhost:8901 로 **navigate 해버려** 운세 텍스트 12건·시나리오 12씬이 전부 소실됐다
+    (서버 캐시·project.json 어디에도 없어 재생성 외 복구 불가). 2차 사고는 reload.sh 에만 가드를 붙였다가 그 호출자가 우회해서 났다.
+    ⇒ 규칙: 남이 연 탭은 절대 navigate 하지 않는다. 필요한 탭은 자기가 연다.
 P1. Chrome foreground: `open -a "Google Chrome" && sleep 2`. (§JUDGE-1 조건 아니면 추가확인 불필요.)
+P2. ★★창 크기 먼저(MUST — 2026-09-27 u_5687 재발, a11y 조회 **전에** 무조건 실행):
+    `osascript -e 'tell application "Google Chrome" to set bounds of front window to {0,0,1800,1150}'` && sleep 2
+    이유: 창이 작으면(실측 763x837) 포춘 패널이 **렌더 자체가 잘려 a11y 트리에 아예 안 잡힌다**. 증상은
+    "운세/포춘 버튼을 눌러도 아무 반응 없음"(=버튼 고장으로 오진하기 쉬움) — 실제론 컨트롤이 화면 밖이다.
+    스크롤로 해결 안 된다(스크롤 문제 아님). a11y 좌표 조회는 **반드시 리사이즈 후에** 한다.
+    검증 1줄: `kongtrol see --a11y --pid <PID> | head -1` 의 [WxH] 가 1800x1150 인지 본다.
+    (2026-09-27 실사고: 이 단계를 안 해서 "운세 생성 버튼 inert" 로 오판하고 클릭을 반복했다.)
 
 ===== RUN (순서대로, 판단 없이 실행) =====
 1. 새로고침 버튼(~95,102) click.
@@ -76,7 +90,7 @@ NOTE: 이후 "병합+설명 생성"(초록버튼) 단계는 미검증영역(full
 근거: R1[3.5,1.4,2.2]→R2→R3[1.88,1.38,1.23]. 개선원인=goal-only 사고제거(조회는 계속 함).
 
 ===== 2026-09-15 실측 정정 2건(u_5062~5065 배치) =====
-C1 [좌표 신뢰 금지 — 창 크기 의존]: '포춘 라디오 ~1150,646' 등 본 문서의 모든 하드좌표는
+C1 [좌표 신뢰 금지 — 창 크기 의존] ★PRE 의 P2 가 이 항목의 예방조치다(2026-09-27 재발로 PRE 승격): '포춘 라디오 ~1150,646' 등 본 문서의 모든 하드좌표는
    **브라우저 창 크기에 따라 화면 밖으로 밀린다**. 실측: 창이 작은 상태에서는 포춘 라디오·
    날짜 incrementor·운세생성 버튼이 a11y 에 아예 안 잡혔다(스크롤해도 안 나옴 — 스크롤
    문제가 아니라 창이 작아 컨텐츠가 잘린 것).

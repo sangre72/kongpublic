@@ -7,6 +7,8 @@ WHY: CineBot(localhost:4000) 앱에서 12간지 띠별 운세 자동생성→시
 ★OUTPUT PATH(added 2026-09-06 u_4115 — was undocumented, caused a search-detour): finished scene videos are NOT in kong-bot/jobs/ — they live in CineBot's own workspace: `/Users/bumsuklee/workspace-egov/youtube-top/python-server/projects/<dirname>/scene_01.mp4`~`scene_12.mp4`. Dirname pattern observed: `<created-YYYYMMDD>_<target-upload-date>_12간지_오늘의_운세_ko` (e.g. `20260904_2026-09-07_12간지_오늘의_운세_ko` = created 09-04, target upload date 09-07). Deliverable = 12 SEPARATE scene videos(one per 간지), uploaded as 12 individual YouTube Shorts per RECIPE_scheduled_upload_VERIFIED.txt — NOT one concatenated video. Always check THIS path first before assuming kong-bot/jobs/ or declaring a video missing.
 
 STEPS:
+0-A. ★★창 크기 먼저(MUST, 2026-09-27 u_5687): a11y 조회 전에 `osascript -e 'tell application "Google Chrome" to set bounds of front window to {0,0,1800,1150}'`.
+     작은 창(763x837 실측)에서는 포춘 패널이 잘려 **a11y 에 아예 안 나온다** → "버튼이 안 먹는다"로 오진한다. 실행판 EXECUTE §P2 참조.
 0. ★서버 사전확인(필수, u_3291/3292 — 반복재발 예방): 이 레시피 실행 전 CineBot(4000)+fortune-API(15000) 둘 다 떠있는지 확인 —
    `curl -s -o /dev/null -w "%{http_code}" http://localhost:4000` 와 `curl -s http://localhost:15000/fortune/progress?date=<오늘>&lang=ko`.
    4000이 무응답이면 CineBot 서버 기동, 15000이 무응답(HTTP 000, connection refused)이면 youtube-top의 uvicorn 기동필요
