@@ -100,7 +100,7 @@ def main():
     K_XT = float(_e.get('K_XT', '1.0'))   # u_5737: cross-track gain. lc20 = ey + Ld*ep + 0.5*k*Ld^2; K_XT scales the ey term only (1.0=stock, 0=heading/curvature only)
     LANE_HOLD = _e.get('LANE_HOLD', '0') == '1'; hold_on = False; out_t = None; holdN = 0   # ★u_5604 차로내 유지: |e_y|<0.3m ∧ |e_psi|<2° → 곡률 피드포워드만(직진 유지), |e_y|>0.3 이 0.5s 지속돼야 해제
     sm = None; sm_t = None; print(json.dumps({'lp_rate': LP_RATE, 'lp_tau': LP_TAU, 'hand_exit': HAND_EXIT, 'poly': POLY, 'poly_k': POLY_K}), flush=True)
-    LP_TRACE = _e.get('LP_TRACE'); tr_hand = []; tr_raw = []   # ★a_5588 addendum2: 흔들림 원인 귀속용 프레임 추적(이양 시각·모델 lp20 원값/평활값)
+    LP_TRACE = _e.get('LP_TRACE'); tr_hand = []; tr_raw = []; tr_cmd = []   # u_5744: (t, lp_cmd, ld, v, x, y, ang, xt) for offline command-path replay   # ★a_5588 addendum2: 흔들림 원인 귀속용 프레임 추적(이양 시각·모델 lp20 원값/평활값)
     wv = []; wv_now = None; wv_ang = None; cr_rows = []; cr_now = None   # ★a_5581 S2 흔들림 지표(u_5578/5579): 직선·완만 T0 구간의 g2.lat(도로 절대 횡위치) 시계열
     while time.time() - t0 < a.secs:
         SK.pump(0.002)
@@ -251,6 +251,14 @@ def main():
                         sm = sm + (dt / (LP_TAU + dt)) * (_lp - sm) if LP_TAU > 0 else np.array([_lp])
                     _lp = float(sm[0])
                 post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': _lp, 'ld': _ld, 'vT': vT, 'lat': round((time.time() - last_t) * 1000, 1), 'inf': round((time.time() - ti) * 1000, 1), 'geo': [round(_ey, 2), round(_ep, 3), round(_lc20, 2), round(_li, 2)], 'hold': 1 if (LANE_HOLD and hold_on) else 0})
+                try:   # u_5744: log command + pose for offline replay (guarded: a raise here was silently
+                       #   swallowed by the enclosing handler, leaving tr_cmd empty despite 8k lp_frames)
+                    _f = lambda z: float(z) if isinstance(z, (int, float)) else float('nan')
+                    _c = d.get('car') or {}
+                    _pp = d.get('pos') if isinstance(d.get('pos'), list) and len(d.get('pos')) >= 2 else [None, None]
+                    tr_cmd.append((time.time(), _f(_lp), _f(_ld), _f(v), _f(_pp[0]), _f(_pp[1]), _f(_c.get('ang')), _f(d.get('xt'))))
+                except Exception as _e:
+                    if not globals().get('_TRWARN'): print(json.dumps({'tr_cmd_error': str(_e)[:120]}), flush=True); globals()['_TRWARN'] = 1
                 if LP_TRACE: tr_raw.append((time.time(), truth_lp(d, _ld), _lp))   # (t, 참값 lp@ld, 모델 lp) — 진단
             elif len(ol) >= 7:   # ★다점(10/20/40/80m, ±64m 인코딩; 11출력이면 전방거리 4 추가) → 페이지 mode=3
                 if LP_LD > 0 and LP_RAMP:   # ★u_5641: 이양·회전 진출 직후 Ld 램프(12→LP_LD, LP_RAMP_S 초) + 이양 창(2s) 안 lp 변화율 제한(전역 EMA 없음)
@@ -280,7 +288,8 @@ def main():
     st['run'] = False; SK.stop(); post({'tgt': 0, 'mode': 1, 'dOff': 0.0, 'vT': -1, 'lp': 0.0, 'on': 0, 'release': 1})
     d = st['tel'] or {}; secs = time.time() - t0
     crk = {k: int(v) - int(crk0.get(k, 0)) for k, v in (d.get('crk') or {}).items() if int(v) - int(crk0.get(k, 0)) > 0}
-    if LP_TRACE: np.savez(LP_TRACE + '_' + time.strftime('%H%M%S') + '.npz', wv=np.array([(q[0], q[1]) for q in wv], dtype=np.float64), hand=np.array(tr_hand, dtype=np.float64), raw=np.array(tr_raw, dtype=np.float64))
+    if tr_cmd: np.save('/Users/bumsuklee/.claude/jobs/ccf4ec97/tmp/cmd_last.npy', np.array(tr_cmd, dtype=np.float64))
+    if LP_TRACE: np.savez(LP_TRACE + '_' + time.strftime('%H%M%S') + '.npz', wv=np.array([(q[0], q[1]) for q in wv], dtype=np.float64), hand=np.array(tr_hand, dtype=np.float64), raw=np.array(tr_raw, dtype=np.float64), cmd=np.array(tr_cmd, dtype=np.float64))
     if a.oracle and LP_TRACE: np.save(LP_TRACE + '_oracle.npy', np.array(tr_orc, np.float64))   # (t_cmd, t_tel(now), ey_in, epsi_in)
     post({'on': 0, 'force': 0, 'tgt': 0, 'mode': 1, 'lp': 0.0, 'vT': -1})   # ★u_5645: 종료 시 제어 인터페이스 초기화(서버 _ctl 잔존 mode=2 → 페이지가 정지된 앞점을 계속 따라감)
     if SEG_DUMP and seg_dump: np.savez_compressed(SEG_DUMP, x=np.stack([z[0] for z in seg_dump]), m=np.stack([z[1] for z in seg_dump]), lf=np.array([z[2] for z in seg_dump]), ey=np.array([z[3] for z in seg_dump]), used=np.array([z[4] for z in seg_dump]))

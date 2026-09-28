@@ -387,6 +387,26 @@ const rnd=(a,b)=>a+Math.random()*(b-a),pick=a=>a[(Math.random()*a.length)|0];
 
 /* ★ASYM(2026-09-26, cases/map_fix_2026-09-26.md §3): 비대칭 왕복도로 lf/lb·중앙선 오프셋 c. 기본 OFF(?asym=1). OFF 또는 대칭 레코드 = 현재 식과 동일. */
 window.__asym = /[?&]asym=1/.test(location.search) ? 1 : 0;
+/* ★u_5716 SCOPE 하드 게이트(2026-09-28): 작업 범위 = 강남구+송파구. 범위 밖 구간은 **경로를 만들지 않는다**.
+   근거: 범위를 좁힌 이유가 범위 밖 지도 결함(중앙로·선암지하차도 되돌기 등)을 피하려는 것인데,
+   페이지 기본 동작이 범위 밖으로 나가면 의미가 없다. ?scope=0 이면 해제(레거시 데모 전용). */
+window.__scopeOff = /[?&]scope=0/.test(location.search) ? 1 : 0;
+window.__SCOPE = (typeof SCOPE_POLY!=='undefined') ? SCOPE_POLY : null;
+function inScopeM(xm, ym){
+  if(window.__scopeOff) return true;
+  const S2=(window.__SCOPE && window.__SCOPE.polys) ? window.__SCOPE : ((typeof SCOPE_POLY!=='undefined' && SCOPE_POLY) ? (window.__SCOPE=SCOPE_POLY) : null);
+  if(!S2 || !S2.polys || !S2.polys.length) return true;   // 폴리곤 미로드 = 통과(★2026-09-28: SCOPE_POLY 는 game.js 뒤에 주입되므로 지연 해석해야 한다)
+  const b=S2.bbox; if(!(xm>=b[0] && xm<=b[2] && ym>=b[1] && ym<=b[3])) return false;
+  for(const ring of S2.polys){
+    let inside=false;
+    for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+      const xi=ring[i][0], yi=ring[i][1], xj=ring[j][0], yj=ring[j][1];
+      if(((yi>ym)!==(yj>ym)) && (xm < (xj-xi)*(ym-yi)/((yj-yi)||1e-12) + xi)) inside=!inside;
+    }
+    if(inside) return true;
+  }
+  return false;
+}
 /* ★u_5669 작성자 dir 수정은 철회했다(2026-09-27 orch(1)): 라우터가 일방 간선을 a>b 한 방향으로만 내보내
    dirOf 는 일방 way 에서 항상 +1 — 계측 revOw 가 10구간 2,237홉에서 0 이었다. 실행될 수 없는 코드는 남기지 않는다. */
 function segLf(s){ return (window.__asym&&s&&s.lf>0)? s.lf : Math.max(1,Math.floor(((s&&s.l)||2)/2)); }
@@ -1464,6 +1484,22 @@ window.parkCar=parkCar;
 function planTo(x,y){
   __probe('planTo');
   window.__ptCnt=(window.__ptCnt||0)+1;
+  /* ★u_5716 범위 하드 게이트(진입 즉시). 경로 생성 뒤에 검사하면 범위 밖 구간이 **그 전에** 실패해
+     플래그가 안 찍혀 '게이트가 막은 것'인지 구분이 안 된다(2026-09-28 실측). 출발·목적 좌표로 먼저 판정한다. */
+  try{
+    if(!window.__scopeOff){
+      const sOK=inScopeM(me.x/S, me.y/S), dOK=inScopeM(x/S, y/S);
+      window.__scopeDbg={start:[+(me.x/S).toFixed(0),+(me.y/S).toFixed(0)], dest:[+(x/S).toFixed(0),+(y/S).toFixed(0)],
+                         startIn:sOK, destIn:dOK, poly:(typeof SCOPE_POLY!=='undefined' && SCOPE_POLY)?1:0};
+      if(!sOK || !dOK){
+        window.__outOfScope=1;
+        try{ flash('범위 밖(강남구·송파구 전용) — 경로 생성 거부. ?scope=0 으로 해제'); }catch(e){}
+        auto.wp=[]; auto.on=0; auto.goal=null; try{ parkCar(); }catch(e){}
+        return false;
+      }
+      window.__outOfScope=0;
+    }
+  }catch(e){ window.__scopeErr=String(e&&e.message||e).slice(0,80); }
   /* ★2026-09-19: 경로 생성 단계가 '못 도는 유턴'을 발견하면 그 회전을 금지하고 한 번 더 짠다.
      금지는 이 경로에만 유효하다 — 새 계획(재귀 아님)에서는 비운다. */
   if(!window.__replanning){ window.__replanN=0; window.__dynBan=new Set(); }
@@ -2517,6 +2553,55 @@ function planTo(x,y){
     try{ flash('경로 재계획('+window.__replanN+'): 못 도는 유턴 회피'); }catch(e){}
     return planTo(x,y);
   }
+  /* ★u_5716 범위 하드 게이트: 출발/도착이 범위 밖이면 경로를 만들지 않는다. */
+  try{
+    if(!window.__scopeOff && wp.length){
+      const a=wp[0], b=wp[wp.length-1];
+      window.__scopeDbg={a:[+(a.x/S).toFixed(0),+(a.y/S).toFixed(0)], b:[+(b.x/S).toFixed(0),+(b.y/S).toFixed(0)],
+                         ain:inScopeM(a.x/S,a.y/S), bin:inScopeM(b.x/S,b.y/S), poly:(window.__SCOPE?1:0), off:window.__scopeOff|0};
+      if(!inScopeM(a.x/S, a.y/S) || !inScopeM(b.x/S, b.y/S)){
+        window.__outOfScope=1;
+        try{ flash('범위 밖(강남구·송파구 전용) — 경로를 만들지 않습니다. ?scope=0 으로 해제'); }catch(e){}
+        auto.wp=[]; auto.on=0; auto.goal=null; try{ parkCar(); }catch(e){}
+        return false;
+      }
+      window.__outOfScope=0;
+    }
+  }catch(e){}
+  /* ★u_5671/u_5715 출발측 교체(startSideSwap): 출발 직후 400m 안에서 누적 회전이 150°를 넘으면
+     '반대 차도에서 출발했어야 하는' 경우다(분리도로에서 반대편으로 스냅). 그 경우 반대편 후보로 한 번 재계획하고
+     더 짧은 쪽을 택한다. 검색 출발 배치에만 적용하고 주행 중 replan 에는 적용하지 않는다(cases/route_u5671_rootcause.md §5.2).
+     ?startswap=0 로 끈다. */
+  try{
+    if(!/[?&]startswap=0/.test(location.search) && !window.__swapTry && wp.length>3){
+      let acc=0, dist=0;
+      for(let i=1;i<wp.length-1 && dist<400*S;i++){
+        const a1=Math.atan2(wp[i].y-wp[i-1].y, wp[i].x-wp[i-1].x);
+        const a2=Math.atan2(wp[i+1].y-wp[i].y, wp[i+1].x-wp[i].x);
+        let dd=a2-a1; while(dd>Math.PI) dd-=2*Math.PI; while(dd<-Math.PI) dd+=2*Math.PI;
+        acc+=dd; dist+=Math.hypot(wp[i].x-wp[i-1].x, wp[i].y-wp[i-1].y);
+      }
+      const deg=Math.abs(acc*180/Math.PI);
+      if(deg>150){
+        const len0=(function(){ let L=0; for(let i=1;i<wp.length;i++) L+=Math.hypot(wp[i].x-wp[i-1].x,wp[i].y-wp[i-1].y); return L; })();
+        const keep={wp:wp.slice(), len:len0, deg:deg};
+        window.__swapTry=1;
+        const ox=me.x, oy=me.y, oa=me.ang;
+        me.ang = oa + Math.PI;                       // 반대 차도(반대 헤딩) 후보로 재배치
+        try{ placeCarNear(me.x, me.y, {metric:'proj', place:true}); }catch(e){}
+        const ok2 = planTo(x,y);
+        window.__swapTry=0;
+        const len1=(function(){ let L=0; for(let i=1;i<auto.wp.length;i++) L+=Math.hypot(auto.wp[i].x-auto.wp[i-1].x,auto.wp[i].y-auto.wp[i-1].y); return L; })();
+        if(ok2 && auto.wp.length>3 && len1>0 && len1 < keep.len){
+          window.__startSideSwap={on:1, deg:+keep.deg.toFixed(0), before_m:Math.round(keep.len/S), after_m:Math.round(len1/S)};
+          return ok2;                                 // 더 짧은 쪽 채택
+        }
+        me.x=ox; me.y=oy; me.ang=oa;                  // 되돌림
+        window.__startSideSwap={on:0, deg:+keep.deg.toFixed(0), before_m:Math.round(keep.len/S), after_m:Math.round(len1/S)};
+        wp = keep.wp;
+      }
+    }
+  }catch(e){ window.__swapErr=String(e&&e.message||e).slice(0,80); }
   auto.wp=wp;
   auto.ktPts=window.__ktPtsTmp||[]; window.__ktPtsTmp=null; auto.kt=null; window.__ktN=auto.ktPts.length; window.__ktDone=0;
   /* ★차 뒤의 '첫 몇 점'만 건너뛴다(u_5033, u_5035 수정).
@@ -2941,8 +3026,8 @@ function mdlPoll(dt){
       mdlTgt: window.__mdlTgt||null,
       tgt2N: window.__tgt2N|0,
       camErr: +((((me.ang+Math.PI/2)-camA+Math.PI*3)%(Math.PI*2))-Math.PI).toFixed(4),   /* a_5619: 화면 위(camA) 대비 차 헤딩 기울기(rad, 카메라 회전 지연) — 화면 기준 기하를 차 기준으로 돌릴 때 */
-      lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0, lpwN: window.__lpwN|0, lpwFit: (typeof window.__lpwFit==='number')?+window.__lpwFit.toFixed(2):null, lpwIn: (typeof window.__lpwIn==='number')?+window.__lpwIn.toFixed(2):null, lpwBuf: (window.__lpwBuf||[]).length,
-      lhold: window.__lhold|0, bridgeN: window.__bridgeN|0, revOw: window.__revOw|0, offBlendN: window.__offBlendN|0, rfRampN: window.__rfRampN|0, unwindN: window.__unwindN|0, unwindFrames: window.__uwFrames|0, unwindMaxRate: +(window.__uwMaxRate||0).toFixed(2), unwindXtHold: window.__uwXtHold|0, unwindOn: window.__uwOn|0, rfRampLd: window.__rfRampLd||null, rfRampCfg: window.__noRamp?null:[window.__rfRamp0,window.__rfRampS,window.__rfRampCap,window.__rfRampVtx],
+      stEma: window.__stEma||0, stEmaAuto: window.__stEmaAuto?1:0, stTau: window.__stTau||null, stEmaN: window.__stEmaN|0, lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0, lpwN: window.__lpwN|0, lpwFit: (typeof window.__lpwFit==='number')?+window.__lpwFit.toFixed(2):null, lpwIn: (typeof window.__lpwIn==='number')?+window.__lpwIn.toFixed(2):null, lpwBuf: (window.__lpwBuf||[]).length,
+      lhold: window.__lhold|0, bridgeN: window.__bridgeN|0, revOw: window.__revOw|0, startSideSwap: window.__startSideSwap||null, outOfScope: window.__outOfScope|0, scopeDbg: window.__scopeDbg||null, offBlendN: window.__offBlendN|0, rfRampN: window.__rfRampN|0, unwindN: window.__unwindN|0, unwindFrames: window.__uwFrames|0, unwindMaxRate: +(window.__uwMaxRate||0).toFixed(2), unwindXtHold: window.__uwXtHold|0, unwindOn: window.__uwOn|0, rfRampLd: window.__rfRampLd||null, rfRampCfg: window.__noRamp?null:[window.__rfRamp0,window.__rfRampS,window.__rfRampCap,window.__rfRampVtx],
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
       sigNear: (function(){try{const n=performance.now();return signals.map(q=>({d:Math.hypot(q.x-me.x,q.y-me.y)/S,q})).sort((a,b)=>a.d-b.d).slice(0,4).map(z=>({d:+z.d.toFixed(1),x:+(z.q.x/S).toFixed(1),y:+(z.q.y/S).toFixed(1),sx:+(z.q.sx/S).toFixed(1),sy:+(z.q.sy/S).toFixed(1),nx:+(nodes[z.q.node].x/S).toFixed(1),ny:+(nodes[z.q.node].y/S).toFixed(1),tw:+z.q.tw.toFixed(2),rw:+(z.q.rw/S).toFixed(1),ow:z.q.ow,red:sigRed(z.q,n)?1:0}))}catch(e){return String(e).slice(0,40)}})(),
@@ -2987,6 +3072,9 @@ function mdlPoll(dt){
     if(d.seq !== MDL.seq){ MDL.seq = d.seq; MDL.rx++;
       MDL.rxT = performance.now(); }   // ★u_5172: 명령 수신 시각(만료 판정용)
     MDL.steer = +d.steer||0; MDL.thr = +d.thr||0; MDL.brake = +d.brake||0;
+    /* ★u_5709(2026-09-28): /ctl park=1 → 즉시 주차. 수집·평가 스크립트가 라운드 사이와 종료 시 반드시 호출한다.
+       사고: 수집 뒤 페이지를 주행 상태로 방치해 자곡로 건물에 박힌 채 '건물 충돌' 1,172회가 누적됐다(v=0·prog 99.8%). */
+    if(+d.park){ try{ if(typeof parkCar==='function') parkCar(); }catch(e){} }
     MDL.tgt = !!(+d.tgt); MDL.dOff = +d.dOff||0; MDL.vT = (d.vT===undefined||d.vT===null)?-1:+d.vT;   // 목표 오프셋 인터페이스(2026-09-21)
     const _pm=MDL.mode; MDL.mode = +d.mode||1; MDL.lat=(typeof d.lat==='number')?d.lat:-1; MDL.inf=(typeof d.inf==='number')?d.inf:-1;
     if(MDL.on && _pm!==undefined && _pm!==MDL.mode) window.__evPush(MDL.mode===2?'steer handover → model':'steer handover → rule');
@@ -3116,6 +3204,13 @@ window.__lpTau = (function(){ const m=/[?&]lptau=([0-9.]+)/.exec(location.search
 window.__lpRawMode = !(/[?&]lpsm=1/.test(location.search) || /[?&]lptau=/.test(location.search));
 if(!/[?&]ramp=1/.test(location.search)) window.__noRamp=1;   // 규칙 코너램프 기본 OFF(2026-09-26 충정로 실측: 반전 동일·차선물기 5→10) — ?ramp=1 로만
 try{ const _q=new URLSearchParams(location.search); window.__rfRamp0=+(_q.get('ramp0')||12); window.__rfRampS=+(_q.get('ramps')||2.5)*1000; window.__rfRampCap=+(_q.get('rampcap')||1.5); window.__rfRampVtx=+(_q.get('rampvtx')||15); }catch(e){ window.__rfRamp0=12; window.__rfRampS=2500; window.__rfRampCap=1.5; window.__rfRampVtx=15; }   // orch 단계4 스펙: Ld 12→Ld0 over 2.5s, 이양창 조향율 ≤1.5/s; 정점 판정 = __turnXY 15m 진입→이탈
+window.__stEma = (function(){ const m=/[?&]stema=([0-9.]+)/.exec(location.search); return m?+m[1]:0; })();   // u_5744 적용조향 EMA 시정수(s). 0=끔. ?stema=0.1 (replay: 반전 1268.9→184.5/분, 지연=tau=100ms)
+/* u_5746 속도 스케줄 tau: 고정 0.1 은 골목만 이득(sc 17.4→8.2)이고 2차로는 악화(13.8→26.4), 간선은 코너
+   횡오차가 4.4배(1.03→4.50) — 100ms 지연이 빠른 도로에서 늦은 턴인으로 나온다. 앵커 2점(4.5m/s→0.10s,
+   8m/s→0.025s)을 잇는 선형 램프, [0.02,0.12] 로 자른다. ?stema=auto (기울기 ?stemak=, 절편 ?stemab=). */
+window.__stEmaAuto = /[?&]stema=auto/.test(location.search);
+window.__stEmaK = (function(){ const m=/[?&]stemak=([-0-9.]+)/.exec(location.search); return m?+m[1]:-0.02143; })();
+window.__stEmaB = (function(){ const m=/[?&]stemab=([-0-9.]+)/.exec(location.search); return m?+m[1]:0.19643; })();
 window.__lpWorldN = (function(){ const m=/[?&]lpworld=(\d+)/.exec(location.search); return m?+m[1]:0; })();   // ★2026-09-24 a_5619 오라클 이분: 앞점 EMA(0.35s)+6m/s 제한이 순수추적 진동의 근본 원인(규칙 앞점 되먹임 sc55→raw 1.65/분) → 기본 RAW. 평활은 ?lpsm=1 로만.
 window.__PERTURB_S = (function(){ const m=/[?&]perturb=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();
 /* ★가상 데이터 샘플러(오너 u_5467, 2026-09-20): 주행하지 않고 상태를 무작위로 놓는다. ?synth=1 이면 SYNTH_MS 마다 경로 위 임의 점에
@@ -3484,6 +3579,19 @@ function driveAuto(dt){
         _st=_cand; window.__uwOn=1; window.__uwFrames=(window.__uwFrames||0)+1;
       } else { window.__uwOn=0; }
     }
+    /* u_5744 STEER EMA: offline replay of a 15,960-frame command trace showed the weave is
+       high-frequency chatter on the APPLIED steer, not a slew-rate problem (rate caps 0.25-2.0 rad/s
+       never bind: median |step| 0.0003 rad vs 0.0018 allowed). One-pole EMA on delta cut reversals
+       1268.9 -> 184.5/min (0.15x) at tau 0.1s, lag = tau = 100ms. ?stema=<s> enables it (0 = off). */
+    let _tauNow=window.__stEma;
+    if(window.__stEmaAuto){ /* me.v is already m/s (tel v == lp-vmax cap) */
+      const _v=Math.max(0.1,Math.abs(me.v||0));
+      _tauNow=Math.min(0.12,Math.max(0.02,window.__stEmaK*_v+window.__stEmaB)); window.__stTau=+_tauNow.toFixed(4); }
+    if(_tauNow>0 && MDL.on && MDL.mode===2){
+      const _a=1-Math.exp(-dt/_tauNow);
+      const _p=(typeof window.__stPrev==='number')?window.__stPrev:_st;
+      _st=_p+(_st-_p)*_a; window.__stPrev=_st; window.__stEmaN=(window.__stEmaN|0)+1;
+    } else window.__stPrev=_st;
     me.steer=_st; }
   // 5) 속도
   /* ★보행자 제동을 경로주행에도 넣는다(ar_5057 지적).
@@ -3867,6 +3975,17 @@ function step(dt){
        찾는 데 세 번 헛짚었다.
        경로 주행 중이면 경로 위 안전한 지점으로 되돌려 다시 출발시킨다. */
     bldStuck=(bldStuck||0)+dt;
+    /* ★u_5709(2026-09-28) 끼임 무한반복: 도착 직전(prog 99.8%)에 건물에 박히면 남은 경로점이 거의 없어
+       아래 탈출 조건(wp.length>1)이 성립하지 않아 **영원히 못 빠져나오고** '건물 충돌'만 2초마다 쌓였다(실측 1,199회).
+       (a) 목적지 50m 안이면 도착으로 처리하고 주차한다. (b) 8초 넘게 갇혀 있으면 경로 유무와 무관하게 주차한다. */
+    if(bldStuck>3 && auto.on){
+      try{
+        const g=auto.goal, near = g ? Math.hypot(me.x-g.x, me.y-g.y)/S : 1e9;
+        const prog = (typeof window.__prog==='number') ? window.__prog : ((auto.cum&&auto.s)?auto.s/auto.cum[auto.cum.length-1]:0);
+        if(near<50 || prog>0.99){ try{ window.__evPush('arrive (stuck near goal)'); }catch(e){} parkCar(); bldStuck=0; }
+        else if(bldStuck>8){ try{ window.__evPush('park (wedged >8s)'); }catch(e){} parkCar(); bldStuck=0; }
+      }catch(e){}
+    }
     if(bldStuck>1.5 && auto.on && auto.wp.length>1){
       const j=Math.min(auto.wp.length-1, auto.i+3);   // 막힌 점을 건너뛴다
       const t=auto.wp[j], p=auto.wp[Math.max(0,j-1)];
@@ -5627,8 +5746,12 @@ setTimeout(()=>{
          ?from=·?to= 로 넘기면 그 구간으로 경로를 잡는다. 없으면 기존 기본값. */
       const _q=new URLSearchParams(location.search);
       const _f=_q.get('from'), _t=_q.get('to');
-      if(_f) sb.value=_f; else if(!sb.value) sb.value='강남역';
-      if(_t) db.value=_t; else if(!db.value) db.value='시청역';
+      /* ★u_5710/u_5711(2026-09-28): 작업 범위가 강남구+송파구로 좁혀졌다. 기본 구간을 **범위 안**으로 바꾼다.
+         기존 기본값(강남역→시청역)은 범위 밖이라 페이지를 그냥 열면 범위 밖 주행이 된다.
+         새 기본값 = 선릉로 → 올림픽로(강남구 간선, 약 2.5km, 양 끝 in_scope 실검증). **홀드아웃(eval20_scope_pairs.json)에는 없는 쌍**이다.
+         옛 구간은 ?from=강남역&to=시청역 로만(레거시 데모). ?from/?to 우선은 그대로. */
+      if(_f) sb.value=_f; else if(!sb.value) sb.value='선릉로';
+      if(_t) db.value=_t; else if(!db.value) db.value='올림픽로';
       /* ★u_5341 오너: "테스트 구간을 문제 발생구간으로 해. 그럼 매번 나오잖아".
          맞다. 장소명이 아니라 사고 난 좌표에서 바로 출발할 수 있어야 회귀시험이 된다.
          ?sx=<px>&sy=<px> (텔레메트리 wpDbg.car 좌표 그대로) 로 그 지점에 차를 놓는다. */
