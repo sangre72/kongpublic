@@ -366,13 +366,15 @@ def main():
                     cw = float(os.environ.get('CORNER_W', '1'))
                     if cw > 1 and Mt is not None and len(Mt) == len(Wt):
                         csec = float(os.environ.get('CORNER_W_SEC', '3'))
-                        aD = np.asarray(Mt)[:, 4].astype(float); tt = np.asarray(Tt).astype(float)
+                        # ★2026-09-27 수정: Tt 는 '시각'이 아니라 tier 3열 배열이다(실측 T[0]=[-1,0,-1]) —
+                        #   이를 초로 비교해 창이 한 번도 안 열렸다(boosted=0). 프레임 수로 센다(수집 ~14fps).
+                        aD = np.asarray(Mt)[:, 4].astype(float)
+                        fps = max(1.0, len(aD) / max(1e-6, float(a.secs)))
+                        win = int(csec * fps)
                         nboost = 0
                         for j in range(1, len(aD)):
                             if aD[j-1] < 15 and aD[j] > aD[j-1] + 20:          # 정점 통과
-                                t0 = tt[j]
-                                for q in range(j, len(aD)):
-                                    if tt[q] - t0 > csec: break
+                                for q in range(j, min(len(aD), j + win)):
                                     if Wt[q] > 0: Wt[q] = cw; nboost += 1
                         print(json.dumps({'corner_boost_frames': nboost, 'corner_w': cw}), flush=True)
                 except Exception as e:

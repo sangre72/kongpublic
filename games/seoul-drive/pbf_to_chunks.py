@@ -16,7 +16,7 @@ S_LAT, S_LON = 37.4979, 127.0276          # 게임 원점(강남역)
 # ★2026-09-26 지도 결함 수정 플래그(기본 ON). --no-asym / --no-link-oneway 로 끈다(비교 실험용).
 #   asym : 왕복도로 lanes:forward≠lanes:backward 를 lf/lb 로 싣는다(게임은 c=(lb−lf)·LW/2 로 중앙선을 옮겨야 한다, cases/map_fix_2026-09-26.md).
 #   link : *_link 연결로(oneway 미태그)를 양 끝이 일방 차도에 닿으면 일방으로 본다(방향 검사·겹침 검사 포함).
-OPT = {'asym': True, 'link': True, 'cone': True}
+OPT = {'asym': True, 'link': True, 'cone': True, 'minor_oneway': True}
 LW = 3.25                                  # 차로폭(m) — 게임 LANE_M 과 같아야 한다
 M_PER_DEG_LAT = 111320.0
 CHUNK_M = 1000
@@ -446,6 +446,38 @@ def main():
                 h.fixed.append((r['w'], r['n'], r['l'], want, 'cone-smooth %s' % nb[0]['w']))
                 r['l'] = want; ncone += 1
         print(json.dumps({'cone_lane_fixes': ncone}), flush=True)
+    # ★(D) 2026-09-28 u_5705: 같은 이름 체인에서 **소수쪽(≤25%) 미태그 토막**의 일방성을 다수쪽에서 상속.
+    #   근거(실측): 삼성로 일방31+양방1, 언주로 47+2, 백제고분로 32+4 — 분리 차도에 oneway 미태그 토막이 끼어
+    #   가짜 중앙선·양방 판정을 만든다. 태그된 조각은 절대 안 건드린다(od=1 = oneway 미태그만).
+    if OPT.get('minor_oneway', True):
+        nminor = 0
+        byname2 = {}
+        for k, v in h.ch.items():
+            for r in v['r']:
+                if r.get('n'): byname2.setdefault(r['n'], []).append(r)
+        for nm, rs in byname2.items():
+            ones = [r for r in rs if r.get('o')]; twos = [r for r in rs if not r.get('o')]
+            if not (ones and twos): continue
+            minor = twos if len(twos) <= len(ones) else ones
+            if len(minor) / max(1, len(rs)) > 0.25: continue
+            if minor is not twos: continue                  # 일방→양방 전환은 하지 않는다(보수)
+            # ★u_5705: 범위(강남구+송파구) 안에서만 고친다. 범위 밖에 적용했더니 신규 겹침 5쌍이 전부
+            #   범위 밖 도로(과천대로·노량진로14길·왕십리로·아차산로·남부순환로244길)에서 났다(실측).
+            try:
+                import sys as _s, os as _o
+                _o.sys.path.insert(0, _o.path.dirname(_o.path.abspath(__file__)))
+                from scope import in_scope as _insc
+            except Exception:
+                _insc = None
+            major_l = max(set(r['l'] for r in ones), key=[r['l'] for r in ones].count)
+            for r in minor:
+                if not r.get('od'): continue                # oneway 태그가 있으면 존중
+                if _insc is not None:
+                    _p = r.get('p') or []
+                    if not _p or not _insc(_p[len(_p)//2][0], _p[len(_p)//2][1]): continue
+                h.fixed.append((r['w'], r['n'], r['l'], major_l, 'minor-oneway-inherit'))
+                r['o'] = True; r['l'] = major_l; nminor += 1
+        print(json.dumps({'minor_oneway_fixes': nminor}), flush=True)
     tot = 0
     for k, v in h.ch.items():
         fp = f'{out}/chunks/{k.replace(",","_")}.json'

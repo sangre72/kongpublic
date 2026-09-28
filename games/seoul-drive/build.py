@@ -53,6 +53,9 @@ print(f"chunks6: buildings {_nb} split into {_outdir} ({len(_obj)} chunks); inli
 # ★검색 인덱스(u_5003) — 없으면 검색창은 뜨되 결과가 없다. build_search_index.py 로 생성.
 _si = 'games/seoul-drive/data/search.js'
 search_js = open(_si).read() if _os.path.exists(_si) else 'const SEARCH=[];'
+# ★u_5716: 범위(강남구+송파구) 폴리곤을 페이지에 싣는다 — 페이지가 스스로 범위 밖 경로를 거부한다.
+_sp = 'games/seoul-drive/data/scope_poly.js'
+scope_js = open(_sp).read() if _os.path.exists(_sp) else 'const SCOPE_POLY=null;'
 gm   = open('games/seoul-drive/game.js').read()
 te   = open('games/seoul-drive/teacher.js').read()
 gm = "window.__TRAFFIC='%s';window.__TARGET_KMH=%d;\n" % (_tf, _kmh) + gm
@@ -334,7 +337,7 @@ if demo:
 })();
 '''
 open('games/seoul-drive/index.html','w').write(
-    head + '<script>' + data + '</script>\n<script>' + search_js + '</script>\n'
+    head + '<script>' + data + '</script>\n<script>' + search_js + '</script>\n<script>' + scope_js + '</script>\n'
          + '<script>' + gm + '</script>\n<script>' + te + '</script>\n')
 print('built teacher=' + ('OFF' if off else 'ON')
       + (' dagger=ON' if dag else '') + (' demo=ON' if demo else '')

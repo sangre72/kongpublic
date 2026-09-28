@@ -55,6 +55,11 @@ class DriveNet(nn.Module):
         self.vin = vin
         if vin:
             self.hv = nn.Sequential(nn.Linear(256 + vdim, 96), nn.ReLU(), nn.Linear(96, out))
+        # u_5739 trial2: optional recurrent head over the 256-d conv feature (GRU). rnn=0 keeps the stock net bit-identical.
+        self.rnn = None
+        if int(__import__('os').environ.get('GEO_GRU', '0')):
+            self.rnn = nn.GRU(256 + vdim, 256, batch_first=True)
+            self.hr = nn.Sequential(nn.Linear(256, 96), nn.ReLU(), nn.Linear(96, out))
 
     def forward(self, x, v=None, raw=False):
         """raw=True 면 활성화 전 로짓을 준다(학습에서 제동 채널에 BCE 를 걸 때 필요).
@@ -66,7 +71,17 @@ class DriveNet(nn.Module):
         if self.vin:
             z = self.h[0:3](self.f(x))                       # Flatten → Linear(4608,256) → ReLU
             if v is None: v = torch.zeros(x.shape[0], self.vdim, device=x.device, dtype=z.dtype)
-            o = self.hv(torch.cat([z, v.reshape(-1, self.vdim).to(z.dtype)], dim=1))
+            zc = torch.cat([z, v.reshape(-1, self.vdim).to(z.dtype)], dim=1)
+            if self.rnn is not None:   # u_5739: (B,T,F) when seq given via self._T, else single step
+                T = getattr(self, '_T', 1)
+                if T > 1:
+                    y, _ = self.rnn(zc.reshape(-1, T, zc.shape[1]))
+                    o = self.hr(y.reshape(-1, y.shape[-1]))
+                else:
+                    y, self._hx = self.rnn(zc.unsqueeze(1), getattr(self, '_hx', None))
+                    o = self.hr(y[:, 0])
+            else:
+                o = self.hv(zc)
         else:
             o = self.h(self.f(x))
         if raw:

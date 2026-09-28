@@ -97,6 +97,7 @@ def main():
     if MERGE_PLAN:
         from merge_plan import MergePlannerKF; mplan = MergePlannerKF(); yaw_prev = None
     RULE_LANE = _e.get('RULE_LANE', '1') == '1'
+    K_XT = float(_e.get('K_XT', '1.0'))   # u_5737: cross-track gain. lc20 = ey + Ld*ep + 0.5*k*Ld^2; K_XT scales the ey term only (1.0=stock, 0=heading/curvature only)
     LANE_HOLD = _e.get('LANE_HOLD', '0') == '1'; hold_on = False; out_t = None; holdN = 0   # ★u_5604 차로내 유지: |e_y|<0.3m ∧ |e_psi|<2° → 곡률 피드포워드만(직진 유지), |e_y|>0.3 이 0.5s 지속돼야 해제
     sm = None; sm_t = None; print(json.dumps({'lp_rate': LP_RATE, 'lp_tau': LP_TAU, 'hand_exit': HAND_EXIT, 'poly': POLY, 'poly_k': POLY_K}), flush=True)
     LP_TRACE = _e.get('LP_TRACE'); tr_hand = []; tr_raw = []   # ★a_5588 addendum2: 흔들림 원인 귀속용 프레임 추적(이양 시각·모델 lp20 원값/평활값)
@@ -220,6 +221,8 @@ def main():
                 _lf = _g2.get('laneF')   # ★A'(2026-09-24 orch): 차로번호·차로수·목표차로는 규칙층(지도/경로)에서; 망은 국소 기하만. 망 li 는 보조 로그
                 if RULE_LANE and isinstance(_lf, (int, float)): _li = float(_lf)
                 _lp = _lc20 + (_tgt - round(_li)) * _lw   # 목표 차로 중심의 20m 앞 횡오프셋(차 기준)
+                if K_XT != 1.0:   # u_5737 A/C: rebuild lc20 with a scaled cross-track term (Ld=20 fixed here, same basis as LANE_HOLD's 200*k0)
+                    _lp = (K_XT * _ey + 20.0 * _ep + 200.0 * _k0) + (_tgt - round(_li)) * _lw
                 _ld = SEG_LD if (a.seg and SEG_LD > 0) else 20.0   # a_5619: seg 경로 앞점 거리 고정(LC_AT 와 같이)
                 if MERGE_PLAN:
                     _ang = (d.get('car') or {}).get('ang'); _yr = None
