@@ -9,7 +9,20 @@ def geom(pw=763, ph=750, lead=25.0, S=6.0, size=256):
 LC_AT = float(os.environ.get('LC_AT', '20')); RES = int(os.environ.get('RES', '256')); CAR_ROW, CAR_COL, PXM_X, PXM_Y = geom(size=RES)
 def _fit(band, cid, r1):
     """띠 안 클래스 cid 픽셀을 차에서 위로 행마다 추적: 각 행의 연속 구간(run) 중 직전 행 중앙(첫 행은 차 열)에 가장 가까운 것만 쓴다(교차 도로의 같은 클래스 배제)."""
-    m = band == cid; med = []; rr = []; ref = CAR_COL
+    m = band == cid; med = []; rr = []
+    # u_5769 ROOT CAUSE: ref seeded at CAR_COL assumes the target lane starts under the car. When the
+    #   car is OFF that lane (adjacent lane, or mid lane-change - exactly the states we perturbed into),
+    #   the nearest run in the first row is >4m away, the continuity rule rejects EVERY row, and the fit
+    #   returns None with 99 rows of pixels available. Measured: 65 of 70 fit failures, median kept = 0.
+    #   Fix: seed ref from the BOTTOM-MOST row that actually has this class, not from the car column.
+    ref = CAR_COL
+    for _r in range(m.shape[0] - 1, -1, -1):
+        _cs = np.flatnonzero(m[_r])
+        if len(_cs):
+            _cuts = np.flatnonzero(np.diff(_cs) > 1) + 1
+            _runs = np.split(_cs, _cuts)
+            ref = min(((_v := (run[0] + run[-1]) / 2.0), abs(_v - CAR_COL)) for run in _runs)[0]
+            break
     for r in range(band.shape[0] - 1, -1, -1):
         cs = np.flatnonzero(m[r])
         if len(cs) == 0: continue
