@@ -3378,6 +3378,7 @@ window.__lpWorldN = (function(){ const m=/[?&]lpworld=(\d+)/.exec(location.searc
 window.__PGEY = (function(){ const m=/[?&]pgey=([0-9.,]+)/.exec(location.search); return m? m[1].split(',').map(Number) : null; })();   // u_5759
 window.__PGEP = (function(){ const m=/[?&]pgep=([0-9.,]+)/.exec(location.search); return m? m[1].split(',').map(Number) : null; })();
 window.__PGRID = (function(){ const m=/[?&]pgrid=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();   // u_5763
+window.__PGHOLD = (function(){ const m=/[?&]pghold=([0-9.]+)/.exec(location.search); return m? +m[1] : 5.0; })();   // u_5774: perturb window must cover the scorer's recovery window, else the next trigger overlaps it
 window.__PERTURB_S = (function(){ const m=/[?&]perturb=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();
 /* ★가상 데이터 샘플러(오너 u_5467, 2026-09-20): 주행하지 않고 상태를 무작위로 놓는다. ?synth=1 이면 SYNTH_MS 마다 경로 위 임의 점에
    차로 오프셋 −6~+6m·방향 오차 −40~+40°·속도 0~30m/s 로 차를 재배치 → driveAuto 가 그 자리에서 낼 조향(__da.st)과 교사 속도 제어가
@@ -5607,13 +5608,18 @@ function loop(t){
       /* u_5759: the turn guard (aD<200m) blocks almost every trigger on short scoped routes - a
          corner is nearly always within 200m. Relax to 60m: far enough to avoid perturbing INTO a
          turn, close enough that cells actually fill. Lead-car guard kept (collision safety). */
-      if(!G.on && G.t>=window.__PGRID && me.v>3 && !((typeof g2.aD==='number') && g2.aD<60) && !((typeof D2.gap==='number') && D2.gap<30)){
+      /* u_5774: the perturbation is applied RELATIVE to the current pose, so firing while the car
+         is still off-centre STACKS offsets - measured ey0 of 3.8-6.8m on cells commanding 0.6-1.5m,
+         walking the car off the road (3 departures). An episode must start from a recovered pose:
+         require the car to be back near lane centre before the next trigger. */
+      const _lat0=(g2&&typeof g2.lat==='number')?Math.abs(g2.lat):99;
+      if(!G.on && G.t>=window.__PGRID && me.v>3 && _lat0<0.35 && !((typeof g2.aD==='number') && g2.aD<60) && !((typeof D2.gap==='number') && D2.gap<30)){
         const iy=Math.floor(Math.random()*EY.length), ip=Math.floor(Math.random()*EP.length), sg=(Math.random()<0.5?-1:1);
         const ey=EY[iy]*sg, ep=EP[ip]*Math.PI/180*sg;
         const lat=(g2&&typeof g2.lat==='number')?g2.lat:0;          // current signed offset from lane centre
         const dlat=ey-lat;
         me.x += -Math.sin(me.ang)*dlat*S; me.y += Math.cos(me.ang)*dlat*S; me.ang += ep;
-        G.on=1; G.left=5.0; G.t=0; G.rec=0;
+        G.on=1; G.left=(window.__PGHOLD||5.0); G.t=0; G.rec=0;
         G.cell=EY[iy]+'/'+EP[ip]+'/'+(sg>0?'R':'L');
         window.__pgN=(window.__pgN|0)+1; window.__pgCell=G.cell;
       }
