@@ -2,8 +2,8 @@
 # a_5598 eval20 harness: 미학습 20구간 × 300초, 모델 T1 조향(--geo), 무단횡단 5, v9 속도. 사용: M=<mlpackage basename> TAG=<tag> [GEO=1] bash eval20.sh → $T/eval20_<tag>.jsonl ; 요약 python3 eval20_sum.py <tag>
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive; export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6 CU=CPU_AND_GPU
 source "$(dirname "$0")/chrome_guard.sh"; chrome_guard "$(basename "$0")" || exit 9
-source "$(dirname "$0")/park_page.sh"; trap park_page EXIT
-source "$(dirname "$0")/pagelock.sh"; lock_page "e20rest" || { echo "PAGE BUSY - abort (see PLAN_ODE standing rule)"; exit 9; }; trap unlock_page EXIT
+source "$(dirname "$0")/park_page.sh"; arm_park_trap   # u_5765: EXIT+INT+TERM+HUP
+source "$(dirname "$0")/pagelock.sh"; lock_page "e20rest" || { echo "PAGE BUSY - abort (see PLAN_ODE standing rule)"; exit 9; }; trap 'park_page; unlock_page' EXIT INT TERM HUP   # u_5765 fix3: one trap does BOTH (a second trap ... EXIT was silently replacing the park trap)
 T=/Users/bumsuklee/.claude/jobs/ccf4ec97/tmp; M=${M:-none}; TAG=${TAG:-e20}; GEO=${GEO:-1}; OUT=$T/eval20_$TAG.jsonl; SECS=${SECS:-300}
 python3 -c "import json;[print(p['from']+'|'+p['to']) for p in json.load(open('data/eval20_rest5.json'))]" | while IFS='|' read -r f t; do
   n=$(pgrep -fl python3 | grep -Ec 'python3 (gpu_drive|offline_lp_eval|train_lp|train_geo|train_bev|train_seg|train_stage|dagger|offline_gate|seg_gate)\.py'); [ "$n" -gt 0 ] && { echo "MPS_BUSY $n"; exit 2; }

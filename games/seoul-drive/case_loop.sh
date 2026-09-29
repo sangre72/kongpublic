@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # a_5588 addendum3: regression case 사평대로 oscillation section, sx/sy = 60m before, ×N, model T1, attribution trace
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive; export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6 CU=CPU_AND_GPU
 T=/Users/bumsuklee/.claude/jobs/ccf4ec97/tmp; N=${N:-5}; TAG=${TAG:-case_b}; SECS=${SECS:-90}

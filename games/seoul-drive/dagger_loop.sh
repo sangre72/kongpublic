@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # DAgger 반복(2026-09-20, PLAN_ODE §9). 회귀(run_regression)가 페이지를 쓰는 동안 기다렸다가 시작(크롬·GPU 동시실행 금지).
 #   k 회차: train_stage straight (밤 교사 수집 r1* + DAgger r2* 전 프레임 --extra, --init 직전 모델) → ode_s1_k.pt
 #           → dagger.py --round 20k --model ode_s1_k.pt 120초(사평대로) → 텔레그램. 도착·무사고면 종료.

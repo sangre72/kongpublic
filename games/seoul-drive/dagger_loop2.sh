@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # DAgger 반복 v2 (2026-09-20 밤): 기반 = 카메라 고정 가상 샘플링(r41*), DAgger 라운드 라벨 = 그림자 경로추종(daShadow, 규칙 D-00).
 #   k: dagger.py(모델 주행 2×300초, r5xx 저장) → train_stage straight 'data/dagger_r41*' --extra 'data/dagger_r5*' --init 이전 → 검증은 다음 k 의 수집이 겸함.
 # 사용: bash dagger_loop2.sh <시작k=1> <회수=4> [초기모델=ode_s7.pt]

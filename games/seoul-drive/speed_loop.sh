@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 속도 DAgger (2026-09-22, 축소안 A): 조향=규칙 추종기, 라벨=규칙 목표속도(vmax, L.npy 3열).
 #   0) 교사 라운드 3구간×600초(r850~852, vmax 라벨 포함) → ode_v2 학습(SPEED_LABEL=vmax) → 평가
 #   k) 모델 주행 3구간×300초(r86k*, vmax 라벨 기록) → 재학습(r85*+r86*) → 평가. 사용: bash speed_loop.sh [회수=3]

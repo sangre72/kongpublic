@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 밤샘 수집(u_5431): 라운드마다 다른 스윕 구간을 로드 → dagger 3에피소드×600초 → 라운드 통계 텔레그램. 07:00 까지.
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive
 export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 M_EXT=${M_EXT:-0} ODE_ENV=0   # 2026-09-20 부터 M_EXT=1 로 실행(env/ep/fi 열)

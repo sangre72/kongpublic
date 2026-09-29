@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # A' wide-road set(2026-09-24): pairs30(장거리 간선 위주) 30구간 × 300초 규칙주행 + perturb=6, L12 라벨. 홀드아웃 청크 프레임은 학습기가 제외. 사용: bash collect_pairs30.sh <시작라운드=2300> [초=300]
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive; export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6 L12=1 M_EXT=1 ODE_ENV=0
 NT=/Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/notify_telegram.py; r=${1:-2300}; SECS=${2:-300}; done=0; tot=0; wide=0

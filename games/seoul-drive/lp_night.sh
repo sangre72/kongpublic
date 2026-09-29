@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 밤샘 조향 이양 DAgger(2026-09-22 u_5516): 사이클 k = ①모델조향(T0·T1) 3구간×300초 수집(라벨=규칙 앞점) ②lp 재학습(직전 모델 init, 전 데이터+교란) ③평가 T0(3구간) ④평가 T1(3구간).
 #   합격 기준: T0 회피가능 0·복귀 0 유지, T1 회피가능 0·복귀 합계 감소. 07:00 정지. 사용: bash lp_night.sh <시작라운드=960> <시작lp=ode_lp7.pt>
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive

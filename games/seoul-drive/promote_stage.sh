@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 스테이징 지도(data6_stage.js: 비대칭 lf/lb + 연결로 일방 ol) 승격 — cases/map_fix_2026-09-26.md §4. 주행 중 실행 금지(리로드 포함).
 # 사용: bash games/seoul-drive/promote_stage.sh [--no-reload]   (레포 루트 기준 경로)
 set -e; cd /Users/bumsuklee/git/kong-bot; D=games/seoul-drive; TS=2026-09-26

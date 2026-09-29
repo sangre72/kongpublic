@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 밤 수집 감시견(2026-09-20 00:2x): 라운드 시작 90초 뒤에도 doneM<30 이면 그 dagger 라운드를 죽인다(정차 데이터 방지). 루프는 다음 구간으로 넘어간다.
 while pgrep -f collect_overnight.sh >/dev/null; do
   pid=$(pgrep -f "dagger.py --round" | head -1)

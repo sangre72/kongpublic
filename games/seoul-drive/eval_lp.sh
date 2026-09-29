@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 앞점 모델 공정 비교(2026-09-21): 3구간×300초, 사고(회피가능)·순간이동·진행률. 사용: bash eval_lp.sh <model.pt> [round0=650]
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive
 export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6

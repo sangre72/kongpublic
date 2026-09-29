@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive
 T=/Users/bumsuklee/.claude/jobs/ccf4ec97/tmp
 for W in 3 5 10; do

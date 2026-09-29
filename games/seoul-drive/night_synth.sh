@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 가상 상태 샘플링 우선 수집(u_5553, 2026-09-22 밤, 새 화면 카메라 리드 25m): 구간마다 synth 600초(경로 위 임의 오프셋/방향/속도 상태, 규칙 라벨) + 규칙 주행 300초(정상 분포). 07:00 정지.
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive
 export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6 M_EXT=1 ODE_ENV=0

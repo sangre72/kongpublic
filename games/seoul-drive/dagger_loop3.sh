@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # DAgger v3 (2026-09-21 밤, 앞점 인터페이스): k회차 = 모델 주행 3구간×300초(앞점 라벨 L.npy 기록, r9xx) → train_lp(초기화=직전, 6 epoch) → eval_lp(3구간).
 # 사용: bash dagger_loop3.sh <시작k=1> <회수=6> [초기모델=ode_lp4.pt]
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive

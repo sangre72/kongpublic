@@ -43,8 +43,9 @@ _def=os.environ.get('DEF','alley')
 # u_5741 fix6: a plain union pool is ~87% alley (975/1126 in-scope roads), so "preference" did nothing
 #   (10 rounds, deficit=two: alley +1660 vs two +212). Draw the deficit class FIRST and only fall
 #   back to the union when that class has no usable start, so the deficit actually steers the draw.
-_prim=[byn[n] for n,c in cls.items() if c==_def and n in byn]
-_all=[byn[n] for n,c in cls.items() if c in ('alley','two','arterial') and n in byn]
+# u_5759 STAGE 1: alley + two only (the classes with most eligible roads).
+_prim=[byn[n] for n,c in cls.items() if c==_def and c in ('alley','two') and n in byn]
+_all=[byn[n] for n,c in cls.items() if c in ('alley','two') and n in byn]
 starts=_prim if _prim else _all
 if not starts: starts=_all
 # u_5741 fix7: MEASURED - a two-lane START still yields ~all-alley frames (r3516: nl1 1297 vs nl2 35),
@@ -70,7 +71,7 @@ for _ in range(400):
     print('%s|%s'%(a['n'],b['n'])); break
 PY
 ); [ -n "$q" ] || continue; f=${q%%|*}; t=${q##*|}
-  bash reload.sh "http://localhost:8901/index.html?go=1&lab=1&asym=1&perturb=6&from=$f&to=$t" 60 2>&1 | tail -1 >/dev/null
+  bash reload.sh "http://localhost:8901/index.html?go=1&lab=1&asym=1&pgrid=2&pgey=0.6,1.2&pgep=10,20&from=$f&to=$t" 60 2>&1 | tail -1 >/dev/null
   # 회전이 많은 구간만: turnRuns >= 6
   tr=$(python3 -c "
 import urllib.request,json

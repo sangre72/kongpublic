@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 수집 관문(오너 u_5476, 2026-09-20): 교사(GEOM) 주행이 대표 3구간×300초에서 사고 0·순간이동 0 이어야 수집 가능.
 #   (a) GEOM 직접 주행  (b) --model pipe (모델 파이프 경유, 13fps). 둘 다 통과해야 함. 사용: bash teacher_gate.sh [초=300]
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive

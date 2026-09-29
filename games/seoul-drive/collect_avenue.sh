@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # A' avenue collector v3(2026-09-24): search.js '대로' 도로점에 sx/sy 로 직접 배치(px=m×6), to=다른 대로(1.5~6km), 배치 직후 /tel geo.nl≥4 확인(아니면 즉시 스킵), 90초 규칙주행+perturb=6. 사용: bash collect_avenue.sh <시작라운드=2400> <목표에피소드=40>
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive; export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6 L12=1 M_EXT=1 ODE_ENV=0
 NT=/Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/notify_telegram.py; r=${1:-2400}; N=${2:-40}; done=0; tries=0

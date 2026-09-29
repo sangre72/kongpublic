@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 새 화면(카메라 리드 25m) 기준 새 데이터셋 수집(u_5548, 2026-09-22 밤): 규칙 주행 600초 + 교란(?perturb=6) 복귀 600초를 구간마다 번갈아. 라벨 = 조향·속도·vmax·10/20/40/80m 앞점(L.npy 7열)·M(의도). 07:00 정지.
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive
 export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6 M_EXT=1 ODE_ENV=0

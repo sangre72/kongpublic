@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 이탈→복귀 시연 수집(2026-09-20 u_5455). 교사 주행 + ?perturb=6 (6초마다 0.6~1.2초 조향 교란) + 프레임 푸시 13fps.
 # 사용: bash collect_perturb.sh <시작라운드=300> <라운드수=3>   → data/dagger_r<r>/ (X,Y,W,M,P)
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive

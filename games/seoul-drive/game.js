@@ -3029,7 +3029,7 @@ function mdlPoll(dt){
       lblN:(window.__lblLog||[]).length, stEma: window.__stEma||0, stEmaAuto: window.__stEmaAuto?1:0, stTau: window.__stTau||null, stEmaN: window.__stEmaN|0, lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0, lpwN: window.__lpwN|0, lpwFit: (typeof window.__lpwFit==='number')?+window.__lpwFit.toFixed(2):null, lpwIn: (typeof window.__lpwIn==='number')?+window.__lpwIn.toFixed(2):null, lpwBuf: (window.__lpwBuf||[]).length,
       lhold: window.__lhold|0, bridgeN: window.__bridgeN|0, revOw: window.__revOw|0, startSideSwap: window.__startSideSwap||null, outOfScope: window.__outOfScope|0, scopeDbg: window.__scopeDbg||null, offBlendN: window.__offBlendN|0, rfRampN: window.__rfRampN|0, unwindN: window.__unwindN|0, unwindFrames: window.__uwFrames|0, unwindMaxRate: +(window.__uwMaxRate||0).toFixed(2), unwindXtHold: window.__uwXtHold|0, unwindOn: window.__uwOn|0, rfRampLd: window.__rfRampLd||null, rfRampCfg: window.__noRamp?null:[window.__rfRamp0,window.__rfRampS,window.__rfRampCap,window.__rfRampVtx],
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
-      perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
+      pgN: window.__pgN|0, pgCell: window.__pgCell||null, pgOn: window.__pgOn|0, perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
       sigNear: (function(){try{const n=performance.now();return signals.map(q=>({d:Math.hypot(q.x-me.x,q.y-me.y)/S,q})).sort((a,b)=>a.d-b.d).slice(0,4).map(z=>({d:+z.d.toFixed(1),x:+(z.q.x/S).toFixed(1),y:+(z.q.y/S).toFixed(1),sx:+(z.q.sx/S).toFixed(1),sy:+(z.q.sy/S).toFixed(1),nx:+(nodes[z.q.node].x/S).toFixed(1),ny:+(nodes[z.q.node].y/S).toFixed(1),tw:+z.q.tw.toFixed(2),rw:+(z.q.rw/S).toFixed(1),ow:z.q.ow,red:sigRed(z.q,n)?1:0}))}catch(e){return String(e).slice(0,40)}})(),
       sigBarN: (function(){try{return signals.filter(q=>q.sx!==undefined).length}catch(e){return -1}})(), sigRedN: (function(){try{const n=performance.now();return signals.filter(q=>sigRed(q,n)).length}catch(e){return -1}})(), sigN: (typeof signals!=='undefined')?signals.length:-1,
       ntier: (typeof window.__ntier==='number')?window.__ntier:null, nconf: window.__nconf||null, crNTier: window.__crNTier||null, crNTier3: window.__crNTier3||null,
@@ -3213,6 +3213,9 @@ window.__stEmaAuto = /[?&]stema=auto/.test(location.search);
 window.__stEmaK = (function(){ const m=/[?&]stemak=([-0-9.]+)/.exec(location.search); return m?+m[1]:-0.02143; })();
 window.__stEmaB = (function(){ const m=/[?&]stemab=([-0-9.]+)/.exec(location.search); return m?+m[1]:0.19643; })();
 window.__lpWorldN = (function(){ const m=/[?&]lpworld=(\d+)/.exec(location.search); return m?+m[1]:0; })();   // ★2026-09-24 a_5619 오라클 이분: 앞점 EMA(0.35s)+6m/s 제한이 순수추적 진동의 근본 원인(규칙 앞점 되먹임 sc55→raw 1.65/분) → 기본 RAW. 평활은 ?lpsm=1 로만.
+window.__PGEY = (function(){ const m=/[?&]pgey=([0-9.,]+)/.exec(location.search); return m? m[1].split(',').map(Number) : null; })();   // u_5759
+window.__PGEP = (function(){ const m=/[?&]pgep=([0-9.,]+)/.exec(location.search); return m? m[1].split(',').map(Number) : null; })();
+window.__PGRID = (function(){ const m=/[?&]pgrid=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();   // u_5763
 window.__PERTURB_S = (function(){ const m=/[?&]perturb=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();
 /* ★가상 데이터 샘플러(오너 u_5467, 2026-09-20): 주행하지 않고 상태를 무작위로 놓는다. ?synth=1 이면 SYNTH_MS 마다 경로 위 임의 점에
    차로 오프셋 −6~+6m·방향 오차 −40~+40°·속도 0~30m/s 로 차를 재배치 → driveAuto 가 그 자리에서 낼 조향(__da.st)과 교사 속도 제어가
@@ -5426,6 +5429,50 @@ function loop(t){
        오드는 반대 차로로 흘러간 뒤 못 돌아왔다(k=6~8 실측 반대차로 40~50%). ?perturb=<초> 면 그 주기로 0.6~1.2초 동안 조향을
        ±0.35~0.7 로 덮어쓴다(DART 식). 라벨은 여전히 교사 정답(T.compute)이라 '밀려나는 동안 되돌리는 조향'이 기록된다.
        속도 3m/s 이상·회전 200m 밖·앞차 30m 밖일 때만(사고 유발 방지). /tel perturbN, perturbOn. */
+    /* u_5763 PERTURBATION GRID: the old ?perturb= applies a random STEER nudge, so the resulting
+       (offset, heading) is uncontrolled - that is deviation VOLUME without deviation VARIETY.
+       ?pgrid=<s> instead PLACES the car at an exact lateral offset and heading error drawn from a
+       grid cell, then lets the rule recover while every frame is labelled. The recovery trajectory
+       is the target, so we record until |ey|<0.2m AND |epsi|<2deg (cap 5s), never truncating early.
+       Cell is reported in /tel as pgCell so the collector can count grid coverage. */
+    if(window.__PGRID>0){ try{
+      const G=window.__pg||(window.__pg={t:0,on:0,left:0,cell:null,rec:0});
+      const g2=(T&&T.dbg2)||{}, D2=(T&&T.dbg)||{};
+      G.t+=dt;
+      /* u_5759 STAGE 1 slice: prove the axis on the smallest useful grid before growing it.
+         ?pgey= / ?pgep= override the cells so later stages add offsets/headings without a rebuild. */
+      const EY=window.__PGEY||[0.6,1.2], EP=window.__PGEP||[10,20];
+      /* u_5759: the turn guard (aD<200m) blocks almost every trigger on short scoped routes - a
+         corner is nearly always within 200m. Relax to 60m: far enough to avoid perturbing INTO a
+         turn, close enough that cells actually fill. Lead-car guard kept (collision safety). */
+      if(!G.on && G.t>=window.__PGRID && me.v>3 && !((typeof g2.aD==='number') && g2.aD<60) && !((typeof D2.gap==='number') && D2.gap<30)){
+        const iy=Math.floor(Math.random()*EY.length), ip=Math.floor(Math.random()*EP.length), sg=(Math.random()<0.5?-1:1);
+        const ey=EY[iy]*sg, ep=EP[ip]*Math.PI/180*sg;
+        const lat=(g2&&typeof g2.lat==='number')?g2.lat:0;          // current signed offset from lane centre
+        const dlat=ey-lat;
+        me.x += -Math.sin(me.ang)*dlat*S; me.y += Math.cos(me.ang)*dlat*S; me.ang += ep;
+        G.on=1; G.left=5.0; G.t=0; G.rec=0;
+        G.cell=EY[iy]+'/'+EP[ip]+'/'+(sg>0?'R':'L');
+        window.__pgN=(window.__pgN|0)+1; window.__pgCell=G.cell;
+      }
+      if(G.on){
+        G.left-=dt;
+        /* u_5763 fix: there is no g2.rang, and /tel geo is only computed at telemetry time (not per
+           frame), so compute the same two quantities inline from the nearest road segment - the same
+           source geo uses. ey = signed lateral offset from lane centre, epsi = heading vs road. */
+        let _ey=9, _ep=9;
+        try{
+          let _n=(typeof routeSeg==='function')?routeSeg(me.x,me.y):null;
+          if(!_n||_n.d>_n.s.roadW*0.6) _n=nearestSeg(me.x,me.y);
+          if(_n){ const _sg=_n.s; const _d0=((me.ang-_sg.ang+Math.PI*3)%(Math.PI*2))-Math.PI; const _dir=Math.abs(_d0)<=Math.PI/2?1:-1;
+            _ey=Math.abs(((me.x-_n.px)*-Math.sin(_sg.ang)+(me.y-_n.py)*Math.cos(_sg.ang))/S*_dir);
+            _ep=Math.abs(((me.ang-_sg.ang+Math.PI*3)%(Math.PI*2))-Math.PI); if(_dir<0) _ep=Math.abs(Math.PI-_ep);
+          }
+        }catch(e){}
+        if((_ey<0.2 && _ep<2*Math.PI/180) || G.left<=0){ G.on=0; G.t=0; window.__pgCell=null; }
+      }
+      window.__pgOn=G.on;
+    }catch(e){} }
     if(window.__PERTURB_S>0){ try{
       const P=window.__pt||(window.__pt={t:0,on:0,left:0,sgn:1});
       const g=(T&&T.dbg2)||{}, D=(T&&T.dbg)||{};

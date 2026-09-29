@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 가상 상태 샘플링 수집(오너 u_5467, 2026-09-20). ?synth=1: 150ms 마다 경로 위 임의 상태 → 프레임+라벨(X-Lbl) 푸시. 주행·교란·진행 판정 없음.
 # 사용: bash collect_synth.sh <시작라운드=400> <라운드수=6> [초=600]  → data/dagger_r<r>/
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive

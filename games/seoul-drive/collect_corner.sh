@@ -3,8 +3,8 @@
 # 사용: bash collect_corner.sh [시작라운드=3300] [에피소드=40] [초=90]
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive
 source "$(dirname "$0")/chrome_guard.sh"; chrome_guard "$(basename "$0")" || exit 9
-source "$(dirname "$0")/park_page.sh"; trap park_page EXIT
-source "$(dirname "$0")/pagelock.sh"; lock_page "collect_corner" || { echo "PAGE BUSY - abort"; exit 9; }; trap unlock_page EXIT
+source "$(dirname "$0")/park_page.sh"; arm_park_trap   # u_5765: EXIT+INT+TERM+HUP
+source "$(dirname "$0")/pagelock.sh"; lock_page "collect_corner" || { echo "PAGE BUSY - abort"; exit 9; }; trap 'park_page; unlock_page' EXIT INT TERM HUP   # u_5765 fix3: one trap does BOTH (a second trap ... EXIT was silently replacing the park trap)
 export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6 L12=0 M_EXT=1 ODE_ENV=0 LAB=1 STORE_RES=256 CORNER_W=2.0 CORNER_W_SEC=3
 NT=/Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/notify_telegram.py
 r=${1:-3300}; N=${2:-40}; SECS=${3:-90}; done=0; tot=0; tries=0; boost=0

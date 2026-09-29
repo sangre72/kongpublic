@@ -4,8 +4,8 @@
 # 사용: bash collect_lab.sh <시작라운드=2700> <에피소드수=60> [초=90]
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive; export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6 L12=0 M_EXT=1 ODE_ENV=0 LAB=1 STORE_RES=256
 source "$(dirname "$0")/chrome_guard.sh"; chrome_guard "$(basename "$0")" || exit 9
-source "$(dirname "$0")/park_page.sh"; trap park_page EXIT
-source "$(dirname "$0")/pagelock.sh"; lock_page "$(basename "$0")" || { echo "PAGE BUSY - abort (see PLAN_ODE standing rule)"; exit 9; }; trap unlock_page EXIT
+source "$(dirname "$0")/park_page.sh"; arm_park_trap   # u_5765: EXIT+INT+TERM+HUP
+source "$(dirname "$0")/pagelock.sh"; lock_page "$(basename "$0")" || { echo "PAGE BUSY - abort (see PLAN_ODE standing rule)"; exit 9; }; trap 'park_page; unlock_page' EXIT INT TERM HUP   # u_5765 fix3: one trap does BOTH (a second trap ... EXIT was silently replacing the park trap)
 NT=/Users/bumsuklee/git/kong-bot/telegram_bot/orchestrator/scripts/notify_telegram.py; r=${1:-2700}; N=${2:-60}; SECS=${3:-90}; done=0; tot=0; tries=0
 while [ $done -lt $N ] && [ $tries -lt $((N*3)) ]; do tries=$((tries+1))
   [ "$(df -g / | tail -1 | awk '{print $4}')" -lt 30 ] && { echo "DISK<30GB stop"; python3 $NT "[오드 라벨 수집] 디스크 30GB 미만 → 정지" >/dev/null 2>&1; break; }

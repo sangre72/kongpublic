@@ -3,7 +3,7 @@
 cd "$(dirname "$0")"
 source "$(dirname "$0")/chrome_guard.sh"; chrome_guard "$(basename "$0")" || exit 9
 source "$(dirname "$0")/park_page.sh"; trap park_page EXIT
-source "$(dirname "$0")/pagelock.sh"; lock_page "$(basename "$0")" || { echo "PAGE BUSY - abort (see PLAN_ODE standing rule)"; exit 9; }; trap unlock_page EXIT
+source "$(dirname "$0")/pagelock.sh"; lock_page "$(basename "$0")" || { echo "PAGE BUSY - abort (see PLAN_ODE standing rule)"; exit 9; }; trap 'park_page; unlock_page' EXIT INT TERM HUP   # u_5765 fix3: one trap does BOTH (a second trap ... EXIT was silently replacing the park trap)
 python3 - <<'PY'
 import json,subprocess,sys
 cs=json.load(open('regression_cases.json'))['cases']

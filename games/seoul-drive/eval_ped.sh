@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 보행자 회피 회귀(2026-09-22): 3구간×300초, 무단횡단 배율 ?jay=N. 사용: bash eval_ped.sh <model.pt> <round0> "<extra url params>" <tag>
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive
 export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6

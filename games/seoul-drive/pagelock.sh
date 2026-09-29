@@ -1,6 +1,6 @@
 # 서울드라이브 공용 페이지 락 (MUST — 2026-09-27 orch). 주행 스크립트는 반드시 이 락을 잡고 돈다.
 # 획득 실패 = 조용히 진행 금지, 즉시 종료. 근거: 체인 3개 동시 실행으로 다수 런이 frames 0(무효)인데 측정된 것처럼 보고될 뻔했다.
-# 사용: source pagelock.sh ; lock_page "<name>" || exit 9 ; trap unlock_page EXIT
+# 사용: source pagelock.sh ; lock_page "<name>" || exit 9 ; trap 'park_page; unlock_page' EXIT INT TERM HUP   # u_5765 fix3: one trap does BOTH (a second trap ... EXIT was silently replacing the park trap)
 LOCK=${PAGE_LOCK:-/tmp/.seoul_drive_page.lock}
 lock_page(){ local me="$1" n=0 owner opid
   while :; do

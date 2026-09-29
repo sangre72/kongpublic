@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 아침 2단계: train_morning.sh 끝난 뒤 새 지도(oneway 연속성·왕복 짝수 기본값) 빌드 → 회귀 9구간 → 충정로7길 서소문로 캡처 → 텔레그램
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive
 export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8

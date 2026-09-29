@@ -24,6 +24,7 @@ LPNET = None   # --lp 조향 모델(T0 전용)
 LPST = {'lp': 0, 'rule': 0, 'hold': 0, 'maxT': 0}   # 프레임 배정 집계·T0 연속 카운터·이양 최대 등급
 TIER = None   # 관제망(--tier)
 import numpy as np, torch
+_PGC = []   # u_5759 per-frame perturbation-grid cell (None when not perturbing)
 _DLT = []   # u_5753 module-level: (delta_rad, applied_st_normalised) for the same frame
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -174,6 +175,7 @@ def episode(net, dev, secs, ep):
                 if isinstance(_lb.get('v'), (int, float)): d['v'] = float(_lb['v'])
                 LABEL_SRC[0] = 'frame-hdr'
                 if isinstance(_lb.get('dlt'), (int, float)): _DLT.append((float(_lb['dlt']), st))   # u_5753
+            _PGC.append(d.get('pgCell'))   # u_5759: which grid cell this frame belongs to
         except Exception:
             pass
         x = preprocess(f, device=dev)[None]
@@ -392,6 +394,7 @@ def main():
         print(json.dumps({'err': 'no frames collected'})); return
     X = np.concatenate(AX); Y = np.concatenate(AY)
     if _DLT: np.save('/Users/bumsuklee/.claude/jobs/ccf4ec97/tmp/dlt_check.npy', np.array(_DLT, np.float64))
+    if _PGC: np.save(f'{outd}/PG.npy', np.array(_PGC, dtype=object), allow_pickle=True)   # u_5759 grid cell per frame
     np.save(f'{outd}/X.npy', X); np.save(f'{outd}/Y.npy', Y)
     np.save(f'{outd}/W.npy', np.concatenate(AW))     # 프레임 가중치(u_5426) — 없으면 학습기는 전부 1 로 본다
     np.save(f'{outd}/M.npy', np.concatenate(AM))     # 상황 태그(u_5427) — 단계별(커리큘럼) 프레임 선별용

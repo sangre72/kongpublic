@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # a_5598 COMMON collector(2026-09-23): 전 지도 무작위 구간(search.js road 이름 쌍, 1.5~5km, 홀드아웃 청크+이웃 제외) + ?perturb=6 조향 교란 → 규칙 주행(dagger --model none) L12 라벨.
 # 사용: bash collect_random.sh <시작라운드=2000> <에피소드수=60> [초=90]   → data/dagger_r<r>/ (X Y W M P Q L T + L.npy 12열)
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive; export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6 L12=1 M_EXT=1 ODE_ENV=0

@@ -1,4 +1,5 @@
 #!/bin/bash
+source /Users/bumsuklee/git/kong-bot/games/seoul-drive/park_page.sh; arm_park_trap   # u_5765: park on ANY exit
 # 8점 가상 재수집(r1300+) 종료 후: mp3(COND=9 차로의도) · mp3c8(COND=8) 동시 학습(u_5555 GPU 병행) → CoreML → GPU 파이프라인 T0 3구간×300초 평가 → 텔레그램. 대기는 파일 마커만(pgrep 자기매치 금지).
 cd /Users/bumsuklee/git/kong-bot/games/seoul-drive
 export LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 PYTHONIOENCODING=utf-8 ODE_CROP=0.6
