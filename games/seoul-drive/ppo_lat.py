@@ -21,6 +21,7 @@ import gpu_guard
 CTL, TEL = 'http://localhost:8901/ctl', 'http://localhost:8901/tel'
 DEV = gpu_guard.require_gpu()
 LP_MAX = float(os.environ.get('LP_MAX', '1.5'))   # u_5770: was 3.0 = wider than the lane; policy self-terminated      # action range, metres of lateral offset
+ENT_C = float(os.environ.get('ENT_C', '0.01'))   # u_5771 entropy coefficient
 LP_RATE = float(os.environ.get('LP_RATE_RL', '2.0')) # m/s rate limit on the commanded offset
 def tel():
     try:
@@ -88,7 +89,13 @@ def main():
     import capture as C   # module-level grab_canvas(), not a class
     from net import preprocess
     pol = Policy(a.init, a.k).to(DEV); gpu_guard.assert_on_gpu(pol)
-    opt = torch.optim.Adam(pol.parameters(), a.lr)
+    # u_5771: log_std needs its OWN lr. Measured: at lr 3e-5, four updates cap log_std movement at
+    #   0.00012 => std changes by 0.01%. It was never 'pinned by a bug' - it was rate-limited. The
+    #   policy gradient is healthy (~2.2 after return normalisation) so only the std lr is raised.
+    _std_lr = float(os.environ.get('STD_LR', '1e-2'))
+    _others = [p_ for n_, p_ in pol.named_parameters() if n_ != 'log_std']
+    opt = torch.optim.Adam([{'params': _others, 'lr': a.lr},
+                            {'params': [pol.log_std], 'lr': _std_lr}])
     print(json.dumps({'init': a.init, 'loaded_tensors': pol.loaded, 'w': a.w,
                       'action': 'lateral_offset', 'lp_max': LP_MAX, 'lp_rate': LP_RATE}), flush=True)
     best = -1e9
@@ -155,25 +162,39 @@ def main():
             print(json.dumps({'iter': it, 'skip': 'few steps', 'n': n}), flush=True); continue
         R = np.zeros(n, np.float32); acc = 0.0
         for i in range(n - 1, -1, -1): acc = buf_r[i] + 0.99 * acc; R[i] = acc
-        Rt = torch.tensor(R, device=DEV); Vt = torch.tensor(buf_val, dtype=torch.float32, device=DEV)
+        # u_5771 ROOT CAUSE of the flat curve: returns reach -110 (250 steps x ~-1.2, gamma .99), so
+        #   the value head starting near 0 gives an initial value loss ~6700. That term dominated the
+        #   update - measured policy grad norm 115-605 vs log_std grad 0.10-0.26 (~1000x). Neither the
+        #   policy nor the std could move. Normalise returns so the value loss is O(1).
+        Rt = torch.tensor(R, device=DEV)
+        r_mu, r_sd = Rt.mean(), Rt.std() + 1e-6
+        Rt = (Rt - r_mu) / r_sd
+        Vt = torch.tensor(buf_val, dtype=torch.float32, device=DEV)
         adv = Rt - Vt; adv = (adv - adv.mean()) / (adv.std() + 1e-6)
         X = torch.cat(buf_x).to(DEV); V = torch.cat(buf_v).to(DEV)
         A = torch.tensor(buf_a, dtype=torch.float32, device=DEV).unsqueeze(1)
         OLD = torch.tensor(buf_lp, dtype=torch.float32, device=DEV)
+        gn_pi = []; gn_std = []
         for _ in range(4):
             mu, val = pol(X, V); std = pol.log_std.exp()
             lp_new = (-0.5 * ((A - mu) / std) ** 2 - pol.log_std - 0.5 * math.log(2 * math.pi)).sum(1)
             ratio = (lp_new - OLD).exp()
             l_pi = -torch.min(ratio * adv, ratio.clamp(0.8, 1.2) * adv).mean()
             l_v = ((val.squeeze(1) - Rt) ** 2).mean()
-            loss = l_pi + 0.5 * l_v
+            # u_5771: entropy bonus (was absent). Also record grad norms so a pinned std is visible.
+            ent = (0.5 + 0.5 * math.log(2 * math.pi) + pol.log_std).sum()
+            loss = l_pi + 0.5 * l_v - ENT_C * ent
             opt.zero_grad(); loss.backward()
-            nn.utils.clip_grad_norm_(pol.parameters(), 1.0); opt.step()
+            _gp = torch.nn.utils.clip_grad_norm_([p_ for n_, p_ in pol.named_parameters() if n_ != 'log_std'], 1.0)
+            _gs = float(pol.log_std.grad.norm()) if pol.log_std.grad is not None else 0.0
+            gn_pi.append(float(_gp)); gn_std.append(_gs)
+            opt.step()
         g = prev.get('geo') or {}
         out = dict(iter=it, n=n, ep_r=round(ep_r, 1), mean_r=round(ep_r / n, 3),
                    ey_end=(round(abs(float(g['ey'])), 3) if isinstance(g.get('ey'), (int, float)) else None),
                    prog=round(float(prev.get('prog') or 0) * 100, 1),
-                   drive_share=round(drive_n / max(1, tot_n), 3), std=round(float(pol.log_std.exp().item()), 3))
+                   drive_share=round(drive_n / max(1, tot_n), 3), std=round(float(pol.log_std.exp().item()), 4),
+                   gn_pi=round(float(np.mean(gn_pi)), 4) if gn_pi else None, gn_std=round(float(np.mean(gn_std)), 6) if gn_std else None)
         if ep_r > best: best = ep_r; torch.save(pol.state_dict(), a.out); out['saved'] = True
         print(json.dumps(out), flush=True)
     print(json.dumps({'done': a.out, 'best_ep_r': round(best, 1)}), flush=True)
