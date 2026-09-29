@@ -9,12 +9,20 @@
       "symptom": "path_audit offset jump -4.88 -> +4.88 (9.76m lateral flip) at node 4865811294; every route through this junction is GATE-SKIPped",
       "impact": "consumed most of one collection attempt budget; 마방로 appeared 48x in a single run log",
       "measured": {
-        "data6_record": {"l": 2, "o": false, "ld": 1, "od": 1, "hc": "tertiary"},
+        "data6_record": {
+          "l": 2,
+          "o": false,
+          "ld": 1,
+          "od": 1,
+          "hc": "tertiary"
+        },
         "neighbours": "all 마방로 segments (37400312, 521770128, 522326435) identical l:2 o:false ld:1 od:1",
         "reading": "lanes AND oneway are both extractor DEFAULTS (ld:1/od:1 = untagged), not OSM values. A 2-lane two-way default puts lane 1 at +/-4.88m, so the router flips lane side across the junction and path_audit sees a 9.76m jump."
       },
       "fix_candidate": "verify real lanes/oneway for 마방로 in the pbf and tag explicitly; if genuinely untagged, apply the even-lane rule for untagged two-way roads (cf workflow §9) so lane 1 does not sit 4.88m off centre",
-      "status": "open - NOT yet verified against the pbf (osmium not installed on this machine)"
+      "status": "VERIFIED against pbf 2026-09-29 (osmium 1.19.1 installed)",
+      "pbf_tags": "highway=tertiary, name=마방로, name:en=Mabang-ro, name:ko-Latn=Mabanggil. NO lanes tag, NO oneway tag - both were extractor defaults, confirming the data6 reading (ld:1 od:1).",
+      "fix": "untagged two-way tertiary -> even lane count so lane 1 does not sit 4.88m off centre (workflow rule 9: untagged two-way default must be EVEN). Not yet applied - needs re-extract + restage + regression, which contends with the GPU."
     }
   ]
 }
