@@ -50,6 +50,23 @@ def main():
     rng = np.random.default_rng(a.seed); torch.manual_seed(a.seed)
     dirs = [d for p in a.dirs.split(',') for d in sorted(glob.glob(p))]
     R = runs_of(dirs, a.k)
+    # u_5751: restrict to the 35/35/30 balanced index if present (the road-deficit phase
+    # over-collected arterial, which became the LARGEST raw class - training on the raw pool
+    # would re-introduce the very skew the mix requirement exists to prevent).
+    mixf = os.environ.get('MIX_INDEX', 'data/train_index_mix.json')
+    if os.path.exists(mixf):
+        mix = json.load(open(mixf))
+        allow = set()
+        for k, v in mix.items():
+            for d, r in v: allow.add((d, int(r)))
+        R2 = []
+        for d, r in R:
+            keep = np.array([i for i in r if (d, int(i)) in allow], dtype=r.dtype)
+            if len(keep) >= 16:
+                for seg in np.split(keep, np.where(np.diff(keep) != 1)[0] + 1):
+                    if len(seg) >= 16: R2.append((d, seg))
+        print(json.dumps({'mix_index': mixf, 'runs_before': len(R), 'runs_after': len(R2)}), flush=True)
+        R = R2
     if not R: print(json.dumps({'error': 'no runs'})); return
     rng.shuffle(R); cut = max(1, int(len(R) * 0.9)); TR, VA = R[:cut], R[cut:]
     nf = sum(len(r) for _, r in R)
