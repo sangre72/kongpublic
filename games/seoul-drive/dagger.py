@@ -71,7 +71,10 @@ def episode(net, dev, secs, ep):
     """한 에피소드: 모델이 몰고 교사 라벨을 모은다. (frames, stats)"""
     post({'tgt': 0, 'mode': 1, 'dOff': 0.0, 'vT': -1, 'lp': 0.0})   # ★에피소드마다 목표 인터페이스 상태 초기화(서버 _ctl 은 프로세스 간 잔존)
     LPST['lp'] = 0; LPST['rule'] = 0; LPST['hold'] = 0
-    if net is None and not PIPE: post({'reset': 1, 'on': 0, 'force': 0, 'release': 1, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 리셋만, 모델 OFF
+    RECORD_ONLY = os.environ.get('RECORD_ONLY') == '1'   # u_5759 DAgger: another process (gpu_drive) is driving.
+    #   Record frames + /tel TRUE geometry labels WITHOUT touching the control interface, so the
+    #   on-policy states the driver visits are captured exactly as they occur.
+    if net is None and not PIPE and not RECORD_ONLY: post({'reset': 1, 'on': 0, 'force': 0, 'release': 1, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 리셋만, 모델 OFF
     else: post({'reset': 1, 'on': 1, 'force': 1, 'release': 0})   # 소프트리셋 + 모델 강제 ON
     time.sleep(1.5)
     X, Y = [], []
@@ -85,7 +88,7 @@ def episode(net, dev, secs, ep):
     LK = {'n': 0, 'on': 0, 'off': 0, 'lat': 0.0, 'err': 0.0, 'outlane': 0}
     LABEL_SRC = ['teacher']   # ★2026-09-20 차선유지 지표. lat=도로중심선 기준 부호 오프셋, off=교사 목표차로 오프셋 → |lat−off| 가 차로 오차
     t0 = time.time()
-    if net is None and not PIPE: post({'on': 0, 'force': 0, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 모델 조작 해제 → GEOM/교사가 몬다(안 그러면 drv=MODEL 에 명령 없음 → v=0·순간이동 연쇄)
+    if net is None and not PIPE and not RECORD_ONLY: post({'on': 0, 'force': 0, 'steer': 0, 'thr': 0, 'brake': 0})   # 교사 주행: 모델 조작 해제 → GEOM/교사가 몬다(안 그러면 drv=MODEL 에 명령 없음 → v=0·순간이동 연쇄)
     d0 = tel() or {}
     p_start = float(d0.get('prog') or 0)
     cr0 = int(d0.get('cr') or 0)
@@ -383,7 +386,7 @@ def main():
                     print(json.dumps({'corner_w_err': str(e)[:80]}), flush=True)
                 AX.append(X); AY.append(Y); AW.append(Wt); AM.append(Mt); AP.append(Pt); AQ.append(Qt); AL.append(Lt); AT.append(Tt)
     finally:
-        post({'on': 0, 'steer': 0, 'thr': 0, 'brake': 0})
+        if os.environ.get('RECORD_ONLY') != '1': post({'on': 0, 'steer': 0, 'thr': 0, 'brake': 0})
 
     if not AX:
         print(json.dumps({'err': 'no frames collected'})); return

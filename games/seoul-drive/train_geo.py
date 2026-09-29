@@ -36,6 +36,11 @@ def load(dirs):
         idx = np.where(ok)[0]
         if len(idx) == 0: continue
         Y = (L[idx, :12] / SCALE).astype(np.float32); V = (Yf[idx, 3] / 30.0).astype(np.float32).reshape(-1, 1); W = (np.where(np.abs(L[idx, 0]) > 0.4, 0.5, 1.0) * np.where(L[idx, 7] >= 3, float(os.environ.get('WIDE_W', '2.0')), 1.0)).astype(np.float32)   # A': 대로(진행방향 ≥4차로) 프레임 가중 WIDE_W
+        # u_5762: ON-POLICY weighting. r37xx frames are states the MODEL drove into, where its own
+        #   geometry error is 2.7x larger (ey .432 vs .160, measured). At 13% of the corpus one DAgger
+        #   round was too dilute to teach recovery. ONPOL_W scales those frames' loss weight.
+        _opw = float(os.environ.get('ONPOL_W', '1'))
+        if _opw != 1.0 and '/dagger_r37' in d: W = (W * _opw).astype(np.float32)
         plan.append((d, idx, Y, V, W)); print(json.dumps({'dir': d.split('/')[-1], 'total': len(X), 'kept': int(len(idx)), 'ey_std': round(float(L[idx, 0].std()), 3), 'perturbed%': round(100 * float((np.abs(L[idx, 0]) > 0.4).mean()), 1)}), flush=True)
     if not plan: return None
     class LazyX:
