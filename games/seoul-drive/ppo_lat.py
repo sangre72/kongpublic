@@ -20,7 +20,13 @@ from net import DriveNet
 import gpu_guard
 CTL, TEL = 'http://localhost:8901/ctl', 'http://localhost:8901/tel'
 DEV = gpu_guard.require_gpu()
-LP_MAX = float(os.environ.get('LP_MAX', '1.5'))   # u_5770: was 3.0 = wider than the lane; policy self-terminated      # action range, metres of lateral offset
+LP_MAX = float(os.environ.get('LP_MAX', '0.5'))   # u_5772: capped during the blend phase (owner (a))   # u_5770: was 3.0 = wider than the lane; policy self-terminated      # action range, metres of lateral offset
+DELTA_CLIP0 = float(os.environ.get('DELTA_CLIP', '0.3'))   # u_5772 initial residual clip (m)
+DELTA_CLIP = DELTA_CLIP0   # module-level: read in the step loop, rescheduled in main   # u_5772 initial residual clip (m)
+WIDEN_AT = float(os.environ.get('WIDEN_AT', '-0.45'))      # widen only when mean_r over last N beats this
+WIDEN_N = int(os.environ.get('WIDEN_N', '10'))
+STD_MAX = float(os.environ.get('STD_MAX', '0.5'))   # u_5772 hard cap on policy std
+STD_TGT = float(os.environ.get('STD_TGT', '0.35'))  # entropy rewarded only below this
 ENT_C = float(os.environ.get('ENT_C', '0.01'))   # u_5771 entropy coefficient
 LP_RATE = float(os.environ.get('LP_RATE_RL', '2.0')) # m/s rate limit on the commanded offset
 def tel():
@@ -98,7 +104,11 @@ def main():
                             {'params': [pol.log_std], 'lr': _std_lr}])
     print(json.dumps({'init': a.init, 'loaded_tensors': pol.loaded, 'w': a.w,
                       'action': 'lateral_offset', 'lp_max': LP_MAX, 'lp_rate': LP_RATE}), flush=True)
+    global DELTA_CLIP   # u_5772: rescheduled per episode; read in the step loop
     best = -1e9
+    DELTA_CLIP = DELTA_CLIP0
+    recent = []   # u_5772 mean_r history for competence-gated widening
+    surv = []     # survival flags (full-length episode?)
     ROUTE = (os.environ.get('RL_FROM', ''), os.environ.get('RL_TO', ''))
     def reset_episode():
         """u_5770 fix2: the loop never reset between iterations, so every episode STARTED wherever
@@ -124,7 +134,7 @@ def main():
         if not d0:
             print(json.dumps({'iter': it, 'abort': 'no telemetry'}), flush=True); break
         prev = d0; buf_x = []; buf_v = []; buf_a = []; buf_lp = []; buf_r = []; buf_val = []
-        ep_r = 0.0; lp_cmd = 0.0; drive_n = 0; tot_n = 0; t_last = time.time()
+        ep_r = 0.0; lp_cmd = 0.0; drive_n = 0; tot_n = 0; t_last = time.time(); dmag = []
         fbuf = []
         for _ in range(a.steps):
             f = C.grab_canvas()
@@ -140,11 +150,21 @@ def main():
                 std = pol.log_std.exp()
                 act = torch.normal(mu, std)
                 logp = (-0.5 * ((act - mu) / std) ** 2 - pol.log_std - 0.5 * math.log(2 * math.pi)).sum()
-            raw = float(act.item())
+            # u_5772 RESIDUAL BLEND: action is the RULE's own 20m lateral command PLUS a small policy
+            #   delta. Rationale (measured u_5771): a randomly-initialised head drove into buildings in
+            #   <2s on 53 of 65 episodes, so PPO never collected usable experience. Starting from the
+            #   rule guarantees survivable rollouts; the delta clip widens only on MEASURED competence.
+            _g = (prev.get('geo') or {})
+            _lc = _g.get('lc') if isinstance(_g.get('lc'), list) else None
+            rule_lp = float(_lc[1]) if (_lc and isinstance(_lc[1], (int, float))) else 0.0
+            delta = max(-DELTA_CLIP, min(DELTA_CLIP, float(act.item()) * DELTA_CLIP))
+            raw = rule_lp + delta
             now = time.time(); dt = max(1e-3, now - t_last); t_last = now
             lim = LP_RATE * dt
             new_cmd = max(lp_cmd - lim, min(lp_cmd + lim, raw))   # (1) rate-limited
+            new_cmd = max(-LP_MAX, min(LP_MAX, new_cmd))
             dlp = new_cmd - lp_cmd; lp_cmd = new_cmd
+            dmag.append(abs(delta))
             # model steers only; speed + Layer-1 stay with the rule (no thr/brake posted)
             post({'on': 1, 'force': 1, 'tgt': 1, 'mode': 2, 'lp': lp_cmd, 'ld': -1, 'vT': -1})
             tot_n += 1; drive_n += 1
@@ -182,7 +202,12 @@ def main():
             l_pi = -torch.min(ratio * adv, ratio.clamp(0.8, 1.2) * adv).mean()
             l_v = ((val.squeeze(1) - Rt) ** 2).mean()
             # u_5771: entropy bonus (was absent). Also record grad norms so a pinned std is visible.
-            ent = (0.5 + 0.5 * math.log(2 * math.pi) + pol.log_std).sum()
+            # u_5772 fix: an entropy BONUS with no counterweight inflates std without bound - measured
+            #   .368 -> 1.35 over 31 episodes while mean_r stayed flat, i.e. it bought noise, not
+            #   exploration. Hard-clamp log_std and reward entropy only BELOW a target std.
+            with torch.no_grad(): pol.log_std.clamp_(math.log(0.05), math.log(STD_MAX))
+            ent = torch.clamp((0.5 + 0.5*math.log(2*math.pi) + pol.log_std).sum(),
+                              max=float(0.5 + 0.5*math.log(2*math.pi) + math.log(STD_TGT)))
             loss = l_pi + 0.5 * l_v - ENT_C * ent
             opt.zero_grad(); loss.backward()
             _gp = torch.nn.utils.clip_grad_norm_([p_ for n_, p_ in pol.named_parameters() if n_ != 'log_std'], 1.0)
@@ -195,6 +220,18 @@ def main():
                    prog=round(float(prev.get('prog') or 0) * 100, 1),
                    drive_share=round(drive_n / max(1, tot_n), 3), std=round(float(pol.log_std.exp().item()), 4),
                    gn_pi=round(float(np.mean(gn_pi)), 4) if gn_pi else None, gn_std=round(float(np.mean(gn_std)), 6) if gn_std else None)
+        # u_5772 (1): widen the residual clip ONLY on measured competence, never on wall-clock.
+        recent.append(out['mean_r']); recent[:] = recent[-WIDEN_N:]
+        surv.append(1 if n >= a.steps else 0); surv[:] = surv[-WIDEN_N:]
+        if len(recent) == WIDEN_N and (sum(recent) / WIDEN_N) > WIDEN_AT and DELTA_CLIP < LP_MAX:
+            DELTA_CLIP = min(LP_MAX, DELTA_CLIP * 1.5); recent.clear()
+            out['WIDENED_to'] = round(DELTA_CLIP, 3)
+        # u_5772 (2): a blend is not a result until the policy share is stated.
+        out['delta_clip'] = round(DELTA_CLIP, 3)
+        out['delta_mag'] = round(float(np.mean(dmag)), 4) if dmag else 0.0
+        out['policy_share'] = round(float(np.mean(dmag)) / max(1e-6, abs(out['delta_mag']) + abs(lp_cmd)), 3) if dmag else 0.0
+        out['survive'] = 1 if n >= a.steps else 0
+        out['surv_rate'] = round(sum(surv) / len(surv), 2) if surv else 0.0
         if ep_r > best: best = ep_r; torch.save(pol.state_dict(), a.out); out['saved'] = True
         print(json.dumps(out), flush=True)
     print(json.dumps({'done': a.out, 'best_ep_r': round(best, 1)}), flush=True)
