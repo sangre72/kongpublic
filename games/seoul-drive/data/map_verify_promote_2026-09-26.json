@@ -1,0 +1,845 @@
+{
+ "current": {
+  "file": "games/seoul-drive/data/data6_prev_2026-09-26.js",
+  "mb": 10.05,
+  "chunks": 279,
+  "records": 34400,
+  "ways": 30544,
+  "fields": {
+   "ld": 31459,
+   "pc": 7615,
+   "od": 20541,
+   "lk": 1538,
+   "oc": 21,
+   "tl": 196,
+   "lf": 128,
+   "lb": 125,
+   "ol": 9
+  }
+ },
+ "staged": {
+  "file": "games/seoul-drive/data/data6.js",
+  "mb": 10.09,
+  "chunks": 279,
+  "records": 34400,
+  "ways": 30544,
+  "fields": {
+   "od": 25735,
+   "ld": 31422,
+   "pc": 7615,
+   "lk": 1984,
+   "oc": 22,
+   "tl": 196,
+   "lf": 99,
+   "lb": 99,
+   "ol": 3
+  }
+ },
+ "ways_only_current": [],
+ "ways_only_staged": [],
+ "ways_only_current_n": 0,
+ "ways_only_staged_n": 0,
+ "changed_ways_n": 38,
+ "changed_by_why": {
+  "asym": 7,
+  "link-not-flipped(stricter rule)": 6,
+  "sym-fields-dropped": 23,
+  "other": 2
+ },
+ "changed_ways": [
+  {
+   "w": 516163750,
+   "n": "후암로",
+   "why": "asym",
+   "before": {
+    "l": 5,
+    "o": false,
+    "lf": 3,
+    "lb": null
+   },
+   "after": {
+    "l": 5,
+    "o": false,
+    "lf": 3,
+    "lb": 2,
+    "rv": null
+   }
+  },
+  {
+   "w": 579996456,
+   "n": "",
+   "why": "link-not-flipped(stricter rule)",
+   "before": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1125785345,
+   "n": "",
+   "why": "link-not-flipped(stricter rule)",
+   "before": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1206396058,
+   "n": "청계산로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 6,
+    "o": false,
+    "lf": 3,
+    "lb": 3
+   },
+   "after": {
+    "l": 6,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1219896736,
+   "n": "",
+   "why": "link-not-flipped(stricter rule)",
+   "before": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 781985788,
+   "n": "소공로",
+   "why": "asym",
+   "before": {
+    "l": 10,
+    "o": false,
+    "lf": 7,
+    "lb": 4
+   },
+   "after": {
+    "l": 10,
+    "o": false,
+    "lf": 6,
+    "lb": 4,
+    "rv": null
+   }
+  },
+  {
+   "w": 46676454,
+   "n": "동일로",
+   "why": "other",
+   "before": {
+    "l": 3,
+    "o": true,
+    "lf": 3,
+    "lb": 4
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1221350594,
+   "n": "아차산로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 4,
+    "o": false,
+    "lf": 2,
+    "lb": 2
+   },
+   "after": {
+    "l": 4,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1203134260,
+   "n": "동남로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 6,
+    "o": false,
+    "lf": 3,
+    "lb": 3
+   },
+   "after": {
+    "l": 6,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1206937730,
+   "n": "자양로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 8,
+    "o": false,
+    "lf": 4,
+    "lb": 4
+   },
+   "after": {
+    "l": 8,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1206937734,
+   "n": "자양로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 6,
+    "o": false,
+    "lf": 3,
+    "lb": 3
+   },
+   "after": {
+    "l": 6,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1206937737,
+   "n": "자양로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 6,
+    "o": false,
+    "lf": 3,
+    "lb": 3
+   },
+   "after": {
+    "l": 6,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1194885341,
+   "n": "석촌호수로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 4,
+    "o": false,
+    "lf": 2,
+    "lb": 2
+   },
+   "after": {
+    "l": 4,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1194885342,
+   "n": "석촌호수로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 4,
+    "o": false,
+    "lf": 2,
+    "lb": 2
+   },
+   "after": {
+    "l": 4,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 546735168,
+   "n": "봉천로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 6,
+    "o": false,
+    "lf": 3,
+    "lb": 3
+   },
+   "after": {
+    "l": 6,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1495438664,
+   "n": "봉천로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 6,
+    "o": false,
+    "lf": 3,
+    "lb": 3
+   },
+   "after": {
+    "l": 6,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 37403049,
+   "n": "동남로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 6,
+    "o": false,
+    "lf": 3,
+    "lb": 3
+   },
+   "after": {
+    "l": 6,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1175635373,
+   "n": "중대로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 8,
+    "o": false,
+    "lf": 4,
+    "lb": 4
+   },
+   "after": {
+    "l": 8,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 158659440,
+   "n": "독서당로62길",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": 1,
+    "lb": 1
+   },
+   "after": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 477958936,
+   "n": "탄천동로",
+   "why": "asym",
+   "before": {
+    "l": 4,
+    "o": false,
+    "lf": 2,
+    "lb": 1
+   },
+   "after": {
+    "l": 3,
+    "o": false,
+    "lf": 2,
+    "lb": 1,
+    "rv": null
+   }
+  },
+  {
+   "w": 1209091717,
+   "n": "새말로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 10,
+    "o": false,
+    "lf": 5,
+    "lb": 5
+   },
+   "after": {
+    "l": 10,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1229028256,
+   "n": "자양로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 6,
+    "o": false,
+    "lf": 3,
+    "lb": 3
+   },
+   "after": {
+    "l": 6,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1339655669,
+   "n": "후암로",
+   "why": "asym",
+   "before": {
+    "l": 5,
+    "o": false,
+    "lf": 3,
+    "lb": null
+   },
+   "after": {
+    "l": 5,
+    "o": false,
+    "lf": 3,
+    "lb": 2,
+    "rv": null
+   }
+  },
+  {
+   "w": 1339655670,
+   "n": "소월로2길",
+   "why": "asym",
+   "before": {
+    "l": 5,
+    "o": false,
+    "lf": 2,
+    "lb": null
+   },
+   "after": {
+    "l": 5,
+    "o": false,
+    "lf": 2,
+    "lb": 3,
+    "rv": null
+   }
+  },
+  {
+   "w": 383097714,
+   "n": "소공로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 10,
+    "o": false,
+    "lf": 5,
+    "lb": 5
+   },
+   "after": {
+    "l": 10,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 383097722,
+   "n": "소공로",
+   "why": "asym",
+   "before": {
+    "l": 10,
+    "o": false,
+    "lf": 7,
+    "lb": 4
+   },
+   "after": {
+    "l": 10,
+    "o": false,
+    "lf": 6,
+    "lb": 4,
+    "rv": null
+   }
+  },
+  {
+   "w": 1175034871,
+   "n": "중대로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 6,
+    "o": false,
+    "lf": 3,
+    "lb": 3
+   },
+   "after": {
+    "l": 6,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1175034873,
+   "n": "양재대로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 4,
+    "o": false,
+    "lf": 2,
+    "lb": 2
+   },
+   "after": {
+    "l": 4,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 369339719,
+   "n": "",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": 1,
+    "lb": 1
+   },
+   "after": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 520474628,
+   "n": "동일로",
+   "why": "other",
+   "before": {
+    "l": 4,
+    "o": true,
+    "lf": 4,
+    "lb": 3
+   },
+   "after": {
+    "l": 4,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1243077201,
+   "n": "",
+   "why": "link-not-flipped(stricter rule)",
+   "before": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1243077202,
+   "n": "노량진로17길",
+   "why": "link-not-flipped(stricter rule)",
+   "before": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1206509393,
+   "n": "청계산로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 4,
+    "o": false,
+    "lf": 2,
+    "lb": 2
+   },
+   "after": {
+    "l": 4,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1206509395,
+   "n": "청계산로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 4,
+    "o": false,
+    "lf": 2,
+    "lb": 2
+   },
+   "after": {
+    "l": 4,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1206509396,
+   "n": "청계산로",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 4,
+    "o": false,
+    "lf": 2,
+    "lb": 2
+   },
+   "after": {
+    "l": 4,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 867821853,
+   "n": "올림픽로35길",
+   "why": "sym-fields-dropped",
+   "before": {
+    "l": 4,
+    "o": false,
+    "lf": 2,
+    "lb": 2
+   },
+   "after": {
+    "l": 4,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1198651840,
+   "n": "자양로",
+   "why": "asym",
+   "before": {
+    "l": 8,
+    "o": false,
+    "lf": 3,
+    "lb": 4
+   },
+   "after": {
+    "l": 7,
+    "o": false,
+    "lf": 3,
+    "lb": 4,
+    "rv": null
+   }
+  },
+  {
+   "w": 913833410,
+   "n": "",
+   "why": "link-not-flipped(stricter rule)",
+   "before": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  }
+ ],
+ "asym_in_pack": [
+  37928434,
+  70998387,
+  70998406,
+  170277501,
+  183895356,
+  218684411,
+  218781558,
+  218839804,
+  218899417,
+  218923156,
+  219125068,
+  226903454,
+  248406289,
+  383097722,
+  416631524,
+  420334155,
+  424940172,
+  477958936,
+  481322513,
+  516163750,
+  516725212,
+  521182515,
+  522435828,
+  523746967,
+  615657920,
+  664993813,
+  781985788,
+  909242353,
+  919243261,
+  921258631,
+  921278928,
+  921278930,
+  1103078933,
+  1151103605,
+  1172694264,
+  1175034867,
+  1175034872,
+  1175034875,
+  1175635374,
+  1175635375,
+  1175635378,
+  1175635379,
+  1175635381,
+  1175635384,
+  1175929590,
+  1175929592,
+  1175929593,
+  1175929594,
+  1175929595,
+  1193259445,
+  1196780726,
+  1198651835,
+  1198651839,
+  1198651840,
+  1203134247,
+  1203134249,
+  1203134256,
+  1203134261,
+  1204410871,
+  1206509399,
+  1206509400,
+  1206937720,
+  1206937721,
+  1206937723,
+  1206937724,
+  1206937725,
+  1206937727,
+  1206937731,
+  1206937735,
+  1206937736,
+  1208044050,
+  1210200076,
+  1210200077,
+  1212179975,
+  1221350591,
+  1221350593,
+  1221350622,
+  1221350624,
+  1288681867,
+  1288681868,
+  1339655668,
+  1339655669,
+  1339655670,
+  1346384393,
+  1346384395,
+  1378751412,
+  1465558148,
+  1499619438
+ ],
+ "asym_in_pack_n": 88,
+ "links_flipped_in_pack": [
+  913174022,
+  1214479814,
+  1243077198
+ ],
+ "links_flipped_in_pack_n": 3,
+ "links_reversed_in_pack": [],
+ "asym_bad_n": 0,
+ "asym_bad": [],
+ "overlap": {
+  "pairs_current": 14044,
+  "pairs_staged": 14044,
+  "new_pairs": 0,
+  "gone_pairs": 0,
+  "new_pairs_involving_changed_ways": 0,
+  "new_pairs_list": [],
+  "new_pairs_involving_changed_ways_list": []
+ },
+ "PASS": true
+}

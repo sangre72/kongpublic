@@ -3026,7 +3026,7 @@ function mdlPoll(dt){
       mdlTgt: window.__mdlTgt||null,
       tgt2N: window.__tgt2N|0,
       camErr: +((((me.ang+Math.PI/2)-camA+Math.PI*3)%(Math.PI*2))-Math.PI).toFixed(4),   /* a_5619: 화면 위(camA) 대비 차 헤딩 기울기(rad, 카메라 회전 지연) — 화면 기준 기하를 차 기준으로 돌릴 때 */
-      stEma: window.__stEma||0, stEmaAuto: window.__stEmaAuto?1:0, stTau: window.__stTau||null, stEmaN: window.__stEmaN|0, lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0, lpwN: window.__lpwN|0, lpwFit: (typeof window.__lpwFit==='number')?+window.__lpwFit.toFixed(2):null, lpwIn: (typeof window.__lpwIn==='number')?+window.__lpwIn.toFixed(2):null, lpwBuf: (window.__lpwBuf||[]).length,
+      lblN:(window.__lblLog||[]).length, stEma: window.__stEma||0, stEmaAuto: window.__stEmaAuto?1:0, stTau: window.__stTau||null, stEmaN: window.__stEmaN|0, lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0, lpwN: window.__lpwN|0, lpwFit: (typeof window.__lpwFit==='number')?+window.__lpwFit.toFixed(2):null, lpwIn: (typeof window.__lpwIn==='number')?+window.__lpwIn.toFixed(2):null, lpwBuf: (window.__lpwBuf||[]).length,
       lhold: window.__lhold|0, bridgeN: window.__bridgeN|0, revOw: window.__revOw|0, startSideSwap: window.__startSideSwap||null, outOfScope: window.__outOfScope|0, scopeDbg: window.__scopeDbg||null, offBlendN: window.__offBlendN|0, rfRampN: window.__rfRampN|0, unwindN: window.__unwindN|0, unwindFrames: window.__uwFrames|0, unwindMaxRate: +(window.__uwMaxRate||0).toFixed(2), unwindXtHold: window.__uwXtHold|0, unwindOn: window.__uwOn|0, rfRampLd: window.__rfRampLd||null, rfRampCfg: window.__noRamp?null:[window.__rfRamp0,window.__rfRampS,window.__rfRampCap,window.__rfRampVtx],
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
       perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
@@ -3204,6 +3204,7 @@ window.__lpTau = (function(){ const m=/[?&]lptau=([0-9.]+)/.exec(location.search
 window.__lpRawMode = !(/[?&]lpsm=1/.test(location.search) || /[?&]lptau=/.test(location.search));
 if(!/[?&]ramp=1/.test(location.search)) window.__noRamp=1;   // 규칙 코너램프 기본 OFF(2026-09-26 충정로 실측: 반전 동일·차선물기 5→10) — ?ramp=1 로만
 try{ const _q=new URLSearchParams(location.search); window.__rfRamp0=+(_q.get('ramp0')||12); window.__rfRampS=+(_q.get('ramps')||2.5)*1000; window.__rfRampCap=+(_q.get('rampcap')||1.5); window.__rfRampVtx=+(_q.get('rampvtx')||15); }catch(e){ window.__rfRamp0=12; window.__rfRampS=2500; window.__rfRampCap=1.5; window.__rfRampVtx=15; }   // orch 단계4 스펙: Ld 12→Ld0 over 2.5s, 이양창 조향율 ≤1.5/s; 정점 판정 = __turnXY 15m 진입→이탈
+window.__lblChk = /[?&]lblchk=1/.test(location.search);   // u_5753
 window.__stEma = (function(){ const m=/[?&]stema=([0-9.]+)/.exec(location.search); return m?+m[1]:0; })();   // u_5744 적용조향 EMA 시정수(s). 0=끔. ?stema=0.1 (replay: 반전 1268.9→184.5/분, 지연=tau=100ms)
 /* u_5746 속도 스케줄 tau: 고정 0.1 은 골목만 이득(sc 17.4→8.2)이고 2차로는 악화(13.8→26.4), 간선은 코너
    횡오차가 4.4배(1.03→4.50) — 100ms 지연이 빠른 도로에서 늦은 턴인으로 나온다. 앵커 2점(4.5m/s→0.10s,
@@ -3559,6 +3560,12 @@ function driveAuto(dt){
     }
   }catch(e){}
   const maxSteer=.62;
+  /* u_5753 label-integrity probe (?lblchk=1): record, on the SAME tick and BEFORE clamping,
+     the follower's own delta (rad) and the steer that will be applied (normalised = delta/maxSteer).
+     This is the direct measurement that replaces the geometry proxy. */
+  window.__daDelta = delta;   // u_5753: follower's own delta (rad), same tick, pre-clamp
+  if(window.__lblChk){ (window.__lblLog=window.__lblLog||[]).push([+delta.toFixed(5), +(delta/maxSteer).toFixed(5), +(auto.xt||0).toFixed(3), +me.v.toFixed(2)]);
+    if(window.__lblLog.length>20000) window.__lblLog.shift(); }
   { let _st=Math.max(-.9,Math.min(.9, delta/maxSteer));
     if(!window.__noRamp && window.__rfRampT && (performance.now()-window.__rfRampT)<2000){ const _lim=window.__rfRampCap*dt; _st=Math.max(me.steer-_lim, Math.min(me.steer+_lim, _st)); }   // 이양/코너 진출 창 2s: 조향 변화율 ≤1.5/s
     /* ★u_5676 UNWIND(오너 모델 '핸들을 되감는다'): 정점 통과 후 일정 시간 동안 조향 '크기'는 줄어들기만 한다.
@@ -3592,6 +3599,7 @@ function driveAuto(dt){
       const _p=(typeof window.__stPrev==='number')?window.__stPrev:_st;
       _st=_p+(_st-_p)*_a; window.__stPrev=_st; window.__stEmaN=(window.__stEmaN|0)+1;
     } else window.__stPrev=_st;
+    if(window.__lblChk && window.__lblLog && window.__lblLog.length){ const _e=window.__lblLog[window.__lblLog.length-1]; _e.push(+_st.toFixed(5), +me.steer.toFixed(5)); }
     me.steer=_st; }
   // 5) 속도
   /* ★보행자 제동을 경로주행에도 넣는다(ar_5057 지적).
@@ -5519,7 +5527,7 @@ function loop(t){
       const _pt1 = performance.now();
       let _lbl='';
       try{ const T=window.__teach, L=(T&&T.last)||{}, D=window.__da||{};
-           _lbl=JSON.stringify({vmax:(typeof D.vmax==='number')?+D.vmax.toFixed(2):null, lp:(typeof D.lp==='number')?D.lp:null, ld:(typeof D.ld==='number')?D.ld:null, lpm:window.__lpm||null, lfm:window.__lfm||null, st:(typeof D.st==='number')?+D.st.toFixed(4):null, th:(typeof L.thr==='number')?+L.thr.toFixed(4):null, br:(typeof L.brake==='number')?+L.brake.toFixed(4):null, v:+me.v.toFixed(3), synth:window.__synth?1:0, n:window.__synthN|0}); }catch(e){}
+           _lbl=JSON.stringify({dlt:(typeof window.__daDelta==='number')?+window.__daDelta.toFixed(5):null, vmax:(typeof D.vmax==='number')?+D.vmax.toFixed(2):null, lp:(typeof D.lp==='number')?D.lp:null, ld:(typeof D.ld==='number')?D.ld:null, lpm:window.__lpm||null, lfm:window.__lfm||null, st:(typeof D.st==='number')?+D.st.toFixed(4):null, th:(typeof L.thr==='number')?+L.thr.toFixed(4):null, br:(typeof L.brake==='number')?+L.brake.toFixed(4):null, v:+me.v.toFixed(3), synth:window.__synth?1:0, n:window.__synthN|0}); }catch(e){}
       fetch('/frame', {method:'POST', body:_u8, cache:'no-store', headers:{'Content-Type':'image/jpeg', 'X-Lbl':_lbl, 'X-LabOff':String(_labOff)}})
         .then(()=>{ window.__pushN=(window.__pushN|0)+1; const D=window.__frPush=window.__frPush||{blobMs:0,postMs:0,kb:0,n:0}; D.n++; D.blobMs+=_pt1-_pt0; D.postMs+=performance.now()-_pt1; D.kb+=u8.length/1024; })
         .catch(()=>{}).finally(()=>{ window.__pushBusy = 0; });

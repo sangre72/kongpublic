@@ -1,0 +1,20 @@
+{
+  "note": "In-scope (Gangnam+Songpa) map defects to fix in the EXTRACTOR on the next map pass. u_5744.",
+  "defects": [
+    {
+      "id": "mabang-521770128",
+      "way": 521770128,
+      "name": "마방로",
+      "found": "2026-09-29 L12 collection (u_5744)",
+      "symptom": "path_audit offset jump -4.88 -> +4.88 (9.76m lateral flip) at node 4865811294; every route through this junction is GATE-SKIPped",
+      "impact": "consumed most of one collection attempt budget; 마방로 appeared 48x in a single run log",
+      "measured": {
+        "data6_record": {"l": 2, "o": false, "ld": 1, "od": 1, "hc": "tertiary"},
+        "neighbours": "all 마방로 segments (37400312, 521770128, 522326435) identical l:2 o:false ld:1 od:1",
+        "reading": "lanes AND oneway are both extractor DEFAULTS (ld:1/od:1 = untagged), not OSM values. A 2-lane two-way default puts lane 1 at +/-4.88m, so the router flips lane side across the junction and path_audit sees a 9.76m jump."
+      },
+      "fix_candidate": "verify real lanes/oneway for 마방로 in the pbf and tag explicitly; if genuinely untagged, apply the even-lane rule for untagged two-way roads (cf workflow §9) so lane 1 does not sit 4.88m off centre",
+      "status": "open - NOT yet verified against the pbf (osmium not installed on this machine)"
+    }
+  ]
+}

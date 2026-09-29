@@ -14,7 +14,8 @@
    "expect": {
     "tpN": 0,
     "blkStuck": 0
-   }
+   },
+   "scope": "out"
   },
   {
    "id": "leftturn-lane1-충정로7길",
@@ -29,7 +30,8 @@
     "tpN": 0,
     "blkCenter": 0,
     "blkStuck": 0
-   }
+   },
+   "scope": "out"
   },
   {
    "id": "uturn-kturn-신촌역",
@@ -44,7 +46,8 @@
    "expect": {
     "tpN": 0,
     "blkStuck": 0
-   }
+   },
+   "scope": "out"
   },
   {
    "id": "rightturn-tl-소공로",
@@ -60,7 +63,8 @@
    "expect": {
     "cr": 0,
     "blkCenter": 0
-   }
+   },
+   "scope": "out"
   },
   {
    "id": "ghost-ped-송정12바길",
@@ -76,7 +80,8 @@
     "cr": 0,
     "tpN": 0
    },
-   "note": " | 2026-09-19 sx 출발이 간헐적으로 v=0 정지+옆차도(xt 6.5)로 시작해 허위 실패(batch6/11/12) → 이름 출발 240s(사고 지점 m≈2444 는 통과 못 할 수 있음, 유령충돌 자체는 batch1 sx 재현 0사고로 확인됨)"
+   "note": " | 2026-09-19 sx 출발이 간헐적으로 v=0 정지+옆차도(xt 6.5)로 시작해 허위 실패(batch6/11/12) → 이름 출발 240s(사고 지점 m≈2444 는 통과 못 할 수 있음, 유령충돌 자체는 batch1 sx 재현 0사고로 확인됨)",
+   "scope": "out"
   },
   {
    "id": "mergewait-latch-만리재로16안길",
@@ -92,7 +97,8 @@
     "tpN": 0,
     "blkStuck": 0,
     "cr": 0
-   }
+   },
+   "scope": "out"
   },
   {
    "id": "start-building-기아자동차강남지점",
@@ -107,7 +113,8 @@
    "expect": {
     "cr": 0,
     "tpN": 0
-   }
+   },
+   "scope": "out"
   },
   {
    "id": "chunk-missing-언주로",
@@ -122,7 +129,8 @@
    "expect": {
     "cr": 0,
     "min_driven_m": 1500
-   }
+   },
+   "scope": "out"
   },
   {
    "id": "alley-corner-대흥로20안길",
@@ -139,7 +147,8 @@
     "cr": 0,
     "min_driven_m": 150
    },
-   "note": "2026-09-19 batch23: 시작 35m 안 164° 헤어핀(골목 폴리라인) — K턴 미발동(단일 꼭짓점 148° 기준)·곡률 상한 vmax 0. 누적 런 K턴/경로 회피 전까지 실패 예상"
+   "note": "2026-09-19 batch23: 시작 35m 안 164° 헤어핀(골목 폴리라인) — K턴 미발동(단일 꼭짓점 148° 기준)·곡률 상한 vmax 0. 누적 런 K턴/경로 회피 전까지 실패 예상",
+   "scope": "out"
   },
   {
    "id": "width-jump-만리재로16안길",
@@ -155,7 +164,8 @@
     "cr": 0,
     "tpN": 0,
     "min_driven_m": 2500
-   }
+   },
+   "scope": "out"
   },
   {
    "id": "lanehold-기아강남",
@@ -170,7 +180,8 @@
     "cr": 0,
     "tpN": 0,
     "min_driven_m": 2000
-   }
+   },
+   "scope": "out"
   },
   {
    "id": "model-zigzag-사평대로",
@@ -186,7 +197,8 @@
     "cr": 0,
     "tpN": 1
    },
-   "note": "2026-09-23 model T1 zigzag: rule amp0.24/rev2.8 vs model 1.0-1.4/28-49; pass = amp_p95<=0.35 rev<=6/min"
+   "note": "2026-09-23 model T1 zigzag: rule amp0.24/rev2.8 vs model 1.0-1.4/28-49; pass = amp_p95<=0.35 rev<=6/min",
+   "scope": "out"
   },
   {
    "id": "start-uturn-마포대로",
@@ -202,7 +214,8 @@
     "cr": 0,
     "tpN": 1
    },
-   "note": "오프라인 복제(cases/route_u5642_replica.py)로 재현: 출발 후보는 정상(마포대로 3.3m align 1.00) → 출발 스냅 문제 아님"
+   "note": "오프라인 복제(cases/route_u5642_replica.py)로 재현: 출발 후보는 정상(마포대로 3.3m align 1.00) → 출발 스냅 문제 아님",
+   "scope": "out"
   },
   {
    "id": "u5671_mapo_median_reversal",
@@ -218,7 +231,8 @@
     "cr": 0,
     "tpN": 1
    },
-   "note": "watch wpDbg.turnRuns[0]/uspanList/rtLeftBan/startBack/startRelax. sx,sy 는 미터"
+   "note": "watch wpDbg.turnRuns[0]/uspanList/rtLeftBan/startBack/startRelax. sx,sy 는 미터",
+   "scope": "out"
   },
   {
    "id": "u5671_mapo_median_reversal_full",
@@ -234,7 +248,8 @@
     "cr": 0,
     "tpN": 1
    },
-   "note": "startSideSwap 적용 후 기대 6202m·되돌기 소멸"
+   "note": "startSideSwap 적용 후 기대 6202m·되돌기 소멸",
+   "scope": "out"
   },
   {
    "id": "u5682_banggogae",
@@ -249,7 +264,25 @@
     "cr": 0,
     "tpN": 2
    },
-   "note": "측정: sc/amp, 코너 sr vs 규칙, tp, 법규(cause 태그), lane_continuity 점프 목록. 승격 전/후 둘 다 ★2026-09-27: 오너 표기 방고개로14길은 지도·pbf 에 없다(전국 방고개* 전부 서울 밖). 실제 구간은 밤고개로14길(밤/방 오타) — 이 이름으로 측정해야 결과가 나온다."
+   "note": "측정: sc/amp, 코너 sr vs 규칙, tp, 법규(cause 태그), lane_continuity 점프 목록. 승격 전/후 둘 다 ★2026-09-27: 오너 표기 방고개로14길은 지도·pbf 에 없다(전국 방고개* 전부 서울 밖). 실제 구간은 밤고개로14길(밤/방 오타) — 이 이름으로 측정해야 결과가 나온다.",
+   "scope": "in"
+  },
+  {
+   "id": "u5709_jagok_building_wedge",
+   "from": "자곡로",
+   "to": "개포로136길",
+   "secs": 180,
+   "extra_qs": "&sx=30139&sy=3192",
+   "symptom": "u_5709: 도착 직전(prog 99.8%) 건물에 차가 박힌 채 '건물 충돌'이 ~2초마다 무한 반복(누적 1,172회), v=0, tier T2. 수집기 미가동이라 기록은 안 됐다",
+   "cause": "미규명 — (a) 99.8%에서 도착 판정이 안 됨 (b) 건물 끼임 탈출이 없어 같은 자리 충돌이 무한 집계",
+   "fix": "미해결 — 도착 판정 + 끼임 탈출. 별도로 /ctl park=1 과 스크립트 종료 시 주차는 적용 완료",
+   "found": "2026-09-28",
+   "expect": {
+    "cr": 3,
+    "tpN": 2
+   },
+   "note": "좌표는 미터(wpDbg.car 규약). 같은 자리 반복 충돌 >5 면 게이트가 걸러야 한다",
+   "scope": "out"
   }
  ],
  "_note_expect": "보행자 돌발은 매 판 무작위로 생겨 cr 로 고정 판정하면 회귀가 아닌데도 실패한다. 구조적 결함(복귀·갇힘·중앙선)만 기대값으로 둔다."

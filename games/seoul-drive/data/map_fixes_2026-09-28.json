@@ -1,0 +1,6396 @@
+{
+ "date": "2026-09-28 00:33",
+ "pbf": "data/osm_src/south-korea.osm.pbf",
+ "bbox": [
+  37.3901,
+  126.7445,
+  37.7315,
+  127.2088
+ ],
+ "opt": {
+  "asym": true,
+  "link": true,
+  "cone": true,
+  "minor_oneway": true
+ },
+ "formula": {
+  "LW": 3.25,
+  "center_offset_m": "c = (lb - lf) * LW / 2  (OSM 축에서, 진행방향 오른쪽 +)",
+  "forward_lane_k_center": "c + (k + 0.5) * LW",
+  "backward_lane_k_center": "c - (k + 0.5) * LW"
+ },
+ "counts": {
+  "asym_ways": 300,
+  "asym_records": 300,
+  "link_oneway": 11,
+  "link_oneway_reversed": 3,
+  "link_oneway_dir_unverified": 4,
+  "link_skipped_overlap": 33,
+  "link_skipped_total": 118,
+  "lane_fixes_total": 2631
+ },
+ "asym": [
+  {
+   "w": 37400102,
+   "n": "",
+   "hc": "service",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 37928434,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 70998387,
+   "n": "양재대로",
+   "hc": "primary",
+   "before": {
+    "l": 10,
+    "lf": 5,
+    "lb": 5,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 10,
+    "lf": 4,
+    "lb": 6,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 70998406,
+   "n": "양재대로",
+   "hc": "tertiary",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 3,
+    "lb": 1,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 86165645,
+   "n": "신흥로",
+   "hc": "residential",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 96328778,
+   "n": "장제로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 168369487,
+   "n": "광운로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 170277501,
+   "n": "한강대로21길",
+   "hc": "residential",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 183895331,
+   "n": "안암로",
+   "hc": "primary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 2,
+    "lb": 4,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 183895356,
+   "n": "지봉로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 218684411,
+   "n": "퇴계로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 218769263,
+   "n": "율곡로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 218781558,
+   "n": "무학로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 218798308,
+   "n": "망우로",
+   "hc": "primary",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 3,
+    "lb": 1,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 218839804,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 2,
+    "lb": 4,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 218899417,
+   "n": "중대로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 2,
+    "lb": 5,
+    "c_m": 4.88
+   }
+  },
+  {
+   "w": 218923156,
+   "n": "남대문로",
+   "hc": "secondary",
+   "before": {
+    "l": 8,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 8,
+    "lf": 5,
+    "lb": 3,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 218976035,
+   "n": "홍익로",
+   "hc": "secondary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 219125068,
+   "n": "소공로",
+   "hc": "primary",
+   "before": {
+    "l": 9,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 9,
+    "lf": 5,
+    "lb": 4,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 219137492,
+   "n": "여의대방로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 219141473,
+   "n": "여의나루로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 219693657,
+   "n": "여의서로",
+   "hc": "secondary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 220006399,
+   "n": "당산로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 220056923,
+   "n": "가좌로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 222134810,
+   "n": "신흥로",
+   "hc": "primary",
+   "before": {
+    "l": 8,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 8,
+    "lf": 5,
+    "lb": 3,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 225578496,
+   "n": "형제봉길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 226903454,
+   "n": "마조로",
+   "hc": "secondary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 248406289,
+   "n": "",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 264730672,
+   "n": "부천로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 269617887,
+   "n": "서부간선로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 276211453,
+   "n": "",
+   "hc": "secondary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 318700003,
+   "n": "관악대로",
+   "hc": "tertiary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 318705784,
+   "n": "동안로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 318705785,
+   "n": "학운교",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 333681708,
+   "n": "성미산로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 361732992,
+   "n": "서부간선로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 379072996,
+   "n": "포일로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 379072997,
+   "n": "",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 379883547,
+   "n": "서울시립대로8길",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 383097722,
+   "n": "소공로",
+   "hc": "primary",
+   "before": {
+    "l": 10,
+    "lf": 5,
+    "lb": 5,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 10,
+    "lf": 6,
+    "lb": 4,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 386770048,
+   "n": "소하로75번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 393310531,
+   "n": "무학로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 416631524,
+   "n": "장한로6길",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 420334155,
+   "n": "을지로39길",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 424940172,
+   "n": "남대문로",
+   "hc": "secondary",
+   "before": {
+    "l": 8,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 8,
+    "lf": 5,
+    "lb": 3,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 431904099,
+   "n": "노해로",
+   "hc": "secondary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 2,
+    "lb": 4,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 452574896,
+   "n": "여의대방로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 452574898,
+   "n": "여의대방로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 452574901,
+   "n": "여의대방로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 465315854,
+   "n": "마곡중앙8로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 465315856,
+   "n": "마곡동로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 465315857,
+   "n": "마곡중앙3로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 465481422,
+   "n": "마곡동로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 469900276,
+   "n": "하늘길",
+   "hc": "service",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 470096019,
+   "n": "소향로",
+   "hc": "tertiary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 477958936,
+   "n": "탄천동로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 478127196,
+   "n": "신흥로58번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 481322513,
+   "n": "중대로2길",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 481393628,
+   "n": "한천로",
+   "hc": "secondary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 2,
+    "lb": 4,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 482230732,
+   "n": "송내대로",
+   "hc": "tertiary",
+   "before": {
+    "l": 9,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 9,
+    "lf": 5,
+    "lb": 4,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 495779074,
+   "n": "마곡중앙6로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 495779075,
+   "n": "마곡중앙8로1길",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 503694940,
+   "n": "신림로",
+   "hc": "secondary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 4,
+    "lb": 2,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 503985000,
+   "n": "형제봉길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 516115172,
+   "n": "역말로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 516163750,
+   "n": "후암로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 516725212,
+   "n": "구의강변로",
+   "hc": "secondary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 517213069,
+   "n": "신정로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 517261866,
+   "n": "강서로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 517261868,
+   "n": "강서로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 517278714,
+   "n": "마곡중앙로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 517278715,
+   "n": "마곡중앙로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 517932075,
+   "n": "율곡로",
+   "hc": "primary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 2,
+    "lb": 4,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 520474599,
+   "n": "신정로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 520512703,
+   "n": "강서로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 520512722,
+   "n": "강서로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 521182515,
+   "n": "양녕로",
+   "hc": "primary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 4,
+    "lb": 2,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 521566093,
+   "n": "당산로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 521570049,
+   "n": "도신로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 522435828,
+   "n": "도곡로",
+   "hc": "secondary",
+   "before": {
+    "l": 9,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 9,
+    "lf": 6,
+    "lb": 3,
+    "c_m": -4.88
+   }
+  },
+  {
+   "w": 523746967,
+   "n": "올림픽로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 529240235,
+   "n": "강서로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 561249131,
+   "n": "서오릉로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 567935044,
+   "n": "",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 567935057,
+   "n": "다산지금로36번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 575108448,
+   "n": "판교역로",
+   "hc": "tertiary",
+   "before": {
+    "l": 9,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 9,
+    "lf": 5,
+    "lb": 4,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 581559132,
+   "n": "",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 581559133,
+   "n": "",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 582449915,
+   "n": "",
+   "hc": "service",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 607310998,
+   "n": "강서로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 611638138,
+   "n": "강서로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 611638139,
+   "n": "강서로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 615657920,
+   "n": "",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 629498810,
+   "n": "강서로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 664568631,
+   "n": "목동동로",
+   "hc": "secondary",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 3,
+    "lb": 1,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 664993813,
+   "n": "중대로2길",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 759806538,
+   "n": "미사강변대로54번길",
+   "hc": "service",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 781985788,
+   "n": "소공로",
+   "hc": "primary",
+   "before": {
+    "l": 10,
+    "lf": 5,
+    "lb": 5,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 10,
+    "lf": 6,
+    "lb": 4,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 796956148,
+   "n": "신흥로",
+   "hc": "residential",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 852259838,
+   "n": "범골로63번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 894810188,
+   "n": "매화산단로",
+   "hc": "unclassified",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 894810191,
+   "n": "매화산단2길",
+   "hc": "unclassified",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 908654523,
+   "n": "봉우재로",
+   "hc": "tertiary",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 1,
+    "lb": 3,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 908803250,
+   "n": "망우로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 4,
+    "lb": 1,
+    "c_m": -4.88
+   }
+  },
+  {
+   "w": 909242353,
+   "n": "양재대로",
+   "hc": "primary",
+   "before": {
+    "l": 10,
+    "lf": 5,
+    "lb": 5,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 10,
+    "lf": 4,
+    "lb": 6,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 914505502,
+   "n": "",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 915663099,
+   "n": "여의나루로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 915663101,
+   "n": "여의나루로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 919243261,
+   "n": "관악로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 921258631,
+   "n": "소공로",
+   "hc": "primary",
+   "before": {
+    "l": 9,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 9,
+    "lf": 6,
+    "lb": 3,
+    "c_m": -4.88
+   }
+  },
+  {
+   "w": 921278928,
+   "n": "논현로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 921278930,
+   "n": "논현로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 929197057,
+   "n": "포일로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 952092548,
+   "n": "마곡중앙로",
+   "hc": "secondary",
+   "before": {
+    "l": 8,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 8,
+    "lf": 3,
+    "lb": 5,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 952092550,
+   "n": "마곡중앙10로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 952092553,
+   "n": "마곡중앙로",
+   "hc": "secondary",
+   "before": {
+    "l": 9,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 9,
+    "lf": 4,
+    "lb": 5,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 952092554,
+   "n": "마곡중앙로",
+   "hc": "secondary",
+   "before": {
+    "l": 8,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 8,
+    "lf": 5,
+    "lb": 3,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 952092555,
+   "n": "마곡중앙로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 952092557,
+   "n": "마곡중앙로",
+   "hc": "secondary",
+   "before": {
+    "l": 8,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 8,
+    "lf": 3,
+    "lb": 5,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 952092558,
+   "n": "마곡중앙로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 952092559,
+   "n": "마곡중앙10로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 952092560,
+   "n": "마곡중앙10로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 952092561,
+   "n": "마곡동로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 952092562,
+   "n": "마곡동로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 952092563,
+   "n": "마곡동로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 952092566,
+   "n": "마곡중앙10로",
+   "hc": "tertiary",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 3,
+    "lb": 1,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 952092568,
+   "n": "마곡중앙10로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 952092570,
+   "n": "마곡중앙10로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 952092574,
+   "n": "마곡중앙10로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 952092575,
+   "n": "마곡중앙10로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 955432871,
+   "n": "마곡동로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 955432872,
+   "n": "마곡중앙8로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 955432873,
+   "n": "마곡중앙8로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 955432875,
+   "n": "마곡중앙8로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 955432880,
+   "n": "마곡중앙8로",
+   "hc": "tertiary",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 1,
+    "lb": 3,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 955432881,
+   "n": "마곡중앙8로",
+   "hc": "tertiary",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 1,
+    "lb": 3,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 955432882,
+   "n": "마곡중앙8로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 955432884,
+   "n": "마곡중앙8로",
+   "hc": "tertiary",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 1,
+    "lb": 3,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 955432885,
+   "n": "마곡중앙8로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 956671962,
+   "n": "마곡중앙3로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 974015799,
+   "n": "미사강변대로54번길",
+   "hc": "service",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 974015800,
+   "n": "미사강변대로54번길",
+   "hc": "service",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 974038935,
+   "n": "미사강변대로54번길",
+   "hc": "service",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1059829931,
+   "n": "경복대로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1061328140,
+   "n": "진건오남로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1061328143,
+   "n": "진건오남로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1061328147,
+   "n": "양지로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1061328154,
+   "n": "양지로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1074526418,
+   "n": "신정로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1074526420,
+   "n": "신정로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1074526421,
+   "n": "신정로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1086966267,
+   "n": "마곡서로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1103078933,
+   "n": "한강대로21길",
+   "hc": "residential",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1133136523,
+   "n": "안양천로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1148888338,
+   "n": "경춘로",
+   "hc": "primary",
+   "before": {
+    "l": 9,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 9,
+    "lf": 5,
+    "lb": 4,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1151103605,
+   "n": "천호대로78길",
+   "hc": "secondary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 2,
+    "lb": 4,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 1172694264,
+   "n": "탄천동로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1175034867,
+   "n": "중대로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1175034872,
+   "n": "중대로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1175034875,
+   "n": "탄천동로",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1175635374,
+   "n": "중대로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1175635375,
+   "n": "중대로8길",
+   "hc": "residential",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 4,
+    "lb": 2,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1175635378,
+   "n": "중대로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1175635379,
+   "n": "중대로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1175635381,
+   "n": "중대로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1175635384,
+   "n": "중대로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1175929590,
+   "n": "양재대로",
+   "hc": "primary",
+   "before": {
+    "l": 10,
+    "lf": 5,
+    "lb": 5,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 10,
+    "lf": 4,
+    "lb": 6,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 1175929592,
+   "n": "양재대로",
+   "hc": "primary",
+   "before": {
+    "l": 10,
+    "lf": 5,
+    "lb": 5,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 10,
+    "lf": 6,
+    "lb": 4,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1175929593,
+   "n": "양재대로",
+   "hc": "primary",
+   "before": {
+    "l": 10,
+    "lf": 5,
+    "lb": 5,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 10,
+    "lf": 6,
+    "lb": 4,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1175929594,
+   "n": "양재대로",
+   "hc": "primary",
+   "before": {
+    "l": 10,
+    "lf": 5,
+    "lb": 5,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 10,
+    "lf": 6,
+    "lb": 4,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1175929595,
+   "n": "양재대로",
+   "hc": "primary",
+   "before": {
+    "l": 10,
+    "lf": 5,
+    "lb": 5,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 10,
+    "lf": 4,
+    "lb": 6,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 1193259445,
+   "n": "뚝섬로",
+   "hc": "secondary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1196780726,
+   "n": "",
+   "hc": "service",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1198651835,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1198651839,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 8,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 8,
+    "lf": 3,
+    "lb": 5,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 1198651840,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1202456786,
+   "n": "부흥로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1203134247,
+   "n": "동남로",
+   "hc": "secondary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 2,
+    "lb": 4,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 1203134249,
+   "n": "동남로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1203134256,
+   "n": "동남로",
+   "hc": "secondary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 2,
+    "lb": 4,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 1203134261,
+   "n": "동남로",
+   "hc": "secondary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 2,
+    "lb": 4,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 1204410871,
+   "n": "중대로",
+   "hc": "secondary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 4,
+    "lb": 2,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1205266014,
+   "n": "망우로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 4,
+    "lb": 1,
+    "c_m": -4.88
+   }
+  },
+  {
+   "w": 1206509399,
+   "n": "청계산로",
+   "hc": "secondary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1206509400,
+   "n": "청계산로",
+   "hc": "secondary",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 1,
+    "lb": 3,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 1206937720,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1206937721,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1206937723,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1206937724,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1206937725,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1206937727,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1206937731,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 4,
+    "lb": 1,
+    "c_m": -4.88
+   }
+  },
+  {
+   "w": 1206937735,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1206937736,
+   "n": "자양로",
+   "hc": "primary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 4,
+    "lb": 2,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1208044050,
+   "n": "동남로",
+   "hc": "secondary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 4,
+    "lb": 2,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1210185371,
+   "n": "신흥로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1210187398,
+   "n": "서해안로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1210187399,
+   "n": "서해안로",
+   "hc": "secondary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1210200076,
+   "n": "뚝섬로",
+   "hc": "secondary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1210200077,
+   "n": "뚝섬로",
+   "hc": "secondary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1212179975,
+   "n": "청파로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1215044996,
+   "n": "위례순환로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1215044997,
+   "n": "위례순환로",
+   "hc": "tertiary",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 3,
+    "lb": 1,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1215044998,
+   "n": "위례순환로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1221350591,
+   "n": "구의강변로",
+   "hc": "secondary",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 3,
+    "lb": 1,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1221350593,
+   "n": "아차산로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1221350622,
+   "n": "구의강변로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1221350624,
+   "n": "구의강변로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1225040628,
+   "n": "홍유릉로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1227307720,
+   "n": "사가정로4길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1242295871,
+   "n": "동일로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1242295872,
+   "n": "동일로",
+   "hc": "primary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1288681867,
+   "n": "",
+   "hc": "service",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1288681868,
+   "n": "",
+   "hc": "service",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1301523168,
+   "n": "소하로75번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1302495774,
+   "n": "",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1302495775,
+   "n": "",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1302496979,
+   "n": "소하로109번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1302497923,
+   "n": "소하로109번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1310791474,
+   "n": "일신로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1312564931,
+   "n": "상동로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1312564933,
+   "n": "소향로",
+   "hc": "residential",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1312564937,
+   "n": "소향로",
+   "hc": "tertiary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 4,
+    "lb": 2,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1312564938,
+   "n": "소향로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1313988785,
+   "n": "하늘길",
+   "hc": "service",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1314077250,
+   "n": "지봉로143번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1314099775,
+   "n": "부일로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1314100044,
+   "n": "지봉로127번길",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1319139020,
+   "n": "도약로175번길",
+   "hc": "unclassified",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1321552082,
+   "n": "소향로",
+   "hc": "tertiary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1321552083,
+   "n": "소향로",
+   "hc": "tertiary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1321552084,
+   "n": "소향로",
+   "hc": "tertiary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1321552085,
+   "n": "소향로",
+   "hc": "tertiary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1321552086,
+   "n": "소향로",
+   "hc": "tertiary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1339655668,
+   "n": "후암로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1339655669,
+   "n": "후암로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1339655670,
+   "n": "소월로2길",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1346094994,
+   "n": "사가정로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1346115025,
+   "n": "사가정로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1346384390,
+   "n": "장안벚꽃로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1346384393,
+   "n": "장한로6길",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1346384395,
+   "n": "장한로6길",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1354413673,
+   "n": "여의나루로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1356387780,
+   "n": "소향로",
+   "hc": "tertiary",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 4,
+    "lb": 2,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1378751412,
+   "n": "잠원로3길",
+   "hc": "residential",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 3,
+    "lb": 1,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1382750312,
+   "n": "매화산단로",
+   "hc": "unclassified",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1382750313,
+   "n": "매화산단로",
+   "hc": "unclassified",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1382752685,
+   "n": "매화산단로",
+   "hc": "unclassified",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1382940017,
+   "n": "매화산단로",
+   "hc": "unclassified",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1382940019,
+   "n": "매화산단로",
+   "hc": "unclassified",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1382940021,
+   "n": "매화산단로",
+   "hc": "unclassified",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1384235763,
+   "n": "역말로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1413206574,
+   "n": "여의대방로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1422484537,
+   "n": "풍산로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1422484539,
+   "n": "풍산로",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1422484540,
+   "n": "미사강변한강로",
+   "hc": "tertiary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1432508676,
+   "n": "",
+   "hc": "secondary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1443489700,
+   "n": "경춘로",
+   "hc": "residential",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 3,
+    "lb": 2,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1443489701,
+   "n": "다산지금로36번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1443489702,
+   "n": "",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1443489703,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1443489705,
+   "n": "다산지금로36번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1443489707,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 1,
+    "lb": 3,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 1443489708,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1443489709,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1443489721,
+   "n": "경춘로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 4,
+    "lb": 3,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1443693030,
+   "n": "가운로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1443693033,
+   "n": "가운로1길",
+   "hc": "unclassified",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1443693035,
+   "n": "가운로1길",
+   "hc": "unclassified",
+   "before": {
+    "l": 4,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 4,
+    "lf": 1,
+    "lb": 3,
+    "c_m": 3.25
+   }
+  },
+  {
+   "w": 1443693038,
+   "n": "가운로1길",
+   "hc": "unclassified",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1443747779,
+   "n": "다산지금로145번길",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1452341663,
+   "n": "미금로",
+   "hc": "tertiary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1452407231,
+   "n": "",
+   "hc": "unclassified",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 4,
+    "lb": 2,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1452407233,
+   "n": "",
+   "hc": "unclassified",
+   "before": {
+    "l": 6,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 6,
+    "lf": 4,
+    "lb": 2,
+    "c_m": -3.25
+   }
+  },
+  {
+   "w": 1452407235,
+   "n": "",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1452407236,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1452407237,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1452407238,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1452407239,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1452407240,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1452407241,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1452407242,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1452407243,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1452407245,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1452407246,
+   "n": "다산지금로36번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1452407248,
+   "n": "경춘로476번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1452407249,
+   "n": "",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1452407250,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1452407251,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1452407253,
+   "n": "다산지금로16번길",
+   "hc": "residential",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 1,
+    "lb": 2,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1465558148,
+   "n": "소공로",
+   "hc": "primary",
+   "before": {
+    "l": 9,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 9,
+    "lf": 6,
+    "lb": 3,
+    "c_m": -4.88
+   }
+  },
+  {
+   "w": 1471954210,
+   "n": "여의대방로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1471954211,
+   "n": "여의대방로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1471954212,
+   "n": "여의대방로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1471954213,
+   "n": "여의대방로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 3,
+    "lb": 4,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1471954215,
+   "n": "여의대방로",
+   "hc": "primary",
+   "before": {
+    "l": 9,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 9,
+    "lf": 4,
+    "lb": 5,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1495356696,
+   "n": "모래내로",
+   "hc": "secondary",
+   "before": {
+    "l": 5,
+    "lf": 2,
+    "lb": 2,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 5,
+    "lf": 2,
+    "lb": 3,
+    "c_m": 1.62
+   }
+  },
+  {
+   "w": 1499619438,
+   "n": "소공로",
+   "hc": "primary",
+   "before": {
+    "l": 9,
+    "lf": 4,
+    "lb": 4,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 9,
+    "lf": 5,
+    "lb": 4,
+    "c_m": -1.62
+   }
+  },
+  {
+   "w": 1499936626,
+   "n": "율곡로",
+   "hc": "primary",
+   "before": {
+    "l": 7,
+    "lf": 3,
+    "lb": 3,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 7,
+    "lf": 5,
+    "lb": 2,
+    "c_m": -4.88
+   }
+  },
+  {
+   "w": 1524496954,
+   "n": "여의서로",
+   "hc": "secondary",
+   "before": {
+    "l": 3,
+    "lf": 1,
+    "lb": 1,
+    "note": "symmetric approx"
+   },
+   "after": {
+    "l": 3,
+    "lf": 2,
+    "lb": 1,
+    "c_m": -1.62
+   }
+  }
+ ],
+ "link_oneway": [
+  {
+   "w": 277530230,
+   "n": "",
+   "hc": "secondary_link",
+   "l": 2,
+   "L": 31,
+   "a": 298993747,
+   "b": 277530232,
+   "cos": [
+    0.04,
+    -0.66
+   ],
+   "reversed": true,
+   "dir_unverified": false,
+   "min_sep_m": null,
+   "before": {
+    "o": false
+   },
+   "after": {
+    "o": true,
+    "rv": 1,
+    "dq": 0
+   }
+  },
+  {
+   "w": 47702168,
+   "n": "",
+   "hc": "primary_link",
+   "l": 2,
+   "L": 42,
+   "a": 1491830065,
+   "b": 1491830066,
+   "cos": [
+    0.93,
+    0.84
+   ],
+   "reversed": false,
+   "dir_unverified": false,
+   "min_sep_m": 47.1,
+   "before": {
+    "o": false
+   },
+   "after": {
+    "o": true,
+    "rv": 0,
+    "dq": 0
+   }
+  },
+  {
+   "w": 1214479814,
+   "n": "",
+   "hc": "secondary_link",
+   "l": 2,
+   "L": 17,
+   "a": 516948898,
+   "b": 773066532,
+   "cos": [
+    -0.06,
+    -0.04
+   ],
+   "reversed": false,
+   "dir_unverified": true,
+   "min_sep_m": 6.0,
+   "before": {
+    "o": false
+   },
+   "after": {
+    "o": true,
+    "rv": 0,
+    "dq": 1
+   }
+  },
+  {
+   "w": 1243077198,
+   "n": "",
+   "hc": "primary_link",
+   "l": 2,
+   "L": 13,
+   "a": 1243077191,
+   "b": 1243077199,
+   "cos": [
+    0.04,
+    -0.11
+   ],
+   "reversed": false,
+   "dir_unverified": true,
+   "min_sep_m": 19.5,
+   "before": {
+    "o": false
+   },
+   "after": {
+    "o": true,
+    "rv": 0,
+    "dq": 1
+   }
+  },
+  {
+   "w": 931718065,
+   "n": "",
+   "hc": "motorway_link",
+   "l": 1,
+   "L": 15,
+   "a": 432726525,
+   "b": 154281644,
+   "cos": [
+    0.14,
+    0.18
+   ],
+   "reversed": false,
+   "dir_unverified": false,
+   "min_sep_m": 21.2,
+   "before": {
+    "o": false
+   },
+   "after": {
+    "o": true,
+    "rv": 0,
+    "dq": 0
+   }
+  },
+  {
+   "w": 913174022,
+   "n": "",
+   "hc": "primary_link",
+   "l": 2,
+   "L": 19,
+   "a": 1441657837,
+   "b": 515561251,
+   "cos": [
+    -0.01,
+    -0.01
+   ],
+   "reversed": false,
+   "dir_unverified": true,
+   "min_sep_m": 6.8,
+   "before": {
+    "o": false
+   },
+   "after": {
+    "o": true,
+    "rv": 0,
+    "dq": 1
+   }
+  },
+  {
+   "w": 456710483,
+   "n": "",
+   "hc": "primary_link",
+   "l": 2,
+   "L": 20,
+   "a": 277024479,
+   "b": 628737050,
+   "cos": [
+    1.0,
+    0.48
+   ],
+   "reversed": false,
+   "dir_unverified": false,
+   "min_sep_m": 39.5,
+   "before": {
+    "o": false
+   },
+   "after": {
+    "o": true,
+    "rv": 0,
+    "dq": 0
+   }
+  },
+  {
+   "w": 580149839,
+   "n": "",
+   "hc": "motorway_link",
+   "l": 2,
+   "L": 128,
+   "a": 580149842,
+   "b": 59055750,
+   "cos": [
+    0.99,
+    1.0
+   ],
+   "reversed": false,
+   "dir_unverified": false,
+   "min_sep_m": 17.7,
+   "before": {
+    "o": false
+   },
+   "after": {
+    "o": true,
+    "rv": 0,
+    "dq": 0
+   }
+  },
+  {
+   "w": 910872323,
+   "n": "",
+   "hc": "trunk_link",
+   "l": 2,
+   "L": 19,
+   "a": 97936993,
+   "b": 532458283,
+   "cos": [
+    -0.71,
+    -0.59
+   ],
+   "reversed": true,
+   "dir_unverified": false,
+   "min_sep_m": 31.4,
+   "before": {
+    "o": false
+   },
+   "after": {
+    "o": true,
+    "rv": 1,
+    "dq": 0
+   }
+  },
+  {
+   "w": 429125683,
+   "n": "",
+   "hc": "trunk_link",
+   "l": 2,
+   "L": 24,
+   "a": 429125691,
+   "b": 429125696,
+   "cos": [
+    -0.92,
+    -0.98
+   ],
+   "reversed": true,
+   "dir_unverified": false,
+   "min_sep_m": 7.6,
+   "before": {
+    "o": false
+   },
+   "after": {
+    "o": true,
+    "rv": 1,
+    "dq": 0
+   }
+  },
+  {
+   "w": 519313931,
+   "n": "",
+   "hc": "secondary_link",
+   "l": 2,
+   "L": 16,
+   "a": 380822848,
+   "b": 380822862,
+   "cos": [
+    0.0,
+    -0.07
+   ],
+   "reversed": false,
+   "dir_unverified": true,
+   "min_sep_m": 8.0,
+   "before": {
+    "o": false
+   },
+   "after": {
+    "o": true,
+    "rv": 0,
+    "dq": 1
+   }
+  }
+ ],
+ "link_skipped": [
+  {
+   "w": 393515781,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 178,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1435121602,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 81,
+   "why": "direction contradictory cos -0.45/0.36",
+   "a": 393515774,
+   "b": 800875996
+  },
+  {
+   "w": 1346146413,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 25,
+   "why": "overlap 175357612 d=2.3m",
+   "a": 175357618,
+   "b": 516640651
+  },
+  {
+   "w": 1243077181,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 10,
+   "why": "overlap 1243077204 d=3.3m",
+   "a": 1243077170,
+   "b": 1243077185
+  },
+  {
+   "w": 1243077189,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 11,
+   "why": "overlap 521192620 d=3.6m",
+   "a": 521164544,
+   "b": 1243077171
+  },
+  {
+   "w": 1243077192,
+   "n": "",
+   "hc": "primary_link",
+   "L": 10,
+   "why": "overlap 45026511 d=4.5m",
+   "a": 1243077171,
+   "b": 521164545
+  },
+  {
+   "w": 381741962,
+   "n": "",
+   "hc": "primary_link",
+   "L": 7,
+   "why": "end not on oneway",
+   "pc": 0
+  },
+  {
+   "w": 840019180,
+   "n": "고산자로",
+   "hc": "secondary_link",
+   "L": 55,
+   "why": "end not on oneway",
+   "pc": 0
+  },
+  {
+   "w": 381741962,
+   "n": "",
+   "hc": "primary_link",
+   "L": 22,
+   "why": "end not on oneway",
+   "pc": 1
+  },
+  {
+   "w": 913833410,
+   "n": "",
+   "hc": "primary_link",
+   "L": 76,
+   "why": "direction contradictory cos -0.55/0.76",
+   "a": 333555370,
+   "b": 218923184
+  },
+  {
+   "w": 413943248,
+   "n": "",
+   "hc": "primary_link",
+   "L": 132,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 779814477,
+   "n": "",
+   "hc": "primary_link",
+   "L": 42,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1151530515,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 13,
+   "why": "overlap 1151530518 d=4.3m",
+   "a": 788832363,
+   "b": 1151530513
+  },
+  {
+   "w": 219866791,
+   "n": "",
+   "hc": "primary_link",
+   "L": 146,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1193903276,
+   "n": "",
+   "hc": "primary_link",
+   "L": 6,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1416688368,
+   "n": "",
+   "hc": "primary_link",
+   "L": 6,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1416688369,
+   "n": "",
+   "hc": "primary_link",
+   "L": 9,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1416688371,
+   "n": "",
+   "hc": "primary_link",
+   "L": 8,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 393900500,
+   "n": "",
+   "hc": "primary_link",
+   "L": 24,
+   "why": "overlap 908686282 d=5.0m",
+   "a": 1106012365,
+   "b": 1106012372
+  },
+  {
+   "w": 908686280,
+   "n": "",
+   "hc": "primary_link",
+   "L": 23,
+   "why": "overlap 1106012339 d=5.0m",
+   "a": 1106012340,
+   "b": 1106012351
+  },
+  {
+   "w": 908686281,
+   "n": "",
+   "hc": "primary_link",
+   "L": 30,
+   "why": "overlap 1106018846 d=5.0m",
+   "a": 1106012361,
+   "b": 1106012367
+  },
+  {
+   "w": 908686282,
+   "n": "",
+   "hc": "primary_link",
+   "L": 24,
+   "why": "overlap 805348129 d=2.3m",
+   "a": 1106012366,
+   "b": 1106012365
+  },
+  {
+   "w": 1106012339,
+   "n": "",
+   "hc": "primary_link",
+   "L": 44,
+   "why": "overlap 393900500 d=5.0m",
+   "a": 1106012372,
+   "b": 1106012340
+  },
+  {
+   "w": 1106018846,
+   "n": "",
+   "hc": "primary_link",
+   "L": 4,
+   "why": "overlap 908686280 d=4.4m",
+   "a": 1106012351,
+   "b": 1106012361
+  },
+  {
+   "w": 1106018847,
+   "n": "",
+   "hc": "primary_link",
+   "L": 4,
+   "why": "overlap 908686281 d=4.1m",
+   "a": 1106012367,
+   "b": 1106012366
+  },
+  {
+   "w": 1153283301,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 11,
+   "why": "overlap 37399752 d=3.8m",
+   "a": 516417603,
+   "b": 78594887
+  },
+  {
+   "w": 1214479808,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 13,
+   "why": "overlap 238545096 d=4.7m",
+   "a": 516398275,
+   "b": 1392912705
+  },
+  {
+   "w": 1214479796,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 10,
+   "why": "overlap 463570424 d=3.5m",
+   "a": 1214479797,
+   "b": 516179429
+  },
+  {
+   "w": 1214479799,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 11,
+   "why": "overlap 172469013 d=3.6m",
+   "a": 899373284,
+   "b": 1214479800
+  },
+  {
+   "w": 1214479802,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 10,
+   "why": "direction contradictory cos 0.20/-0.21",
+   "a": 899373284,
+   "b": 1214479803
+  },
+  {
+   "w": 1214479795,
+   "n": "통일로34길",
+   "hc": "secondary_link",
+   "L": 14,
+   "why": "overlap 902495236 d=4.6m",
+   "a": 1214479798,
+   "b": 1214479797
+  },
+  {
+   "w": 1413472335,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 8,
+   "why": "direction contradictory cos 0.73/-0.62",
+   "a": 545390183,
+   "b": 545390190
+  },
+  {
+   "w": 445167857,
+   "n": "",
+   "hc": "primary_link",
+   "L": 55,
+   "why": "end not on oneway",
+   "pc": 0
+  },
+  {
+   "w": 445167857,
+   "n": "",
+   "hc": "primary_link",
+   "L": 10,
+   "why": "overlap 1272746508 d=5.0m",
+   "a": 1414683899,
+   "b": 588276087
+  },
+  {
+   "w": 1409829004,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 10,
+   "why": "overlap 556864023 d=4.2m",
+   "a": 552722822,
+   "b": 548558939
+  },
+  {
+   "w": 1155871417,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 160,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 867931067,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 15,
+   "why": "direction contradictory cos 0.63/-0.60",
+   "a": 410745216,
+   "b": 410745221
+  },
+  {
+   "w": 1243077201,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 13,
+   "why": "direction contradictory cos 0.19/-0.23",
+   "a": 521116815,
+   "b": 1243077191
+  },
+  {
+   "w": 1243077202,
+   "n": "노량진로17길",
+   "hc": "primary_link",
+   "L": 13,
+   "why": "overlap 45022168 d=6.8m",
+   "a": 219105930,
+   "b": 1243077191
+  },
+  {
+   "w": 52872216,
+   "n": "",
+   "hc": "motorway_link",
+   "L": 60,
+   "why": "direction contradictory cos 1.00/-0.76",
+   "a": 37927563,
+   "b": 52872215
+  },
+  {
+   "w": 609465595,
+   "n": "",
+   "hc": "motorway_link",
+   "L": 15,
+   "why": "direction contradictory cos -0.93/0.17",
+   "a": 52872215,
+   "b": 1203394782
+  },
+  {
+   "w": 579996456,
+   "n": "",
+   "hc": "primary_link",
+   "L": 37,
+   "why": "overlap 378877704 d=5.0m",
+   "a": 219072252,
+   "b": 219076747
+  },
+  {
+   "w": 1219896736,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 193,
+   "why": "overlap 1219896741 d=7.1m",
+   "a": 1219896729,
+   "b": 1219896730
+  },
+  {
+   "w": 931718062,
+   "n": "",
+   "hc": "motorway_link",
+   "L": 72,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1548101223,
+   "n": "",
+   "hc": "motorway_link",
+   "L": 17,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1125785345,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 19,
+   "why": "overlap 1322388361 d=5.0m",
+   "a": 1125785340,
+   "b": 564921514
+  },
+  {
+   "w": 37402346,
+   "n": "은행로",
+   "hc": "tertiary_link",
+   "L": 18,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 473707075,
+   "n": "은행로",
+   "hc": "tertiary_link",
+   "L": 65,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 255759582,
+   "n": "성산지하차도",
+   "hc": "primary_link",
+   "L": 44,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 255759583,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 191,
+   "why": "direction contradictory cos -1.00/0.58",
+   "a": 255759584,
+   "b": 591699842
+  },
+  {
+   "w": 1120540510,
+   "n": "성산지하차도",
+   "hc": "primary_link",
+   "L": 15,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1120540511,
+   "n": "성산지하차도",
+   "hc": "primary_link",
+   "L": 11,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1055442241,
+   "n": "",
+   "hc": "motorway_link",
+   "L": 163,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1055442242,
+   "n": "",
+   "hc": "motorway_link",
+   "L": 149,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1055442243,
+   "n": "",
+   "hc": "motorway_link",
+   "L": 29,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1148861335,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 14,
+   "why": "overlap 548646299 d=4.5m",
+   "a": 575116448,
+   "b": 575116443
+  },
+  {
+   "w": 913955353,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 52,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 991389137,
+   "n": "",
+   "hc": "primary_link",
+   "L": 20,
+   "why": "direction contradictory cos 0.99/-0.95",
+   "a": 482243581,
+   "b": 483340826
+  },
+  {
+   "w": 1151530542,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 11,
+   "why": "overlap 562614131 d=3.7m",
+   "a": 1151530521,
+   "b": 220199776
+  },
+  {
+   "w": 1338254926,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 36,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 253029299,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 8,
+   "why": "overlap 910815355 d=5.2m",
+   "a": 219686881,
+   "b": 219684243
+  },
+  {
+   "w": 1206205706,
+   "n": "",
+   "hc": "primary_link",
+   "L": 19,
+   "why": "direction contradictory cos 0.21/-0.27",
+   "a": 856250626,
+   "b": 186410710
+  },
+  {
+   "w": 330663288,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 109,
+   "why": "direction contradictory cos -0.89/0.99",
+   "a": 1494588886,
+   "b": 1494588890
+  },
+  {
+   "w": 779095295,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 139,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 779814473,
+   "n": "",
+   "hc": "primary_link",
+   "L": 20,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1327464269,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 12,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 793890940,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 31,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1153283299,
+   "n": "새문안로3길",
+   "hc": "tertiary_link",
+   "L": 21,
+   "why": "direction contradictory cos -0.21/0.36",
+   "a": 1153283300,
+   "b": 1153283298
+  },
+  {
+   "w": 615539826,
+   "n": "",
+   "hc": "primary_link",
+   "L": 137,
+   "why": "direction contradictory cos 0.91/-0.97",
+   "a": 615539827,
+   "b": 615655605
+  },
+  {
+   "w": 1435857123,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 154,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 545695193,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 33,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 517261860,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 28,
+   "why": "overlap 465103749 d=5.0m",
+   "a": 517261837,
+   "b": 517268049
+  },
+  {
+   "w": 1509426744,
+   "n": "",
+   "hc": "primary_link",
+   "L": 42,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 501379358,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 145,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 381054811,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 48,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1444572908,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 85,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1548139033,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 62,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 943983852,
+   "n": "금포로",
+   "hc": "trunk_link",
+   "L": 36,
+   "why": "overlap 1383581262 d=5.0m",
+   "a": 47221338,
+   "b": 465526043
+  },
+  {
+   "w": 1524480039,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 40,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1524901058,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 190,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1335569399,
+   "n": "",
+   "hc": "primary_link",
+   "L": 44,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 981935839,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 32,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 52872213,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 61,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 402768130,
+   "n": "육갑문",
+   "hc": "trunk_link",
+   "L": 55,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 402768131,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 12,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 52869698,
+   "n": "",
+   "hc": "primary_link",
+   "L": 66,
+   "why": "end not on oneway",
+   "pc": 1
+  },
+  {
+   "w": 52869698,
+   "n": "",
+   "hc": "primary_link",
+   "L": 55,
+   "why": "end not on oneway",
+   "pc": 0
+  },
+  {
+   "w": 910327397,
+   "n": "",
+   "hc": "motorway_link",
+   "L": 16,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 910327399,
+   "n": "",
+   "hc": "motorway_link",
+   "L": 58,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1312870857,
+   "n": "",
+   "hc": "primary_link",
+   "L": 33,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 554728546,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 133,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 554728547,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 53,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1420061571,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 229,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1346094976,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 10,
+   "why": "overlap 1479120173 d=4.7m",
+   "a": 1346002319,
+   "b": 1346094977
+  },
+  {
+   "w": 429125684,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 15,
+   "why": "overlap 358385426 d=6.6m",
+   "a": 429125693,
+   "b": 429125695
+  },
+  {
+   "w": 1071396791,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 84,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1071396792,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 50,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1420061538,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 80,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1420061586,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 13,
+   "why": "overlap 554220378 d=4.9m",
+   "a": 313328487,
+   "b": 234972476
+  },
+  {
+   "w": 1420061551,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 45,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 654360939,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 50,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 541648785,
+   "n": "",
+   "hc": "secondary_link",
+   "L": 50,
+   "why": "overlap 627926618 d=5.0m",
+   "a": 541648782,
+   "b": 542219847
+  },
+  {
+   "w": 627926617,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 55,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 627926618,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 13,
+   "why": "direction contradictory cos -0.94/0.92",
+   "a": 542219847,
+   "b": 542219851
+  },
+  {
+   "w": 381054786,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 54,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 381054793,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 4,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 381054817,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 16,
+   "why": "overlap 381054793 d=5.0m",
+   "a": 381054795,
+   "b": 381054836
+  },
+  {
+   "w": 381054832,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 5,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 381054865,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 32,
+   "why": "direction contradictory cos 0.79/-0.93",
+   "a": 381054836,
+   "b": 381054819
+  },
+  {
+   "w": 1209458296,
+   "n": "",
+   "hc": "primary_link",
+   "L": 39,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 1209458298,
+   "n": "",
+   "hc": "primary_link",
+   "L": 16,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 481528981,
+   "n": "",
+   "hc": "tertiary_link",
+   "L": 170,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 558278108,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 91,
+   "why": "direction contradictory cos 0.99/-0.27",
+   "a": 558278102,
+   "b": 558278103
+  },
+  {
+   "w": 841639669,
+   "n": "",
+   "hc": "motorway_link",
+   "L": 132,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 841639685,
+   "n": "",
+   "hc": "motorway_link",
+   "L": 131,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 841639686,
+   "n": "",
+   "hc": "motorway_link",
+   "L": 30,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 546473069,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 116,
+   "why": "end not on oneway",
+   "pc": null
+  },
+  {
+   "w": 546473072,
+   "n": "",
+   "hc": "trunk_link",
+   "L": 96,
+   "why": "end not on oneway",
+   "pc": null
+  }
+ ]
+}

@@ -1,0 +1,950 @@
+{
+ "current": {
+  "file": "data/data6.js",
+  "mb": 10.03,
+  "chunks": 279,
+  "records": 34400,
+  "ways": 30544,
+  "fields": {
+   "od": 25735,
+   "ld": 31422,
+   "pc": 7615,
+   "lk": 1984,
+   "oc": 22,
+   "tl": 196,
+   "lf": 99,
+   "lb": 99,
+   "ol": 3
+  }
+ },
+ "staged": {
+  "file": "data/data6_stage6.js",
+  "mb": 10.03,
+  "chunks": 279,
+  "records": 34400,
+  "ways": 30544,
+  "fields": {
+   "od": 25735,
+   "ld": 31422,
+   "pc": 7615,
+   "lk": 1984,
+   "oc": 22,
+   "tl": 196,
+   "lf": 99,
+   "lb": 99,
+   "ol": 3
+  }
+ },
+ "ways_only_current": [],
+ "ways_only_staged": [],
+ "ways_only_current_n": 0,
+ "ways_only_staged_n": 0,
+ "changed_ways_n": 44,
+ "changed_by_why": {
+  "other": 44
+ },
+ "changed_ways": [
+  {
+   "w": 805307835,
+   "n": "영동대로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 475924071,
+   "n": "학동로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 475924076,
+   "n": "삼성로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 61225032,
+   "n": "백제고분로22길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 432421572,
+   "n": "헌릉로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 908081923,
+   "n": "백제고분로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 494822058,
+   "n": "강남대로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 4,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 381969261,
+   "n": "강동대로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 381969262,
+   "n": "강동대로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1087669370,
+   "n": "양재천우안로",
+   "why": "other",
+   "before": {
+    "l": 4,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 476232891,
+   "n": "잠실로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 169789437,
+   "n": "가락로11길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 418434717,
+   "n": "송파대로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 4,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 418434719,
+   "n": "송파대로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 4,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 46717676,
+   "n": "삼성로119길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 169796577,
+   "n": "송파대로42길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 169796578,
+   "n": "송파대로42길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 769585611,
+   "n": "남부순환로342번길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 169802948,
+   "n": "송파대로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 4,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 417923185,
+   "n": "언주로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 70986638,
+   "n": "위례성대로",
+   "why": "other",
+   "before": {
+    "l": 6,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 379530459,
+   "n": "영동대로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 536950595,
+   "n": "삼학사로3길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 418201295,
+   "n": "백제고분로22길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1500201175,
+   "n": "잠실로",
+   "why": "other",
+   "before": {
+    "l": 4,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 418204522,
+   "n": "가락로5길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 536956289,
+   "n": "백제고분로27길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 418205961,
+   "n": "가락로5길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 70998383,
+   "n": "백제고분로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 536960657,
+   "n": "백제고분로28길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 87646594,
+   "n": "광나루로56길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 379417035,
+   "n": "남부순환로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 379417058,
+   "n": "남부순환로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 379427493,
+   "n": "남부순환로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 157267500,
+   "n": "남부순환로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 157267526,
+   "n": "남부순환로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 157267562,
+   "n": "남부순환로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1255914957,
+   "n": "백제고분로40길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 382454021,
+   "n": "강동대로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 417974592,
+   "n": "남부순환로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 417974598,
+   "n": "남부순환로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 1384108672,
+   "n": "백제고분로22길",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 2,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 800184133,
+   "n": "영동대로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  },
+  {
+   "w": 417978612,
+   "n": "남부순환로",
+   "why": "other",
+   "before": {
+    "l": 2,
+    "o": false,
+    "lf": null,
+    "lb": null
+   },
+   "after": {
+    "l": 3,
+    "o": true,
+    "lf": null,
+    "lb": null,
+    "rv": null
+   }
+  }
+ ],
+ "asym_in_pack": [
+  37928434,
+  70998387,
+  70998406,
+  170277501,
+  183895356,
+  218684411,
+  218781558,
+  218839804,
+  218899417,
+  218923156,
+  219125068,
+  226903454,
+  248406289,
+  383097722,
+  416631524,
+  420334155,
+  424940172,
+  477958936,
+  481322513,
+  516163750,
+  516725212,
+  521182515,
+  522435828,
+  523746967,
+  615657920,
+  664993813,
+  781985788,
+  909242353,
+  919243261,
+  921258631,
+  921278928,
+  921278930,
+  1103078933,
+  1151103605,
+  1172694264,
+  1175034867,
+  1175034872,
+  1175034875,
+  1175635374,
+  1175635375,
+  1175635378,
+  1175635379,
+  1175635381,
+  1175635384,
+  1175929590,
+  1175929592,
+  1175929593,
+  1175929594,
+  1175929595,
+  1193259445,
+  1196780726,
+  1198651835,
+  1198651839,
+  1198651840,
+  1203134247,
+  1203134249,
+  1203134256,
+  1203134261,
+  1204410871,
+  1206509399,
+  1206509400,
+  1206937720,
+  1206937721,
+  1206937723,
+  1206937724,
+  1206937725,
+  1206937727,
+  1206937731,
+  1206937735,
+  1206937736,
+  1208044050,
+  1210200076,
+  1210200077,
+  1212179975,
+  1221350591,
+  1221350593,
+  1221350622,
+  1221350624,
+  1288681867,
+  1288681868,
+  1339655668,
+  1339655669,
+  1339655670,
+  1346384393,
+  1346384395,
+  1378751412,
+  1465558148,
+  1499619438
+ ],
+ "asym_in_pack_n": 88,
+ "links_flipped_in_pack": [
+  913174022,
+  1214479814,
+  1243077198
+ ],
+ "links_flipped_in_pack_n": 3,
+ "links_reversed_in_pack": [],
+ "asym_bad_n": 0,
+ "asym_bad": [],
+ "overlap": {
+  "pairs_current": 13974,
+  "pairs_staged": 13974,
+  "new_pairs": 0,
+  "gone_pairs": 0,
+  "new_pairs_involving_changed_ways": 0,
+  "new_pairs_list": [],
+  "new_pairs_involving_changed_ways_list": []
+ },
+ "PASS": true
+}

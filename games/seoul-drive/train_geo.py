@@ -11,11 +11,18 @@ SCALE = np.array([2.0, 0.5, 0.05, 16.0, 16.0, 16.0, 8.0, 8.0, 5.0, 15.0, 15.0, 1
 WCOL = torch.tensor([4.0, 3.0, 1.0, 2.0, 2.0, 1.0, 2.0, 1.0, 0.5, 1.0, 1.0, 0.5], device=DEV)
 from train_stage import augment, AUG   # 광도 증강만(좌우반전은 라벨 부호가 얽혀 미사용)
 def holdout_mask(Q):
-    try: H = set(tuple(k) for k in json.load(open('data/holdout_chunks.json'))['chunks'])
+    """u_5750: frame-level holdout. Was a +/-1 chunk box (3x3km per cell) which excluded 70% of
+    in-scope roads; now a distance buffer matching holdout_buffer.train_eligible (HOLDOUT_R, default
+    1000m > the 707m adjacent-cell diagonal). Collector and trainer MUST use the same rule or the
+    trainer silently re-excludes what the collector just gathered."""
+    try: H = [tuple(k) for k in json.load(open('data/holdout_chunks.json'))['chunks']]
     except Exception: return np.ones(len(Q), bool)
-    cx = np.floor(Q[:, 4] / 6.0 / 1000.0); cy = np.floor(Q[:, 5] / 6.0 / 1000.0); bad = np.zeros(len(Q), bool)
-    for hx, hy in H: bad |= (np.abs(cx - hx) <= 1) & (np.abs(cy - hy) <= 1)
-    return ~bad
+    R = float(os.environ.get('HOLDOUT_R', '1000'))
+    x = Q[:, 4] / 6.0; y = Q[:, 5] / 6.0
+    d = np.full(len(Q), np.inf)
+    for hx, hy in H:
+        d = np.minimum(d, np.hypot(x - (hx * 1000 + 500), y - (hy * 1000 + 500)))
+    return d >= R
 def load(dirs):
     plan = []
     for d in dirs:
