@@ -35,9 +35,9 @@ tell application "Terminal"
         if (tty of t) is targetTty then
           do script "$MSG" in t
           delay $SUBMIT_DELAY
-          do script (return & "") in t
+          do script "" in t
           delay 0.8
-          do script (return & "") in t
+          do script "" in t
           return "SUCCESS(tty): " & (name of w)
         end if
       end repeat
@@ -48,9 +48,9 @@ tell application "Terminal"
     if wname contains "kong-bot" and wname contains "Kong 역할 설정 확인" then
       do script "$MSG" in w
       delay $SUBMIT_DELAY
-      do script (return & "") in w
+      do script "" in w
       delay 0.8
-      do script (return & "") in w
+      do script "" in w
       return "SUCCESS(title-fallback): " & wname
     end if
   end repeat

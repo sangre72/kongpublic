@@ -51,7 +51,7 @@ for i in 1 2 3 4 5; do
 tell application "Terminal"
   repeat with w in windows
     repeat with t in tabs of w
-      if (tty of t) is "$TTY" then do script (return & "") in t
+      if (tty of t) is "$TTY" then do script "" in t
     end repeat
   end repeat
 end tell
