@@ -54,13 +54,15 @@ def run(url, net=None, ld=10.0, vT=8.0, secs=60, video=None):
     if vw is not None: vw.release()
     time.sleep(0.3); c = (tel().get('course') or {})
     n = sum(drv.values()) or 1; E = np.abs(np.array(err)) if err else None
-    return dict(result=c.get('result'), score=c.get('score'), touchN=c.get('touchN'), elapsed=round(c.get('elapsed') or 0, 1),
+    tl = tel()
+    return dict(result=c.get('result'), why=c.get('failWhy'), wallN=c.get('wallN'), lineN=c.get('lineN'), endWallN=c.get('endWallN'),
+                cornerMaxDev=c.get('cornerMaxDev'), stopDist=c.get('stopDist'), l1Frames=tl.get('l1Frames'), score=c.get('score'), touchN=c.get('touchN'), elapsed=round(c.get('elapsed') or 0, 1),
                 prog=c.get('progress'), model_share=round(drv.get('MODEL', 0) / n, 3), drv=drv, started=lid is not None,
                 perc_mae=(None if E is None else {'ey': round(float(E[:, 0].mean()), 3), 'epsi_deg': round(float(np.degrees(E[:, 1].mean())), 2), 'lc10': round(float(E[:, 2].mean()), 3)}),
                 inf_ms=(round(float(np.median(infs)), 2) if infs else None))
 def summ(rows):
     s = [r['score'] for r in rows if isinstance(r.get('score'), (int, float))]; t = [r['touchN'] or 0 for r in rows]
-    return dict(n=len(rows), pass_n=sum(r['result'] == 'PASS' for r in rows), score_mean=round(float(np.mean(s)), 3) if s else None,
+    return dict(n=len(rows), pass_n=sum(r['result'] == 'PASS' for r in rows), why={w: sum(r.get('why') == w for r in rows) for w in ('wall', 'line', 'timeout')}, score_mean=round(float(np.mean(s)), 3) if s else None,
                 score_sd=round(float(np.std(s, ddof=1)), 3) if len(s) > 1 else None, touch_mean=round(float(np.mean(t)), 2), touch_sd=round(float(np.std(t, ddof=1)), 2) if len(t) > 1 else None)
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(); ap.add_argument('model'); ap.add_argument('--dirs', default='L,R'); ap.add_argument('--reps', type=int, default=3)

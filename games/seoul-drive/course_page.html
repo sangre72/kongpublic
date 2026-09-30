@@ -50,7 +50,7 @@ function follow(dt){
   if(CMD.on && CMD.mode===2 && CMD.age<=400){
     const ld=Math.max(2,CMD.ld), lp=CMD.lp, a=Math.atan2(lp,ld), Lr=Math.hypot(ld,lp);
     me.steer=Math.max(-0.9,Math.min(0.9, Math.atan2(2*WB*Math.sin(a), Lr)/MAXSTEER));
-    const vT = CMD.vT>=0 ? CMD.vT : 8.0; me.v += (vT-me.v)*Math.min(1, dt*1.5);
+    const vT = l1Cap(CMD.vT>=0 ? CMD.vT : 8.0); me.v += (vT-me.v)*Math.min(1, dt*(vT<me.v?3:1.5)); if(vT===0 && me.v<0.15) me.v=0;
     window.__drv='MODEL'; window.__modelFrames=(window.__modelFrames|0)+1; return;
   }
   /* ?wait=1 (model test): never let the RULE drive. Without a fresh model command the car brakes
@@ -81,7 +81,19 @@ function follow(dt){
   me.steer=st;
   let vT = CMD.vT>=0 ? CMD.vT : 8.0;
   if(/[?&]nodrive=1/.test(location.search)) vT=0;
-  me.v += (vT-me.v)*Math.min(1, dt*1.5);
+  vT=l1Cap(vT);
+  me.v += (vT-me.v)*Math.min(1, dt*(vT<me.v?3:1.5)); if(vT===0 && me.v<0.15) me.v=0;
+}
+/* u_5823 LAYER 1 (rule failsafe, ode-hierarchical-control): the END WALL is an obstacle. Cap speed
+   by stopping distance so the front bumper stops STOP_GAP before it: v <= sqrt(2*a*(dEnd - hm/2 - gap)).
+   Applies to RULE and MODEL alike (the model does lateral control only); ?nol1=1 disables it. */
+const L1_A=3.0, STOP_GAP=1.0;
+function l1Cap(vT){
+  if(NOL1 || !window.__courseEndDist) return vT;
+  const room=window.__courseEndDist() - me.hm/2 - STOP_GAP;
+  const cap = room<=0.3 ? 0 : Math.sqrt(2*L1_A*room);
+  if(cap<vT){ window.__l1Frames=(window.__l1Frames|0)+1; return cap; }
+  return vT;
 }
 function nearestSegAngle(){
   const P=window.__coursePts; if(!P||P.length<2) return null;
@@ -93,6 +105,7 @@ const q=new URLSearchParams(location.search);
 const HEAD = (q.get('head')||'all')!=='none';
 const HEADK = parseFloat(q.get('headk')||'0.6');
 const WAITM = q.get('wait')==='1';
+const NOL1 = q.get('nol1')==='1';
 
 /* /ctl contract, same as the main page: GET returns the command, ?tel= uploads telemetry. */
 const CMD={on:0,vT:-1,mode:0,lp:0,ld:10,age:999999};
@@ -128,7 +141,7 @@ function poll(){
   const tel={ v:me.v, st:me.steer, autoOn:auto.on|0, parked:window.__parked|0,
               wpLen:auto.wp.length, pos:[+(me.x/S).toFixed(1),+(me.y/S).toFixed(1)],
               course:c, headMode:HEAD?'all':null, headFrames:window.__headFrames|0,
-              prog:c.progress||0, drv:window.__drv||null, modelFrames:window.__modelFrames|0, waitFrames:window.__waitFrames|0,
+              prog:c.progress||0, drv:window.__drv||null, modelFrames:window.__modelFrames|0, waitFrames:window.__waitFrames|0, l1Frames:window.__l1Frames|0,
               geo:geoLabel(), pert:window.__pert||null, loadId:LOAD_ID };
   fetch('/ctl?tel='+encodeURIComponent(JSON.stringify(tel)),{cache:'no-store'})
     .then(r=>r.json()).then(d=>{ if(d){ CMD.on=d.on|0; CMD.vT=(typeof d.vT==='number')?d.vT:-1;

@@ -82,6 +82,7 @@
     ST.started=1; ST.done=0; ST.result=null; ST.touchN=0; ST.stallN=0; ST.vmaxKmh=0; ST.accelVmax=0;
     ST.elements=EL(); ST.t0=performance.now(); ST.maxIdx=0;
     ST.score=0; ST.cleanSec=0; ST.lineSec=0; ST.wallSec=0; ST._lastT=performance.now();
+    ST.wallN=0; ST.lineN=0; ST.endWallN=0; ST.cornerMaxDev=0; ST.finishT=0; ST.stopDist=null; ST.failWhy=null; ST.visited=0;
   };
 
   /* ★u_5816 SCORING. Owner: per-tick reward while clean, scaled by SPEED; penalties on wall and on
@@ -95,39 +96,86 @@
        wall/off-course: -50.0 per second beyond 2x lane half-width (our 'wall')
        stall          :  0 (standing still earns nothing - no penalty needed, it simply scores 0) */
   const V_REF=8.33, R_CLEAN=1.0, P_LINE=20.0, P_WALL=50.0;
+  /* ★u_5823 STRICT JUDGE (owner watched the video: the car hit the course END and was judged PASS).
+     Old judge had three holes: (1) contact tested the car CENTRE only, so a body corner could cross a
+     line unseen; (2) there was no end boundary at all; (3) judging stopped at 'done', which fired the
+     moment the centre reached the last point - the car then rolled on past the end unjudged.
+     New rules:
+       - contact = any of the 4 body CORNERS: line = corner beyond HALF from the centreline,
+         wall = corner beyond 2*HALF (off-course) OR corner past the END WALL (plane through the last
+         centreline point, perpendicular to the final heading).
+       - FINISH LINE sits FIN_BEFORE metres before the end wall; the run must cross it and then STOP
+         (|v|<0.1) before the wall. Judging and scoring stay active until that stop (or timeout).
+       - result: any wall contact = FAIL, any line contact = FAIL, regardless of score.
+       - end-wall contact stops the car dead (crash), so it is visible on screen.
+     Proof-of-travel self-check (PLAN_ODE standing rule): a car parked against the end wall has a
+     corner past the wall -> wallN>0 -> FAIL; a car far off the course never visits the start ->
+     not scored, never finishes -> FAIL at timeout. */
+  const FIN_BEFORE = 8.0, L_IDX = PTS.length-1;
+  const PL = PTS[L_IDX], PL0 = PTS[L_IDX-1], HL = Math.atan2(PL.y-PL0.y, PL.x-PL0.x);
+  const P0 = PTS[0], H0 = Math.atan2(PTS[1].y-P0.y, PTS[1].x-P0.x);
+  const FIN_IDX = Math.max(0, L_IDX - Math.round(FIN_BEFORE/0.5));
+  window.__courseEndGeom = {finBefore:FIN_BEFORE, hl:HL, end:{x:PL.x,y:PL.y}};
+  function corners(){
+    const cx=me.x/M, cy=me.y/M, h=me.ang, fx=Math.cos(h), fy=Math.sin(h), rx=-Math.sin(h), ry=Math.cos(h);
+    const a=(me.hm||4.6)/2, b=(me.wm||1.8)/2, C=[];
+    for(const sf of [1,-1]) for(const sr of [1,-1]) C.push({x:cx+fx*a*sf+rx*b*sr, y:cy+fy*a*sf+ry*b*sr});
+    return C;
+  }
+  function pastEnd(q){ return (q.x-PL.x)*Math.cos(HL)+(q.y-PL.y)*Math.sin(HL); }   // >0 = beyond the end wall
+  /* centre's along-track distance to the end wall (m); used by the Layer-1 stop in the page */
+  window.__courseEndDist = function(){ const n=nearest(me.x,me.y); return n.i<L_IDX ? (L_IDX-n.i)*0.5 : -pastEnd({x:me.x/M,y:me.y/M}); };
   window.__courseTick = function(){
     if(!ST.started||ST.done) return;
     const _now=performance.now();
     const _dt=Math.max(0, Math.min(0.1, (_now-(ST._lastT||_now))/1000)); ST._lastT=_now;
     ST.elapsed=(_now-ST.t0)/1000;
     const n=nearest(me.x,me.y), E=ST.elements[n.p.tag]; if(!E) return;
-    if(n.d>HALF*4) return;   // not on the course yet: do not score
+    if(n.d>HALF*4 && !ST.visited) return;   // not on the course yet: do not score
+    ST.visited=1;
     const kmh=Math.abs(me.v)*3.6;
     ST.vmaxKmh=Math.max(ST.vmaxKmh,kmh); ST.progress=+(n.i/(PTS.length-1)).toFixed(3);
     E.seen++; E.maxDev=Math.max(E.maxDev,+n.d.toFixed(3));
     if(n.p.tag==='accel') ST.accelVmax=Math.max(ST.accelVmax,kmh);
-    /* scoring: speed-proportional while clean, penalties while touching */
+    /* body-corner contact */
+    let dmax=0, endHit=0;
+    for(const q of corners()){
+      const pe=pastEnd(q); if(pe>0) endHit=1;
+      const nq=nearest(q.x*M,q.y*M);
+      /* beyond either END of the polyline the nearest point is the endpoint, so nq.d would include the
+         along-track gap (rear corners sit 2.3m behind the start at t=0 -> false 2.47m). Use lateral only. */
+      const ps=(q.x-P0.x)*Math.cos(H0)+(q.y-P0.y)*Math.sin(H0);
+      const d = (nq.i===L_IDX && pe>0) ? Math.abs((q.x-PL.x)*(-Math.sin(HL))+(q.y-PL.y)*Math.cos(HL))
+              : (nq.i===0 && ps<0) ? Math.abs((q.x-P0.x)*(-Math.sin(H0))+(q.y-P0.y)*Math.cos(H0)) : nq.d;
+      dmax=Math.max(dmax,d);
+    }
+    const wall = endHit || dmax>HALF*2, line = !wall && dmax>HALF;
+    ST.cornerMaxDev=Math.max(ST.cornerMaxDev||0,+dmax.toFixed(3));
+    if(endHit){ ST.endWallN=(ST.endWallN|0)+1; me.v=0; }                    // crash into the end wall
+    if(wall) ST.wallN=(ST.wallN|0)+1;
+    if(line) ST.lineN=(ST.lineN|0)+1;
+    /* scoring (per second, unchanged rates), now on body contact */
     const _v=Math.abs(me.v);
-    if(n.d>HALF*2){ ST.score -= P_WALL*_dt; ST.wallSec=(ST.wallSec||0)+_dt; }
-    else if(n.d>HALF){ ST.score -= P_LINE*_dt; ST.lineSec=(ST.lineSec||0)+_dt; }
+    if(wall){ ST.score -= P_WALL*_dt; ST.wallSec=(ST.wallSec||0)+_dt; }
+    else if(line){ ST.score -= P_LINE*_dt; ST.lineSec=(ST.lineSec||0)+_dt; }
     else { ST.score += R_CLEAN*(_v/V_REF)*_dt; ST.cleanSec=(ST.cleanSec||0)+_dt; }
     ST.score=+ST.score.toFixed(3);
-    if(n.d>HALF){ E.touch++; ST.touchN++; }                       // detection-line contact
-    ST.stallN = (kmh<1 && ST.elapsed>3) ? ST.stallN+1 : 0;        // stalled
-    /* u_5813 BUG: completion was 'nearest index is the last point', which fires instantly when the
-       car is NOT on the course at all (a far-away pose snaps to whichever end is closest). Require
-       the run to have actually visited the start and progressed monotonically. */
+    if(wall||line){ E.touch++; ST.touchN++; }
+    ST.stallN = (kmh<1 && ST.elapsed>3) ? ST.stallN+1 : 0;
     if(n.d<=HALF*2) ST.maxIdx=Math.max(ST.maxIdx|0, n.i);
-    const onCourse = n.d<=HALF*2;
-    const traversed = (ST.maxIdx|0)>=PTS.length-2 && (ST.elements.straight.seen||0)>10;
-    const over = ST.elapsed>ST.timeLimit || ST.stallN>180;
-    if(traversed || over){
-      ST.done=1;
+    /* finish = crossed the finish line (proof of travel: visited start + monotone progress) THEN stopped */
+    const crossed = (ST.maxIdx|0)>=FIN_IDX && (ST.elements.straight.seen||0)>10;
+    if(crossed && !ST.finishT) ST.finishT=ST.elapsed;
+    const stopped = crossed && _v<0.1;
+    const over = ST.elapsed>ST.timeLimit || (!crossed && ST.stallN>180);
+    if(stopped || over){
+      ST.done=1; ST.stopDist=+window.__courseEndDist().toFixed(2);
       for(const t in ST.elements){ const e=ST.elements[t];
         e.pass = e.seen===0 ? null : (e.touch===0 && !over); }
       if(CFG.accel && ST.elements.accel.seen) ST.elements.accel.pass = ST.elements.accel.pass && ST.accelVmax>=ACC_MIN_KMH;
       const req=Object.values(ST.elements).filter(e=>e.pass!==null);
-      ST.result=(!over && req.length && req.every(e=>e.pass)) ? 'PASS':'FAIL';
+      ST.failWhy = over ? 'timeout' : (ST.wallN ? 'wall' : (ST.lineN ? 'line' : null));
+      ST.result=(!over && !ST.wallN && !ST.lineN && req.length && req.every(e=>e.pass)) ? 'PASS':'FAIL';
     }
   };
 
@@ -159,6 +207,13 @@
       g.stroke(); }
     g.strokeStyle='rgba(255,255,255,.25)'; g.lineWidth=0.08*M; g.setLineDash([2*M,2*M]);
     g.beginPath(); PTS.forEach((p,i)=> i?g.lineTo(p.x*M,p.y*M):g.moveTo(p.x*M,p.y*M)); g.stroke();
-    g.setLineDash([]); g.restore();
+    g.setLineDash([]);
+    /* u_5823: END WALL (solid, red-grey) and FINISH LINE (white) are drawn - the model sees them */
+    const nx=-Math.sin(HL), ny=Math.cos(HL), W2=HALF*2;
+    g.strokeStyle='#c8453c'; g.lineWidth=0.6*M; g.beginPath();
+    g.moveTo((PL.x+nx*W2)*M,(PL.y+ny*W2)*M); g.lineTo((PL.x-nx*W2)*M,(PL.y-ny*W2)*M); g.stroke();
+    const PF=PTS[FIN_IDX]; g.strokeStyle='rgba(255,255,255,.8)'; g.lineWidth=0.15*M; g.beginPath();
+    g.moveTo((PF.x+nx*HALF)*M,(PF.y+ny*HALF)*M); g.lineTo((PF.x-nx*HALF)*M,(PF.y-ny*HALF)*M); g.stroke();
+    g.restore();
   };
 })();
