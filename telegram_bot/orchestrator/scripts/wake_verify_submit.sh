@@ -15,11 +15,22 @@ tell application "Terminal"
 end tell
 EOF2
 }
-for i in 1 2 3; do
+# u_5826: a single empty read at 1.5s is not proof — the TUI can render the inject late. Require two
+# consecutive empty reads; every non-empty read re-sends Enter. All outcomes logged for diagnosis.
+LOG="$(cd "$(dirname "$0")/../../.." && pwd)/logs/wake_verify.log"
+empty=0; sent=0
+for i in 1 2 3 4 5; do
   sleep 1.5
   L=$(prompt_line)
   body=$(printf '%s' "${L#❯}" | sed 's/[[:space:]]*$//; s/^[[:space:]]*//')
-  if [[ -z "$body" || "$body" == "Press up to edit queued messages"* ]]; then echo "VERIFY_OK(try=$i)"; exit 0; fi
+  if [[ -z "$body" || "$body" == "Press up to edit queued messages"* ]]; then
+    empty=$((empty+1))
+    if [[ $empty -ge 2 ]]; then
+      echo "$(date '+%F %T') $TTY OK try=$i resent=$sent" >> "$LOG"; echo "VERIFY_OK(try=$i,resent=$sent)"; exit 0
+    fi
+    continue
+  fi
+  empty=0; sent=$((sent+1))
   osascript <<EOF3 >/dev/null 2>&1
 tell application "Terminal"
   repeat with w in windows
@@ -30,4 +41,5 @@ tell application "Terminal"
 end tell
 EOF3
 done
-echo "VERIFY_STUCK(prompt='${body:0:60}')"; exit 1
+echo "$(date '+%F %T') $TTY STUCK resent=$sent prompt=${body:0:80}" >> "$LOG"
+echo "VERIFY_STUCK(resent=$sent,prompt='${body:0:60}')"; exit 1
