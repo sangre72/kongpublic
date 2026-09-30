@@ -48,6 +48,11 @@ if [ -f "$TTY_FILE" ]; then
 fi
 
 # ★2026-08-28 u_2803/2804 fix: needs explicit 2nd newline do-script to submit.
+# ★2026-09-30 u_5819: port u_4377 fix from orch_wake_worker.sh — fixed 0.3s + single Enter let long MSG
+#   (K7 suffix ~400ch) get Enter mid-ingest → queued-unsubmitted. length-scaled delay + double Enter.
+MSG_LEN=${#MSG}
+SUBMIT_DELAY=$(python3 -c "print(min(3.0, 0.3 + $MSG_LEN/300.0))")
+
 RESULT=$(osascript <<EOF 2>&1 || true
 tell application "Terminal"
   set targetTty to "$TARGET_TTY"
@@ -55,7 +60,9 @@ tell application "Terminal"
     repeat with w in windows
       if (tty of w) is targetTty then
         do script "$MSG" in w
-        delay 0.3
+        delay $SUBMIT_DELAY
+        do script (return & "") in w
+        delay 0.8
         do script (return & "") in w
         return "SUCCESS(tty): " & (name of w)
       end if
@@ -66,7 +73,9 @@ tell application "Terminal"
     set wname to name of w
     if wname contains "kong-bot" and wname contains "Kong 역할 설정 확인" then
       do script "$MSG" in w
-      delay 0.3
+      delay $SUBMIT_DELAY
+      do script (return & "") in w
+      delay 0.8
       do script (return & "") in w
       return "SUCCESS(title-fallback): " & wname
     end if
