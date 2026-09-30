@@ -51,6 +51,7 @@
     return P;
   }
   const PTS=build(), HALF=CFG.width/2;
+  window.__coursePts = PTS;   // u_5815: shared with the standalone page's heading term
 
   function nearest(px,py){
     let bi=0,bd=1e18; const mx=px/M,my=py/M;
@@ -80,17 +81,37 @@
     window.__courseRoute=1; ST.routeInstalled=auto.wp.length;
     ST.started=1; ST.done=0; ST.result=null; ST.touchN=0; ST.stallN=0; ST.vmaxKmh=0; ST.accelVmax=0;
     ST.elements=EL(); ST.t0=performance.now(); ST.maxIdx=0;
+    ST.score=0; ST.cleanSec=0; ST.lineSec=0; ST.wallSec=0; ST._lastT=performance.now();
   };
 
+  /* ★u_5816 SCORING. Owner: per-tick reward while clean, scaled by SPEED; penalties on wall and on
+     line contact; cumulative score reported next to pass/fail.
+     NORMALISATION: the owner said 'every 0.01s', but our frame tick is ~30-60fps and varies, so a
+     per-FRAME score would pay a fast machine more than a slow one for identical driving. We
+     integrate per SECOND instead: score += rate * dt, with dt the real elapsed frame time. The
+     numbers below are therefore per-second and frame-rate independent.
+       clean driving : +1.0 * (v / V_REF) per second      V_REF = 8.33 m/s (30km/h)
+       line contact  : -20.0 per second in contact
+       wall/off-course: -50.0 per second beyond 2x lane half-width (our 'wall')
+       stall          :  0 (standing still earns nothing - no penalty needed, it simply scores 0) */
+  const V_REF=8.33, R_CLEAN=1.0, P_LINE=20.0, P_WALL=50.0;
   window.__courseTick = function(){
     if(!ST.started||ST.done) return;
-    ST.elapsed=(performance.now()-ST.t0)/1000;
+    const _now=performance.now();
+    const _dt=Math.max(0, Math.min(0.1, (_now-(ST._lastT||_now))/1000)); ST._lastT=_now;
+    ST.elapsed=(_now-ST.t0)/1000;
     const n=nearest(me.x,me.y), E=ST.elements[n.p.tag]; if(!E) return;
     if(n.d>HALF*4) return;   // not on the course yet: do not score
     const kmh=Math.abs(me.v)*3.6;
     ST.vmaxKmh=Math.max(ST.vmaxKmh,kmh); ST.progress=+(n.i/(PTS.length-1)).toFixed(3);
     E.seen++; E.maxDev=Math.max(E.maxDev,+n.d.toFixed(3));
     if(n.p.tag==='accel') ST.accelVmax=Math.max(ST.accelVmax,kmh);
+    /* scoring: speed-proportional while clean, penalties while touching */
+    const _v=Math.abs(me.v);
+    if(n.d>HALF*2){ ST.score -= P_WALL*_dt; ST.wallSec=(ST.wallSec||0)+_dt; }
+    else if(n.d>HALF){ ST.score -= P_LINE*_dt; ST.lineSec=(ST.lineSec||0)+_dt; }
+    else { ST.score += R_CLEAN*(_v/V_REF)*_dt; ST.cleanSec=(ST.cleanSec||0)+_dt; }
+    ST.score=+ST.score.toFixed(3);
     if(n.d>HALF){ E.touch++; ST.touchN++; }                       // detection-line contact
     ST.stallN = (kmh<1 && ST.elapsed>3) ? ST.stallN+1 : 0;        // stalled
     /* u_5813 BUG: completion was 'nearest index is the last point', which fires instantly when the

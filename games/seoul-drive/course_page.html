@@ -1,0 +1,111 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<title>ODE 기능코스</title>
+<style>html,body{margin:0;background:#20242b;overflow:hidden}canvas{display:block}
+#hud{position:fixed;left:8px;top:8px;color:#dfe6f0;font:12px ui-monospace,Menlo,monospace;
+     background:rgba(0,0,0,.45);padding:6px 9px;border-radius:6px;line-height:1.5;white-space:pre}</style>
+</head><body><canvas id="cv"></canvas><div id="hud"></div>
+<script>
+/* ★u_5815 STANDALONE COURSE PAGE — loads NO map, NO router, NO scope polygon.
+   The re-plan fight under ?course=1 was the scoped page rebuilding its own route over ours; this
+   page has no router to fight. Same /tel course schema and same /ctl contract as the main page, so
+   judging and tooling carry over unchanged. Geometry comes from course.js (shared generator). */
+const S = 6.0;                                   // px per metre, same scale as the main page
+const cv=document.getElementById('cv'), g=cv.getContext('2d');
+function fit(){ cv.width=innerWidth; cv.height=innerHeight; } addEventListener('resize',fit); fit();
+
+const me={x:0,y:0,ang:0,v:0,steer:0,wm:1.8,hm:4.6,offroad:0};
+const auto={on:0,wp:[],i:0,goal:null};
+const cam={x:0,y:0,z:1.0}; let camA=0;
+const MAXSTEER=0.62, WB=me.hm*0.6;
+window.__parked=0;
+
+/* course.js reads location.search, defines window.__course / __courseStart / __courseTick /
+   __courseDraw, and uses the globals above (S, me, auto). It is injected below by the loader. */
+</script>
+<script src="course.js"></script>
+<script>
+/* Pure-Pursuit follower — the SAME control law as the main page (game.js):
+     delta = atan2(2*wb*sin(alpha), Ld), st = clamp(delta/maxSteer)
+   so the rule baseline on this page is comparable to the rule elsewhere. */
+function follow(dt){
+  if(!auto.on || !auto.wp.length) return;
+  const Ld = Math.max(6, Math.min(16, 0.9*me.v));
+  while(auto.i < auto.wp.length-1){
+    const w=auto.wp[auto.i], d=Math.hypot(w.x-me.x, w.y-me.y)/S;
+    if(d < Ld) auto.i++; else break;
+  }
+  const t=auto.wp[Math.min(auto.i, auto.wp.length-1)];
+  const dx=(t.x-me.x)/S, dy=(t.y-me.y)/S;
+  const alpha=Math.atan2(dy,dx)-me.ang;
+  const a=Math.atan2(Math.sin(alpha),Math.cos(alpha));
+  const Lr=Math.max(2,Math.hypot(dx,dy));
+  const delta=Math.atan2(2*WB*Math.sin(a), Lr);
+  let st=Math.max(-0.9,Math.min(0.9, delta/MAXSTEER));
+  /* heading term: adopted default head=all (u_5805). ?head=none reverts. */
+  if(HEAD){
+    const seg=nearestSegAngle();
+    if(seg!==null){ const ep=((me.ang-seg+Math.PI*3)%(Math.PI*2))-Math.PI;
+      st=Math.max(-0.9,Math.min(0.9, st - HEADK*(ep/MAXSTEER))); window.__headFrames=(window.__headFrames|0)+1; }
+  }
+  /* u_5816 degenerate-policy arms for scorer validation: ?nosteer=1 pins steering to zero,
+     ?nodrive=1 leaves the car stationary. Both exist only to prove the scorer is not gameable. */
+  if(/[?&]nosteer=1/.test(location.search)) st=0;
+  me.steer=st;
+  let vT = CMD.vT>=0 ? CMD.vT : 8.0;
+  if(/[?&]nodrive=1/.test(location.search)) vT=0;
+  me.v += (vT-me.v)*Math.min(1, dt*1.5);
+}
+function nearestSegAngle(){
+  const P=window.__coursePts; if(!P||P.length<2) return null;
+  let bi=1,bd=1e18; const mx=me.x/S,my=me.y/S;
+  for(let i=1;i<P.length;i++){ const dx=mx-P[i].x,dy=my-P[i].y,d=dx*dx+dy*dy; if(d<bd){bd=d;bi=i;} }
+  const a=P[bi-1],b=P[bi]; return Math.atan2(b.y-a.y,b.x-a.x);
+}
+const q=new URLSearchParams(location.search);
+const HEAD = (q.get('head')||'all')!=='none';
+const HEADK = parseFloat(q.get('headk')||'0.6');
+
+/* /ctl contract, same as the main page: GET returns the command, ?tel= uploads telemetry. */
+const CMD={on:0,vT:-1,mode:0};
+let telT=0;
+function poll(){
+  const c=window.__course||{};
+  const tel={ v:me.v, st:me.steer, autoOn:auto.on|0, parked:window.__parked|0,
+              wpLen:auto.wp.length, pos:[+(me.x/S).toFixed(1),+(me.y/S).toFixed(1)],
+              course:c, headMode:HEAD?'all':null, headFrames:window.__headFrames|0,
+              prog:c.progress||0 };
+  fetch('/ctl?tel='+encodeURIComponent(JSON.stringify(tel)),{cache:'no-store'})
+    .then(r=>r.json()).then(d=>{ if(d){ CMD.on=d.on|0; CMD.vT=(typeof d.vT==='number')?d.vT:-1;
+      if(typeof d.lp==='number') CMD.lp=d.lp; } }).catch(()=>{});
+}
+setInterval(poll, 50);
+
+let last=performance.now();
+function loop(){
+  const now=performance.now(), dt=Math.min(0.05,(now-last)/1000); last=now;
+  follow(dt);
+  me.ang += (me.v/ (WB/Math.tan(Math.max(1e-3,Math.abs(me.steer*MAXSTEER))) || 1)) * dt * Math.sign(me.steer||0);
+  me.x += Math.cos(me.ang)*me.v*S*dt; me.y += Math.sin(me.ang)*me.v*S*dt;
+  if(window.__courseTick) window.__courseTick();
+  draw();
+  requestAnimationFrame(loop);
+}
+function draw(){
+  g.fillStyle='#20242b'; g.fillRect(0,0,cv.width,cv.height);
+  cam.x+=((me.x)-cam.x)*0.12; cam.y+=((me.y)-cam.y)*0.12;
+  camA += ((me.ang+Math.PI/2)-camA)*0.18;
+  g.save(); g.translate(cv.width/2, cv.height*0.62); g.scale(cam.z,cam.z);
+  g.rotate(-camA); g.translate(-cam.x,-cam.y);
+  if(window.__courseDraw) window.__courseDraw(g);
+  g.save(); g.translate(me.x,me.y); g.rotate(me.ang+Math.PI/2);
+  g.fillStyle='#57d0ff'; g.fillRect(-me.wm*S/2,-me.hm*S/2,me.wm*S,me.hm*S); g.restore();
+  g.restore();
+  const c=window.__course||{}; const e=c.elements||{};
+  document.getElementById('hud').textContent =
+    'course '+(c.cfg?('turn '+c.cfg.turn+c.cfg.dir+' R'+c.cfg.radius+' w'+c.cfg.width):'-')+
+    '\nt '+(c.elapsed||0).toFixed(1)+'s  prog '+((c.progress||0)*100).toFixed(0)+'%  v '+(me.v*3.6).toFixed(1)+'km/h'+
+    '\ntouch '+(c.touchN||0)+'  result '+(c.result||'-')+
+    '\n'+Object.keys(e).map(k=>k+':'+(e[k].seen?(e[k].touch?'touch'+e[k].touch:'ok'):'-')).join('  ');
+}
+requestAnimationFrame(loop);
+</script></body></html>
