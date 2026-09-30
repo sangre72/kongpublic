@@ -58,14 +58,16 @@ tell application "Terminal"
   set targetTty to "$TARGET_TTY"
   if targetTty is not "" then
     repeat with w in windows
-      if (tty of w) is targetTty then
-        do script "$MSG" in w
-        delay $SUBMIT_DELAY
-        do script (return & "") in w
-        delay 0.8
-        do script (return & "") in w
-        return "SUCCESS(tty): " & (name of w)
-      end if
+      repeat with t in tabs of w
+        if (tty of t) is targetTty then
+          do script "$MSG" in t
+          delay $SUBMIT_DELAY
+          do script (return & "") in t
+          delay 0.8
+          do script (return & "") in t
+          return "SUCCESS(tty): " & (name of w)
+        end if
+      end repeat
     end repeat
   end if
   -- fallback: old title-phrase match(pre-tty-registration sessions)

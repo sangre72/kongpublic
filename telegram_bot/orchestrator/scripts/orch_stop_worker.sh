@@ -20,11 +20,14 @@ tell application "Terminal"
   set targetTty to "$TARGET_TTY"
   if targetTty is not "" then
     repeat with w in windows
-      if (tty of w) is targetTty then
-        set frontmost of w to true
-        set index of w to 1
-        exit repeat
-      end if
+      repeat with t in tabs of w
+        if (tty of t) is targetTty then
+          set frontmost of w to true
+          set selected of t to true
+          set index of w to 1
+          exit repeat
+        end if
+      end repeat
     end repeat
   end if
   activate
