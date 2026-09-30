@@ -589,6 +589,36 @@ def _fire_compact(target: str) -> str:
     return f"⚠ 부분/실패 (orch={'ok' if orch_ok else 'x'}, worker={'ok' if wkr_ok else 'x'})"
 
 
+def _log_button_exec(kind, argv, result, elapsed, err=None):
+    """u_5767: buttons reported failure to the owner with NO trace anywhere - 'cannot reproduce'
+    plus 'no log' means the next failure is equally undiagnosable. Record rc/stdout/stderr/elapsed
+    /cwd/resolved-tty for every button-triggered script run. Never raises: logging must not break
+    the handler it instruments."""
+    try:
+        import datetime, pathlib
+        logp = _REPO_ROOT / "logs" / "button_exec.log"
+        logp.parent.mkdir(parents=True, exist_ok=True)
+        tty = ""
+        try:
+            tf = _REPO_ROOT / "logs" / ".orch_tty_worker1"
+            tty = tf.read_text().strip() if tf.exists() else "(unregistered)"
+        except Exception:
+            tty = "(tty read failed)"
+        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if err is not None:
+            line = f"[{ts}] {kind} EXCEPTION {type(err).__name__}: {str(err)[:200]} | elapsed={elapsed:.2f}s cwd={_REPO_ROOT} tty={tty} argv={argv}\n"
+        else:
+            ok = result.returncode == 0 and (result.stdout or "").strip().startswith("SUCCESS")
+            line = (f"[{ts}] {kind} ok={ok} rc={result.returncode} elapsed={elapsed:.2f}s cwd={_REPO_ROOT} tty={tty}\n"
+                    f"    argv={argv}\n"
+                    f"    stdout={(result.stdout or '')[:400]!r}\n"
+                    f"    stderr={(result.stderr or '')[:400]!r}\n")
+        with open(logp, "a", encoding="utf-8") as fh:
+            fh.write(line)
+    except Exception:
+        pass
+
+
 def _set_worker_model(value: str) -> str:
     """.env 의 ORCH_WORKER_MODEL 라인을 upsert(a_3564). 다음 spawn_for_task 가 fresh 로 읽어 반영.
 
@@ -685,11 +715,12 @@ def _handle_audit_callback(tg: TelegramIO, cq: dict) -> None:
     # 워커 세션이 떠 있으면 그 세션 모델도 같이 바꾼다(--model). 없으면 무시.
     try:
         wake = _REPO_ROOT / "telegram_bot" / "orchestrator" / "scripts" / "orch_wake_worker.sh"
-        subprocess.run(["bash", str(wake), "--model", model,
-                        "audit phase switch via telegram button."],
-                       capture_output=True, text=True, timeout=12, cwd=str(_REPO_ROOT))
-    except Exception:  # noqa: BLE001
-        pass
+        _argv = ["bash", str(wake), "--model", model, "audit phase switch via telegram button."]
+        _t0 = time.time()
+        _r = subprocess.run(_argv, capture_output=True, text=True, timeout=12, cwd=str(_REPO_ROOT))
+        _log_button_exec("model-switch", _argv, _r, time.time() - _t0)   # u_5767
+    except Exception as _e:  # noqa: BLE001
+        _log_button_exec("model-switch", ["bash", "orch_wake_worker.sh", "--model", model], None, 0.0, err=_e)   # u_5767
     try:
         tg.answer_callback_query(cq.get("id"), text=f"▶ {title}")
     except Exception:  # noqa: BLE001
@@ -732,13 +763,16 @@ def _handle_main_menu_callback(tg: TelegramIO, cq: dict) -> None:
     if action == "wake":
         wake_script = _REPO_ROOT / "telegram_bot" / "orchestrator" / "scripts" / "orch_wake_worker.sh"
         try:
+            _argv = ["bash", str(wake_script), "wake check requested via telegram button."]
+            _t0 = time.time()
             result = subprocess.run(
-                ["bash", str(wake_script), "wake check requested via telegram button."],
-                capture_output=True, text=True, timeout=10, cwd=str(_REPO_ROOT),
+                _argv, capture_output=True, text=True, timeout=10, cwd=str(_REPO_ROOT),
             )
+            _log_button_exec("wake", _argv, result, time.time() - _t0)   # u_5767
             ok = result.returncode == 0 and result.stdout.strip().startswith("SUCCESS")
             toast = "✅ 워커 깨우기 신호 전송됨" if ok else "⚠ 실패(로그 확인 필요)"
         except Exception as e:  # noqa: BLE001
+            _log_button_exec("wake", ["bash", "orch_wake_worker.sh"], None, 0.0, err=e)   # u_5767
             toast = f"⚠ 오류: {e}"
         try:
             tg.answer_callback_query(cq.get("id"), text=toast)
