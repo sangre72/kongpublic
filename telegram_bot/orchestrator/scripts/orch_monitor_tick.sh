@@ -47,6 +47,11 @@ for f in "$UD"/u_*.txt; do
     fi
     continue
   fi
+  # ★u_5825(2026-09-30): wake(bot _wake_orch_self) = PRIMARY path. Emitting NEW_USER_MSG on the first
+  #   5s tick beat the wake inject, so the orch turn started from the Monitor event and the injected
+  #   prompt got lost/queued. Hold the Monitor emit until the u_ is WAKE_GRACE s old and still unseen.
+  age=$(( $(date +%s) - $(stat -f %m "$f" 2>/dev/null || echo 0) ))
+  [ "$age" -lt "${WAKE_GRACE:-20}" ] && continue
   echo "NEW_USER_MSG $b"
   echo "U:$b" >> "$ESEEN"
 done
