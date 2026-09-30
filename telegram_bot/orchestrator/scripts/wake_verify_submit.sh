@@ -5,7 +5,17 @@
 # prompt line is empty or shows the queued-message hint. Prints VERIFY_OK / VERIFY_STUCK.
 TTY="$1"; [[ -z "$TTY" ]] && { echo "VERIFY_SKIP(no tty)"; exit 0; }
 prompt_line() {
-  osascript <<EOF2 2>/dev/null | grep -E '^❯' | tail -1
+  # The live input box = the line(s) between the LAST two '────' border rules. A bare "last ❯ line"
+  # matched an already-submitted prompt in scrollback (22:06 false STUCK on u_5829). No box found
+  # → print __NOBOX__ (caller treats as unknown, never spams Enter).
+  osascript <<EOF2 2>/dev/null | python3 -c '
+import sys
+L=sys.stdin.read().split("\n")
+r=[k for k,x in enumerate(L) if x.startswith("\u2500\u2500\u2500\u2500")]
+if len(r)<2: print("__NOBOX__"); sys.exit()
+a,b=r[-2],r[-1]
+box=" ".join(x.strip() for x in L[a+1:b]).strip()
+print(box if box else "\u276f")'
 tell application "Terminal"
   repeat with w in windows
     repeat with t in tabs of w
@@ -22,6 +32,7 @@ empty=0; sent=0; qflush=0
 for i in 1 2 3 4 5; do
   sleep 1.5
   L=$(prompt_line)
+  if [[ "$L" == "__NOBOX__" ]]; then echo "$(date '+%F %T') $TTY NOBOX" >> "$LOG"; echo "VERIFY_NOBOX"; exit 0; fi
   body=$(printf '%s' "${L#❯}" | sed 's/[[:space:]]*$//; s/^[[:space:]]*//')
   # queued hint = message parked in the TUI queue; observed 22:04 it was NOT flushed when the session
   # went idle (delivered only with the next submit). One extra Enter flushes it; harmless if busy.
