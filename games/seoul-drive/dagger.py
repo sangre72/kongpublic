@@ -82,6 +82,9 @@ def episode(net, dev, secs, ep):
     W, TT = [], []                         # ★u_5426 프레임 가중치(사고 직전 3초=0)·프레임 시각
     P = []                                 # ★2026-09-20 모델 출력(조향·스로틀·제동) — 사후 분석용(P.npy). k=7 '왜 서 있나'를 못 봤다.
     TN = []                                # ★2026-09-22 관제망(tier net) 출력 [ntier, conf, ntier_raw] (T.npy) — 오너 u_5512 '적용'
+    SQ = []                                # u_5798: [applied_st, rule_st, t] per frame. The applied
+    #   MODEL command is live in /tel top-level 'st' but was never persisted, so steer magnitude and
+    #   sign-reversal rate could not be answered from already-collected episodes.
     Q = []                                 # ★2026-09-20 u_5478 프레임 품질 [xt(경로추적오차 m), tpN, cr, t] — '차선 잘 지킨 구간만' 선별용(Q.npy)
     LP = []                                # ★2026-09-21 앞점 라벨 [lp(m, +=오른쪽), ld(m)] — 차 기준 앞점 인터페이스(tgt mode=2) 학습용(L.npy)
     M = []                                 # ★u_5427 상황 태그 [gap, ped, sig, turn(0/S 1/L 2/R 3/U), aD, v, laneF, nl] — 커리큘럼 단계 필터용
@@ -278,6 +281,18 @@ def episode(net, dev, secs, ep):
             else: LP.append(([float(_lbh['lp']), float(_lbh.get('ld') or 10.0), float(_lbh['vmax']) if isinstance(_lbh.get('vmax'), (int, float)) else float('nan')] if isinstance(_lbh, dict) and isinstance(_lbh.get('lp'), (int, float)) else [float('nan'), float('nan'), float('nan')]) + _lpm + _lfm)   # [lp, ld, vmax, lp10..lp80, lf10..lf80]
             _dq = d.get('da') or {}; _ps = d.get('pos') if isinstance(d.get('pos'), list) and len(d.get('pos')) >= 2 else [float('nan'), float('nan')]
             _car = d.get('car') or {}
+            # u_5798 CORRECTED: top-level /tel 'st' is 0 under --lp (mode 2) - the model commands a
+            #   TARGET LATERAL OFFSET (mdlTgt.lp), and the page's follower turns the wheel (da.st).
+            #   So there is ONE steer stream, not a model-vs-rule pair. Record: the applied steer,
+            #   the model's commanded offset, and the rule's own lp for the same frame.
+            _mt = d.get('mdlTgt') or {}
+            _ast = _dq.get('st')                                  # applied steer (follower output)
+            _mlp = _mt.get('lp') if _mt.get('mode') == 2 else None  # model's commanded offset
+            _rlp = _dq.get('lp')                                  # rule's lp at the same frame
+            SQ.append([float(_ast) if isinstance(_ast, (int, float)) else float('nan'),
+                       float(_mlp) if isinstance(_mlp, (int, float)) else float('nan'),
+                       float(_rlp) if isinstance(_rlp, (int, float)) else float('nan'),
+                       time.time() - t0])
             Q.append([float(_dq.get('xt') if isinstance(_dq.get('xt'), (int, float)) else 99.0), float(d.get('tpN') or 0), float(d.get('cr') or 0), time.time() - t0,
                       float(_ps[0]), float(_ps[1]), float(d.get('prog') or 0), float(_car.get('ang') if isinstance(_car.get('ang'), (int, float)) else float('nan'))])   # 8열(2026-09-24 C): car.ang — 오프라인 BEV 라벨용 헤딩   # 4~6열(2026-09-22): pos x,y, prog — 사고 지점을 회귀 케이스로 고정하기 위해(규칙 §6)
         time.sleep(0.02)
@@ -308,7 +323,8 @@ def episode(net, dev, secs, ep):
             np.array(P, dtype=np.float32) if P else None,
             np.array(Q, dtype=np.float32) if Q else None,
             np.array(LP, dtype=np.float32) if LP else None,
-            np.array(TN, dtype=np.float32) if TN else None)
+            np.array(TN, dtype=np.float32) if TN else None,
+            np.array(SQ, dtype=np.float64) if SQ else None)
 
 
 def main():
@@ -359,10 +375,10 @@ def main():
 
     outd = os.path.join(BASE, 'data', 'dagger_r%d' % a.round)
     os.makedirs(outd, exist_ok=True)
-    AX, AY, ST, AW, AM = [], [], [], [], []; AP = []; AQ = []; AL = []; AT = []
+    AX, AY, ST, AW, AM = [], [], [], [], []; AP = []; AQ = []; AL = []; AT = []; ASQ = []
     try:
         for i in range(a.episodes):
-            X, Y, s, Wt, Mt, Pt, Qt, Lt, Tt = episode(net, dev, a.secs, i + 1)
+            X, Y, s, Wt, Mt, Pt, Qt, Lt, Tt, SQt = episode(net, dev, a.secs, i + 1)
             ST.append(s)
             print(json.dumps(s, ensure_ascii=False), flush=True)
             if X is not None:
@@ -386,7 +402,7 @@ def main():
                         print(json.dumps({'corner_boost_frames': nboost, 'corner_w': cw}), flush=True)
                 except Exception as e:
                     print(json.dumps({'corner_w_err': str(e)[:80]}), flush=True)
-                AX.append(X); AY.append(Y); AW.append(Wt); AM.append(Mt); AP.append(Pt); AQ.append(Qt); AL.append(Lt); AT.append(Tt)
+                AX.append(X); AY.append(Y); AW.append(Wt); AM.append(Mt); AP.append(Pt); AQ.append(Qt); AL.append(Lt); AT.append(Tt); ASQ.append(SQt)
     finally:
         if os.environ.get('RECORD_ONLY') != '1': post({'on': 0, 'steer': 0, 'thr': 0, 'brake': 0})
 
@@ -401,7 +417,8 @@ def main():
     np.save(f'{outd}/P.npy', np.concatenate(AP))     # 모델 출력(2026-09-20) — Y(교사)와 나란히
     np.save(f'{outd}/Q.npy', np.concatenate(AQ))     # 프레임 품질 [xt, tpN, cr, t] (u_5478) — 학습기가 xt<0.6·순간이동/사고 ±3초 제외에 쓴다
     np.save(f'{outd}/L.npy', np.concatenate(AL))     # 앞점 라벨 [lp, ld] (2026-09-21, tgt mode=2)
-    np.save(f'{outd}/T.npy', np.concatenate(AT))     # 관제망 [ntier, conf, raw] (2026-09-22)
+    np.save(f'{outd}/T.npy', np.concatenate(AT))
+    np.save(f'{outd}/SQ.npy', np.concatenate(ASQ))   # u_5798 [applied_st, rule_st, t]     # 관제망 [ntier, conf, raw] (2026-09-22)
     if LAB and SEG: np.save(f'{outd}/S.npy', np.stack(SEG)); print(json.dumps({'S': len(SEG), 'lab_missing': SEGN[0]}), flush=True)   # a_5612 픽셀 라벨(X 와 1:1)
     open(f'{outd}/DONE', 'w').write('ok\n')
     json.dump(ST, open(f'{outd}/episodes.json', 'w'), ensure_ascii=False, indent=1)

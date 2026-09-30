@@ -3191,6 +3191,7 @@ function mdlPoll(dt){
       lblN:(window.__lblLog||[]).length, stEma: window.__stEma||0, stEmaAuto: window.__stEmaAuto?1:0, stTau: window.__stTau||null, stEmaN: window.__stEmaN|0, lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0, lpwN: window.__lpwN|0, lpwFit: (typeof window.__lpwFit==='number')?+window.__lpwFit.toFixed(2):null, lpwIn: (typeof window.__lpwIn==='number')?+window.__lpwIn.toFixed(2):null, lpwBuf: (window.__lpwBuf||[]).length,
       lhold: window.__lhold|0, bridgeN: window.__bridgeN|0, revOw: window.__revOw|0, startSideSwap: window.__startSideSwap||null, outOfScope: window.__outOfScope|0, scopeDbg: window.__scopeDbg||null, offBlendN: window.__offBlendN|0, rfRampN: window.__rfRampN|0, unwindN: window.__unwindN|0, unwindFrames: window.__uwFrames|0, unwindMaxRate: +(window.__uwMaxRate||0).toFixed(2), unwindXtHold: window.__uwXtHold|0, unwindOn: window.__uwOn|0, rfRampLd: window.__rfRampLd||null, rfRampCfg: window.__noRamp?null:[window.__rfRamp0,window.__rfRampS,window.__rfRampCap,window.__rfRampVtx],
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
+      xtCapN: window.__xtCapN|0, ldNorm: window.__ldNorm?1:0, xtCap: window.__xtCap?1:0,
       pgN: window.__pgN|0, pgCell: window.__pgCell||null, pgOn: window.__pgOn|0, perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
       sigNear: (function(){try{const n=performance.now();return signals.map(q=>({d:Math.hypot(q.x-me.x,q.y-me.y)/S,q})).sort((a,b)=>a.d-b.d).slice(0,4).map(z=>({d:+z.d.toFixed(1),x:+(z.q.x/S).toFixed(1),y:+(z.q.y/S).toFixed(1),sx:+(z.q.sx/S).toFixed(1),sy:+(z.q.sy/S).toFixed(1),nx:+(nodes[z.q.node].x/S).toFixed(1),ny:+(nodes[z.q.node].y/S).toFixed(1),tw:+z.q.tw.toFixed(2),rw:+(z.q.rw/S).toFixed(1),ow:z.q.ow,red:sigRed(z.q,n)?1:0}))}catch(e){return String(e).slice(0,40)}})(),
       sigBarN: (function(){try{return signals.filter(q=>q.sx!==undefined).length}catch(e){return -1}})(), sigRedN: (function(){try{const n=performance.now();return signals.filter(q=>sigRed(q,n)).length}catch(e){return -1}})(), sigN: (typeof signals!=='undefined')?signals.length:-1,
@@ -3378,6 +3379,9 @@ window.__lpWorldN = (function(){ const m=/[?&]lpworld=(\d+)/.exec(location.searc
 window.__PGEY = (function(){ const m=/[?&]pgey=([0-9.,]+)/.exec(location.search); return m? m[1].split(',').map(Number) : null; })();   // u_5759
 window.__PGEP = (function(){ const m=/[?&]pgep=([0-9.,]+)/.exec(location.search); return m? m[1].split(',').map(Number) : null; })();
 window.__PGRID = (function(){ const m=/[?&]pgrid=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();   // u_5763
+window.__ldNorm = /[?&]ldnorm=1/.test(location.search);   // u_5799 B/C
+window.__xtCap  = /[?&]xtcap=1/.test(location.search);    // u_5799 B/C
+window.__XTCAP_M = (function(){ const m=/[?&]xtcapm=([0-9.]+)/.exec(location.search); return m? +m[1] : 2.0; })();
 window.__PGHOLD = (function(){ const m=/[?&]pghold=([0-9.]+)/.exec(location.search); return m? +m[1] : 5.0; })();   // u_5774: perturb window must cover the scorer's recovery window, else the next trigger overlaps it
 window.__PERTURB_S = (function(){ const m=/[?&]perturb=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();
 /* ★가상 데이터 샘플러(오너 u_5467, 2026-09-20): 주행하지 않고 상태를 무작위로 놓는다. ?synth=1 이면 SYNTH_MS 마다 경로 위 임의 점에
@@ -3561,7 +3565,13 @@ function driveAuto(dt){
      골목은 4~8m 로 짧게 본다. */
   const _alley=(()=>{ try{ const rs=(typeof routeSeg==='function'&&routeSeg(me.x,me.y))||nearestSeg(me.x,me.y); const sg=rs&&rs.s; if(!sg) return false;
                           const rw=sg.roadW||((sg.l||2)*LW); const nl=sg.o?(sg.l||1):Math.min(segLf(sg),segLb(sg)); return nl<=1 && rw<=6.5*S+0.01; }catch(e){ return false; } })();
-  const Ld0 = off > 6
+  /* ★u_5799 A/B/C TEST: the short-recovery-Ld branch is deliberate ('snap back fast') and carries NO
+     speed reduction, so the car rejoins aggressively at full speed where a human would slow and come
+     back gradually. Two independent knobs, both OFF by default (?ldnorm=1 / ?xtcap=1):
+       ldnorm=1 : keep the NORMAL speed-proportional Ld even when off-path (may fail to rejoin from a
+                  large offset - that is the failure the short-Ld rule was added for, see above).
+       xtcap=1  : cap speed while |xt|>XTCAP_M, vmax scaled ~1/(1+|xt|).  */
+  const Ld0 = (off > 6 && !window.__ldNorm)
     ? Math.max(4, Math.min(8, 4 + 0.3*me.v))       // 복귀: 짧게 → 급히 붙는다
     : (_alley ? Math.max(4, Math.min(8, 0.9*me.v)) : Math.max(6, Math.min(16, 0.9*me.v)));         // 정상: 속도비례(골목은 짧게)
   /* ★2026-09-26(orch/u_5641) 규칙 추종기 코너 진출·이양 램프: 회전 정점 통과(aD 급증) 또는 조향주체 이양 시점부터 2.5초간 Ld 를 6m→Ld0 로
@@ -3785,6 +3795,16 @@ function driveAuto(dt){
   if(pedD<PED_STOP_M) vmax=0;
   else if(pedD<PED_SLOW_M) vmax=Math.min(vmax, 3.5);
   if(off>6) vmax=Math.max(vmax, 4.5);              // 복귀 중엔 최소한의 추진력 유지
+  /* ★u_5799 xtcap: a human SLOWS to rejoin; this code instead keeps a 4.5m/s FLOOR while off-path.
+     With ?xtcap=1, cap vmax ~ 1/(1+|xt|) once |xt|>XTCAP_M. Applied AFTER the floor above so it
+     genuinely overrides it (a cap before the floor would be erased by it). */
+  if(window.__xtCap){
+    const _xt = Math.abs(off);
+    if(_xt > window.__XTCAP_M){
+      vmax = Math.min(vmax, Math.max(1.5, 8.0/(1.0+_xt)));
+      window.__xtCapN = (window.__xtCapN|0)+1;
+    }
+  }
   if(Math.abs(alpha)>0.6) vmax=Math.min(vmax,5);   // 크게 틀어야 하면 감속
   /* ★정차 교착 해제(u_5050).
      gap() 은 거리만 본다. 앞차가 '서 있으면' gap<11m 이 영원히 유지돼 vmax=0 으로
