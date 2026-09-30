@@ -58,7 +58,12 @@ _sp = 'games/seoul-drive/data/scope_poly.js'
 scope_js = open(_sp).read() if _os.path.exists(_sp) else 'const SCOPE_POLY=null;'
 gm   = open('games/seoul-drive/game.js').read()
 te   = open('games/seoul-drive/teacher.js').read()
+# ★u_5809: minimal licence-test course (S-curve/straight/acceleration). Inert unless ?course=1;
+#   it builds its own geometry and never touches the scoped map or the router.
+_cj = 'games/seoul-drive/course.js'
+course_js = open(_cj).read() if _os.path.exists(_cj) else ''
 gm = "window.__TRAFFIC='%s';window.__TARGET_KMH=%d;\n" % (_tf, _kmh) + gm
+gm = gm + '\n;' + course_js
 # ★차로변경 데모(u_4992): --lanedemo 면 1차로에서 달리다 3차로로 옮긴다.
 #   아티팩트는 샌드박스라 콘솔/URL 로 못 건드린다 → 빌드에 넣는 수밖에 없다.
 if '--sigdemo' in sys.argv:

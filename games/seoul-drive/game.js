@@ -3029,6 +3029,7 @@ function mdlPoll(dt){
       lblN:(window.__lblLog||[]).length, stEma: window.__stEma||0, stEmaAuto: window.__stEmaAuto?1:0, stTau: window.__stTau||null, stEmaN: window.__stEmaN|0, lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0, lpwN: window.__lpwN|0, lpwFit: (typeof window.__lpwFit==='number')?+window.__lpwFit.toFixed(2):null, lpwIn: (typeof window.__lpwIn==='number')?+window.__lpwIn.toFixed(2):null, lpwBuf: (window.__lpwBuf||[]).length,
       lhold: window.__lhold|0, bridgeN: window.__bridgeN|0, revOw: window.__revOw|0, startSideSwap: window.__startSideSwap||null, outOfScope: window.__outOfScope|0, scopeDbg: window.__scopeDbg||null, offBlendN: window.__offBlendN|0, rfRampN: window.__rfRampN|0, unwindN: window.__unwindN|0, unwindFrames: window.__uwFrames|0, unwindMaxRate: +(window.__uwMaxRate||0).toFixed(2), unwindXtHold: window.__uwXtHold|0, unwindOn: window.__uwOn|0, rfRampLd: window.__rfRampLd||null, rfRampCfg: window.__noRamp?null:[window.__rfRamp0,window.__rfRampS,window.__rfRampCap,window.__rfRampVtx],
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
+      course: window.__course||null,
       headMode: window.__headMode||null, headFrames: window.__headFrames|0,
       xtCapN: window.__xtCapN|0, ldNorm: window.__ldNorm?1:0, xtCap: window.__xtCap?1:0,
       pgN: window.__pgN|0, pgCell: window.__pgCell||null, pgOn: window.__pgOn|0, perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
@@ -3218,7 +3219,12 @@ window.__lpWorldN = (function(){ const m=/[?&]lpworld=(\d+)/.exec(location.searc
 window.__PGEY = (function(){ const m=/[?&]pgey=([0-9.,]+)/.exec(location.search); return m? m[1].split(',').map(Number) : null; })();   // u_5759
 window.__PGEP = (function(){ const m=/[?&]pgep=([0-9.,]+)/.exec(location.search); return m? m[1].split(',').map(Number) : null; })();
 window.__PGRID = (function(){ const m=/[?&]pgrid=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();   // u_5763
-window.__headMode = (function(){ const m=/[?&]head=(exit|all)/.exec(location.search); return m? m[1] : null; })();   // u_5803
+/* ★u_5805 ADOPTED DEFAULT: head=all. Measured 3 classes x 3 reps (u_5803): amp median .400 -> .105
+   overall; alley .400->.076 and two .485->.297 both exceed their own control MDE. Revert with
+   ?head=none (or ?head=exit for the corner-exit-only arm). Gain ?headk=, default 0.6. */
+window.__headMode = (function(){ const m=/[?&]head=(exit|all|none)/.exec(location.search);
+  const v = m ? m[1] : 'all';           // DEFAULT = all (was: null/off)
+  return v === 'none' ? null : v; })();   // u_5803/u_5805
 window.__headK = (function(){ const m=/[?&]headk=([0-9.]+)/.exec(location.search); return m? +m[1] : 0.6; })();
 window.__ldNorm = /[?&]ldnorm=1/.test(location.search);   // u_5799 B/C
 window.__xtCap  = /[?&]xtcap=1/.test(location.search);    // u_5799 B/C
@@ -4536,11 +4542,13 @@ function draw(){
   /* ★차 전방이 항상 화면 위쪽이 되도록 맵을 회전한다(u_4920).
      실제 내비·주행 시점과 같다. 이래야 '직진 = 화면에서 위로 뻗은 길'이 되어
      신경망이 배울 대상이 일관된다(회전 안 하면 같은 직진도 매번 다른 그림). */
+  if(window.__courseTick) window.__courseTick(0);
   camA += ((me.ang + Math.PI/2) - camA) * 0.18;     // 부드럽게 따라감
   g.save();g.translate(W/2,H*0.62);g.scale(zoom,zoom);
   g.rotate(-camA);
   g.translate(-cam.x,-cam.y);
   const vw=W/zoom/2+60,vh=H/zoom/2+60;   // ★화면에 보이는 만큼만(u_4880)
+  if(window.__courseDraw){ window.__courseDraw(g); }
   // 회전 후에는 축정렬 사각형이 안 맞는다 → 반경으로 판정
   const vr=Math.hypot(vw,vh);
   const inView=(x,y,m)=>((x-cam.x)**2+(y-cam.y)**2) < (vr+(m||0))**2;
