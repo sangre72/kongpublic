@@ -3191,6 +3191,7 @@ function mdlPoll(dt){
       lblN:(window.__lblLog||[]).length, stEma: window.__stEma||0, stEmaAuto: window.__stEmaAuto?1:0, stTau: window.__stTau||null, stEmaN: window.__stEmaN|0, lpSm: (typeof window.__lpSm==='number')?+window.__lpSm.toFixed(2):null, lpRawMode: window.__lpRawMode?1:0, lpwN: window.__lpwN|0, lpwFit: (typeof window.__lpwFit==='number')?+window.__lpwFit.toFixed(2):null, lpwIn: (typeof window.__lpwIn==='number')?+window.__lpwIn.toFixed(2):null, lpwBuf: (window.__lpwBuf||[]).length,
       lhold: window.__lhold|0, bridgeN: window.__bridgeN|0, revOw: window.__revOw|0, startSideSwap: window.__startSideSwap||null, outOfScope: window.__outOfScope|0, scopeDbg: window.__scopeDbg||null, offBlendN: window.__offBlendN|0, rfRampN: window.__rfRampN|0, unwindN: window.__unwindN|0, unwindFrames: window.__uwFrames|0, unwindMaxRate: +(window.__uwMaxRate||0).toFixed(2), unwindXtHold: window.__uwXtHold|0, unwindOn: window.__uwOn|0, rfRampLd: window.__rfRampLd||null, rfRampCfg: window.__noRamp?null:[window.__rfRamp0,window.__rfRampS,window.__rfRampCap,window.__rfRampVtx],
       synthN: window.__synthN|0, synth: window.__synth?1:0, synthErr: window.__synthErr||null,
+      headMode: window.__headMode||null, headFrames: window.__headFrames|0,
       xtCapN: window.__xtCapN|0, ldNorm: window.__ldNorm?1:0, xtCap: window.__xtCap?1:0,
       pgN: window.__pgN|0, pgCell: window.__pgCell||null, pgOn: window.__pgOn|0, perturbN: window.__perturbN|0, perturbOn: window.__perturbOn|0, perturbS: window.__PERTURB_S||0,
       sigNear: (function(){try{const n=performance.now();return signals.map(q=>({d:Math.hypot(q.x-me.x,q.y-me.y)/S,q})).sort((a,b)=>a.d-b.d).slice(0,4).map(z=>({d:+z.d.toFixed(1),x:+(z.q.x/S).toFixed(1),y:+(z.q.y/S).toFixed(1),sx:+(z.q.sx/S).toFixed(1),sy:+(z.q.sy/S).toFixed(1),nx:+(nodes[z.q.node].x/S).toFixed(1),ny:+(nodes[z.q.node].y/S).toFixed(1),tw:+z.q.tw.toFixed(2),rw:+(z.q.rw/S).toFixed(1),ow:z.q.ow,red:sigRed(z.q,n)?1:0}))}catch(e){return String(e).slice(0,40)}})(),
@@ -3379,6 +3380,8 @@ window.__lpWorldN = (function(){ const m=/[?&]lpworld=(\d+)/.exec(location.searc
 window.__PGEY = (function(){ const m=/[?&]pgey=([0-9.,]+)/.exec(location.search); return m? m[1].split(',').map(Number) : null; })();   // u_5759
 window.__PGEP = (function(){ const m=/[?&]pgep=([0-9.,]+)/.exec(location.search); return m? m[1].split(',').map(Number) : null; })();
 window.__PGRID = (function(){ const m=/[?&]pgrid=([0-9.]+)/.exec(location.search); return m? +m[1] : 0; })();   // u_5763
+window.__headMode = (function(){ const m=/[?&]head=(exit|all)/.exec(location.search); return m? m[1] : null; })();   // u_5803
+window.__headK = (function(){ const m=/[?&]headk=([0-9.]+)/.exec(location.search); return m? +m[1] : 0.6; })();
 window.__ldNorm = /[?&]ldnorm=1/.test(location.search);   // u_5799 B/C
 window.__xtCap  = /[?&]xtcap=1/.test(location.search);    // u_5799 B/C
 window.__XTCAP_M = (function(){ const m=/[?&]xtcapm=([0-9.]+)/.exec(location.search); return m? +m[1] : 2.0; })();
@@ -3742,7 +3745,31 @@ function driveAuto(dt){
   window.__daDelta = delta;   // u_5753: follower's own delta (rad), same tick, pre-clamp
   if(window.__lblChk){ (window.__lblLog=window.__lblLog||[]).push([+delta.toFixed(5), +(delta/maxSteer).toFixed(5), +(auto.xt||0).toFixed(3), +me.v.toFixed(2)]);
     if(window.__lblLog.length>20000) window.__lblLog.shift(); }
+  /* ★u_5803 HEADING TERM (owner u_5800: a driver unwinds by watching the ANGLE of the lane ahead,
+     not a lateral distance). Our stack commands a lateral offset and derives steer from it; epsi is
+     now a trained output (u_5802: 2.749deg -> 1.570deg), so it can steer directly.
+       ?head=exit  : active only in the UNWIND phase (past the turn vertex) - __rfRampT is set at
+                     vertex passage, which is exactly 'past the vertex, |steer| falling'.
+       ?head=all   : active every frame (the owner's model: angle is the reference throughout).
+       ?headk=<g>  : gain, default 0.6.  steer += k * epsi_error, epsi from /tel geo (model or rule).
+     __headOnN / __headFrames log when it actually fired, so the A/B is attributable. */
   { let _st=Math.max(-.9,Math.min(.9, delta/maxSteer));
+    if(window.__headMode){
+      const _inExit = !!(window.__rfRampT && (performance.now()-window.__rfRampT) < 2500);
+      const _act = (window.__headMode==='all') || (window.__headMode==='exit' && _inExit);
+      if(_act){
+        let _ep=null;
+        try{ const _g=(window.__mdlTgt&&window.__mdlTgt.geo)||null; if(_g&&typeof _g[1]==='number') _ep=_g[1]; }catch(e){}
+        if(_ep===null){ try{ const _n=(typeof routeSeg==='function'?routeSeg(me.x,me.y):null)||nearestSeg(me.x,me.y);
+          if(_n){ const _sg=_n.s; const _d0=((me.ang-_sg.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+            _ep=(Math.abs(_d0)<=Math.PI/2)?_d0:(_d0>0?_d0-Math.PI:_d0+Math.PI); } }catch(e){} }
+        if(typeof _ep==='number' && isFinite(_ep)){
+          const _k=(window.__headK===undefined?0.6:window.__headK);
+          _st=Math.max(-.9,Math.min(.9, _st - _k*(_ep/maxSteer)));   // drive heading error to zero
+          window.__headFrames=(window.__headFrames|0)+1; window.__headOnN=1;
+        }
+      }
+    }
     if(!window.__noRamp && window.__rfRampT && (performance.now()-window.__rfRampT)<2000){ const _lim=window.__rfRampCap*dt; _st=Math.max(me.steer-_lim, Math.min(me.steer+_lim, _st)); }   // 이양/코너 진출 창 2s: 조향 변화율 ≤1.5/s
     /* ★u_5676 UNWIND(오너 모델 '핸들을 되감는다'): 정점 통과 후 일정 시간 동안 조향 '크기'는 줄어들기만 한다.
        부호 반전·재증가 금지. 시간은 속도에 반비례(저속일수록 길게): T = clamp(2.0~3.0s) · (8/max(4,v)).
