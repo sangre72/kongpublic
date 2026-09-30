@@ -131,5 +131,9 @@ end tell
 EOF
 )
 
+# u_5819/u_5823: confirm the inject actually submitted (long text can stick as "[Pasted text]")
+if [[ "$RESULT" == SUCCESS* && -n "$TARGET_TTY" ]]; then
+  RESULT="$RESULT $(bash "$(dirname "$0")/wake_verify_submit.sh" "$TARGET_TTY")"
+fi
 echo "$RESULT"
 [[ "$RESULT" == SUCCESS* ]]

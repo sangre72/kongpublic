@@ -85,6 +85,10 @@ end tell
 EOF
 )
 
+# u_5819/u_5823: confirm the inject actually submitted (long text can stick as "[Pasted text]")
+if [[ "$RESULT" == SUCCESS* && -n "$TARGET_TTY" ]]; then
+  RESULT="$RESULT $(bash "$(dirname "$0")/wake_verify_submit.sh" "$TARGET_TTY")"
+fi
 echo "$RESULT"
 echo "$(date "+%F %T") tty=$TARGET_TTY $RESULT :: ${MSG:0:80}" >> "$REPO_ROOT/logs/wake_self.log"
 [[ "$RESULT" == SUCCESS* ]]
