@@ -9,3 +9,7 @@ data/final_uniq/
 data/ode_*/
 data/seoul_nd/
 data/seoul_w/
+
+# u_5835 (2026-09-30): 학습 배열(.npy)은 저장소에 넣지 않는다 — 29.8GB 가 커밋돼 푸시가 거부됐다(최대 167MB > GitHub 100MB)
+data/*.npy
+data/**/*.npy
