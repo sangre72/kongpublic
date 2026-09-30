@@ -9,7 +9,7 @@ prompt_line() {
 tell application "Terminal"
   repeat with w in windows
     repeat with t in tabs of w
-      if (tty of t) is "$TTY" then return (contents of t)
+      if (tty of t) is "$TTY" then return (history of t)
     end repeat
   end repeat
 end tell
@@ -18,11 +18,16 @@ EOF2
 # u_5826: a single empty read at 1.5s is not proof — the TUI can render the inject late. Require two
 # consecutive empty reads; every non-empty read re-sends Enter. All outcomes logged for diagnosis.
 LOG="$(cd "$(dirname "$0")/../../.." && pwd)/logs/wake_verify.log"
-empty=0; sent=0
+empty=0; sent=0; qflush=0
 for i in 1 2 3 4 5; do
   sleep 1.5
   L=$(prompt_line)
   body=$(printf '%s' "${L#❯}" | sed 's/[[:space:]]*$//; s/^[[:space:]]*//')
+  # queued hint = message parked in the TUI queue; observed 22:04 it was NOT flushed when the session
+  # went idle (delivered only with the next submit). One extra Enter flushes it; harmless if busy.
+  if [[ "$body" == "Press up to edit queued messages"* && $qflush -eq 0 ]]; then
+    qflush=1; body="QUEUED"
+  fi
   if [[ -z "$body" || "$body" == "Press up to edit queued messages"* ]]; then
     empty=$((empty+1))
     if [[ $empty -ge 2 ]]; then
