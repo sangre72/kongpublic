@@ -23,13 +23,16 @@ def holdout_mask(Q):
     for hx, hy in H:
         d = np.minimum(d, np.hypot(x - (hx * 1000 + 500), y - (hy * 1000 + 500)))
     return d >= R
+# a_5818: lane-centre look-ahead cap. 20m suits map lanes; on a 90deg course turn lc40 is 20-30m, and the
+#   cap silently dropped 1386/4567 frames = every turn/exit frame. GEO_LC_MAX raises it; default unchanged.
+LC_MAX = float(os.environ.get('GEO_LC_MAX', '20'))
 def load(dirs):
     plan = []
     for d in dirs:
         try: X = np.load(f'{d}/X.npy', mmap_mode='r'); Yf = np.load(f'{d}/Y.npy').astype(np.float32); L = np.load(f'{d}/L.npy').astype(np.float32); Q = np.load(f'{d}/Q.npy')
         except Exception as e: print(json.dumps({'skip': d, 'why': str(e)[:60]}), flush=True); continue
         if L.shape[1] < 12 or not (len(X) == len(Yf) == len(L) == len(Q)): print(json.dumps({'skip': d, 'why': 'shape'}), flush=True); continue
-        ok = (L[:, 11] > 0) & np.isfinite(L[:, :11]).all(1) & (Yf[:, 3] > 1.0) & (np.abs(L[:, 0]) <= 2.5) & (np.abs(L[:, 1]) <= 0.7) & (np.abs(L[:, 3:6]) <= 20).all(1)
+        ok = (L[:, 11] > 0) & np.isfinite(L[:, :11]).all(1) & (Yf[:, 3] > 1.0) & (np.abs(L[:, 0]) <= 2.5) & (np.abs(L[:, 1]) <= 0.7) & (np.abs(L[:, 3:6]) <= LC_MAX).all(1)
         ok &= holdout_mask(Q)
         ev = np.where((np.diff(Q[:, 1]) > 0) | (np.diff(Q[:, 2]) > 0))[0] + 1
         for e in ev: ok &= ~(np.abs(Q[:, 3] - Q[e, 3]) <= 3.0)

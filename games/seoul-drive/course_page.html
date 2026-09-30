@@ -24,11 +24,39 @@ window.__parked=0;
 </script>
 <script src="course.js"></script>
 <script>
+/* a_5818 RECOVERY DEMOS: ?poff=<m> shifts the start pose sideways (+ = right), ?phd=<deg> rotates
+   it (+ = clockwise). The rule demonstrates coming back - BC never saw recovery otherwise. */
+(function(){
+  const q=new URLSearchParams(location.search), off=parseFloat(q.get('poff')||'0'), hd=parseFloat(q.get('phd')||'0');
+  if(!window.__courseStart || (!off && !hd)) return;
+  const base=window.__courseStart;
+  window.__courseStart=function(){ base();
+    me.x += -Math.sin(me.ang)*off*S; me.y += Math.cos(me.ang)*off*S; me.ang += hd*Math.PI/180;
+    window.__pert={off:off,hd:hd}; };
+})();
+</script>
+<script>
 /* Pure-Pursuit follower — the SAME control law as the main page (game.js):
      delta = atan2(2*wb*sin(alpha), Ld), st = clamp(delta/maxSteer)
    so the rule baseline on this page is comparable to the rule elsewhere. */
 function follow(dt){
   if(!auto.on || !auto.wp.length) return;
+  /* a_5818: stop once the course is judged, so collection/test frames end with the run. */
+  const _c=window.__course||{};
+  if(_c.done){ me.steer=0; me.v += (0-me.v)*Math.min(1, dt*3); window.__drv='DONE'; return; }
+  /* a_5818 MODEL mode (same contract as the main page mode 2): the model sends a look-ahead point
+     in the car frame (ld metres ahead, lp metres to the right). Steering is the same pursuit law.
+     Ignored when the command is stale (>400ms), so a dead driver falls back to the rule, visibly. */
+  if(CMD.on && CMD.mode===2 && CMD.age<=400){
+    const ld=Math.max(2,CMD.ld), lp=CMD.lp, a=Math.atan2(lp,ld), Lr=Math.hypot(ld,lp);
+    me.steer=Math.max(-0.9,Math.min(0.9, Math.atan2(2*WB*Math.sin(a), Lr)/MAXSTEER));
+    const vT = CMD.vT>=0 ? CMD.vT : 8.0; me.v += (vT-me.v)*Math.min(1, dt*1.5);
+    window.__drv='MODEL'; window.__modelFrames=(window.__modelFrames|0)+1; return;
+  }
+  /* ?wait=1 (model test): never let the RULE drive. Without a fresh model command the car brakes
+     and reports DRV=WAIT, so a model run is 100% model or visibly stalled - never silently rule. */
+  if(WAITM){ me.steer=0; me.v += (0-me.v)*Math.min(1, dt*3); window.__drv='WAIT'; window.__waitFrames=(window.__waitFrames|0)+1; return; }
+  window.__drv='RULE';
   const Ld = Math.max(6, Math.min(16, 0.9*me.v));
   while(auto.i < auto.wp.length-1){
     const w=auto.wp[auto.i], d=Math.hypot(w.x-me.x, w.y-me.y)/S;
@@ -64,19 +92,49 @@ function nearestSegAngle(){
 const q=new URLSearchParams(location.search);
 const HEAD = (q.get('head')||'all')!=='none';
 const HEADK = parseFloat(q.get('headk')||'0.6');
+const WAITM = q.get('wait')==='1';
 
 /* /ctl contract, same as the main page: GET returns the command, ?tel= uploads telemetry. */
-const CMD={on:0,vT:-1,mode:0};
+const CMD={on:0,vT:-1,mode:0,lp:0,ld:10,age:999999};
+const LOAD_ID=Date.now();
+/* a_5818 GEOMETRY LABELS (train_geo 12-col schema, +right / +clockwise):
+   [ey, epsi, k0, lc10, lc20, lc40, li, nl, lw, dl, dr, valid]
+   ey   = car centre's signed offset from the course centreline (m, + = right of path)
+   epsi = car heading minus path heading (rad, + = pointing right of path)
+   lcN  = lateral position (car frame, + = right) of the centreline point N metres further along
+   Past the end the path is extended straight along its last heading. Truth from course.js points,
+   used ONLY as training labels - the model sees pixels. */
+function geoLabel(){
+  const P=window.__coursePts; if(!P||P.length<3) return null;
+  const mx=me.x/S,my=me.y/S; let bi=0,bd=1e18;
+  for(let i=0;i<P.length;i++){ const dx=mx-P[i].x,dy=my-P[i].y,d=dx*dx+dy*dy; if(d<bd){bd=d;bi=i;} }
+  const ang=i=>{ const a=P[Math.max(0,Math.min(P.length-2,i))], b=P[Math.max(1,Math.min(P.length-1,i+1))]; return Math.atan2(b.y-a.y,b.x-a.x); };
+  const wrap=x=>Math.atan2(Math.sin(x),Math.cos(x));
+  const h=ang(bi), p=P[bi];
+  const ey=(mx-p.x)*(-Math.sin(h))+(my-p.y)*Math.cos(h);
+  const epsi=wrap(me.ang-h);
+  const k0=wrap(ang(bi+2)-ang(bi-2))/2.0;          // 4 steps of 0.5m = 2m
+  const at=s=>{ const j=bi+Math.round(s/0.5), L=P.length-1;
+    if(j<=L) return P[j];
+    const hl=ang(L-1), ex=(j-L)*0.5; return {x:P[L].x+Math.cos(hl)*ex, y:P[L].y+Math.sin(hl)*ex}; };
+  const lat=q=>{ const dx=q.x-mx, dy=q.y-my; return dx*(-Math.sin(me.ang))+dy*Math.cos(me.ang); };
+  const W=(window.__courseCfg||{}).width||6, H=W/2;
+  const r=x=>+x.toFixed(4);
+  return [r(ey),r(epsi),r(k0),r(lat(at(10))),r(lat(at(20))),r(lat(at(40))),0,1,W,r(H+ey),r(H-ey),1];
+}
 let telT=0;
 function poll(){
   const c=window.__course||{};
   const tel={ v:me.v, st:me.steer, autoOn:auto.on|0, parked:window.__parked|0,
               wpLen:auto.wp.length, pos:[+(me.x/S).toFixed(1),+(me.y/S).toFixed(1)],
               course:c, headMode:HEAD?'all':null, headFrames:window.__headFrames|0,
-              prog:c.progress||0 };
+              prog:c.progress||0, drv:window.__drv||null, modelFrames:window.__modelFrames|0, waitFrames:window.__waitFrames|0,
+              geo:geoLabel(), pert:window.__pert||null, loadId:LOAD_ID };
   fetch('/ctl?tel='+encodeURIComponent(JSON.stringify(tel)),{cache:'no-store'})
     .then(r=>r.json()).then(d=>{ if(d){ CMD.on=d.on|0; CMD.vT=(typeof d.vT==='number')?d.vT:-1;
-      if(typeof d.lp==='number') CMD.lp=d.lp; } }).catch(()=>{});
+      if(typeof d.lp==='number') CMD.lp=d.lp; CMD.ld=(typeof d.ld==='number')?d.ld:10;
+      CMD.mode=(typeof d.mode==='number')?d.mode:1; CMD.age=(typeof d.age_ms==='number')?d.age_ms:999999;
+      window.__pushOn=d.push|0; } }).catch(()=>{});
 }
 setInterval(poll, 50);
 
@@ -88,6 +146,7 @@ function loop(){
   me.x += Math.cos(me.ang)*me.v*S*dt; me.y += Math.sin(me.ang)*me.v*S*dt;
   if(window.__courseTick) window.__courseTick();
   draw();
+  pushFrame(now);
   requestAnimationFrame(loop);
 }
 function draw(){
@@ -104,8 +163,23 @@ function draw(){
   document.getElementById('hud').textContent =
     'course '+(c.cfg?('turn '+c.cfg.turn+c.cfg.dir+' R'+c.cfg.radius+' w'+c.cfg.width):'-')+
     '\nt '+(c.elapsed||0).toFixed(1)+'s  prog '+((c.progress||0)*100).toFixed(0)+'%  v '+(me.v*3.6).toFixed(1)+'km/h'+
-    '\ntouch '+(c.touchN||0)+'  result '+(c.result||'-')+
+    '\nDRV '+(window.__drv||'-')+'  touch '+(c.touchN||0)+'  result '+(c.result||'-')+
     '\n'+Object.keys(e).map(k=>k+':'+(e[k].seen?(e[k].touch?'touch'+e[k].touch:'ok'):'-')).join('  ');
+}
+/* a_5818 frame push: canvas JPEG + the SAME instant's labels in X-Lbl (exact frame/label sync,
+   same mechanism as game.js). Only while a consumer reads /frame (server push=1). */
+function pushFrame(t){
+  if(!window.__pushOn || window.__pushBusy || (t-(window.__pushT||0))<66) return;
+  try{
+    window.__pushBusy=1; window.__pushT=t;
+    const du=cv.toDataURL('image/jpeg',0.85), bin=atob(du.slice(du.indexOf(',')+1)), u8=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+    const c=window.__course||{};
+    const lbl=JSON.stringify({geo:geoLabel(), v:+me.v.toFixed(3), st:+me.steer.toFixed(4), drv:window.__drv||null,
+      pos:[+(me.x/S).toFixed(2),+(me.y/S).toFixed(2)], done:c.done|0, lid:LOAD_ID, prog:c.progress||0, touch:c.touchN|0, el:+(c.elapsed||0).toFixed(3)});
+    fetch('/frame',{method:'POST',body:u8,cache:'no-store',headers:{'Content-Type':'image/jpeg','X-Lbl':lbl}})
+      .catch(()=>{}).finally(()=>{ window.__pushBusy=0; });
+  }catch(e){ window.__pushBusy=0; }
 }
 requestAnimationFrame(loop);
 </script></body></html>
